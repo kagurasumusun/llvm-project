@@ -1,0 +1,216 @@
+name: Manual SSH Debug Only optimized
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ssh-only:
+    runs-on: macos-latest
+    timeout-minutes: 360
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+
+
+      - name: Setup git and environment
+        run: |
+          git config user.email "metal@linux.compiler"
+          git config user.name "Metal Linux Compiler"
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+
+          mkdir -p /tmp/logs .upterm_info
+
+          echo "Session started at $(date) by $GITHUB_ACTOR" | tee /tmp/session_start.txt .upterm_info/session.txt
+
+
+          cat > /tmp/keepalive.sh <<'EOS'
+          #!/bin/bash
+
+          set -e
+
+          WORKSPACE=${GITHUB_WORKSPACE:-$HOME/work/llvm-project/llvm-project}
+
+          cd "$WORKSPACE" 2>/dev/null || \
+          cd /Users/runner/work/llvm-project/llvm-project 2>/dev/null || true
+
+
+          while true; do
+
+            echo "[keepalive] $(date) - uptime: $(uptime | cut -d',' -f1) - clang build: $(ps aux | grep -c ninja) ninja processes"
+
+            date > /tmp/keepalive.txt
+
+
+            MINUTE=$(date +%M)
+
+            if [ $((10#${MINUTE} % 15)) -eq 0 ]; then
+
+              echo "[auto-push] Checking for changes..."
+
+
+              if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+
+                git add -A 2>/dev/null || true
+
+                git commit \
+                  -m "auto: keepalive push $(date -u)" \
+                  2>/dev/null || true
+
+
+                git push origin metal \
+                  2>/dev/null || echo "push metal failed, will retry"
+
+              fi
+
+            fi
+
+
+            sleep 300
+
+          done
+          EOS
+
+
+          chmod +x /tmp/keepalive.sh
+
+
+          nohup /tmp/keepalive.sh \
+          > /tmp/keepalive.log 2>&1 &
+
+
+          echo "Keepalive started PID $! - logs at /tmp/keepalive.log"
+
+
+
+      - name: Setup tmux and stabilization for no-timeout
+        run: |
+
+          cat > ~/.tmux.conf <<'TMUX'
+
+          set -g history-limit 100000
+          set -g display-time 4000
+          set -g status-interval 5
+          set -g mouse off
+
+          set-option -g destroy-unattached off
+          set-option -g detach-on-destroy off
+
+          set -g escape-time 0
+          set -g focus-events on
+
+          TMUX
+
+
+          sudo sysctl -w kern.maxfiles=65536 \
+          2>/dev/null || \
+          sysctl -w kern.maxfiles=65536 \
+          2>/dev/null || true
+
+
+          sudo sysctl -w kern.maxfilesperproc=32768 \
+          2>/dev/null || true
+
+
+          caffeinate -dims -w $$ &
+
+
+          echo "Stabilization setup done"
+
+
+
+      - name: Pre-warm and cache
+        run: |
+
+          mkdir -p build
+
+
+          echo "GITHUB_RUN_ID=$GITHUB_RUN_ID" \
+          > .upterm_info/run.txt
+
+
+          echo "GITHUB_RUN_NUMBER=$GITHUB_RUN_NUMBER" \
+          >> .upterm_info/run.txt
+
+
+          date >> .upterm_info/run.txt
+
+
+
+      - name: Start SSH Session with extended wait
+        uses: owenthereal/action-upterm@v1
+        with:
+
+          wait-timeout-minutes: 350
+
+          upterm-version: v0.22.0
+
+          limit-access-to-actor: false
+      - name: Auto push on session end (always)
+        if: always()
+        run: |
+
+          echo "=== Session ending at $(date) ==="
+
+
+          cd $GITHUB_WORKSPACE 2>/dev/null || \
+          cd /Users/runner/work/llvm-project/llvm-project
+
+
+          # Save logs
+
+          cp /tmp/clang_build.txt \
+          ./clang_build_final.txt \
+          2>/dev/null || true
+
+
+          cp /tmp/keepalive.log \
+          ./keepalive_final.log \
+          2>/dev/null || true
+
+
+          ls -lh *.txt *.log \
+          2>/dev/null | head -n 20
+
+
+
+          # Commit and push metal branch
+
+          git add -A \
+          2>/dev/null || true
+
+
+          git commit \
+          -m "auto: session end push $(date -u) - clang build may be in progress" \
+          2>/dev/null || true
+
+
+          git push origin metal \
+          2>/dev/null || echo "push metal failed at end"
+
+
+
+          echo "=== Auto push completed ==="
+
+
+          echo "To start next session, manually run workflow_dispatch again"
+
+
+
+      - name: Final keepalive info
+        if: always()
+        run: |
+
+          cat /tmp/keepalive.log \
+          2>/dev/null | tail -n 50 || true
+
+
+          cat /tmp/session_start.txt \
+          2>/dev/null || true
