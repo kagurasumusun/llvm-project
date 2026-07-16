@@ -2957,6 +2957,9 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
     case Language::HIP:
       Lang = "hip";
       break;
+    case Language::Metal:
+      Lang = "metal";
+      break;
     case Language::CXX:
       Lang = "c++";
       break;
@@ -3661,6 +3664,8 @@ static StringRef GetInputKindName(InputKind IK) {
     return "CUDA";
   case Language::HIP:
     return "HIP";
+  case Language::Metal:
+    return "Metal";
 
   case Language::Asm:
     return "Asm";
