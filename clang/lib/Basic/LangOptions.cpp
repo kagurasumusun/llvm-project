@@ -138,6 +138,11 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
     // Set maximum matrix dimension to 4 for HLSL
     Opts.MaxMatrixDimension = 4;
   }
+  Opts.Metal = Lang == Language::Metal;
+  if (Opts.Metal) {
+    // Set maximum matrix dimension to 4 for Metal
+    Opts.MaxMatrixDimension = 4;
+  }
 
   // Set OpenCL Version.
   Opts.OpenCL = Std.isOpenCL();
@@ -169,6 +174,28 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
     Opts.HLSLVersion = (unsigned)LangOptions::HLSL_202x;
   else if (LangStd == LangStandard::lang_hlsl202y)
     Opts.HLSLVersion = (unsigned)LangOptions::HLSL_202y;
+  else if (LangStd == LangStandard::lang_metal || LangStd == LangStandard::lang_metal1_2)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_1_2;
+  else if (LangStd == LangStandard::lang_metal2_0)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_2_0;
+  else if (LangStd == LangStandard::lang_metal2_1)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_2_1;
+  else if (LangStd == LangStandard::lang_metal2_2)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_2_2;
+  else if (LangStd == LangStandard::lang_metal2_3)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_2_3;
+  else if (LangStd == LangStandard::lang_metal2_4)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_2_4;
+  else if (LangStd == LangStandard::lang_metal3_0)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_3_0;
+  else if (LangStd == LangStandard::lang_metal3_1)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_3_1;
+  else if (LangStd == LangStandard::lang_metal3_2)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_3_2;
+  else if (LangStd == LangStandard::lang_metal4_0)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_4_0;
+  else if (LangStd == LangStandard::lang_metal4_1)
+    Opts.MetalVersion = (unsigned)LangOptions::Metal_4_1;
 
   // OpenCL has some additional defaults.
   if (Opts.OpenCL) {
@@ -214,10 +241,10 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
   // OpenCL, C++ and C23 have bool, true, false keywords.
   Opts.Bool = Opts.OpenCL || Opts.CPlusPlus || Opts.C23;
 
-  // OpenCL and HLSL have half keyword
-  Opts.Half = Opts.OpenCL || Opts.HLSL;
+  // OpenCL, HLSL and Metal have half keyword
+  Opts.Half = Opts.OpenCL || Opts.HLSL || Opts.Metal;
 
-  Opts.PreserveVec3Type = Opts.HLSL;
+  Opts.PreserveVec3Type = Opts.HLSL || Opts.Metal;
 }
 
 FPOptions FPOptions::defaultWithoutTrailingStorage(const LangOptions &LO) {

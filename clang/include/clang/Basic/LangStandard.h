@@ -41,6 +41,7 @@ enum class Language : uint8_t {
   CUDA,
   HIP,
   HLSL,
+  Metal,
   ///@}
 };
 StringRef languageToString(Language L);
@@ -63,7 +64,8 @@ enum LangFeatures {
   GNUMode = (1 << 14),
   HexFloat = (1 << 15),
   OpenCL = (1 << 16),
-  HLSL = (1 << 17)
+  HLSL = (1 << 17),
+  Metal = (1 << 18)
 };
 
 /// LangStandard - Information about the properties of a particular language
@@ -152,8 +154,15 @@ public:
   /// isOpenCL - Language is a OpenCL variant.
   bool isOpenCL() const { return Flags & OpenCL; }
 
+  /// isHLSL - Language is a HLSL variant.
+  bool isHLSL() const { return Flags & HLSL; }
+
+  /// isMetal - Language is a Metal variant.
+  bool isMetal() const { return Flags & Metal; }
+
   static Kind getLangKind(StringRef Name);
   static Kind getHLSLLangKind(StringRef Name);
+  static Kind getMetalLangKind(StringRef Name);
   static const LangStandard &getLangStandardForKind(Kind K);
   static const LangStandard *getLangStandardForName(StringRef Name);
 };

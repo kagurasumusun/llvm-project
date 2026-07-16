@@ -35,6 +35,8 @@ InputKind FrontendOptions::getInputKindForExtension(StringRef Extension) {
       .Case("hip", Language::HIP)
       .Cases({"ll", "bc"}, Language::LLVM_IR)
       .Case("hlsl", Language::HLSL)
+      .Case("metal", Language::Metal)
+      .Case("metali", InputKind(Language::Metal).getPreprocessed())
       .Case("cir", Language::CIR)
       .Default(Language::Unknown);
 }

@@ -185,6 +185,21 @@ public:
     HLSL_202y = 2029,
   };
 
+  enum MetalLangStd {
+    Metal_Unset = 0,
+    Metal_1_2 = 12,
+    Metal_2_0 = 20,
+    Metal_2_1 = 21,
+    Metal_2_2 = 22,
+    Metal_2_3 = 23,
+    Metal_2_4 = 24,
+    Metal_3_0 = 30,
+    Metal_3_1 = 31,
+    Metal_3_2 = 32,
+    Metal_4_0 = 40,
+    Metal_4_1 = 41,
+  };
+
   /// Clang versions with different platform ABI conformance.
   enum class ClangABI {
 #define ABI_VER_MAJOR_MINOR(Major, Minor) Ver##Major##_##Minor,
@@ -726,6 +741,7 @@ public:
   }
 
   bool isSYCL() const { return SYCLIsDevice || SYCLIsHost; }
+  bool isMetal() const { return Metal; }
 
   bool hasDefaultVisibilityExportMapping() const {
     return getDefaultVisibilityExportMapping() !=
@@ -762,7 +778,7 @@ public:
            VisibilityForcedKinds::ForceHidden;
   }
 
-  bool allowArrayReturnTypes() const { return HLSL; }
+  bool allowArrayReturnTypes() const { return HLSL || Metal; }
 
   /// Remap path prefix according to -fmacro-prefix-path option.
   void remapPathPrefix(SmallVectorImpl<char> &Path) const;

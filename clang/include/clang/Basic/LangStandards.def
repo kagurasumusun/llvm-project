@@ -263,6 +263,44 @@ LANGSTANDARD(hlsl202y, "hlsl202y",
              HLSL, "High Level Shader Language 202y",
              LineComment | HLSL | CPlusPlus | CPlusPlus11, std::nullopt)
 
+// Metal
+LANGSTANDARD(metal, "metal",
+             Metal, "Metal Shading Language",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14, std::nullopt)
+LANGSTANDARD(metal1_2, "metal1.2",
+             Metal, "Metal Shading Language 1.2",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14, std::nullopt)
+LANGSTANDARD(metal2_0, "metal2.0",
+             Metal, "Metal Shading Language 2.0",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14, std::nullopt)
+LANGSTANDARD(metal2_1, "metal2.1",
+             Metal, "Metal Shading Language 2.1",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14, std::nullopt)
+LANGSTANDARD(metal2_2, "metal2.2",
+             Metal, "Metal Shading Language 2.2",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14, std::nullopt)
+LANGSTANDARD(metal2_3, "metal2.3",
+             Metal, "Metal Shading Language 2.3",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14, std::nullopt)
+LANGSTANDARD(metal2_4, "metal2.4",
+             Metal, "Metal Shading Language 2.4",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14, std::nullopt)
+LANGSTANDARD(metal3_0, "metal3.0",
+             Metal, "Metal Shading Language 3.0",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17, std::nullopt)
+LANGSTANDARD(metal3_1, "metal3.1",
+             Metal, "Metal Shading Language 3.1",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17, std::nullopt)
+LANGSTANDARD(metal3_2, "metal3.2",
+             Metal, "Metal Shading Language 3.2",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17, std::nullopt)
+LANGSTANDARD(metal4_0, "metal4.0",
+             Metal, "Metal Shading Language 4.0",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 | CPlusPlus20, std::nullopt)
+LANGSTANDARD(metal4_1, "metal4.1",
+             Metal, "Metal Shading Language 4.1",
+             LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 | CPlusPlus20, std::nullopt)
+
 
 #undef LANGSTANDARD
 #undef LANGSTANDARD_ALIAS

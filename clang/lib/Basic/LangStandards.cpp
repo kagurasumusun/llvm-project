@@ -41,6 +41,8 @@ StringRef clang::languageToString(Language L) {
     return "HIP";
   case Language::HLSL:
     return "HLSL";
+  case Language::Metal:
+    return "Metal";
   }
 
   llvm_unreachable("unhandled language kind");
@@ -83,6 +85,22 @@ LangStandard::Kind LangStandard::getHLSLLangKind(StringRef Name) {
       .Default(LangStandard::lang_unspecified);
 }
 
+LangStandard::Kind LangStandard::getMetalLangKind(StringRef Name) {
+  return llvm::StringSwitch<LangStandard::Kind>(Name)
+      .Case("1.2", LangStandard::lang_metal1_2)
+      .Case("2.0", LangStandard::lang_metal2_0)
+      .Case("2.1", LangStandard::lang_metal2_1)
+      .Case("2.2", LangStandard::lang_metal2_2)
+      .Case("2.3", LangStandard::lang_metal2_3)
+      .Case("2.4", LangStandard::lang_metal2_4)
+      .Case("3.0", LangStandard::lang_metal3_0)
+      .Case("3.1", LangStandard::lang_metal3_1)
+      .Case("3.2", LangStandard::lang_metal3_2)
+      .Case("4.0", LangStandard::lang_metal4_0)
+      .Case("4.1", LangStandard::lang_metal4_1)
+      .Default(LangStandard::lang_unspecified);
+}
+
 const LangStandard *LangStandard::getLangStandardForName(StringRef Name) {
   Kind K = getLangKind(Name);
   if (K == lang_unspecified)
@@ -117,6 +135,8 @@ LangStandard::Kind clang::getDefaultLanguageStandard(clang::Language Lang,
     return LangStandard::lang_gnucxx17;
   case Language::HLSL:
     return LangStandard::lang_hlsl202x;
+  case Language::Metal:
+    return LangStandard::lang_metal3_1;
   }
   llvm_unreachable("unhandled Language kind!");
 }
