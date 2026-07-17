@@ -33,8 +33,56 @@ jobs:
         run: |
           brew install ccache ninja
 
-      - name: Start SSH Session
+      - name: Prepare Clean Metal SDK
+        run: |
+          mkdir -p /tmp/clean_metal_sdk
+          cp -R clean_metal_sdk/* /tmp/clean_metal_sdk/
+
+      - name: Configure CMake
+        run: |
+          mkdir -p build
+          cmake -G Ninja -S llvm -B build \
+            -DLLVM_ENABLE_PROJECTS="clang" \
+            -DLLVM_ENABLE_RUNTIMES="metal_rt" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_CCACHE_BUILD=ON
+
+      - name: Build Clang, LLVM-Metallib & Metal Runtimes
+        run: |
+          ninja -C build clang llvm-metallib metal_rt air_rt resource_tracking_rt shader_logging_rt raytracing_rt post_mesh_dump_rt
+
+      - name: Run Master C++ Pipeline Verification
+        run: |
+          chmod +x run_cpp_master_verification.sh
+          ./run_cpp_master_verification.sh
+
+      - name: Run Metal Advanced Features Verification
+        run: |
+          chmod +x run_metal_advanced_features.sh
+          ./run_metal_advanced_features.sh
+
+      - name: Run Metal Complete Spec Verification
+        run: |
+          chmod +x run_metal_complete_spec.sh
+          ./run_metal_complete_spec.sh
+
+      - name: Run Metal Mutability and Host Name Verification
+        run: |
+          chmod +x run_metal_mutability_and_host_name.sh
+          ./run_metal_mutability_and_host_name.sh
+
+      - name: Run Metal Tests
+        run: |
+          chmod +x run_metal_tests.sh
+          ./run_metal_tests.sh
+
+      - name: Run Apple Official SDK Verification
+        run: |
+          chmod +x run_apple_official_sdk_test.sh
+          ./run_apple_official_sdk_test.sh
+
+      - name: Start SSH Session (Fallback / Debug)
         uses: owenthereal/action-upterm@v1
         if: always()
         with:
-          wait-timeout-minutes: 360
+          wait-timeout-minutes: 60

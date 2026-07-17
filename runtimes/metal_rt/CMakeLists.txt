@@ -1,30 +1,115 @@
 #===-- runtimes/metal_rt/CMakeLists.txt - Metal Runtime Build Setup -----===#
 #
-# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-# Builds native static/runtime libraries for Metal substitute runtime:
-#   - libmetal_rt.a
-#   - libair_rt.rtlib
-#   - libresource_tracking_rt.rtlib
+# Builds 100% clean-room native replacements for Metal platform SDK libraries:
+#   - libmetal_rt_*.a
+#   - libair_rt_*.rtlib
+#   - libresource_tracking_rt_*.rtlib
 #   - MTLShaderLoggingRuntime.rtlib
+#   - MTLRaytracingRuntime.rtlib
+#   - libpost_mesh_dump_rt_*.rtlib
 #
 #===----------------------------------------------------------------------===#
 
-add_library(metal_rt STATIC
-  src/metal_runtime.cpp
-)
+cmake_minimum_required(VERSION 3.20.0)
 
+# 1. metal_rt target
+add_library(metal_rt STATIC src/metal_runtime.cpp)
 target_include_directories(metal_rt PUBLIC include)
+set_target_properties(metal_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-set_target_properties(metal_rt PROPERTIES
-  OUTPUT_NAME "metal_rt"
-  POSITION_INDEPENDENT_CODE ON
+# 2. air_rt target
+add_library(air_rt STATIC src/air_rt.cpp)
+target_include_directories(air_rt PUBLIC include)
+set_target_properties(air_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# 3. resource_tracking_rt target
+add_library(resource_tracking_rt STATIC src/resource_tracking_rt.cpp)
+target_include_directories(resource_tracking_rt PUBLIC include)
+set_target_properties(resource_tracking_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# 4. shader_logging_rt target
+add_library(shader_logging_rt STATIC src/shader_logging_rt.cpp)
+target_include_directories(shader_logging_rt PUBLIC include)
+set_target_properties(shader_logging_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# 5. raytracing_rt target
+add_library(raytracing_rt STATIC src/raytracing_rt.cpp)
+target_include_directories(raytracing_rt PUBLIC include)
+set_target_properties(raytracing_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# 6. post_mesh_dump_rt target
+add_library(post_mesh_dump_rt STATIC src/post_mesh_dump_rt.cpp)
+target_include_directories(post_mesh_dump_rt PUBLIC include)
+set_target_properties(post_mesh_dump_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+
+# Custom post-build commands to copy all files to ${CMAKE_BINARY_DIR}/lib with exact official names
+add_custom_command(TARGET metal_rt POST_BUILD
+  # Copy metal_rt variants
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_osx.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_ios.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_iossim.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_iosmac.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_tvos.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_tvossim.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_watchos.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_watchossim.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_xros.a"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_xrossim.a"
+  COMMENT "Copying libmetal_rt replacement libraries..."
 )
 
-# Custom rule to create alias runtime libraries for compatibility
-add_custom_command(TARGET metal_rt POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libmetal_rt_osx.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_osx.rtlib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_osx.rtlib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:metal_rt> "${CMAKE_BINARY_DIR}/lib/MTLShaderLoggingRuntime.rtlib"
-  COMMENT "Copying Metal Runtime alternative libraries to build/lib/"
+add_custom_command(TARGET air_rt POST_BUILD
+  # Copy air_rt variants
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_osx.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_ios.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_iossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_iosmac.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_tvos.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_tvossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_watchos.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_watchossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_xros.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:air_rt> "${CMAKE_BINARY_DIR}/lib/libair_rt_xrossim.rtlib"
+  COMMENT "Copying libair_rt replacement libraries..."
+)
+
+add_custom_command(TARGET resource_tracking_rt POST_BUILD
+  # Copy resource_tracking_rt variants
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_osx.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_ios.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_iossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_iosmac.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_tvos.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_tvossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_watchos.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_watchossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_xros.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:resource_tracking_rt> "${CMAKE_BINARY_DIR}/lib/libresource_tracking_rt_xrossim.rtlib"
+  COMMENT "Copying libresource_tracking_rt replacement libraries..."
+)
+
+add_custom_command(TARGET shader_logging_rt POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:shader_logging_rt> "${CMAKE_BINARY_DIR}/lib/MTLShaderLoggingRuntime.rtlib"
+  COMMENT "Copying MTLShaderLoggingRuntime replacement library..."
+)
+
+add_custom_command(TARGET raytracing_rt POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:raytracing_rt> "${CMAKE_BINARY_DIR}/lib/MTLRaytracingRuntime.rtlib"
+  COMMENT "Copying MTLRaytracingRuntime replacement library..."
+)
+
+add_custom_command(TARGET post_mesh_dump_rt POST_BUILD
+  # Copy post_mesh_dump_rt variants
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_osx.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_ios.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_iossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_iosmac.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_tvos.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_tvossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_watchos.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_watchossim.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_xros.rtlib"
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_xrossim.rtlib"
+  COMMENT "Copying libpost_mesh_dump_rt replacement libraries..."
 )
