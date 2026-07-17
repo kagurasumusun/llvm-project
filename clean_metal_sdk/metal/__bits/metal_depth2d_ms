@@ -1,0 +1,930 @@
+// -*- Metal -*-
+//===-- __bits/metal_depth2d_ms -------------------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __BITS_METAL_DEPTH2D_MS
+#define __BITS_METAL_DEPTH2D_MS
+
+#include <__bits/metal_texture_common>
+
+#if defined(__HAVE_ARRAY__)
+#include <metal_array>
+#endif
+#if defined(__HAVE_IMAGEBLOCKS__)
+#include <metal_imageblocks>
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depth2d_ms_read
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depth2d_ms_read<T, a, c, typename enable_if<_is_valid_read(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depth2d_ms<T, a, c>;
+#else
+  using __derived_t = depth2d_ms<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort sample) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort sample) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint sample) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint sample) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort sample) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort sample) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint sample) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint sample) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort sample) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort sample) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint sample) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint sample) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort sample) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort sample) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint sample) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint sample) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort sample) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort sample) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint sample) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint sample) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort sample) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort sample) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint sample) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint sample) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_ms_t(derived.t, __metal_get_read_sampler(), coord, sample, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depth2d_ms
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depth2d_ms<T, a, c, typename enable_if<is_depth_texture_channel<T>::value && _is_valid_depth_query(a, c)>::type>
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  : _deleted_operators<depth2d_ms<T, a, c>>
+  , _texture_explicit_conversion<c == memory_coherence_device, depth2d_ms<T, a, c>, depth2d_ms<T, a, memory_coherence_threadgroup>>
+  , _texture_implicit_conversion<c == memory_coherence_threadgroup, depth2d_ms<T, a, c>, depth2d_ms<T, a, memory_coherence_device>>
+#else
+  : _deleted_operators<depth2d_ms<T, a>>
+#endif
+  , _depth2d_ms_read<T, a, c>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depth2d_ms<T, a, c>;
+#else
+  using __derived_t = depth2d_ms<T, a>;
+#endif
+
+public:
+  METAL_FUNC uint get_width() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_num_samples_depth_2d_ms_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_num_samples_depth_2d_ms_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC uint get_width() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_width_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_height_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_num_samples_depth_2d_ms_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_num_samples_depth_2d_ms_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC uint get_width() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_num_samples_depth_2d_ms_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC uint get_width() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_ms_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_num_samples_depth_2d_ms_t(derived.t);
+  }
+#endif
+};
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c, typename _Enable>
+struct depth2d_ms : _depth2d_ms<T, a, c>
+#else
+template <typename T, access a, typename _Enable>
+struct depth2d_ms : _depth2d_ms<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_depth_texture_channel<T>::value, "invalid channel type 'T' for 'depth2d_ms'");
+  static_assert(_is_valid_depth_query_access(a), "invalid access value 'a' for 'depth2d_ms'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  depth2d_ms() thread = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  depth2d_ms() constant = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  depth2d_ms() ray_data = delete;
+#endif
+
+  METAL_FUNC depth2d_ms(const thread  depth2d_ms &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const device  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_ms(const device coherent(device) depth2d_ms &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const constant  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const ray_data  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_ms(const object_data  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const thread  depth2d_ms &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const device  depth2d_ms &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_ms(const device coherent(device) depth2d_ms &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const constant  depth2d_ms &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const ray_data  depth2d_ms &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_ms(const object_data  depth2d_ms &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const thread  depth2d_ms &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const device  depth2d_ms &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const device coherent(device) depth2d_ms &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const constant  depth2d_ms &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const ray_data  depth2d_ms &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const object_data  depth2d_ms &) ray_data = default;
+#endif
+#endif
+
+  thread  depth2d_ms &operator=(const thread  depth2d_ms &) thread  = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  depth2d_ms &operator=(const device  depth2d_ms &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  thread  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  depth2d_ms &operator=(const constant  depth2d_ms &) thread  = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  thread  depth2d_ms &operator=(const ray_data  depth2d_ms &) thread  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+  thread  depth2d_ms &operator=(const object_data  depth2d_ms &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depth2d_ms &operator=(const thread  depth2d_ms &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depth2d_ms &operator=(const device  depth2d_ms &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depth2d_ms &operator=(const constant  depth2d_ms &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  device  depth2d_ms &operator=(const ray_data  depth2d_ms &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  device  depth2d_ms &operator=(const object_data  depth2d_ms &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_ms &operator=(const thread  depth2d_ms &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_ms &operator=(const device  depth2d_ms &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_ms &operator=(const device coherent(device) depth2d_ms &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_ms &operator=(const constant  depth2d_ms &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  device coherent(device) depth2d_ms &operator=(const ray_data  depth2d_ms &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  device coherent(device) depth2d_ms &operator=(const object_data  depth2d_ms &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_ms &operator=(const thread  depth2d_ms &) ray_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_ms &operator=(const device  depth2d_ms &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_ms &operator=(const constant  depth2d_ms &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_ms &operator=(const ray_data  depth2d_ms &) ray_data  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_ms &operator=(const object_data  depth2d_ms &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_ms &operator=(const thread  depth2d_ms &) object_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_ms &operator=(const device  depth2d_ms &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_ms &operator=(const constant  depth2d_ms &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  object_data  depth2d_ms &operator=(const ray_data  depth2d_ms &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_ms &operator=(const object_data  depth2d_ms &) object_data  = delete;
+#endif
+
+private:
+  __metal_depth_2d_ms_t t;
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(depth2d_ms<T, a, c>);
+  friend struct _depth2d_ms_read<T, a, c>;
+  friend struct _depth2d_ms<T, a, c>;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(depth2d_ms<T, a>);
+#endif
+  friend struct _depth2d_ms_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_ms<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__) && defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+struct depth2d_ms<T, a, c, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _depth2d_ms<T, a, c>
+#else
+template <typename T, access a>
+struct depth2d_ms<T, a, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _depth2d_ms<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_depth_texture_channel<T>::value, "invalid channel type 'T' for 'depth2d_ms'");
+  static_assert(_is_valid_depth_query_access(a), "invalid access value 'a' for 'depth2d_ms'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  METAL_FUNC depth2d_ms() thread : t(__metal_get_null_depth_2d_ms_t()) {}
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms() constant : t(__metal_get_null_depth_2d_ms_t()) {}
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms() ray_data : t(__metal_get_null_depth_2d_ms_t()) {}
+#endif
+
+  METAL_FUNC depth2d_ms(const thread  depth2d_ms &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const device  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_ms(const device coherent(device) depth2d_ms &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const constant  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const ray_data  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_ms(const object_data  depth2d_ms &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const thread  depth2d_ms &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const device  depth2d_ms &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_ms(const device coherent(device) depth2d_ms &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_ms(const constant  depth2d_ms &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const ray_data  depth2d_ms &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_ms(const object_data  depth2d_ms &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const thread  depth2d_ms &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const device  depth2d_ms &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const device coherent(device) depth2d_ms &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const constant  depth2d_ms &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const ray_data  depth2d_ms &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_ms(const object_data  depth2d_ms &) ray_data = default;
+#endif
+#endif
+
+  METAL_FUNC thread  depth2d_ms &operator=(const thread  depth2d_ms &) thread  = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  depth2d_ms &operator=(const device  depth2d_ms &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC thread  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) thread  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  depth2d_ms &operator=(const constant  depth2d_ms &) thread  = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC thread  depth2d_ms &operator=(const ray_data  depth2d_ms &) thread  = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC thread  depth2d_ms &operator=(const object_data  depth2d_ms &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depth2d_ms &operator=(const thread  depth2d_ms &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depth2d_ms &operator=(const device  depth2d_ms &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depth2d_ms &operator=(const constant  depth2d_ms &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device  depth2d_ms &operator=(const ray_data  depth2d_ms &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device  depth2d_ms &operator=(const object_data  depth2d_ms &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_ms &operator=(const thread  depth2d_ms &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_ms &operator=(const device  depth2d_ms &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_ms &operator=(const device coherent(device) depth2d_ms &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_ms &operator=(const constant  depth2d_ms &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device coherent(device) depth2d_ms &operator=(const ray_data  depth2d_ms &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device coherent(device) depth2d_ms &operator=(const object_data  depth2d_ms &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_ms &operator=(const thread  depth2d_ms &) ray_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_ms &operator=(const device  depth2d_ms &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) ray_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_ms &operator=(const constant  depth2d_ms &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_ms &operator=(const ray_data  depth2d_ms &) ray_data  = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_ms &operator=(const object_data  depth2d_ms &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_ms &operator=(const thread  depth2d_ms &) object_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_ms &operator=(const device  depth2d_ms &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_ms &operator=(const device coherent(device) depth2d_ms &) object_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_ms &operator=(const constant  depth2d_ms &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC object_data  depth2d_ms &operator=(const ray_data  depth2d_ms &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_ms &operator=(const object_data  depth2d_ms &) object_data  = default;
+#endif
+
+private:
+  __metal_depth_2d_ms_t t;
+
+  METAL_FUNC depth2d_ms(__metal_depth_2d_ms_t t) thread : t(t) {}
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(depth2d_ms<T, a, c>);
+  friend struct _depth2d_ms_read<T, a, c>;
+  friend struct _depth2d_ms<T, a, c>;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_explicit_conversion;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_implicit_conversion;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(depth2d_ms<T, a>);
+#endif
+  friend struct _depth2d_ms_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_ms<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+#endif
+
+#if defined(__HAVE_NULL_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+METAL_FUNC bool is_null_texture(depth2d_ms<T, a, c> tex)
+#else
+template <typename T, access a>
+METAL_FUNC bool is_null_texture(depth2d_ms<T, a> tex)
+#endif
+{
+  return __metal_is_null_depth_2d_ms_t(tex.t);
+}
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif // __BITS_METAL_DEPTH2D_MS

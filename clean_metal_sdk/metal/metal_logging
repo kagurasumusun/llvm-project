@@ -1,0 +1,121 @@
+// -*- Metal -*-
+//===-- metal_logging -----------------------------------------------------===//
+// Copyright (c) 2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __METAL_LOGGING
+#define __METAL_LOGGING
+
+#if defined(__HAVE_LOGGING__)
+#if __has_feature(valist_sizecc)
+#define METAL_VALIST_SIZE_CC [[clang::valist_size]]
+#define METAL_VALIST_SIZE __builtin_valist_size()
+#else
+#define METAL_VALIST_SIZE_CC
+#define METAL_VALIST_SIZE ~size_t(0)
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+enum log_type
+{
+  log_type_debug = __METAL_OS_LOG_TYPE_DEBUG__,
+  log_type_info = __METAL_OS_LOG_TYPE_INFO__,
+  log_type_default = __METAL_OS_LOG_TYPE_DEFAULT__,
+  log_type_error = __METAL_OS_LOG_TYPE_ERROR__,
+  log_type_fault = __METAL_OS_LOG_TYPE_FAULT__
+};
+
+struct os_log
+{
+  METAL_FUNC os_log(constant char *subsystem, constant char *category) constant
+      : subsystem_str(subsystem),
+        category_str(category)
+  {
+  }
+
+  METAL_FUNC constant char *subsystem() const constant
+  {
+    return subsystem_str;
+  }
+  METAL_FUNC constant char *category() const constant
+  {
+    return category_str;
+  }
+
+  METAL_FUNC METAL_OS_LOG_FORMAT(3) void log_with_type(log_type type, constant char *format, ...) constant METAL_VALIST_SIZE_CC
+  {
+#ifdef __METAL_ENABLE_LOGGING__
+    __builtin_va_list args;
+    __builtin_va_start(args, format);
+    __metal_os_log(subsystem(), category(), int(type), format, args, METAL_VALIST_SIZE);
+    __builtin_va_end(args);
+#endif
+  }
+
+  METAL_FUNC METAL_OS_LOG_FORMAT(2) void log(constant char *format, ...) constant METAL_VALIST_SIZE_CC
+  {
+#ifdef __METAL_ENABLE_LOGGING__
+    __builtin_va_list args;
+    __builtin_va_start(args, format);
+    __metal_os_log(subsystem(), category(), int(log_type_default), format, args, METAL_VALIST_SIZE);
+    __builtin_va_end(args);
+#endif
+  }
+
+  METAL_FUNC METAL_OS_LOG_FORMAT(2) void log_info(constant char *format, ...) constant METAL_VALIST_SIZE_CC
+  {
+#ifdef __METAL_ENABLE_LOGGING__
+    __builtin_va_list args;
+    __builtin_va_start(args, format);
+    __metal_os_log(subsystem(), category(), int(log_type_info), format, args, METAL_VALIST_SIZE);
+    __builtin_va_end(args);
+#endif
+  }
+
+  METAL_FUNC METAL_OS_LOG_FORMAT(2) void log_debug(constant char *format, ...) constant METAL_VALIST_SIZE_CC
+  {
+#ifdef __METAL_ENABLE_LOGGING__
+    __builtin_va_list args;
+    __builtin_va_start(args, format);
+    __metal_os_log(subsystem(), category(), int(log_type_debug), format, args, METAL_VALIST_SIZE);
+    __builtin_va_end(args);
+#endif
+  }
+
+  METAL_FUNC METAL_OS_LOG_FORMAT(2) void log_error(constant char *format, ...) constant METAL_VALIST_SIZE_CC
+  {
+#ifdef __METAL_ENABLE_LOGGING__
+    __builtin_va_list args;
+    __builtin_va_start(args, format);
+    __metal_os_log(subsystem(), category(), int(log_type_error), format, args, METAL_VALIST_SIZE);
+    __builtin_va_end(args);
+#endif
+  }
+
+  METAL_FUNC METAL_OS_LOG_FORMAT(2) void log_fault(constant char *format, ...) constant METAL_VALIST_SIZE_CC
+  {
+#ifdef __METAL_ENABLE_LOGGING__
+    __builtin_va_list args;
+    __builtin_va_start(args, format);
+    __metal_os_log(subsystem(), category(), int(log_type_fault), format, args, METAL_VALIST_SIZE);
+    __builtin_va_end(args);
+#endif
+  }
+
+private:
+  constant char *subsystem_str;
+  constant char *category_str;
+};
+
+extern constant os_log os_log_default;
+extern constant os_log os_log_disabled;
+} // namespace metal
+#pragma METAL internals : disable
+#endif
+
+#undef METAL_VALIST_SIZE_CC
+#undef METAL_VALIST_SIZE
+
+#endif // __METAL_LOGGING

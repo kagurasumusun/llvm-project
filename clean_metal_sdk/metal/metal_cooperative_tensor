@@ -1,0 +1,584 @@
+// -*- Metal -*-
+//===-- metal_cooperative_tensor ------------------------------------------===//
+// Copyright (c) 2025 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __METAL_COOPERATIVE_TENSOR
+#define __METAL_COOPERATIVE_TENSOR
+
+#if defined(__HAVE_TENSOR__)
+#include <metal_tensor>
+
+#pragma METAL internals : enable
+
+namespace metal
+{
+template <class, class, class>
+class cooperative_tensor;
+
+namespace __cooperative_tensor_detail
+{
+template <class CooperativeTensor>
+class _iterator
+{
+public:
+  using difference_type = typename CooperativeTensor::thread_index_type;
+  using value_type = conditional_t<is_const_v<CooperativeTensor>,
+                                   const typename CooperativeTensor::value_type,
+                                   typename CooperativeTensor::value_type>;
+  using pointer = add_pointer_t<value_type>;
+  using reference = thread value_type &;
+
+  using layout = typename remove_cv_t<CooperativeTensor>::layout;
+
+public:
+  // Copy constructor.
+  METAL_FUNC _iterator(const thread _iterator &) thread = default;
+  template <class _OtherCT>
+  // Copy constructor from iterator to const_iterator.
+  METAL_FUNC _iterator(const thread _iterator<_OtherCT> &other,
+                       enable_if_t<is_convertible_v<typename _iterator<_OtherCT>::pointer, pointer>, thread void *> = nullptr) thread
+    : _iterator(other._ct, other._idx)
+  {
+  }
+
+public:
+  METAL_FUNC friend
+  bool operator==(const thread _iterator &_x,const thread _iterator &_y)
+  {
+    return _x._idx == _y._idx;
+  }
+  METAL_FUNC friend
+  bool operator<(const thread _iterator &_x, const thread _iterator &_y)
+  {
+    return _x._idx < _y._idx;
+  }
+  METAL_FUNC friend
+  bool operator>(const thread _iterator &_x, const thread _iterator &_y)
+  {
+    return _x._idx > _y._idx;
+  }
+  METAL_FUNC friend
+  bool operator!=(const thread _iterator &_x, const thread _iterator &_y)
+  {
+    return !(_x == _y);
+  }
+  METAL_FUNC friend
+  bool operator<=(const thread _iterator &_x, const thread _iterator &_y)
+  {
+    return !(_x > _y);
+  }
+  METAL_FUNC friend
+  bool operator>=(const thread _iterator &_x, const thread _iterator &_y)
+  {
+    return !(_x < _y);
+  }
+
+  METAL_FUNC thread _iterator& operator+=(difference_type _n) thread
+  {
+    _idx += _n;
+    return *this;
+  }
+  METAL_FUNC thread _iterator &operator++() thread
+  {
+    return *this += 1;
+  }
+  METAL_FUNC _iterator operator++(int) thread
+  {
+    _iterator _t(*this);
+    ++(*this);
+    return _t;
+  }
+  METAL_FUNC _iterator operator+(difference_type _n) thread const {
+    _iterator _t(*this);
+    _t += _n;
+    return _t;
+  }
+  METAL_FUNC friend _iterator operator+(difference_type _n, const thread _iterator &_it)
+  {
+    return _it + _n;
+  }
+
+  METAL_FUNC thread _iterator& operator-=(difference_type _n) thread
+  {
+    _idx -= _n;
+    return *this;
+  }
+  METAL_FUNC thread _iterator &operator--() thread
+  {
+    return *this -= 1;
+  }
+  METAL_FUNC _iterator operator--(int) thread
+  {
+    _iterator _t(*this);
+    --(*this);
+    return _t;
+  }
+  METAL_FUNC _iterator operator-(difference_type _n) thread const {
+    _iterator _t(*this);
+    _t -= _n;
+    return _t;
+  }
+  METAL_FUNC friend difference_type operator-(const thread _iterator &_x, const thread _iterator &_y)
+  {
+    return _x._idx - _y._idx;
+  }
+
+  METAL_FUNC reference operator*() thread const
+  {
+    return _ct[_idx];
+  };
+  METAL_FUNC pointer operator->() thread const
+  {
+    return &(*this);
+  };
+  METAL_FUNC reference operator[](difference_type _n) thread const {
+    return *(*this + _n);
+  }
+
+  METAL_FUNC array<typename CooperativeTensor::index_type, CooperativeTensor::get_rank()>
+  get_multidimensional_index() thread const {
+    return _ct.get_multidimensional_index(_idx);
+  }
+
+  METAL_FUNC bool is_valid_element() thread const {
+    return _ct.is_valid_element(_idx);
+  }
+
+private:
+  METAL_FUNC _iterator() thread = default;
+  METAL_FUNC _iterator(thread CooperativeTensor &ct, difference_type idx) thread
+      : _ct(ct), _idx(idx)
+  {
+  }
+
+  thread CooperativeTensor &_ct;
+  difference_type _idx;
+
+  template <class> friend class _iterator;
+  template <class, class, class> friend class metal::cooperative_tensor;
+};
+
+template <typename...>
+struct make_void
+{
+  typedef void type;
+};
+template <typename... Ts>
+using void_t = typename make_void<Ts...>::type;
+
+template <class _Default, class _AlwaysVoid, template <class...> class _Op,
+          class... _Args>
+struct detector
+{
+  using value_t = false_type;
+  using type = _Default;
+};
+
+template <class _Default, template <class...> class _Op, class... _Args>
+struct detector<_Default, void_t<_Op<_Args...>>, _Op, _Args...>
+{
+  using value_t = true_type;
+  using type = _Op<_Args...>;
+};
+struct nonesuch
+{
+  nonesuch() thread = delete;
+  ~nonesuch() thread = delete;
+  nonesuch(thread nonesuch const &) thread = delete;
+  void operator=(thread nonesuch const &) thread = delete;
+};
+template <template <class...> class _Op, class... _Args>
+using is_detected = typename detector<nonesuch, void, _Op, _Args...>::value_t;
+
+#define HAS_INTERFACE(NAME)                                                     \
+template <class _L>                                                             \
+using has_interface_##NAME = decltype(_L::NAME, true);
+
+#define HAS_INTERFACE_MDI(NAME)                                                 \
+template <class _L, class _I, class _N>                                         \
+using has_interface_##NAME =                                                    \
+  decltype(_L::template NAME<_I, _N::value>, true);
+
+template <class _L, class _From, class _To>
+using has_interface_map_index =
+  decltype(_L::template map_index<_From, _To>, true);
+
+HAS_INTERFACE(construct)
+HAS_INTERFACE(copy_construct)
+HAS_INTERFACE(move_construct)
+HAS_INTERFACE(copy_assign)
+HAS_INTERFACE(move_assign)
+HAS_INTERFACE(destroy)
+HAS_INTERFACE(get_capacity)
+HAS_INTERFACE(is_valid_element)
+HAS_INTERFACE(get_element_pointer)
+HAS_INTERFACE(get_element_index)
+HAS_INTERFACE_MDI(get_multidimensional_index)
+
+#undef HAS_INTERFACE
+#undef HAS_INTERFACE_MDI
+
+template <class T>
+struct is_cooperative_tensor_impl : false_type
+{
+};
+template <class T, class E, class L>
+struct is_cooperative_tensor_impl<cooperative_tensor<T, E, L>> : true_type
+{
+};
+} // __cooperative_tensor_detail
+
+template <class T>
+struct is_cooperative_tensor : __cooperative_tensor_detail::is_cooperative_tensor_impl<remove_cv_t<T>>
+{
+};
+template <class T>
+constexpr constant bool is_cooperative_tensor_v = is_cooperative_tensor<T>::value;
+
+// struct Layout {
+//   // Returns the amount of storage each threads needs to allocate
+//   // for this cooperative tensor.
+//   static size_t thread_storage_size();
+//
+//   // Returns the alignment of the storage allocated in each thread
+//   // for this cooperative_tensor.
+//   static constexpr size_t thread_storage_align();
+//
+//   // Constructs the per-thread object.
+//   static void construct(thread void *);
+//
+//   // Copy-constructs from the cooperative_tensor `other`.
+//   static void copy_construct(thread void *this_, const thread void *other);
+//
+//   // Move-constructs from the cooperative_tensor `other`.
+//   static void move_construct(thread void *this_, thread void *other);
+//
+//   // Copy-assigns from the cooperative_tensor `other`.
+//   static void copy_assign(thread void *this_, const thread void *other);
+//
+//   // Move-assigns from the cooperative_tensor `other`.
+//   static void move_assign(thread void *this_, thread void *other);
+//
+//   // Destroys the per-thread object.
+//   static void destroy(thread void *);
+//
+//   // Returns the pointer to the element in the per-data for
+//   // this cooperative tensor.
+//   static thread void *get_element_pointer(const thread void *, uint16_t);
+//
+//   Returns the index of the element given the pointer to the element
+//   in the per-data for this cooperative tensor.
+//   static uint16_t
+//   get_element_index(const thread void *storage, const thread void *element);
+//
+//   // Returns the maximum number of elements in the per-thread
+//   data for this cooperative tensor.
+//   static size_t get_capacity(const thread void *);
+//
+//   // Given a 1-D index, returns whether the corresponding element
+//   // of the per-thread data is masked out.
+//   static bool is_valid_element(const thread void *, uint16);
+//
+//   // Given a 1-D index, return the set of multi-dimension index.
+//   template <class OtherIndexType, size_t Rank>
+//   static array<OtherIndexType, Rank>
+//   get_multidimensional_index(const thread void *, uint16_t);
+//
+//   // Load elements belonging to this thread into per-thread storage from
+//   // the source tensor.
+//   template <class T, class E, class D, class... Tags>
+//   static void load(thread void *storage, const thread tensor<T, E, D, Tags...> &);
+//
+//   // Store elements belonging to this thread from per-thread storage into
+//   // the destination tensor.
+//   template <class T, class E, class D, class... Tags>
+//   static void store(const thread void *storage, const thread tensor<T, E, D, Tags...> &);
+//
+//   // Implement this interface when `FromIterator` can be converted to `ToIterator`.
+//   template <class FromIterator, class ToIterator>
+//   static uint16_t map_index(const thread void *from_storage, uint16_t from_idx,
+//                             const thread void *to_storage);
+// }
+
+template <class ElementType,
+          class Extents,
+          class Layout>
+class [[sizeas(Layout::thread_storage_size())]] alignas(Layout::thread_storage_align()) cooperative_tensor
+{
+  static_assert(__mdspan_detail::is_extents_v<Extents>,
+                "cooperative_tensor: Extents template parameter must be a specialization of extents.");
+  static_assert(!is_array_v<ElementType>,
+                "cooperative_tensor: ElementType template parameter may not be an array type");
+  static_assert(!is_abstract_v<ElementType>,
+                "cooperative_tensor: ElementType template parameter may not be an abstract class");
+  static_assert(is_same_v<ElementType,
+                          remove_cv_t<remove_addrspace_t<remove_coherent_t<ElementType>>>>,
+                "cooperative_tensor: ElementType template parameter may not be qualified");
+  static_assert(Layout::thread_storage_align() >= alignof(ElementType),
+                "cooperative_tensor: alignment defined by Layout must accomodate ElementType");
+
+  // Check for interfaces that must be implemented by 'Layout'
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_construct, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'construct' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_copy_construct, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'copy_construct' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_move_construct, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'move_construct' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_copy_assign, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'copy_assign' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_move_assign, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'move_assign' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_destroy, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'destroy' interface");
+
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_is_valid_element, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'is_valid_element' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_get_multidimensional_index, Layout,
+                    typename Extents::index_type, integral_constant<size_t, Extents::rank()>>::value,
+                "cooperative_tensor: Layout needs to implement 'get_multidimensional_index' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_get_element_pointer, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'get_element_pointer' interface");
+  static_assert(__cooperative_tensor_detail::is_detected<
+                    __cooperative_tensor_detail::has_interface_get_element_index, Layout>::value,
+                "cooperative_tensor: Layout needs to implement 'get_element_index' interface");
+
+public:
+  using element_type = ElementType;
+  using value_type = element_type;
+  using extents_type = Extents;
+  using index_type = typename extents_type::index_type;
+  using size_type = typename extents_type::size_type;
+  using rank_type = typename extents_type::rank_type;
+  using thread_index_type = int16_t;
+  using thread_size_type = uint16_t;
+
+  using data_handle_type = thread element_type *;
+  using reference = thread element_type &;
+  using const_reference = const thread element_type &;
+
+  using layout = Layout;
+
+public:
+  using iterator = __cooperative_tensor_detail::_iterator<cooperative_tensor>;
+  using const_iterator = __cooperative_tensor_detail::_iterator<const cooperative_tensor>;
+
+public:
+  METAL_FUNC static constexpr rank_type get_rank()
+  {
+    return extents_type::rank();
+  }
+
+public:
+  METAL_FUNC cooperative_tensor() thread
+  {
+    Layout::construct(static_cast<thread void *>(this));
+  }
+
+  METAL_FUNC cooperative_tensor(const thread cooperative_tensor &other) thread
+  {
+    Layout::copy_construct(static_cast<thread void *>(this), static_cast<const thread void *>(&other));
+  }
+
+  METAL_FUNC cooperative_tensor(thread cooperative_tensor &&other) thread
+  {
+    Layout::move_construct(static_cast<thread void *>(this), static_cast<thread void *>(&other));
+  }
+
+  METAL_FUNC thread cooperative_tensor& operator=(const thread cooperative_tensor &other) thread
+  {
+    return Layout::copy_assign(static_cast<thread void *>(this), static_cast<const thread void *>(&other));
+  }
+
+  METAL_FUNC thread cooperative_tensor& operator=(thread cooperative_tensor &&other) thread
+  {
+    return Layout::move_assign(static_cast<thread void *>(this), static_cast<thread void *>(&other));
+  }
+
+  METAL_FUNC ~cooperative_tensor() thread
+  {
+    Layout::destroy(static_cast<thread void *>(this));
+  }
+
+public:
+  METAL_FUNC thread_size_type get_capacity() thread const
+  {
+    return Layout::get_capacity(static_cast<const thread void *>(this));
+  }
+
+  METAL_FUNC bool is_valid_element(thread_index_type idx) thread const
+  {
+    return static_cast<bool>(Layout::is_valid_element(static_cast<const thread void *>(this),
+                                                      static_cast<thread_index_type>(idx)));
+  }
+  METAL_FUNC bool is_valid_element(const_iterator it) thread const
+  {
+    return is_valid_element(it._idx);
+  }
+  METAL_FUNC bool is_valid_element(const thread element_type *ptr) thread const
+  {
+    return is_valid_element(get_iterator(ptr));
+  }
+
+  METAL_FUNC array<index_type, get_rank()>
+  get_multidimensional_index(thread_index_type idx) thread const
+  {
+    return Layout::template get_multidimensional_index<index_type, get_rank()>(static_cast<const thread void *>(this), idx);
+  }
+  METAL_FUNC array<index_type, get_rank()>
+  get_multidimensional_index(const_iterator it) thread const
+  {
+    return get_multidimensional_index(it._idx);
+  }
+  METAL_FUNC array<index_type, get_rank()>
+  get_multidimensional_index(const thread element_type *ptr) thread const
+  {
+    return get_multidimensional_index(get_iterator(ptr));
+  }
+
+  METAL_FUNC reference operator[](thread_index_type idx) thread
+  {
+    return *static_cast<data_handle_type>(Layout::get_element_pointer(static_cast<thread void *>(this), idx));
+  }
+  METAL_FUNC const_reference operator[](thread_index_type idx) thread const
+  {
+    return *static_cast<data_handle_type>(Layout::get_element_pointer(static_cast<const thread void *>(this), idx));
+  }
+
+  METAL_FUNC value_type get(thread_index_type idx) thread const
+  {
+    return is_valid_element(idx) ? (*this)[idx] : value_type();
+  }
+  METAL_FUNC value_type get(const_iterator it) thread const
+  {
+    return get(it._idx);
+  }
+  METAL_FUNC value_type get(const thread element_type *ptr) thread const
+  {
+    return get(get_iterator(ptr));
+  }
+
+  METAL_FUNC void set(thread_index_type idx, value_type v) thread
+  {
+    if (is_valid_element(idx))
+      (*this)[idx] = v;
+  }
+  METAL_FUNC void set(iterator it, value_type v) thread
+  {
+    set(it._idx, v);
+  }
+  METAL_FUNC void set(thread element_type *ptr, value_type v) thread
+  {
+    set(get_iterator(ptr), v);
+  }
+
+  template <class T, class E, class... Tags>
+  METAL_FUNC enable_if_t<(is_same_v<element_type, typename tensor<T, E, tensor_handle, Tags...>::value_type> &&
+                          get_rank() >= E::rank())>
+  load(tensor<T, E, tensor_handle, Tags...> t) thread
+  {
+    Layout::load(static_cast<thread void *>(this), t);
+  }
+
+  template <class T, class E, class... Tags>
+  METAL_FUNC enable_if_t<(is_same_v<element_type, typename tensor<T, E, tensor_inline, Tags...>::value_type> &&
+                          get_rank() >= E::rank())>
+  load(const thread tensor<T, E, tensor_inline, Tags...> &t) thread
+  {
+    Layout::load(static_cast<thread void *>(this), t);
+  }
+
+
+  template <class T, class E, class... Tags>
+  METAL_FUNC enable_if_t<(is_same_v<element_type, typename tensor<T, E, tensor_handle, Tags...>::value_type> &&
+                          get_rank() <= E::rank())>
+  store(tensor<T, E, tensor_handle, Tags...> t) thread const
+  {
+    Layout::store(static_cast<const thread void *>(this), t);
+  }
+
+  template <class T, class E, class... Tags>
+  METAL_FUNC enable_if_t<(is_same_v<element_type, typename tensor<T, E, tensor_inline, Tags...>::value_type> &&
+                          get_rank() <= E::rank())>
+  store(const thread tensor<T, E, tensor_inline, Tags...> &t) thread const
+  {
+    Layout::store(static_cast<const thread void *>(this), t);
+  }
+
+
+  METAL_FUNC iterator get_iterator(thread_index_type idx) thread
+  {
+    return iterator(*this, static_cast<thread_index_type>(idx));
+  }
+  METAL_FUNC iterator get_iterator(const thread element_type *ptr) thread
+  {
+    return get_iterator(Layout::get_element_index(static_cast<const thread void *>(this),
+                                              static_cast<const thread void *>(ptr)));
+  }
+
+  METAL_FUNC const_iterator get_iterator(thread_index_type idx) thread const
+  {
+    return const_iterator(*this, static_cast<thread_index_type>(idx));
+  }
+  METAL_FUNC const_iterator get_iterator(const thread element_type *ptr) thread const
+  {
+    return get_iterator(Layout::get_element_index(static_cast<const thread void *>(this),
+                                                  static_cast<const thread void *>(ptr)));
+  }
+
+  template <class OtherIterator>
+  METAL_FUNC enable_if_t<__cooperative_tensor_detail::is_detected<
+                             __cooperative_tensor_detail::has_interface_map_index,
+                           layout, OtherIterator, iterator>::value,
+                         iterator>
+  map_iterator(OtherIterator it) thread
+  {
+    return iterator(*this, layout::template map_index<OtherIterator, iterator>(
+        static_cast<const thread void *>(&it._ct), it._idx, static_cast<const thread void *>(this)));
+  }
+  template <class OtherIterator>
+  METAL_FUNC enable_if_t<__cooperative_tensor_detail::is_detected<
+                             __cooperative_tensor_detail::has_interface_map_index,
+                           layout, OtherIterator, iterator>::value,
+                         const_iterator>
+  map_iterator(OtherIterator it) thread const
+  {
+    return const_iterator(*this, layout::template map_index<OtherIterator, iterator>(
+        static_cast<const thread void *>(&it._ct), it._idx, static_cast<const thread void *>(this)));
+  }
+
+  iterator begin() thread
+  {
+    thread_index_type idx = 0;
+    return get_iterator(idx);
+  }
+  const_iterator begin() thread const
+  {
+    thread_index_type idx = 0;
+    return get_iterator(idx);
+  }
+
+  iterator end() thread
+  {
+    return get_iterator(get_capacity());
+  }
+  const_iterator end() thread const
+  {
+    return get_iterator(get_capacity());
+  }
+};
+} // namespace metal
+
+#pragma METAL internals : disable
+#endif
+
+#endif // __METAL_COOPERATIVE_TENSOR

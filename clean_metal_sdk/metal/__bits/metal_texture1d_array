@@ -1,0 +1,2272 @@
+// -*- Metal -*-
+//===-- __bits/metal_texture1d_array --------------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __BITS_METAL_TEXTURE1D_ARRAY
+#define __BITS_METAL_TEXTURE1D_ARRAY
+
+#include <__bits/metal_texture_common>
+
+#if defined(__HAVE_ARRAY__)
+#include <metal_array>
+#endif
+#if defined(__HAVE_IMAGEBLOCKS__)
+#include <metal_imageblocks>
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_sample
+{
+};
+
+#if defined(__HAVE_TEXTURE_ULONG_COLOR_CHANNEL__)
+template <access a, __memory_coherence c>
+struct _texture1d_array_sample<ulong, a, c, typename enable_if<_is_valid_sample(a, c)>::type>
+{
+};
+#endif
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_sample<T, a, c, typename enable_if<_is_valid_sample(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> sample(sampler s, float coord, uint array) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_sample(sampler s, float coord, uint array) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> sample(sampler s, float coord, uint array) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_sample(sampler s, float coord, uint array) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> sample(sampler s, float coord, uint array) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_sample(sampler s, float coord, uint array) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> sample(sampler s, float coord, uint array) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_sample(sampler s, float coord, uint array) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC vec<T, 4> sample(sampler s, float coord, uint array) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_sample(sampler s, float coord, uint array) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC vec<T, 4> sample(sampler s, float coord, uint array) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_sample(sampler s, float coord, uint array) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_sample_texture_1d_array_t(derived.t, s.val, coord, array, false, 0, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr), vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_read
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_read<T, a, c, typename enable_if<_is_valid_read(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord, ushort array, ushort lod = 0) const thread  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort coord, ushort array, ushort lod = 0) const thread  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord, uint array, uint lod = 0) const thread  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint coord, uint array, uint lod = 0) const thread  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord, ushort array, ushort lod = 0) const device  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort coord, ushort array, ushort lod = 0) const device  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord, uint array, uint lod = 0) const device  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint coord, uint array, uint lod = 0) const device  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord, ushort array, ushort lod = 0) const device coherent(device) METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort coord, ushort array, ushort lod = 0) const device coherent(device) METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord, uint array, uint lod = 0) const device coherent(device) METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint coord, uint array, uint lod = 0) const device coherent(device) METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord, ushort array, ushort lod = 0) const constant  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort coord, ushort array, ushort lod = 0) const constant  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord, uint array, uint lod = 0) const constant  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint coord, uint array, uint lod = 0) const constant  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord, ushort array, ushort lod = 0) const ray_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort coord, ushort array, ushort lod = 0) const ray_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord, uint array, uint lod = 0) const ray_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint coord, uint array, uint lod = 0) const ray_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord, ushort array, ushort lod = 0) const object_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort coord, ushort array, ushort lod = 0) const object_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord, uint array, uint lod = 0) const object_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint coord, uint array, uint lod = 0) const object_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_1d_array_t(derived.t, __metal_get_read_sampler(), coord, array, lod, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_write
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_write<T, a, c, typename enable_if<_is_valid_write(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord, ushort array, ushort lod = 0) const thread  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, ushort coord, ushort array, ushort lod = 0) const thread  METAL_VALID_LOD_ARG(lod)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord, uint array, uint lod = 0) const thread  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, uint coord, uint array, uint lod = 0) const thread  METAL_VALID_LOD_ARG(lod)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord, ushort array, ushort lod = 0) const device  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, ushort coord, ushort array, ushort lod = 0) const device  METAL_VALID_LOD_ARG(lod)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord, uint array, uint lod = 0) const device  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, uint coord, uint array, uint lod = 0) const device  METAL_VALID_LOD_ARG(lod)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord, ushort array, ushort lod = 0) const device coherent(device) METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, ushort coord, ushort array, ushort lod = 0) const device coherent(device) METAL_VALID_LOD_ARG(lod)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord, uint array, uint lod = 0) const device coherent(device) METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, uint coord, uint array, uint lod = 0) const device coherent(device) METAL_VALID_LOD_ARG(lod)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord, ushort array, ushort lod = 0) const constant  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, ushort coord, ushort array, ushort lod = 0) const constant  METAL_VALID_LOD_ARG(lod)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord, uint array, uint lod = 0) const constant  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, uint coord, uint array, uint lod = 0) const constant  METAL_VALID_LOD_ARG(lod)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord, ushort array, ushort lod = 0) const ray_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, ushort coord, ushort array, ushort lod = 0) const ray_data  METAL_VALID_LOD_ARG(lod)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord, uint array, uint lod = 0) const ray_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, uint coord, uint array, uint lod = 0) const ray_data  METAL_VALID_LOD_ARG(lod)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord, ushort array, ushort lod = 0) const object_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, ushort coord, ushort array, ushort lod = 0) const object_data  METAL_VALID_LOD_ARG(lod)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord, uint array, uint lod = 0) const object_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_write_texture_1d_array_t(derived.t, coord, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_IMAGEBLOCKS__)
+  template <typename E, typename L>
+  METAL_FUNC typename enable_if<_is_valid_imageblock_slice_write(E, T, c)>::type write(imageblock_slice<E, L> slice, uint coord, uint array, uint lod = 0) const object_data  METAL_VALID_LOD_ARG(lod)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_write_imageblock_slice_to_texture_1d_array_t(derived.t, slice._imgblkptr, slice._size_valid, slice._size, coord, array, lod, is_same_v<L, imageblock_layout_implicit>, int(a), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#endif
+};
+
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_atomic_load
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_atomic_load<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord, ushort array) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord, uint array) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord, ushort array) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord, uint array) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord, ushort array) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord, uint array) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord, ushort array) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord, uint array) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord, ushort array) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord, uint array) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord, ushort array) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord, uint array) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_1d_array_t(derived.t, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_atomic_store
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_atomic_store<T, a, c, typename enable_if<_is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord, ushort array) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord, uint array) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord, ushort array) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord, uint array) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord, ushort array) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord, uint array) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord, ushort array) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord, uint array) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord, ushort array) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord, uint array) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord, ushort array) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord, uint array) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_1d_array_t(derived.t, color, coord, array, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_atomic_compare_exchange
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_atomic_compare_exchange<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, ushort array, thread vec<T, 4> *expected, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, uint array, thread vec<T, 4> *expected, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, ushort array, thread vec<T, 4> *expected, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, uint array, thread vec<T, 4> *expected, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, ushort array, thread vec<T, 4> *expected, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, uint array, thread vec<T, 4> *expected, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, ushort array, thread vec<T, 4> *expected, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, uint array, thread vec<T, 4> *expected, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, ushort array, thread vec<T, 4> *expected, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, uint array, thread vec<T, 4> *expected, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, ushort array, thread vec<T, 4> *expected, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, uint array, thread vec<T, 4> *expected, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_1d_array_t(derived.t, coord, array, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_atomic_exchange
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_atomic_exchange<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, ushort array, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, uint array, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, ushort array, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, uint array, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, ushort array, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, uint array, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, ushort array, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, uint array, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, ushort array, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, uint array, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, ushort array, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, uint array, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_1d_array_t(derived.t, coord, array, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_atomic_fetch_and
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_atomic_fetch_and<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, ushort array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, ushort array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, ushort array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, ushort array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, ushort array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, uint array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, uint array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, uint array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, uint array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, uint array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, ushort array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, ushort array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, ushort array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, ushort array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, ushort array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, uint array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, uint array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, uint array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, uint array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, uint array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, ushort array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, ushort array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, ushort array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, ushort array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, ushort array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, uint array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, uint array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, uint array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, uint array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, uint array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, ushort array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, ushort array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, ushort array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, ushort array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, ushort array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, uint array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, uint array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, uint array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, uint array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, uint array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, ushort array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, ushort array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, ushort array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, ushort array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, ushort array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, uint array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, uint array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, uint array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, uint array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, uint array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, ushort array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, ushort array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, ushort array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, ushort array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, ushort array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, uint array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, uint array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, uint array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, uint array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, uint array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_atomic_fetch_and_arith
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array_atomic_fetch_and_arith<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, ushort array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, ushort array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, uint array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, uint array, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, ushort array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, ushort array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, uint array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, uint array, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, ushort array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, ushort array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, uint array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, uint array, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, ushort array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, ushort array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, uint array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, uint array, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, ushort array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, ushort array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, uint array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, uint array, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, ushort array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, ushort array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, uint array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, uint array, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array_atomic_modify
+{
+};
+
+template <access a, __memory_coherence c>
+struct _texture1d_array_atomic_modify<ulong, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<ulong, a, c>;
+#else
+  using __derived_t = texture1d_array<ulong, a>;
+#endif
+
+public:
+  METAL_FUNC void atomic_max(ushort coord, ushort array, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ushort array, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, uint array, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, uint array, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(ushort coord, ushort array, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ushort array, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, uint array, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, uint array, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC void atomic_max(ushort coord, ushort array, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ushort array, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, uint array, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, uint array, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC void atomic_max(ushort coord, ushort array, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ushort array, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, uint array, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, uint array, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(ushort coord, ushort array, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ushort array, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, uint array, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, uint array, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(ushort coord, ushort array, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ushort array, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, uint array, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, uint array, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_1d_array_t(derived.t, coord, array, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+#endif
+
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture1d_array
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture1d_array<T, a, c, typename enable_if<is_color_texture_channel<T>::value>::type>
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  : _deleted_operators<texture1d_array<T, a, c>>
+  , _texture_explicit_conversion<c == memory_coherence_device, texture1d_array<T, a, c>, texture1d_array<T, a, memory_coherence_threadgroup>>
+  , _texture_implicit_conversion<c == memory_coherence_threadgroup, texture1d_array<T, a, c>, texture1d_array<T, a, memory_coherence_device>>
+#else
+  : _deleted_operators<texture1d_array<T, a>>
+#endif
+  , _texture1d_array_sample<T, a, c>
+  , _texture1d_array_read<T, a, c>
+  , _texture1d_array_write<T, a, c>
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+  , _texture1d_array_atomic_load<T, a, c>
+  , _texture1d_array_atomic_store<T, a, c>
+  , _texture1d_array_atomic_compare_exchange<T, a, c>
+  , _texture1d_array_atomic_exchange<T, a, c>
+  , _texture1d_array_atomic_fetch_and<T, a, c>
+  , _texture1d_array_atomic_fetch_and_arith<T, a, c>
+  , _texture1d_array_atomic_modify<T, a, c>
+#endif
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture1d_array<T, a, c>;
+#else
+  using __derived_t = texture1d_array<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_TEXTURE_READWRITE__)
+  METAL_FUNC void fence() thread
+  {
+    const thread  auto &derived = static_cast<thread  __derived_t &>(*this);
+    __metal_fence_texture_1d_array_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC void fence() device
+  {
+    const device  auto &derived = static_cast<device  __derived_t &>(*this);
+    __metal_fence_texture_1d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC void fence() device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<device coherent(device) __derived_t &>(*this);
+    __metal_fence_texture_1d_array_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC void fence() constant
+  {
+    const constant  auto &derived = static_cast<constant  __derived_t &>(*this);
+    __metal_fence_texture_1d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC void fence() ray_data
+  {
+    const ray_data  auto &derived = static_cast<ray_data  __derived_t &>(*this);
+    __metal_fence_texture_1d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC void fence() object_data
+  {
+    const object_data  auto &derived = static_cast<object_data  __derived_t &>(*this);
+    __metal_fence_texture_1d_array_t(derived.t);
+  }
+#endif
+#endif
+
+  METAL_FUNC uint get_width(uint lod = 0) const thread  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_width_texture_1d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_array_size_texture_1d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_texture_1d_array_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width(uint lod = 0) const device  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_width_texture_1d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_array_size_texture_1d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_texture_1d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC uint get_width(uint lod = 0) const device coherent(device) METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_width_texture_1d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_array_size_texture_1d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_num_mip_levels_texture_1d_array_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width(uint lod = 0) const constant  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_width_texture_1d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_array_size_texture_1d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_texture_1d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC uint get_width(uint lod = 0) const ray_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_width_texture_1d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_array_size_texture_1d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_texture_1d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC uint get_width(uint lod = 0) const object_data  METAL_CONST_ARG(lod) METAL_ZERO_ARG(lod)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_width_texture_1d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_array_size_texture_1d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_texture_1d_array_t(derived.t);
+  }
+#endif
+};
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c, typename _Enable>
+struct texture1d_array : _texture1d_array<T, a, c>
+#else
+template <typename T, access a, typename _Enable>
+struct texture1d_array : _texture1d_array<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_color_texture_channel<T>::value, "invalid channel type 'T' for 'texture1d_array'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  texture1d_array() thread = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  texture1d_array() constant = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  texture1d_array() ray_data = delete;
+#endif
+
+  METAL_FUNC texture1d_array(const thread  texture1d_array &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const device  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture1d_array(const device coherent(device) texture1d_array &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const constant  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const ray_data  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture1d_array(const object_data  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const thread  texture1d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const device  texture1d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture1d_array(const device coherent(device) texture1d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const constant  texture1d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const ray_data  texture1d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture1d_array(const object_data  texture1d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const thread  texture1d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const device  texture1d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const device coherent(device) texture1d_array &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const constant  texture1d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const ray_data  texture1d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const object_data  texture1d_array &) ray_data = default;
+#endif
+#endif
+
+  thread  texture1d_array &operator=(const thread  texture1d_array &) thread  = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  texture1d_array &operator=(const device  texture1d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  thread  texture1d_array &operator=(const device coherent(device) texture1d_array &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  texture1d_array &operator=(const constant  texture1d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  thread  texture1d_array &operator=(const ray_data  texture1d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+  thread  texture1d_array &operator=(const object_data  texture1d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture1d_array &operator=(const thread  texture1d_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture1d_array &operator=(const device  texture1d_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device  texture1d_array &operator=(const device coherent(device) texture1d_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture1d_array &operator=(const constant  texture1d_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  device  texture1d_array &operator=(const ray_data  texture1d_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  device  texture1d_array &operator=(const object_data  texture1d_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture1d_array &operator=(const thread  texture1d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture1d_array &operator=(const device  texture1d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture1d_array &operator=(const device coherent(device) texture1d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture1d_array &operator=(const constant  texture1d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  device coherent(device) texture1d_array &operator=(const ray_data  texture1d_array &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  device coherent(device) texture1d_array &operator=(const object_data  texture1d_array &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture1d_array &operator=(const thread  texture1d_array &) ray_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture1d_array &operator=(const device  texture1d_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture1d_array &operator=(const device coherent(device) texture1d_array &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture1d_array &operator=(const constant  texture1d_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture1d_array &operator=(const ray_data  texture1d_array &) ray_data  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture1d_array &operator=(const object_data  texture1d_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  texture1d_array &operator=(const thread  texture1d_array &) object_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  texture1d_array &operator=(const device  texture1d_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  object_data  texture1d_array &operator=(const device coherent(device) texture1d_array &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  texture1d_array &operator=(const constant  texture1d_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  object_data  texture1d_array &operator=(const ray_data  texture1d_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  texture1d_array &operator=(const object_data  texture1d_array &) object_data  = delete;
+#endif
+
+private:
+  __metal_texture_1d_array_t t;
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(texture1d_array<T, a, c>);
+  friend struct _texture1d_array_sample<T, a, c>;
+  friend struct _texture1d_array_read<T, a, c>;
+  friend struct _texture1d_array_write<T, a, c>;
+  friend struct _texture1d_array_atomic_load<T, a, c>;
+  friend struct _texture1d_array_atomic_store<T, a, c>;
+  friend struct _texture1d_array_atomic_compare_exchange<T, a, c>;
+  friend struct _texture1d_array_atomic_exchange<T, a, c>;
+  friend struct _texture1d_array_atomic_fetch_and<T, a, c>;
+  friend struct _texture1d_array_atomic_fetch_and_arith<T, a, c>;
+  friend struct _texture1d_array_atomic_modify<T, a, c>;
+  friend struct _texture1d_array<T, a, c>;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(texture1d_array<T, a>);
+#endif
+  friend struct _texture1d_array_sample<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_write<T, a, __memory_coherence_threadgroup>;
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+  friend struct _texture1d_array_atomic_load<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_store<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_compare_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_fetch_and<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_fetch_and_arith<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_modify<T, a, __memory_coherence_threadgroup>;
+#endif
+  friend struct _texture1d_array<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__) && defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+struct texture1d_array<T, a, c, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _texture1d_array<T, a, c>
+#else
+template <typename T, access a>
+struct texture1d_array<T, a, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _texture1d_array<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_color_texture_channel<T>::value, "invalid channel type 'T' for 'texture1d_array'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  METAL_FUNC texture1d_array() thread : t(__metal_get_null_texture_1d_array_t()) {}
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array() constant : t(__metal_get_null_texture_1d_array_t()) {}
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array() ray_data : t(__metal_get_null_texture_1d_array_t()) {}
+#endif
+
+  METAL_FUNC texture1d_array(const thread  texture1d_array &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const device  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture1d_array(const device coherent(device) texture1d_array &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const constant  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const ray_data  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture1d_array(const object_data  texture1d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const thread  texture1d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const device  texture1d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture1d_array(const device coherent(device) texture1d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture1d_array(const constant  texture1d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const ray_data  texture1d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture1d_array(const object_data  texture1d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const thread  texture1d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const device  texture1d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const device coherent(device) texture1d_array &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const constant  texture1d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const ray_data  texture1d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture1d_array(const object_data  texture1d_array &) ray_data = default;
+#endif
+#endif
+
+  METAL_FUNC thread  texture1d_array &operator=(const thread  texture1d_array &) thread  = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  texture1d_array &operator=(const device  texture1d_array &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC thread  texture1d_array &operator=(const device coherent(device) texture1d_array &) thread  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  texture1d_array &operator=(const constant  texture1d_array &) thread  = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC thread  texture1d_array &operator=(const ray_data  texture1d_array &) thread  = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC thread  texture1d_array &operator=(const object_data  texture1d_array &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture1d_array &operator=(const thread  texture1d_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture1d_array &operator=(const device  texture1d_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device  texture1d_array &operator=(const device coherent(device) texture1d_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture1d_array &operator=(const constant  texture1d_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device  texture1d_array &operator=(const ray_data  texture1d_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device  texture1d_array &operator=(const object_data  texture1d_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture1d_array &operator=(const thread  texture1d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture1d_array &operator=(const device  texture1d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture1d_array &operator=(const device coherent(device) texture1d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture1d_array &operator=(const constant  texture1d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device coherent(device) texture1d_array &operator=(const ray_data  texture1d_array &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device coherent(device) texture1d_array &operator=(const object_data  texture1d_array &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture1d_array &operator=(const thread  texture1d_array &) ray_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture1d_array &operator=(const device  texture1d_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture1d_array &operator=(const device coherent(device) texture1d_array &) ray_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture1d_array &operator=(const constant  texture1d_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture1d_array &operator=(const ray_data  texture1d_array &) ray_data  = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture1d_array &operator=(const object_data  texture1d_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture1d_array &operator=(const thread  texture1d_array &) object_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture1d_array &operator=(const device  texture1d_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture1d_array &operator=(const device coherent(device) texture1d_array &) object_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture1d_array &operator=(const constant  texture1d_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC object_data  texture1d_array &operator=(const ray_data  texture1d_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture1d_array &operator=(const object_data  texture1d_array &) object_data  = default;
+#endif
+
+private:
+  __metal_texture_1d_array_t t;
+
+  METAL_FUNC texture1d_array(__metal_texture_1d_array_t t) thread : t(t) {}
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(texture1d_array<T, a, c>);
+  friend struct _texture1d_array_sample<T, a, c>;
+  friend struct _texture1d_array_read<T, a, c>;
+  friend struct _texture1d_array_write<T, a, c>;
+  friend struct _texture1d_array_atomic_load<T, a, c>;
+  friend struct _texture1d_array_atomic_store<T, a, c>;
+  friend struct _texture1d_array_atomic_compare_exchange<T, a, c>;
+  friend struct _texture1d_array_atomic_exchange<T, a, c>;
+  friend struct _texture1d_array_atomic_fetch_and<T, a, c>;
+  friend struct _texture1d_array_atomic_fetch_and_arith<T, a, c>;
+  friend struct _texture1d_array_atomic_modify<T, a, c>;
+  friend struct _texture1d_array<T, a, c>;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_explicit_conversion;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_implicit_conversion;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(texture1d_array<T, a>);
+#endif
+  friend struct _texture1d_array_sample<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_write<T, a, __memory_coherence_threadgroup>;
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+  friend struct _texture1d_array_atomic_load<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_store<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_compare_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_fetch_and<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_fetch_and_arith<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture1d_array_atomic_modify<T, a, __memory_coherence_threadgroup>;
+#endif
+  friend struct _texture1d_array<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+#endif
+
+#if defined(__HAVE_NULL_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+METAL_FUNC bool is_null_texture(texture1d_array<T, a, c> tex)
+#else
+template <typename T, access a>
+METAL_FUNC bool is_null_texture(texture1d_array<T, a> tex)
+#endif
+{
+  return __metal_is_null_texture_1d_array_t(tex.t);
+}
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif // __BITS_METAL_TEXTURE1D_ARRAY

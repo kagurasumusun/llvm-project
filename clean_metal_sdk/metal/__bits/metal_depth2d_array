@@ -1,0 +1,2505 @@
+// -*- Metal -*-
+//===-- __bits/metal_depth2d_array ----------------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __BITS_METAL_DEPTH2D_ARRAY
+#define __BITS_METAL_DEPTH2D_ARRAY
+
+#include <__bits/metal_texture_common>
+
+#if defined(__HAVE_ARRAY__)
+#include <metal_array>
+#endif
+#if defined(__HAVE_IMAGEBLOCKS__)
+#include <metal_imageblocks>
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depth2d_array_sample
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depth2d_array_sample<T, a, c, typename enable_if<_is_valid_sample(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depth2d_array<T, a, c>;
+#else
+  using __derived_t = depth2d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float2 coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float2 coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float2 coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float2 coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float2 coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float2 coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float2 coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float2 coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float2 coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float2 coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, level options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, min_lod_clamp options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float2 coord, uint array, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_2d_array_t_grad(derived.t, s.val, coord, array, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float2 coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float2 coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_2d_array_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const thread  METAL_VALID_LOD_ARG(options)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const thread  METAL_VALID_LOD_ARG(options)
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__) && defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const device  METAL_VALID_LOD_ARG(options)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const device  METAL_VALID_LOD_ARG(options)
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__) && defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const device coherent(device) METAL_VALID_LOD_ARG(options)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const device coherent(device) METAL_VALID_LOD_ARG(options)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__) && defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const constant  METAL_VALID_LOD_ARG(options)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const constant  METAL_VALID_LOD_ARG(options)
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__) && defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const ray_data  METAL_VALID_LOD_ARG(options)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const ray_data  METAL_VALID_LOD_ARG(options)
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__) && defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const object_data  METAL_VALID_LOD_ARG(options)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, level options, int2 offset = int2(0)) const object_data  METAL_VALID_LOD_ARG(options)
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, min_lod_clamp options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, options.dPdx, options.dPdy, 0.0f, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__) && defined(__HAVE_SPARSE_SAMPLE_COMPARE_GRADIENT2D_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float2 coord, uint array, float compare_value, gradient2d grad_options, min_lod_clamp min_lod_clamp_options, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_2d_array_t_grad(derived.t, s.val, coord, array, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depth2d_array_read
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depth2d_array_read<T, a, c, typename enable_if<_is_valid_read(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depth2d_array<T, a, c>;
+#else
+  using __derived_t = depth2d_array<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort array, ushort lod = 0) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort array, ushort lod = 0) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint array, uint lod = 0) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint array, uint lod = 0) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort array, ushort lod = 0) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort array, ushort lod = 0) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint array, uint lod = 0) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint array, uint lod = 0) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort array, ushort lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort array, ushort lod = 0) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint array, uint lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint array, uint lod = 0) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort array, ushort lod = 0) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort array, ushort lod = 0) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint array, uint lod = 0) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint array, uint lod = 0) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort array, ushort lod = 0) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort array, ushort lod = 0) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint array, uint lod = 0) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint array, uint lod = 0) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort array, ushort lod = 0) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort array, ushort lod = 0) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, ushort2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint array, uint lod = 0) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint array, uint lod = 0) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_read_depth_2d_array_t(derived.t, __metal_get_read_sampler(), coord, array, uint2(0), lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depth2d_array_gather
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depth2d_array_gather<T, a, c, typename enable_if<_is_valid_gather(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depth2d_array<T, a, c>;
+#else
+  using __derived_t = depth2d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float2 coord, uint array, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_2d_array_t(derived.t, s.val, coord, array, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const thread
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const constant
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const ray_data
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float2 coord, uint array, float compare_value, int2 offset = int2(0)) const object_data
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_2d_array_t(derived.t, s.val, coord, array, compare_value, true, offset, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+};
+
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depth2d_array
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depth2d_array<T, a, c, typename enable_if<is_depth_texture_channel<T>::value && _is_valid_depth_query(a, c)>::type>
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  : _deleted_operators<depth2d_array<T, a, c>>
+  , _texture_explicit_conversion<c == memory_coherence_device, depth2d_array<T, a, c>, depth2d_array<T, a, memory_coherence_threadgroup>>
+  , _texture_implicit_conversion<c == memory_coherence_threadgroup, depth2d_array<T, a, c>, depth2d_array<T, a, memory_coherence_device>>
+#else
+  : _deleted_operators<depth2d_array<T, a>>
+#endif
+  , _depth2d_array_sample<T, a, c>
+  , _depth2d_array_read<T, a, c>
+  , _depth2d_array_gather<T, a, c>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depth2d_array<T, a, c>;
+#else
+  using __derived_t = depth2d_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC uint get_width(uint lod = 0) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_array_size_depth_2d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_2d_array_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width(uint lod = 0) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_array_size_depth_2d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_2d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC uint get_width(uint lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_width_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_height_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_array_size_depth_2d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_2d_array_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width(uint lod = 0) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_array_size_depth_2d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_2d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC uint get_width(uint lod = 0) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_array_size_depth_2d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_2d_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC uint get_width(uint lod = 0) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_width_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_height_depth_2d_array_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_array_size() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_array_size_depth_2d_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_mip_levels() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_2d_array_t(derived.t);
+  }
+#endif
+};
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c, typename _Enable>
+struct depth2d_array : _depth2d_array<T, a, c>
+#else
+template <typename T, access a, typename _Enable>
+struct depth2d_array : _depth2d_array<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_depth_texture_channel<T>::value, "invalid channel type 'T' for 'depth2d_array'");
+  static_assert(_is_valid_depth_query_access(a), "invalid access value 'a' for 'depth2d_array'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  depth2d_array() thread = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  depth2d_array() constant = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  depth2d_array() ray_data = delete;
+#endif
+
+  METAL_FUNC depth2d_array(const thread  depth2d_array &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const device  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_array(const device coherent(device) depth2d_array &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const constant  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const ray_data  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_array(const object_data  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const thread  depth2d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const device  depth2d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_array(const device coherent(device) depth2d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const constant  depth2d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const ray_data  depth2d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_array(const object_data  depth2d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const thread  depth2d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const device  depth2d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const device coherent(device) depth2d_array &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const constant  depth2d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const ray_data  depth2d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const object_data  depth2d_array &) ray_data = default;
+#endif
+#endif
+
+  thread  depth2d_array &operator=(const thread  depth2d_array &) thread  = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  depth2d_array &operator=(const device  depth2d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  thread  depth2d_array &operator=(const device coherent(device) depth2d_array &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  depth2d_array &operator=(const constant  depth2d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  thread  depth2d_array &operator=(const ray_data  depth2d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+  thread  depth2d_array &operator=(const object_data  depth2d_array &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depth2d_array &operator=(const thread  depth2d_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depth2d_array &operator=(const device  depth2d_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device  depth2d_array &operator=(const device coherent(device) depth2d_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depth2d_array &operator=(const constant  depth2d_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  device  depth2d_array &operator=(const ray_data  depth2d_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  device  depth2d_array &operator=(const object_data  depth2d_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_array &operator=(const thread  depth2d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_array &operator=(const device  depth2d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_array &operator=(const device coherent(device) depth2d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depth2d_array &operator=(const constant  depth2d_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  device coherent(device) depth2d_array &operator=(const ray_data  depth2d_array &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  device coherent(device) depth2d_array &operator=(const object_data  depth2d_array &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_array &operator=(const thread  depth2d_array &) ray_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_array &operator=(const device  depth2d_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_array &operator=(const device coherent(device) depth2d_array &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_array &operator=(const constant  depth2d_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_array &operator=(const ray_data  depth2d_array &) ray_data  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depth2d_array &operator=(const object_data  depth2d_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_array &operator=(const thread  depth2d_array &) object_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_array &operator=(const device  depth2d_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_array &operator=(const device coherent(device) depth2d_array &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_array &operator=(const constant  depth2d_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  object_data  depth2d_array &operator=(const ray_data  depth2d_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  depth2d_array &operator=(const object_data  depth2d_array &) object_data  = delete;
+#endif
+
+private:
+  __metal_depth_2d_array_t t;
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(depth2d_array<T, a, c>);
+  friend struct _depth2d_array_sample<T, a, c>;
+  friend struct _depth2d_array_read<T, a, c>;
+  friend struct _depth2d_array_gather<T, a, c>;
+  friend struct _depth2d_array<T, a, c>;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(depth2d_array<T, a>);
+#endif
+  friend struct _depth2d_array_sample<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_array_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_array_gather<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_array<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__) && defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+struct depth2d_array<T, a, c, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _depth2d_array<T, a, c>
+#else
+template <typename T, access a>
+struct depth2d_array<T, a, typename enable_if<_is_valid_default_construct(a, __memory_coherence_threadgroup) && _is_valid_copy_assign(a, __memory_coherence_threadgroup)>::type> : _depth2d_array<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_depth_texture_channel<T>::value, "invalid channel type 'T' for 'depth2d_array'");
+  static_assert(_is_valid_depth_query_access(a), "invalid access value 'a' for 'depth2d_array'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  METAL_FUNC depth2d_array() thread  : t(__metal_get_null_depth_2d_array_t()) {}
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array() constant  : t(__metal_get_null_depth_2d_array_t()) {}
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array() ray_data  : t(__metal_get_null_depth_2d_array_t()) {}
+#endif
+
+  METAL_FUNC depth2d_array(const thread  depth2d_array &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const device  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_array(const device coherent(device) depth2d_array &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const constant  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const ray_data  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_array(const object_data  depth2d_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const thread  depth2d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const device  depth2d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depth2d_array(const device coherent(device) depth2d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depth2d_array(const constant  depth2d_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const ray_data  depth2d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depth2d_array(const object_data  depth2d_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const thread  depth2d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const device  depth2d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const device coherent(device) depth2d_array &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const constant  depth2d_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const ray_data  depth2d_array &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depth2d_array(const object_data  depth2d_array &) ray_data = default;
+#endif
+#endif
+
+  METAL_FUNC thread  depth2d_array &operator=(const thread  depth2d_array &) thread  = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  depth2d_array &operator=(const device  depth2d_array &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC thread  depth2d_array &operator=(const device coherent(device) depth2d_array &) thread  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  depth2d_array &operator=(const constant  depth2d_array &) thread  = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC thread  depth2d_array &operator=(const ray_data  depth2d_array &) thread  = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC thread  depth2d_array &operator=(const object_data  depth2d_array &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depth2d_array &operator=(const thread  depth2d_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depth2d_array &operator=(const device  depth2d_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device  depth2d_array &operator=(const device coherent(device) depth2d_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depth2d_array &operator=(const constant  depth2d_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device  depth2d_array &operator=(const ray_data  depth2d_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device  depth2d_array &operator=(const object_data  depth2d_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_array &operator=(const thread  depth2d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_array &operator=(const device  depth2d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_array &operator=(const device coherent(device) depth2d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depth2d_array &operator=(const constant  depth2d_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device coherent(device) depth2d_array &operator=(const ray_data  depth2d_array &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device coherent(device) depth2d_array &operator=(const object_data  depth2d_array &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_array &operator=(const thread  depth2d_array &) ray_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_array &operator=(const device  depth2d_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_array &operator=(const device coherent(device) depth2d_array &) ray_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_array &operator=(const constant  depth2d_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_array &operator=(const ray_data  depth2d_array &) ray_data  = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depth2d_array &operator=(const object_data  depth2d_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_array &operator=(const thread  depth2d_array &) object_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_array &operator=(const device  depth2d_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_array &operator=(const device coherent(device) depth2d_array &) object_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_array &operator=(const constant  depth2d_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC object_data  depth2d_array &operator=(const ray_data  depth2d_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depth2d_array &operator=(const object_data  depth2d_array &) object_data  = default;
+#endif
+
+private:
+  __metal_depth_2d_array_t t;
+
+  METAL_FUNC depth2d_array(__metal_depth_2d_array_t t) thread : t(t) {}
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(depth2d_array<T, a, c>);
+  friend struct _depth2d_array_sample<T, a, c>;
+  friend struct _depth2d_array_read<T, a, c>;
+  friend struct _depth2d_array_gather<T, a, c>;
+  friend struct _depth2d_array<T, a, c>;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_explicit_conversion;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_implicit_conversion;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(depth2d_array<T, a>);
+#endif
+  friend struct _depth2d_array_sample<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_array_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_array_gather<T, a, __memory_coherence_threadgroup>;
+  friend struct _depth2d_array<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+#endif
+
+#if defined(__HAVE_NULL_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+METAL_FUNC bool is_null_texture(depth2d_array<T, a, c> tex)
+#else
+template <typename T, access a>
+METAL_FUNC bool is_null_texture(depth2d_array<T, a> tex)
+#endif
+{
+  return __metal_is_null_depth_2d_array_t(tex.t);
+}
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif // __BITS_METAL_DEPTH2D_ARRAY

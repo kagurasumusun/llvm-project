@@ -1,0 +1,27 @@
+// -*- Metal -*-
+//===-- metal_texture -----------------------------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __METAL_TEXTURE
+#define __METAL_TEXTURE
+
+#include <__bits/metal_texture_common>
+#include <__bits/metal_texture1d>
+#include <__bits/metal_texture1d_array>
+#include <__bits/metal_texture2d>
+#include <__bits/metal_texture2d_array>
+#include <__bits/metal_texture2d_ms>
+#include <__bits/metal_texture2d_ms_array>
+#include <__bits/metal_texture3d>
+#include <__bits/metal_texture_buffer>
+#include <__bits/metal_texturecube>
+#include <__bits/metal_texturecube_array>
+#include <__bits/metal_depth2d>
+#include <__bits/metal_depth2d_array>
+#include <__bits/metal_depth2d_ms>
+#include <__bits/metal_depth2d_ms_array>
+#include <__bits/metal_depthcube>
+#include <__bits/metal_depthcube_array>
+
+#endif // __METAL_TEXTURE

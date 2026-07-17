@@ -1,0 +1,1874 @@
+// -*- Metal -*-
+//===-- __bits/metal_texture_buffer ---------------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __BITS_METAL_TEXTURE_BUFFER
+#define __BITS_METAL_TEXTURE_BUFFER
+
+#include <__bits/metal_texture_common>
+
+#if defined(__HAVE_ARRAY__)
+#include <metal_array>
+#endif
+#if defined(__HAVE_IMAGEBLOCKS__)
+#include <metal_imageblocks>
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+#if defined(__HAVE_TEXTURE_BUFFER__)
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_read
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_read<T, a, c, typename enable_if<_is_valid_read(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> read(uint coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_texture_buffer_1d_t(derived.t, __metal_get_read_sampler(), coord, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_write
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_write<T, a, c, typename enable_if<_is_valid_write(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC void write(vec<T, 4> color, ushort coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+  METAL_FUNC void write(vec<T, 4> color, uint coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__);
+  }
+#endif
+};
+
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_atomic_load
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_atomic_load<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(ushort coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+  METAL_FUNC vec<T, 4> atomic_load(uint coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_load_explicit_texture_buffer_1d_t(derived.t, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a), vec<T, 4>());
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_atomic_store
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_atomic_store<T, a, c, typename enable_if<_is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, ushort coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_store(vec<T, 4> color, uint coord) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_store_explicit_texture_buffer_1d_t(derived.t, color, coord, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_atomic_compare_exchange
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_atomic_compare_exchange<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, thread vec<T, 4> *expected, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, thread vec<T, 4> *expected, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, thread vec<T, 4> *expected, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, thread vec<T, 4> *expected, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, thread vec<T, 4> *expected, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, thread vec<T, 4> *expected, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, thread vec<T, 4> *expected, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, thread vec<T, 4> *expected, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, thread vec<T, 4> *expected, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, thread vec<T, 4> *expected, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(ushort coord, thread vec<T, 4> *expected, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC bool atomic_compare_exchange_weak(uint coord, thread vec<T, 4> *expected, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_compare_exchange_weak_explicit_texture_buffer_1d_t(derived.t, coord, expected, desired, __METAL_MEMORY_ORDER_RELAXED__, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_atomic_exchange
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_atomic_exchange<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, vec<T, 4> desired) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, vec<T, 4> desired) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, vec<T, 4> desired) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, vec<T, 4> desired) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, vec<T, 4> desired) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(ushort coord, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_exchange(uint coord, vec<T, 4> desired) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_exchange_explicit_texture_buffer_1d_t(derived.t, coord, desired, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_atomic_fetch_and
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_atomic_fetch_and<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(ushort coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(ushort coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(ushort coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(ushort coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(ushort coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_and(uint coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_and_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_max(uint coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_min(uint coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_or(uint coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_or_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_xor(uint coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_xor_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_atomic_fetch_and_arith
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer_atomic_fetch_and_arith<T, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c) && _is_color_texture_atomic_channel_type(T)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, vec<T, 4> operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, vec<T, 4> operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, vec<T, 4> operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, vec<T, 4> operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, vec<T, 4> operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(ushort coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(ushort coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_add(uint coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_add_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC vec<T, 4> atomic_fetch_sub(uint coord, vec<T, 4> operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_atomic_fetch_sub_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer_atomic_modify
+{
+};
+
+template <access a, __memory_coherence c>
+struct _texture_buffer_atomic_modify<ulong, a, c, typename enable_if<_is_valid_read(a, c) && _is_valid_write(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<ulong, a, c>;
+#else
+  using __derived_t = texture_buffer<ulong, a>;
+#endif
+
+public:
+  METAL_FUNC void atomic_max(ushort coord, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, ulong4 operand) const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(ushort coord, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, ulong4 operand) const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC void atomic_max(ushort coord, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, ulong4 operand) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+#endif
+  METAL_FUNC void atomic_max(ushort coord, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, ulong4 operand) const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(ushort coord, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, ulong4 operand) const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(ushort coord, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(ushort coord, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_max(uint coord, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_max_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+  METAL_FUNC void atomic_min(uint coord, ulong4 operand) const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    __metal_atomic_min_explicit_texture_buffer_1d_t(derived.t, coord, operand, __METAL_MEMORY_ORDER_RELAXED__, int(a));
+  }
+};
+#endif
+
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture_buffer
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture_buffer<T, a, c, typename enable_if<is_color_texture_channel<T>::value && _is_valid_texture_buffer_query(a, c)>::type>
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  : _deleted_operators<texture_buffer<T, a, c>>
+  , _texture_explicit_conversion<c == memory_coherence_device, texture_buffer<T, a, c>, texture_buffer<T, a, memory_coherence_threadgroup>>
+  , _texture_implicit_conversion<c == memory_coherence_threadgroup, texture_buffer<T, a, c>, texture_buffer<T, a, memory_coherence_device>>
+#else
+  : _deleted_operators<texture_buffer<T, a>>
+#endif
+  , _texture_buffer_read<T, a, c>
+  , _texture_buffer_write<T, a, c>
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+  , _texture_buffer_atomic_load<T, a, c>
+  , _texture_buffer_atomic_store<T, a, c>
+  , _texture_buffer_atomic_compare_exchange<T, a, c>
+  , _texture_buffer_atomic_exchange<T, a, c>
+  , _texture_buffer_atomic_fetch_and<T, a, c>
+  , _texture_buffer_atomic_fetch_and_arith<T, a, c>
+  , _texture_buffer_atomic_modify<T, a, c>
+#endif
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture_buffer<T, a, c>;
+#else
+  using __derived_t = texture_buffer<T, a>;
+#endif
+
+public:
+  METAL_FUNC void fence() thread
+  {
+    const thread  auto &derived = static_cast<thread  __derived_t &>(*this);
+    __metal_fence_texture_buffer_1d_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC void fence() device
+  {
+    const device  auto &derived = static_cast<device  __derived_t &>(*this);
+    __metal_fence_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC void fence() device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<device coherent(device) __derived_t &>(*this);
+    __metal_fence_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC void fence() constant
+  {
+    const constant  auto &derived = static_cast<constant  __derived_t &>(*this);
+    __metal_fence_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC void fence() ray_data
+  {
+    const ray_data  auto &derived = static_cast<ray_data  __derived_t &>(*this);
+    __metal_fence_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC void fence() object_data
+  {
+    const object_data  auto &derived = static_cast<object_data  __derived_t &>(*this);
+    __metal_fence_texture_buffer_1d_t(derived.t);
+  }
+#endif
+
+  METAL_FUNC uint get_width() const thread
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_width_texture_buffer_1d_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width() const device
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_width_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC uint get_width() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_width_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width() const constant
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_width_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC uint get_width() const ray_data
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_width_texture_buffer_1d_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC uint get_width() const object_data
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_width_texture_buffer_1d_t(derived.t);
+  }
+#endif
+};
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c, typename _Enable>
+struct texture_buffer : _texture_buffer<T, a, c>
+#else
+template <typename T, access a, typename _Enable>
+struct texture_buffer : _texture_buffer<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_color_texture_channel<T>::value, "invalid channel type 'T' for 'texture_buffer'");
+  static_assert(_is_valid_texture_buffer_query_access(a), "invalid access value 'a' for 'texture_buffer'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  texture_buffer() thread = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  texture_buffer() constant = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  texture_buffer() ray_data = delete;
+#endif
+
+  METAL_FUNC texture_buffer(const thread  texture_buffer &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const device  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture_buffer(const device coherent(device) texture_buffer &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const constant  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const ray_data  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture_buffer(const object_data  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const thread  texture_buffer &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const device  texture_buffer &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture_buffer(const device coherent(device) texture_buffer &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const constant  texture_buffer &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const ray_data  texture_buffer &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture_buffer(const object_data  texture_buffer &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const thread  texture_buffer &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const device  texture_buffer &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const device coherent(device) texture_buffer &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const constant  texture_buffer &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const ray_data  texture_buffer &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const object_data  texture_buffer &) ray_data = default;
+#endif
+#endif
+
+  thread  texture_buffer &operator=(const thread  texture_buffer &) thread  = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  texture_buffer &operator=(const device  texture_buffer &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  thread  texture_buffer &operator=(const device coherent(device) texture_buffer &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  texture_buffer &operator=(const constant  texture_buffer &) thread  = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  thread  texture_buffer &operator=(const ray_data  texture_buffer &) thread  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+  thread  texture_buffer &operator=(const object_data  texture_buffer &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture_buffer &operator=(const thread  texture_buffer &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture_buffer &operator=(const device  texture_buffer &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device  texture_buffer &operator=(const device coherent(device) texture_buffer &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture_buffer &operator=(const constant  texture_buffer &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  device  texture_buffer &operator=(const ray_data  texture_buffer &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  device  texture_buffer &operator=(const object_data  texture_buffer &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture_buffer &operator=(const thread  texture_buffer &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture_buffer &operator=(const device  texture_buffer &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture_buffer &operator=(const device coherent(device) texture_buffer &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture_buffer &operator=(const constant  texture_buffer &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  device coherent(device) texture_buffer &operator=(const ray_data  texture_buffer &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  device coherent(device) texture_buffer &operator=(const object_data  texture_buffer &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture_buffer &operator=(const thread  texture_buffer &) ray_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture_buffer &operator=(const device  texture_buffer &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture_buffer &operator=(const device coherent(device) texture_buffer &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture_buffer &operator=(const constant  texture_buffer &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture_buffer &operator=(const ray_data  texture_buffer &) ray_data  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture_buffer &operator=(const object_data  texture_buffer &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  texture_buffer &operator=(const thread  texture_buffer &) object_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  texture_buffer &operator=(const device  texture_buffer &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  object_data  texture_buffer &operator=(const device coherent(device) texture_buffer &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  texture_buffer &operator=(const constant  texture_buffer &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  object_data  texture_buffer &operator=(const ray_data  texture_buffer &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  texture_buffer &operator=(const object_data  texture_buffer &) object_data  = delete;
+#endif
+
+private:
+  __metal_texture_buffer_1d_t t;
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(texture_buffer<T, a, c>);
+  friend struct _texture_buffer_read<T, a, c>;
+  friend struct _texture_buffer_write<T, a, c>;
+  friend struct _texture_buffer_atomic_load<T, a, c>;
+  friend struct _texture_buffer_atomic_store<T, a, c>;
+  friend struct _texture_buffer_atomic_compare_exchange<T, a, c>;
+  friend struct _texture_buffer_atomic_exchange<T, a, c>;
+  friend struct _texture_buffer_atomic_fetch_and<T, a, c>;
+  friend struct _texture_buffer_atomic_fetch_and_arith<T, a, c>;
+  friend struct _texture_buffer_atomic_modify<T, a, c>;
+  friend struct _texture_buffer<T, a, c>;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(texture_buffer<T, a>);
+#endif
+  friend struct _texture_buffer_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_write<T, a, __memory_coherence_threadgroup>;
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+  friend struct _texture_buffer_atomic_load<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_store<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_compare_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_fetch_and<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_fetch_and_arith<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_modify<T, a, __memory_coherence_threadgroup>;
+#endif
+  friend struct _texture_buffer<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__) && defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+struct texture_buffer<T, a, c, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _texture_buffer<T, a, c>
+#else
+template <typename T, access a>
+struct texture_buffer<T, a, typename enable_if<_is_valid_default_construct(a, __memory_coherence_threadgroup) && _is_valid_copy_assign(a, __memory_coherence_threadgroup)>::type> : _texture_buffer<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_color_texture_channel<T>::value, "invalid channel type 'T' for 'texture_buffer'");
+  static_assert(_is_valid_texture_buffer_query_access(a), "invalid access value 'a' for 'texture_buffer'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  METAL_FUNC texture_buffer() thread : t(__metal_get_null_texture_buffer_1d_t()) {}
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer() constant : t(__metal_get_null_texture_buffer_1d_t()) {}
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer() ray_data : t(__metal_get_null_texture_buffer_1d_t()) {}
+#endif
+
+  METAL_FUNC texture_buffer(const thread  texture_buffer &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const device  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture_buffer(const device coherent(device) texture_buffer &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const constant  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const ray_data  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture_buffer(const object_data  texture_buffer &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const thread  texture_buffer &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const device  texture_buffer &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture_buffer(const device coherent(device) texture_buffer &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture_buffer(const constant  texture_buffer &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const ray_data  texture_buffer &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture_buffer(const object_data  texture_buffer &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const thread  texture_buffer &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const device  texture_buffer &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const device coherent(device) texture_buffer &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const constant  texture_buffer &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const ray_data  texture_buffer &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture_buffer(const object_data  texture_buffer &) ray_data = default;
+#endif
+#endif
+
+  METAL_FUNC thread  texture_buffer &operator=(const thread  texture_buffer &) thread  = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  texture_buffer &operator=(const device  texture_buffer &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC thread  texture_buffer &operator=(const device coherent(device) texture_buffer &) thread  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  texture_buffer &operator=(const constant  texture_buffer &) thread  = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC thread  texture_buffer &operator=(const ray_data  texture_buffer &) thread  = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC thread  texture_buffer &operator=(const object_data  texture_buffer &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture_buffer &operator=(const thread  texture_buffer &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture_buffer &operator=(const device  texture_buffer &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device  texture_buffer &operator=(const device coherent(device) texture_buffer &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture_buffer &operator=(const constant  texture_buffer &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device  texture_buffer &operator=(const ray_data  texture_buffer &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device  texture_buffer &operator=(const object_data  texture_buffer &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture_buffer &operator=(const thread  texture_buffer &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture_buffer &operator=(const device  texture_buffer &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture_buffer &operator=(const device coherent(device) texture_buffer &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture_buffer &operator=(const constant  texture_buffer &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device coherent(device) texture_buffer &operator=(const ray_data  texture_buffer &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device coherent(device) texture_buffer &operator=(const object_data  texture_buffer &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture_buffer &operator=(const thread  texture_buffer &) ray_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture_buffer &operator=(const device  texture_buffer &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture_buffer &operator=(const device coherent(device) texture_buffer &) ray_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture_buffer &operator=(const constant  texture_buffer &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture_buffer &operator=(const ray_data  texture_buffer &) ray_data  = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture_buffer &operator=(const object_data  texture_buffer &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture_buffer &operator=(const thread  texture_buffer &) object_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture_buffer &operator=(const device  texture_buffer &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture_buffer &operator=(const device coherent(device) texture_buffer &) object_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture_buffer &operator=(const constant  texture_buffer &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC object_data  texture_buffer &operator=(const ray_data  texture_buffer &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture_buffer &operator=(const object_data  texture_buffer &) object_data  = default;
+#endif
+
+private:
+  __metal_texture_buffer_1d_t t;
+
+  METAL_FUNC texture_buffer(__metal_texture_buffer_1d_t t) thread : t(t) {}
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(texture_buffer<T, a, c>);
+  friend struct _texture_buffer_read<T, a, c>;
+  friend struct _texture_buffer_write<T, a, c>;
+  friend struct _texture_buffer_atomic_load<T, a, c>;
+  friend struct _texture_buffer_atomic_store<T, a, c>;
+  friend struct _texture_buffer_atomic_compare_exchange<T, a, c>;
+  friend struct _texture_buffer_atomic_exchange<T, a, c>;
+  friend struct _texture_buffer_atomic_fetch_and<T, a, c>;
+  friend struct _texture_buffer_atomic_fetch_and_arith<T, a, c>;
+  friend struct _texture_buffer_atomic_modify<T, a, c>;
+  friend struct _texture_buffer<T, a, c>;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_explicit_conversion;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_implicit_conversion;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(texture_buffer<T, a>);
+#endif
+  friend struct _texture_buffer_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_write<T, a, __memory_coherence_threadgroup>;
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+  friend struct _texture_buffer_atomic_load<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_store<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_compare_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_exchange<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_fetch_and<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_fetch_and_arith<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture_buffer_atomic_modify<T, a, __memory_coherence_threadgroup>;
+#endif
+  friend struct _texture_buffer<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+#endif
+
+#if defined(__HAVE_NULL_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+METAL_FUNC bool is_null_texture(texture_buffer<T, a, c> tex)
+#else
+template <typename T, access a>
+METAL_FUNC bool is_null_texture(texture_buffer<T, a> tex)
+#endif
+{
+  return __metal_is_null_texture_buffer_1d_t(tex.t);
+}
+#endif
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif // __BITS_METAL_TEXTURE_BUFFER
