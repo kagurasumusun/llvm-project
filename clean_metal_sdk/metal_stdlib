@@ -15,6 +15,7 @@ typedef unsigned int uint;
 typedef unsigned long ulong;
 typedef uint uint32_t;
 typedef ulong uint64_t;
+typedef float half;
 
 #ifndef __device_defined
 #define __device_defined 1
@@ -34,10 +35,22 @@ using ext_vec_t __attribute__((ext_vector_type(N))) = T;
 using float2 = ext_vec_t<float, 2>;
 using float3 = ext_vec_t<float, 3>;
 using float4 = ext_vec_t<float, 4>;
+using half2 = ext_vec_t<half, 2>;
+using half3 = ext_vec_t<half, 3>;
+using half4 = ext_vec_t<half, 4>;
 using uint2 = ext_vec_t<uint, 2>;
 using uint3 = ext_vec_t<uint, 3>;
 using uint4 = ext_vec_t<uint, 4>;
 using ushort2 = ext_vec_t<ushort, 2>;
+using ushort3 = ext_vec_t<ushort, 3>;
+using ushort4 = ext_vec_t<ushort, 4>;
+using int2 = ext_vec_t<int, 2>;
+using int3 = ext_vec_t<int, 3>;
+using int4 = ext_vec_t<int, 4>;
+
+// Packed Vector Definitions
+typedef struct { float x, y, z; } packed_float3;
+typedef struct { float x, y, z, w; } packed_float4;
 
 inline float2 make_float2(float x, float y) { return float2{x, y}; }
 inline float3 make_float3(float x, float y, float z) { return float3{x, y, z}; }
@@ -55,6 +68,8 @@ inline float dot(const A& a, const B& b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b
 template <typename V>
 inline V normalize(const V& v) { return v; }
 inline float max(float a, float b) { return (a > b) ? a : b; }
+inline float min(float a, float b) { return (a < b) ? a : b; }
+inline float clamp(float v, float lo, float hi) { return min(max(v, lo), hi); }
 
 template <typename M, typename V>
 inline auto operator*(const M& m, const V& v) -> decltype(m.columns[0][0] * v[0], float4()) {
@@ -72,20 +87,33 @@ namespace metal
   using ::ushort;
   using ::uint;
   using ::ulong;
+  using ::half;
   using ::float2;
   using ::float3;
   using ::float4;
+  using ::half2;
+  using ::half3;
+  using ::half4;
   using ::float4x4;
   using ::uint2;
   using ::uint3;
   using ::uint4;
   using ::ushort2;
+  using ::ushort3;
+  using ::ushort4;
+  using ::int2;
+  using ::int3;
+  using ::int4;
+  using ::packed_float3;
+  using ::packed_float4;
   using ::make_float2;
   using ::make_float3;
   using ::make_float4;
   using ::dot;
   using ::normalize;
   using ::max;
+  using ::min;
+  using ::clamp;
 
   // Enums
   namespace access {
@@ -93,6 +121,15 @@ namespace metal
     enum read { read_val = 1 };
     enum write { write_val = 2 };
     enum read_write { read_write_val = 3 };
+  }
+
+  namespace mem_flags {
+    enum mem_flags_t {
+      mem_none = 0x0,
+      mem_device = 0x1,
+      mem_threadgroup = 0x2,
+      mem_texture = 0x4
+    };
   }
 
   enum class memory_order {
@@ -125,13 +162,29 @@ namespace metal
     constexpr texture2d() : handle(0) {}
     template <typename S, typename C>
     float4 sample(const S& s, const C& coord) const { return float4{0.0f, 0.0f, 0.0f, 1.0f}; }
+    template <typename S, typename C>
+    float4 gather(const S& s, const C& coord) const { return float4{0.0f, 0.0f, 0.0f, 1.0f}; }
+    uint get_width(uint lod = 0) const { return 1; }
+    uint get_num_mip_levels() const { return 1; }
   };
   template <typename T, typename A = access::sample> class texture2d_array { public: uint64_t handle; constexpr texture2d_array() : handle(0) {} };
   template <typename T, typename A = access::sample> class texture2d_ms { public: uint64_t handle; constexpr texture2d_ms() : handle(0) {} };
   template <typename T, typename A = access::sample> class texture3d { public: uint64_t handle; constexpr texture3d() : handle(0) {} };
-  template <typename T, typename A = access::sample> class texturecube { public: uint64_t handle; constexpr texturecube() : handle(0) {} };
+  template <typename T, typename A = access::sample> class texturecube {
+  public:
+    uint64_t handle;
+    constexpr texturecube() : handle(0) {}
+    template <typename S, typename C>
+    float4 sample(const S& s, const C& dir) const { return float4{0.0f, 0.0f, 0.0f, 1.0f}; }
+  };
   template <typename T, typename A = access::sample> class texturecube_array { public: uint64_t handle; constexpr texturecube_array() : handle(0) {} };
-  template <typename T, typename A = access::sample> class depth2d { public: uint64_t handle; constexpr depth2d() : handle(0) {} };
+  template <typename T, typename A = access::sample> class depth2d {
+  public:
+    uint64_t handle;
+    constexpr depth2d() : handle(0) {}
+    template <typename S, typename C>
+    float sample_compare(const S& s, const C& coord, float ref) const { return 1.0f; }
+  };
   template <typename T, typename A = access::sample> class depth2d_array { public: uint64_t handle; constexpr depth2d_array() : handle(0) {} };
   template <typename T, typename A = access::sample> class depthcube { public: uint64_t handle; constexpr depthcube() : handle(0) {} };
   template <typename T, typename A = access::sample> class depth2d_ms { public: uint64_t handle; constexpr depth2d_ms() : handle(0) {} };
@@ -173,6 +226,14 @@ namespace metal
     };
   }
 
+  // Import raytracing types into namespace metal directly
+  using raytracing::ray;
+  using raytracing::intersection_query;
+  using raytracing::intersector;
+  using raytracing::intersection_type;
+  using raytracing::instancing;
+  using raytracing::triangle_data;
+
   // 4. Tile & Imageblock Classes
   struct imageblock_layout_explicit {};
 
@@ -180,6 +241,12 @@ namespace metal
   class imageblock {
   public:
     threadgroup_imageblock T* data(ushort2 tid) { return nullptr; }
+  };
+
+  template <typename T>
+  class imageblock_data {
+  public:
+    void write(T val, ushort2 tid) {}
   };
 
   // 5. Mesh & Object Shaders
@@ -194,6 +261,16 @@ namespace metal
     void set_primitive(uint idx, Primitive p) {}
   };
 
+  // Tessellation Factor Structures
+  struct patch_control_point_base {};
+  template <typename T>
+  struct patch_control_point { T data; };
+
+  struct triangle_tessellation_factors_half {
+    half edgeTessellationFactor[3];
+    half insideTessellationFactor;
+  };
+
   // 6. SIMD Group & Barriers
   template <typename T, int Cols, int Rows>
   class simdgroup_matrix {
@@ -203,6 +280,13 @@ namespace metal
 
   inline void simdgroup_barrier(int flags = 0) {}
   inline void threadgroup_barrier(int flags = 0) {}
+
+  inline float simd_broadcast(float val, uint lane) { return val; }
+  inline float simd_shuffle_down(float val, uint delta) { return val; }
+  inline float simd_sum(float val) { return val; }
+  inline float quad_shuffle(float val, uint lane) { return val; }
+  inline unsigned long simd_ballot(bool cond) { return cond ? 1UL : 0UL; }
+
   template <typename T> inline void atomic_store_explicit(device T* obj, int val, memory_order order) {}
   template <typename T> inline void atomic_store_explicit(threadgroup T* obj, uint val, memory_order order) {}
   template <typename T> inline int atomic_fetch_add_explicit(device T* obj, int val, memory_order order) { return 0; }
