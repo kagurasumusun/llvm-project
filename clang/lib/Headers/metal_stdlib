@@ -9,5 +9,7 @@
 #include <metal/metal_mesh.h>
 #include <metal/metal_atomics.h>
 #include <metal/metal_simdgroup.h>
+#include <metal/metal_simd.h>
+#include <metal/metal_tessellation.h>
 
 #endif // __METAL_STDLIB__

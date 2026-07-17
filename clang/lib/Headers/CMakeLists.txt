@@ -130,6 +130,8 @@ set(metal_subdir_files
   metal/metal_mesh.h
   metal/metal_atomics.h
   metal/metal_simdgroup.h
+  metal/metal_simd.h
+  metal/metal_tessellation.h
   )
 set(metal_files
   ${metal_h}
