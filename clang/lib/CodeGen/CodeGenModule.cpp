@@ -2672,6 +2672,12 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
         attrStr = "texture(" + std::to_string(A->getIndex()) + ")";
       else if (const auto *A = parm->getAttr<MetalSamplerAttr>())
         attrStr = "sampler(" + std::to_string(A->getIndex()) + ")";
+      else if (const auto *A = parm->getAttr<MetalIdAttr>())
+        attrStr = "id(" + std::to_string(A->getIndex()) + ")";
+      else if (parm->hasAttr<MetalPayloadAttr>())
+        attrStr = "payload";
+      else if (parm->hasAttr<MetalThreadsPerMeshGridAttr>())
+        attrStr = "threads_per_mesh_grid";
       else if (parm->hasAttr<MetalStageInAttr>())
         attrStr = "stage_in";
       else if (parm->hasAttr<MetalThreadPositionInGridAttr>())
