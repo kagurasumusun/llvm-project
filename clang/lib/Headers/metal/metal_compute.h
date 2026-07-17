@@ -1,7 +1,7 @@
 #ifndef __METAL_COMPUTE_H__
 #define __METAL_COMPUTE_H__
 
-#ifdef __METAL__
+#if 1 // __METAL__
 namespace metal {
 
 enum class mem_flags {

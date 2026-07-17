@@ -631,14 +631,14 @@ KEYWORD(__unaligned                 , KEYMS)
 KEYWORD(__super                     , KEYMS)
 
 // OpenCL address space qualifiers
-KEYWORD(__global                    , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
-KEYWORD(__local                     , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
-KEYWORD(__constant                  , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
-KEYWORD(__private                   , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
+KEYWORD(__global                    , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__local                     , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__constant                  , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__private                   , KEYOPENCLC | KEYOPENCLCXX)
 KEYWORD(__generic                   , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("global", __global            , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("local", __local              , KEYOPENCLC | KEYOPENCLCXX)
-ALIAS("constant", __constant        , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
+ALIAS("constant", __constant        , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("private", __private          , KEYOPENCLC)
 ALIAS("generic", __generic          , KEYOPENCLC | KEYOPENCLCXX)
 
@@ -657,8 +657,8 @@ ALIAS("object_data", __metal_object_data     , KEYMETAL)
 ALIAS("threadgroup_imageblock", __metal_threadgroup_imageblock, KEYMETAL)
 
 // OpenCL function qualifiers
-KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
-ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
+KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX)
 // OpenCL access qualifiers
 KEYWORD(__read_only                 , KEYOPENCLC | KEYOPENCLCXX)
 KEYWORD(__write_only                , KEYOPENCLC | KEYOPENCLCXX)

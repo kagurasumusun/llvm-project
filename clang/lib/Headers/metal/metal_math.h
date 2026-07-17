@@ -1,7 +1,7 @@
 #ifndef __METAL_MATH_H__
 #define __METAL_MATH_H__
 
-#ifdef __METAL__
+#if 1 // defined(__METAL__) || defined(__metal__)
 namespace metal {
 
 template<typename T>
@@ -17,7 +17,11 @@ inline float dot(float3 a, float3 b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
 inline float dot(float4 a, float4 b) { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
 
 inline float3 cross(float3 a, float3 b) {
-    return float3(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);
+    float3 res;
+    res.x = a.y*b.z - a.z*b.y;
+    res.y = a.z*b.x - a.x*b.z;
+    res.z = a.x*b.y - a.y*b.x;
+    return res;
 }
 
 // Builtin declarations

@@ -1,7 +1,7 @@
 #ifndef __METAL_GRAPHICS_H__
 #define __METAL_GRAPHICS_H__
 
-#ifdef __METAL__
+#if 1 // __METAL__
 namespace metal {
 
 enum class access { read, write, read_write };

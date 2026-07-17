@@ -1,20 +1,29 @@
 #ifndef __METAL_TYPES_H__
 #define __METAL_TYPES_H__
 
-#ifdef __METAL__
+#if 1 // defined(__METAL__) || defined(__metal__)
 
-// Address space definitions
-#define device __metal_device
-#define constant __metal_constant
-#define threadgroup __metal_threadgroup
-#define thread __metal_thread
-#define ray_data __metal_ray_data
-#define object_data __metal_object_data
-#define threadgroup_imageblock __metal_threadgroup_imageblock
+// Metal Address Space Qualifiers via Clang's native address_space attribute
+#define device __attribute__((address_space(1)))
+#define constant __attribute__((address_space(2)))
+#define threadgroup __attribute__((address_space(3)))
+#define thread __attribute__((address_space(0)))
+#define ray_data __attribute__((address_space(5)))
+#define object_data __attribute__((address_space(6)))
+#define threadgroup_imageblock __attribute__((address_space(7)))
+
+// Shader stage qualifiers
+#define kernel __attribute__((metal_kernel))
+#define vertex __attribute__((metal_vertex))
+#define fragment __attribute__((metal_fragment))
+#define tile __attribute__((metal_tile))
+#define mesh __attribute__((metal_mesh))
+#define object __attribute__((metal_object))
+#define intersection __attribute__((metal_intersection))
 
 namespace metal {
 
-typedef _Float16 half;
+// Note: 'half' is already a keyword/builtin in Clang Metal/HLSL/OpenCL mode
 typedef float float32_t;
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
@@ -85,8 +94,7 @@ struct array {
 
 } // namespace metal
 
-// Bring types into global scope or allow using namespace metal
-using metal::half;
+// Bring types into global scope
 using metal::uint;
 using metal::ushort;
 using metal::uchar;
@@ -104,6 +112,8 @@ using metal::uint3;
 using metal::uint4;
 using metal::float4x4;
 using metal::half4x4;
+using metal::packed_float3;
+using metal::packed_half3;
 
 #endif // __METAL__
 #endif // __METAL_TYPES_H__

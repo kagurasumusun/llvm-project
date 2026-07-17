@@ -19,7 +19,11 @@ vertex ShaderOutput my_vertex_shader(ShaderInput input [[stage_in]],
                                      constant float4x4& mvp_matrix [[buffer(0)]],
                                      uint vertex_id [[thread_position_in_grid]]) {
     ShaderOutput out;
-    float4 pos = float4(input.packed_pos.x, input.packed_pos.y, input.packed_pos.z, 1.0f);
+    float4 pos;
+    pos.x = input.packed_pos.x;
+    pos.y = input.packed_pos.y;
+    pos.z = input.packed_pos.z;
+    pos.w = 1.0f;
     out.color = pos * 0.5f;
     out.depth = input.position.z;
     return out;
@@ -29,9 +33,22 @@ vertex ShaderOutput my_vertex_shader(ShaderInput input [[stage_in]],
 fragment float4 my_fragment_shader(ShaderOutput in [[stage_in]],
                                    texture2d<float, access::read> tex [[texture(0)]],
                                    sampler smp [[sampler(0)]]) {
-    float3 n = normalize(float3(in.color.x, in.color.y, in.color.z));
-    float d = dot(n, float3(0.0f, 1.0f, 0.0f));
-    return float4(clamp(d, 0.0f, 1.0f), in.color.y, in.color.z, 1.0f);
+    float3 n;
+    n.x = in.color.x;
+    n.y = in.color.y;
+    n.z = in.color.z;
+    float3 norm_n = normalize(n);
+    float3 up_dir;
+    up_dir.x = 0.0f;
+    up_dir.y = 1.0f;
+    up_dir.z = 0.0f;
+    float d = dot(norm_n, up_dir);
+    float4 res;
+    res.x = clamp(d, 0.0f, 1.0f);
+    res.y = in.color.y;
+    res.z = in.color.z;
+    res.w = 1.0f;
+    return res;
 }
 
 // 4. Kernel (Compute) shader entry point with address spaces and synchronization
@@ -45,10 +62,15 @@ kernel void my_compute_kernel(device float4* input_data [[buffer(0)]],
     uint linear_tid = tid_in_tg.x + tid_in_tg.y * tg_size.x;
     local_shared[linear_tid] = input_data[grid_pos.x] * scale;
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    output_data[grid_pos.x] = local_shared[linear_tid] + float4(1.0f, 2.0f, 3.0f, 4.0f);
+    float4 offset;
+    offset.x = 1.0f;
+    offset.y = 2.0f;
+    offset.z = 3.0f;
+    offset.w = 4.0f;
+    output_data[grid_pos.x] = local_shared[linear_tid] + offset;
 }
 
-// 5. Advanced Metal address spaces and features (MSL 2.0 - 4.1)
+// 5. Advanced Metal address spaces and features (MSL 1.2 - 4.1)
 struct AdvancedData {
     device float* dev_ptr;
     constant float* const_ptr;
