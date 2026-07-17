@@ -15,7 +15,10 @@ typedef unsigned int uint;
 typedef unsigned long ulong;
 typedef uint uint32_t;
 typedef ulong uint64_t;
+
+#ifndef __METAL__
 typedef float half;
+#endif
 
 #ifndef __device_defined
 #define __device_defined 1
@@ -28,56 +31,70 @@ typedef float half;
 #define threadgroup_imageblock __attribute__((address_space(7)))
 #endif
 
-// Base ext_vector_type definitions
-template <typename T, int N>
-using ext_vec_t __attribute__((ext_vector_type(N))) = T;
+// Vector Types with Clang Native ext_vector_type
+typedef float float2 __attribute__((ext_vector_type(2)));
+typedef float float3 __attribute__((ext_vector_type(3)));
+typedef float float4 __attribute__((ext_vector_type(4)));
 
-using float2 = ext_vec_t<float, 2>;
-using float3 = ext_vec_t<float, 3>;
-using float4 = ext_vec_t<float, 4>;
-using half2 = ext_vec_t<half, 2>;
-using half3 = ext_vec_t<half, 3>;
-using half4 = ext_vec_t<half, 4>;
-using uint2 = ext_vec_t<uint, 2>;
-using uint3 = ext_vec_t<uint, 3>;
-using uint4 = ext_vec_t<uint, 4>;
-using ushort2 = ext_vec_t<ushort, 2>;
-using ushort3 = ext_vec_t<ushort, 3>;
-using ushort4 = ext_vec_t<ushort, 4>;
-using int2 = ext_vec_t<int, 2>;
-using int3 = ext_vec_t<int, 3>;
-using int4 = ext_vec_t<int, 4>;
+typedef half half2 __attribute__((ext_vector_type(2)));
+typedef half half3 __attribute__((ext_vector_type(3)));
+typedef half half4 __attribute__((ext_vector_type(4)));
+
+typedef uint uint2 __attribute__((ext_vector_type(2)));
+typedef uint uint3 __attribute__((ext_vector_type(3)));
+typedef uint uint4 __attribute__((ext_vector_type(4)));
+
+typedef ushort ushort2 __attribute__((ext_vector_type(2)));
+typedef ushort ushort3 __attribute__((ext_vector_type(3)));
+typedef ushort ushort4 __attribute__((ext_vector_type(4)));
+
+typedef int int2 __attribute__((ext_vector_type(2)));
+typedef int int3 __attribute__((ext_vector_type(3)));
+typedef int int4 __attribute__((ext_vector_type(4)));
 
 // Packed Vector Definitions
 typedef struct { float x, y, z; } packed_float3;
 typedef struct { float x, y, z, w; } packed_float4;
 
-inline float2 make_float2(float x, float y) { return float2{x, y}; }
-inline float3 make_float3(float x, float y, float z) { return float3{x, y, z}; }
-inline float4 make_float4(float x, float y, float z, float w) { return float4{x, y, z, w}; }
-inline float4 make_float4(float3 xyz, float w) { return float4{xyz[0], xyz[1], xyz[2], w}; }
+inline float2 make_float2(float x, float y) { return (float2){x, y}; }
+inline float3 make_float3(float x, float y, float z) { return (float3){x, y, z}; }
+inline float4 make_float4(float x, float y, float z, float w) { return (float4){x, y, z, w}; }
+inline float4 make_float4(float3 xyz, float w) { return (float4){xyz.x, xyz.y, xyz.z, w}; }
+
+// Helper macro for vector constructors
+#define float2(x, y) ((float2){(float)(x), (float)(y)})
+#define float3(x, y, z) ((float3){(float)(x), (float)(y), (float)(z)})
+#define float4(...) make_float4(__VA_ARGS__)
 
 struct float4x4 {
   float4 columns[4];
   float4x4() = default;
 };
 
-// Math Helpers
+// Math Helpers & Matrix Multiplication
 template <typename A, typename B>
-inline float dot(const A& a, const B& b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
+inline float dot(const A& a, const B& b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
 template <typename V>
 inline V normalize(const V& v) { return v; }
 inline float max(float a, float b) { return (a > b) ? a : b; }
 inline float min(float a, float b) { return (a < b) ? a : b; }
 inline float clamp(float v, float lo, float hi) { return min(max(v, lo), hi); }
 
-template <typename M, typename V>
-inline auto operator*(const M& m, const V& v) -> decltype(m.columns[0][0] * v[0], float4()) {
-  return float4{
-    dot(m.columns[0], v),
-    dot(m.columns[1], v),
-    dot(m.columns[2], v),
-    dot(m.columns[3], v)
+inline float4 operator*(const float4x4& m, float4 v) {
+  return (float4){
+    m.columns[0].x*v.x + m.columns[1].x*v.y + m.columns[2].x*v.z + m.columns[3].x*v.w,
+    m.columns[0].y*v.x + m.columns[1].y*v.y + m.columns[2].y*v.z + m.columns[3].y*v.w,
+    m.columns[0].z*v.x + m.columns[1].z*v.y + m.columns[2].z*v.z + m.columns[3].z*v.w,
+    m.columns[0].w*v.x + m.columns[1].w*v.y + m.columns[2].w*v.z + m.columns[3].w*v.w
+  };
+}
+
+inline float4 operator*(const constant float4x4& m, float4 v) {
+  return (float4){
+    m.columns[0].x*v.x + m.columns[1].x*v.y + m.columns[2].x*v.z + m.columns[3].x*v.w,
+    m.columns[0].y*v.x + m.columns[1].y*v.y + m.columns[2].y*v.z + m.columns[3].y*v.w,
+    m.columns[0].z*v.x + m.columns[1].z*v.y + m.columns[2].z*v.z + m.columns[3].z*v.w,
+    m.columns[0].w*v.x + m.columns[1].w*v.y + m.columns[2].w*v.z + m.columns[3].w*v.w
   };
 }
 
@@ -87,7 +104,9 @@ namespace metal
   using ::ushort;
   using ::uint;
   using ::ulong;
+#ifndef __METAL__
   using ::half;
+#endif
   using ::float2;
   using ::float3;
   using ::float4;
@@ -161,9 +180,9 @@ namespace metal
     uint64_t handle;
     constexpr texture2d() : handle(0) {}
     template <typename S, typename C>
-    float4 sample(const S& s, const C& coord) const { return float4{0.0f, 0.0f, 0.0f, 1.0f}; }
+    float4 sample(const S& s, const C& coord) const { return (float4){0.0f, 0.0f, 0.0f, 1.0f}; }
     template <typename S, typename C>
-    float4 gather(const S& s, const C& coord) const { return float4{0.0f, 0.0f, 0.0f, 1.0f}; }
+    float4 gather(const S& s, const C& coord) const { return (float4){0.0f, 0.0f, 0.0f, 1.0f}; }
     uint get_width(uint lod = 0) const { return 1; }
     uint get_num_mip_levels() const { return 1; }
   };
@@ -175,7 +194,7 @@ namespace metal
     uint64_t handle;
     constexpr texturecube() : handle(0) {}
     template <typename S, typename C>
-    float4 sample(const S& s, const C& dir) const { return float4{0.0f, 0.0f, 0.0f, 1.0f}; }
+    float4 sample(const S& s, const C& dir) const { return (float4){0.0f, 0.0f, 0.0f, 1.0f}; }
   };
   template <typename T, typename A = access::sample> class texturecube_array { public: uint64_t handle; constexpr texturecube_array() : handle(0) {} };
   template <typename T, typename A = access::sample> class depth2d {
@@ -226,7 +245,6 @@ namespace metal
     };
   }
 
-  // Import raytracing types into namespace metal directly
   using raytracing::ray;
   using raytracing::intersection_query;
   using raytracing::intersector;

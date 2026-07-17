@@ -15,7 +15,7 @@ for VER in $VERSIONS; do
     OUT_IR="/tmp/test_out_${VER}.ll"
     
     # Run Clang with -x metal, -std=$VER, include headers, and emit LLVM IR
-    $CLANG_BIN -x metal -std=$VER -I$HEADER_DIR -c -emit-llvm -S $TEST_FILE -o $OUT_IR
+    $CLANG_BIN -x metal -std=$VER -I$HEADER_DIR -I$HEADER_DIR/metal -c -emit-llvm -S $TEST_FILE -o $OUT_IR
     
     if [ -s "$OUT_IR" ]; then
         echo "SUCCESS: Generated LLVM IR for $VER ($(wc -l < $OUT_IR) lines)"
