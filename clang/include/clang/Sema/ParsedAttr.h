@@ -629,8 +629,26 @@ public:
     case ParsedAttr::AT_MetalThreadGroupImageblockAddressSpace:
       return LangAS::metal_threadgroup_imageblock;
     default:
-      return LangAS::Default;
+      break;
     }
+    if (const IdentifierInfo *II = getAttrName()) {
+      StringRef Name = II->getName();
+      if (Name == "device" || Name == "__metal_device" || Name == "__global" || Name == "global")
+        return LangAS::metal_device;
+      if (Name == "constant" || Name == "__metal_constant" || Name == "__constant")
+        return LangAS::metal_constant;
+      if (Name == "threadgroup" || Name == "__metal_threadgroup" || Name == "__local" || Name == "local")
+        return LangAS::metal_threadgroup;
+      if (Name == "thread" || Name == "__metal_thread" || Name == "__private" || Name == "private")
+        return LangAS::metal_thread;
+      if (Name == "ray_data" || Name == "__metal_ray_data")
+        return LangAS::metal_ray_data;
+      if (Name == "object_data" || Name == "__metal_object_data")
+        return LangAS::metal_object_data;
+      if (Name == "threadgroup_imageblock" || Name == "__metal_threadgroup_imageblock")
+        return LangAS::metal_threadgroup_imageblock;
+    }
+    return LangAS::Default;
   }
 
   AttributeCommonInfo::Kind getKind() const {

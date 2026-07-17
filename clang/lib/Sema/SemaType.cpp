@@ -6636,8 +6636,15 @@ static void HandleAddressSpaceTypeAttribute(QualType &Type,
     if (S.getLangOpts().isMetal())
       ASIdx = Attr.asMetalLangAS();
 
-    if (ASIdx == LangAS::Default)
-      llvm_unreachable("Invalid address space");
+    if (ASIdx == LangAS::Default) {
+      if (S.getLangOpts().isMetal()) {
+        ASIdx = LangAS::metal_thread;
+      } else {
+        S.Diag(Attr.getLoc(), diag::err_attribute_invalid_vector_type) << Attr;
+        Attr.setInvalid();
+        return;
+      }
+    }
 
     if (DiagnoseMultipleAddrSpaceAttributes(S, Type.getAddressSpace(), ASIdx,
                                             Attr.getLoc())) {
