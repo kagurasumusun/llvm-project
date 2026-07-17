@@ -24,6 +24,12 @@ struct imageblock_slice {
 };
 
 template<typename T, access a = access::read>
+struct imageblock_data {
+    T read(ushort2 coord) const;
+    void write(T color, ushort2 coord);
+};
+
+template<typename T, access a = access::read>
 struct texture1d {
     T read(uint coord) const;
     void write(T color, uint coord);
