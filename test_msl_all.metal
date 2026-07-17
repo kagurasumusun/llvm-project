@@ -15,7 +15,7 @@ struct ShaderOutput {
 };
 
 // 2. Vertex shader entry point
-vertex ShaderOutput my_vertex_shader(ShaderInput input [[stage_in]],
+[[vertex]] ShaderOutput my_vertex_shader(ShaderInput input [[stage_in]],
                                      constant float4x4& mvp_matrix [[buffer(0)]],
                                      uint vertex_id [[thread_position_in_grid]]) {
     ShaderOutput out;
@@ -30,7 +30,7 @@ vertex ShaderOutput my_vertex_shader(ShaderInput input [[stage_in]],
 }
 
 // 3. Fragment shader entry point
-fragment float4 my_fragment_shader(ShaderOutput in [[stage_in]],
+[[fragment]] float4 my_fragment_shader(ShaderOutput in [[stage_in]],
                                    texture2d<float, access::read> tex [[texture(0)]],
                                    sampler smp [[sampler(0)]]) {
     float3 n;
@@ -52,7 +52,7 @@ fragment float4 my_fragment_shader(ShaderOutput in [[stage_in]],
 }
 
 // 4. Kernel (Compute) shader entry point with address spaces and synchronization
-kernel void my_compute_kernel(device float4* input_data [[buffer(0)]],
+[[kernel]] void my_compute_kernel(device float4* input_data [[buffer(0)]],
                               device float4* output_data [[buffer(1)]],
                               constant float& scale [[buffer(2)]],
                               threadgroup float4* local_shared [[buffer(3)]],
@@ -81,7 +81,7 @@ struct AdvancedData {
     threadgroup_imageblock float* imgblock_ptr;
 };
 
-kernel void my_advanced_kernel(device AdvancedData* data [[buffer(0)]],
+[[kernel]] void my_advanced_kernel(device AdvancedData* data [[buffer(0)]],
                                uint id [[thread_position_in_grid]]) {
     float val = data[id].dev_ptr[0] + data[id].const_ptr[0];
     data[id].dev_ptr[0] = min(max(val, 0.0f), 100.0f);

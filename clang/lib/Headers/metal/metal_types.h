@@ -12,14 +12,7 @@
 #define object_data __attribute__((address_space(6)))
 #define threadgroup_imageblock __attribute__((address_space(7)))
 
-// Shader stage qualifiers
-#define kernel __attribute__((metal_kernel))
-#define vertex __attribute__((metal_vertex))
-#define fragment __attribute__((metal_fragment))
-#define tile __attribute__((metal_tile))
-#define mesh __attribute__((metal_mesh))
-#define object __attribute__((metal_object))
-#define intersection __attribute__((metal_intersection))
+// Shader stage qualifiers (parsed automatically via CXX11 attribute namespace auto-resolution or explicit [[metal::...]])
 
 namespace metal {
 
