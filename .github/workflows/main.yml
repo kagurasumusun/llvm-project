@@ -1,8 +1,6 @@
 name: Fast Clang Metal LLVM IR CI
 
 on:
-  push:
-    branches: [ metal-clang, main ]
   workflow_dispatch:
 
 permissions:
