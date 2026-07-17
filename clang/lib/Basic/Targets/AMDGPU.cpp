@@ -54,6 +54,13 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsGenMap = {
     llvm::AMDGPUAS::GLOBAL_ADDRESS,  // hlsl_device
     llvm::AMDGPUAS::PRIVATE_ADDRESS, // hlsl_input
     llvm::AMDGPUAS::GLOBAL_ADDRESS,  // hlsl_push_constant
+    llvm::AMDGPUAS::GLOBAL_ADDRESS,   // metal_device
+    llvm::AMDGPUAS::CONSTANT_ADDRESS, // metal_constant
+    llvm::AMDGPUAS::LOCAL_ADDRESS,    // metal_threadgroup
+    llvm::AMDGPUAS::PRIVATE_ADDRESS,  // metal_thread
+    llvm::AMDGPUAS::GLOBAL_ADDRESS,   // metal_ray_data
+    llvm::AMDGPUAS::GLOBAL_ADDRESS,   // metal_object_data
+    llvm::AMDGPUAS::LOCAL_ADDRESS,    // metal_threadgroup_imageblock
 };
 
 const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
@@ -83,6 +90,13 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
     llvm::AMDGPUAS::GLOBAL_ADDRESS,   // hlsl_device
     llvm::AMDGPUAS::PRIVATE_ADDRESS,  // hlsl_input
     llvm::AMDGPUAS::GLOBAL_ADDRESS,   // hlsl_push_constant
+    llvm::AMDGPUAS::GLOBAL_ADDRESS,   // metal_device
+    llvm::AMDGPUAS::CONSTANT_ADDRESS, // metal_constant
+    llvm::AMDGPUAS::LOCAL_ADDRESS,    // metal_threadgroup
+    llvm::AMDGPUAS::PRIVATE_ADDRESS,  // metal_thread
+    llvm::AMDGPUAS::GLOBAL_ADDRESS,   // metal_ray_data
+    llvm::AMDGPUAS::GLOBAL_ADDRESS,   // metal_object_data
+    llvm::AMDGPUAS::LOCAL_ADDRESS,    // metal_threadgroup_imageblock
 };
 } // namespace targets
 } // namespace clang

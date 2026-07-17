@@ -102,6 +102,14 @@ bool Qualifiers::isTargetAddressSpaceSupersetOf(LangAS A, LangAS B,
          (A == LangAS::Default && B == LangAS::hlsl_device) ||
          (A == LangAS::Default && B == LangAS::hlsl_input) ||
          (A == LangAS::Default && B == LangAS::hlsl_push_constant) ||
+         // Metal address spaces can cast to Default when necessary (e.g. methods or references).
+         (A == LangAS::Default && B == LangAS::metal_device) ||
+         (A == LangAS::Default && B == LangAS::metal_constant) ||
+         (A == LangAS::Default && B == LangAS::metal_threadgroup) ||
+         (A == LangAS::Default && B == LangAS::metal_thread) ||
+         (A == LangAS::Default && B == LangAS::metal_ray_data) ||
+         (A == LangAS::Default && B == LangAS::metal_object_data) ||
+         (A == LangAS::Default && B == LangAS::metal_threadgroup_imageblock) ||
          // Conversions from target specific address spaces may be legal
          // depending on the target information.
          Ctx.getTargetInfo().isAddressSpaceSupersetOf(A, B);

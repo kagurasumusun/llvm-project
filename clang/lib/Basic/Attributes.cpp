@@ -233,6 +233,7 @@ getScopeFromNormalizedScopeName(StringRef ScopeName) {
       .Case("gnu", AttributeCommonInfo::Scope::GNU)
       .Case("gsl", AttributeCommonInfo::Scope::GSL)
       .Case("hlsl", AttributeCommonInfo::Scope::HLSL)
+      .Case("metal", AttributeCommonInfo::Scope::METAL)
       .Case("vk", AttributeCommonInfo::Scope::VK)
       .Case("msvc", AttributeCommonInfo::Scope::MSVC)
       .Case("omp", AttributeCommonInfo::Scope::OMP)

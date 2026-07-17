@@ -440,6 +440,7 @@ def ObjCNonFragileRuntime
     : LangOpt<"", "LangOpts.ObjCRuntime.allowsClassStubs()">;
 
 def HLSL : LangOpt<"HLSL">;
+def Metal : LangOpt<"Metal">;
 
 // Language option for CMSE extensions
 def Cmse : LangOpt<"Cmse">;
@@ -5344,4 +5345,261 @@ def ModularFormat : InheritableAttr {
               VariadicStringArgument<"Aspects">];
   let Subjects = SubjectList<[Function]>;
   let Documentation = [ModularFormatDocs];
+}
+
+
+// Metal Address Space Attributes
+def MetalDeviceAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"__metal_device">];
+  let Subjects = SubjectList<[Var, TypedefName]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalConstantAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"__metal_constant">];
+  let Subjects = SubjectList<[Var, TypedefName]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadGroupAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"__metal_threadgroup">];
+  let Subjects = SubjectList<[Var, TypedefName]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"__metal_thread">];
+  let Subjects = SubjectList<[Var, TypedefName]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalRayDataAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"__metal_ray_data">];
+  let Subjects = SubjectList<[Var, TypedefName]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalObjectDataAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"__metal_object_data">];
+  let Subjects = SubjectList<[Var, TypedefName]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadGroupImageblockAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"__metal_threadgroup_imageblock">];
+  let Subjects = SubjectList<[Var, TypedefName]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
+// Metal Shader Stages
+def MetalKernel : InheritableAttr {
+  let Spellings = [CXX11<"metal", "kernel">, GNU<"metal_kernel">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalVertex : InheritableAttr {
+  let Spellings = [CXX11<"metal", "vertex">, GNU<"metal_vertex">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalFragment : InheritableAttr {
+  let Spellings = [CXX11<"metal", "fragment">, GNU<"metal_fragment">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalTile : InheritableAttr {
+  let Spellings = [CXX11<"metal", "tile">, GNU<"metal_tile">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalMesh : InheritableAttr {
+  let Spellings = [CXX11<"metal", "mesh">, GNU<"metal_mesh">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalObject : InheritableAttr {
+  let Spellings = [CXX11<"metal", "object">, GNU<"metal_object">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalIntersection : InheritableAttr {
+  let Spellings = [CXX11<"metal", "intersection">, GNU<"metal_intersection">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalVisible : InheritableAttr {
+  let Spellings = [CXX11<"metal", "visible">, GNU<"metal_visible">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalStitchable : InheritableAttr {
+  let Spellings = [CXX11<"metal", "stitchable">, GNU<"metal_stitchable">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
+// Metal Resource & Parameter Binding Attributes
+def MetalBuffer : InheritableAttr {
+  let Spellings = [CXX11<"metal", "buffer">, GNU<"metal_buffer">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalTexture : InheritableAttr {
+  let Spellings = [CXX11<"metal", "texture">, GNU<"metal_texture">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalSampler : InheritableAttr {
+  let Spellings = [CXX11<"metal", "sampler">, GNU<"metal_sampler">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalAttribute : InheritableAttr {
+  let Spellings = [CXX11<"metal", "attribute">, GNU<"metal_attribute">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalColor : InheritableAttr {
+  let Spellings = [CXX11<"metal", "color">, GNU<"metal_color">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalUser : InheritableAttr {
+  let Spellings = [CXX11<"metal", "user">, GNU<"metal_user">];
+  let Args = [StringArgument<"Name">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalFunctionConstant : InheritableAttr {
+  let Spellings = [CXX11<"metal", "function_constant">, GNU<"metal_function_constant">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[Var]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalRasterOrderGroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "raster_order_group">, GNU<"metal_raster_order_group">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
+// Metal Stage Inputs and Built-in Semantics
+def MetalStageIn : InheritableAttr {
+  let Spellings = [CXX11<"metal", "stage_in">, GNU<"metal_stage_in">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalPosition : InheritableAttr {
+  let Spellings = [CXX11<"metal", "position">, GNU<"metal_position">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalPointSize : InheritableAttr {
+  let Spellings = [CXX11<"metal", "point_size">, GNU<"metal_point_size">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalClipDistance : InheritableAttr {
+  let Spellings = [CXX11<"metal", "clip_distance">, GNU<"metal_clip_distance">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadPositionInGrid : InheritableAttr {
+  let Spellings = [CXX11<"metal", "thread_position_in_grid">, GNU<"metal_thread_position_in_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadPositionInThreadgroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "thread_position_in_threadgroup">, GNU<"metal_thread_position_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadIndexInThreadgroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "thread_index_in_threadgroup">, GNU<"metal_thread_index_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadgroupPositionInGrid : InheritableAttr {
+  let Spellings = [CXX11<"metal", "threadgroup_position_in_grid">, GNU<"metal_threadgroup_position_in_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadsPerThreadgroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "threads_per_threadgroup">, GNU<"metal_threads_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadsPerGrid : InheritableAttr {
+  let Spellings = [CXX11<"metal", "threads_per_grid">, GNU<"metal_threads_per_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalSimdgroupIndexInThreadgroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "simdgroup_index_in_threadgroup">, GNU<"metal_simdgroup_index_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadIndexInSimdgroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "thread_index_in_simdgroup">, GNU<"metal_thread_index_in_simdgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalGridOrigin : InheritableAttr {
+  let Spellings = [CXX11<"metal", "grid_origin">, GNU<"metal_grid_origin">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalGridSize : InheritableAttr {
+  let Spellings = [CXX11<"metal", "grid_size">, GNU<"metal_grid_size">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalDispatchThreadsPerThreadgroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "dispatch_threads_per_threadgroup">, GNU<"metal_dispatch_threads_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalImageblockData : InheritableAttr {
+  let Spellings = [CXX11<"metal", "imageblock_data">, GNU<"metal_imageblock_data">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
 }

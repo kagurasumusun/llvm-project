@@ -45,12 +45,19 @@ static const unsigned NVPTXAddrSpaceMap[] = {
     0, // ptr32_sptr
     0, // ptr32_uptr
     0, // ptr64
-    0, // hlsl_groupshared
-    0, // hlsl_constant
-    0, // hlsl_private
-    0, // hlsl_device
-    0, // hlsl_input
-    0, // hlsl_push_constant
+    0,  // hlsl_groupshared
+    0,  // hlsl_constant
+    0,  // hlsl_private
+    0,  // hlsl_device
+    0,  // hlsl_input
+    0,  // hlsl_push_constant
+    1,  // metal_device
+    2,  // metal_constant
+    3,  // metal_threadgroup
+    0,  // metal_thread
+    5,  // metal_ray_data
+    6,  // metal_object_data
+    7,  // metal_threadgroup_imageblock
     // Wasm address space values for this target are dummy values,
     // as it is only enabled for Wasm targets.
     20, // wasm_funcref

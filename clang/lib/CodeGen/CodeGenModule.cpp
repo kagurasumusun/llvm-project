@@ -2500,10 +2500,16 @@ static void removeImageAccessQualifier(std::string& TyName) {
 static unsigned ArgInfoAddressSpace(LangAS AS) {
   switch (AS) {
   case LangAS::opencl_global:
+  case LangAS::metal_device:
+  case LangAS::metal_ray_data:
+  case LangAS::metal_object_data:
     return 1;
   case LangAS::opencl_constant:
+  case LangAS::metal_constant:
     return 2;
   case LangAS::opencl_local:
+  case LangAS::metal_threadgroup:
+  case LangAS::metal_threadgroup_imageblock:
     return 3;
   case LangAS::opencl_generic:
     return 4; // Not in SPIR 2.0 specs.
@@ -2551,7 +2557,7 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
       // Get argument name.
       argNames.push_back(llvm::MDString::get(VMContext, parm->getName()));
 
-      if (!getLangOpts().OpenCL)
+      if (!getLangOpts().OpenCL && !getLangOpts().isMetal())
         continue;
       QualType ty = parm->getType();
       std::string typeQuals;
@@ -2643,7 +2649,7 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
       argTypeQuals.push_back(llvm::MDString::get(VMContext, typeQuals));
     }
 
-  if (getLangOpts().OpenCL) {
+  if (getLangOpts().OpenCL || getLangOpts().isMetal()) {
     Fn->setMetadata("kernel_arg_addr_space",
                     llvm::MDNode::get(VMContext, addressQuals));
     Fn->setMetadata("kernel_arg_access_qual",
@@ -2752,6 +2758,21 @@ void CodeGenModule::SetLLVMFunctionAttributesForDefinition(const Decl *D,
     F->addFnAttrs(B);
     return;
   }
+
+  if (D->hasAttr<MetalKernelAttr>())
+    B.addAttribute("metal-shader", "kernel");
+  else if (D->hasAttr<MetalVertexAttr>())
+    B.addAttribute("metal-shader", "vertex");
+  else if (D->hasAttr<MetalFragmentAttr>())
+    B.addAttribute("metal-shader", "fragment");
+  else if (D->hasAttr<MetalTileAttr>())
+    B.addAttribute("metal-shader", "tile");
+  else if (D->hasAttr<MetalMeshAttr>())
+    B.addAttribute("metal-shader", "mesh");
+  else if (D->hasAttr<MetalObjectAttr>())
+    B.addAttribute("metal-shader", "object");
+  else if (D->hasAttr<MetalIntersectionAttr>())
+    B.addAttribute("metal-shader", "intersection");
 
   // Handle SME attributes that apply to function definitions,
   // rather than to function prototypes.

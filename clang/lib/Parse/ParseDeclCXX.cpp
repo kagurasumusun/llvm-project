@@ -4652,6 +4652,28 @@ void Parser::ParseCXX11AttributeSpecifierInternal(ParsedAttributes &Attrs,
       }
     }
 
+    if (!ScopeName && getLangOpts().isMetal()) {
+      StringRef NameStr = AttrName->getName();
+      if (NameStr == "kernel" || NameStr == "vertex" || NameStr == "fragment" ||
+          NameStr == "tile" || NameStr == "mesh" || NameStr == "object" ||
+          NameStr == "intersection" || NameStr == "visible" || NameStr == "stitchable" ||
+          NameStr == "buffer" || NameStr == "texture" || NameStr == "sampler" ||
+          NameStr == "attribute" || NameStr == "color" || NameStr == "user" ||
+          NameStr == "function_constant" || NameStr == "raster_order_group" ||
+          NameStr == "stage_in" || NameStr == "position" || NameStr == "point_size" ||
+          NameStr == "clip_distance" || NameStr == "thread_position_in_grid" ||
+          NameStr == "thread_position_in_threadgroup" || NameStr == "thread_index_in_threadgroup" ||
+          NameStr == "threadgroup_position_in_grid" || NameStr == "threads_per_threadgroup" ||
+          NameStr == "threads_per_grid" || NameStr == "simdgroup_index_in_threadgroup" ||
+          NameStr == "thread_index_in_simdgroup" || NameStr == "grid_origin" ||
+          NameStr == "grid_size" || NameStr == "dispatch_threads_per_threadgroup" ||
+          NameStr == "imageblock_data") {
+        ScopeName = PP.getIdentifierInfo("metal");
+        if (ScopeLoc.isInvalid())
+          ScopeLoc = AttrLoc;
+      }
+    }
+
     // Parse attribute arguments
     if (Tok.is(tok::l_paren))
       AttrParsed = ParseCXX11AttributeArgs(AttrName, AttrLoc, Attrs, EndLoc,

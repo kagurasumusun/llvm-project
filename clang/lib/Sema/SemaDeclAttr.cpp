@@ -7796,6 +7796,159 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_HLSLGroupSharedAddressSpace:
     handleSimpleAttribute<HLSLGroupSharedAddressSpaceAttr>(S, D, AL);
     break;
+
+  // Metal Attributes
+  case ParsedAttr::AT_MetalKernel:
+    handleSimpleAttribute<MetalKernelAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalVertex:
+    handleSimpleAttribute<MetalVertexAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalFragment:
+    handleSimpleAttribute<MetalFragmentAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalTile:
+    handleSimpleAttribute<MetalTileAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalMesh:
+    handleSimpleAttribute<MetalMeshAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalObject:
+    handleSimpleAttribute<MetalObjectAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalIntersection:
+    handleSimpleAttribute<MetalIntersectionAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalVisible:
+    handleSimpleAttribute<MetalVisibleAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalStitchable:
+    handleSimpleAttribute<MetalStitchableAttr>(S, D, AL);
+    break;
+
+  case ParsedAttr::AT_MetalBuffer: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalBufferAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalTexture: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalTextureAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalSampler: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalSamplerAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalAttribute: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalAttributeAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalColor: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalColorAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalFunctionConstant: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalFunctionConstantAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalRasterOrderGroup: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalRasterOrderGroupAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalUser: {
+    StringRef Name;
+    if (AL.getNumArgs() > 0 && AL.isArgIdent(0))
+      Name = AL.getArgAsIdent(0)->Ident->getName();
+    else if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (const auto *SE = dyn_cast<StringLiteral>(AL.getArgAsExpr(0)->IgnoreParenCasts()))
+        Name = SE->getString();
+    }
+    D->addAttr(::new (S.Context) MetalUserAttr(S.Context, AL, Name));
+    break;
+  }
+
+  case ParsedAttr::AT_MetalStageIn:
+    handleSimpleAttribute<MetalStageInAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalPosition:
+    handleSimpleAttribute<MetalPositionAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalPointSize:
+    handleSimpleAttribute<MetalPointSizeAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalClipDistance:
+    handleSimpleAttribute<MetalClipDistanceAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalThreadPositionInGrid:
+    handleSimpleAttribute<MetalThreadPositionInGridAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalThreadPositionInThreadgroup:
+    handleSimpleAttribute<MetalThreadPositionInThreadgroupAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalThreadIndexInThreadgroup:
+    handleSimpleAttribute<MetalThreadIndexInThreadgroupAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalThreadgroupPositionInGrid:
+    handleSimpleAttribute<MetalThreadgroupPositionInGridAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalThreadsPerThreadgroup:
+    handleSimpleAttribute<MetalThreadsPerThreadgroupAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalThreadsPerGrid:
+    handleSimpleAttribute<MetalThreadsPerGridAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalSimdgroupIndexInThreadgroup:
+    handleSimpleAttribute<MetalSimdgroupIndexInThreadgroupAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalThreadIndexInSimdgroup:
+    handleSimpleAttribute<MetalThreadIndexInSimdgroupAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalGridOrigin:
+    handleSimpleAttribute<MetalGridOriginAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalGridSize:
+    handleSimpleAttribute<MetalGridSizeAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalDispatchThreadsPerThreadgroup:
+    handleSimpleAttribute<MetalDispatchThreadsPerThreadgroupAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalImageblockData:
+    handleSimpleAttribute<MetalImageblockDataAttr>(S, D, AL);
+    break;
   case ParsedAttr::AT_HLSLPackOffset:
     S.HLSL().handlePackOffsetAttr(D, AL);
     break;

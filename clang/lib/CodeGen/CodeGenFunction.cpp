@@ -621,8 +621,27 @@ CodeGenFunction::getUBSanFunctionTypeHash(QualType Ty) const {
 
 void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
                                          llvm::Function *Fn) {
-  if (!FD->hasAttr<DeviceKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
+  if (!FD->hasAttr<DeviceKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>() &&
+      !FD->hasAttr<MetalKernelAttr>() && !FD->hasAttr<MetalVertexAttr>() &&
+      !FD->hasAttr<MetalFragmentAttr>() && !FD->hasAttr<MetalTileAttr>() &&
+      !FD->hasAttr<MetalMeshAttr>() && !FD->hasAttr<MetalObjectAttr>() &&
+      !FD->hasAttr<MetalIntersectionAttr>())
     return;
+
+  if (FD->hasAttr<MetalKernelAttr>())
+    Fn->addFnAttr("metal-shader", "kernel");
+  else if (FD->hasAttr<MetalVertexAttr>())
+    Fn->addFnAttr("metal-shader", "vertex");
+  else if (FD->hasAttr<MetalFragmentAttr>())
+    Fn->addFnAttr("metal-shader", "fragment");
+  else if (FD->hasAttr<MetalTileAttr>())
+    Fn->addFnAttr("metal-shader", "tile");
+  else if (FD->hasAttr<MetalMeshAttr>())
+    Fn->addFnAttr("metal-shader", "mesh");
+  else if (FD->hasAttr<MetalObjectAttr>())
+    Fn->addFnAttr("metal-shader", "object");
+  else if (FD->hasAttr<MetalIntersectionAttr>())
+    Fn->addFnAttr("metal-shader", "intersection");
 
   llvm::LLVMContext &Context = getLLVMContext();
 
@@ -1026,7 +1045,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
              (getLangOpts().CUDA &&
               getContext().getTargetInfo().getTriple().isSPIRV()) ||
              ((getLangOpts().HIP || getLangOpts().OffloadViaLLVM) &&
-              getLangOpts().CUDAIsDevice))) {
+              getLangOpts().CUDAIsDevice) ||
+             getLangOpts().isMetal())) {
     // Add metadata for a kernel function.
     EmitKernelMetadata(FD, Fn);
   }

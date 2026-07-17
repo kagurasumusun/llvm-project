@@ -2660,6 +2660,20 @@ std::string Qualifiers::getAddrSpaceAsString(LangAS AS) {
     return "hlsl_input";
   case LangAS::hlsl_push_constant:
     return "hlsl_push_constant";
+  case LangAS::metal_device:
+    return "device";
+  case LangAS::metal_constant:
+    return "constant";
+  case LangAS::metal_threadgroup:
+    return "threadgroup";
+  case LangAS::metal_thread:
+    return "thread";
+  case LangAS::metal_ray_data:
+    return "ray_data";
+  case LangAS::metal_object_data:
+    return "object_data";
+  case LangAS::metal_threadgroup_imageblock:
+    return "threadgroup_imageblock";
   case LangAS::wasm_funcref:
     return "__funcref";
   default:

@@ -64,6 +64,15 @@ enum class LangAS : unsigned {
   hlsl_input,
   hlsl_push_constant,
 
+  // Metal specific address spaces.
+  metal_device,
+  metal_constant,
+  metal_threadgroup,
+  metal_thread,
+  metal_ray_data,
+  metal_object_data,
+  metal_threadgroup_imageblock,
+
   // Wasm specific address spaces.
   wasm_funcref,
 

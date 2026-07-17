@@ -1350,6 +1350,9 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
                   tok::kw_constexpr, tok::kw_consteval, tok::kw_static,
                   tok::kw___private, tok::kw___global, tok::kw___local,
                   tok::kw___constant, tok::kw___generic, tok::kw_groupshared,
+                  tok::kw___metal_device, tok::kw___metal_threadgroup,
+                  tok::kw___metal_thread, tok::kw___metal_ray_data,
+                  tok::kw___metal_object_data, tok::kw___metal_threadgroup_imageblock,
                   tok::kw_requires, tok::kw_noexcept) ||
       Tok.isRegularKeywordAttribute() ||
       (Tok.is(tok::l_square) && NextToken().is(tok::l_square));
@@ -1408,9 +1411,12 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
     if (MaybeParseCXX11Attributes(Attributes))
       DeclEndLoc = Attributes.Range.getEnd();
 
-    // Parse OpenCL addr space attribute.
+    // Parse OpenCL and Metal addr space attribute.
     if (Tok.isOneOf(tok::kw___private, tok::kw___global, tok::kw___local,
-                    tok::kw___constant, tok::kw___generic)) {
+                    tok::kw___constant, tok::kw___generic,
+                    tok::kw___metal_device, tok::kw___metal_threadgroup,
+                    tok::kw___metal_thread, tok::kw___metal_ray_data,
+                    tok::kw___metal_object_data, tok::kw___metal_threadgroup_imageblock)) {
       ParseOpenCLQualifiers(DS.getAttributes());
       ConsumeToken();
     }

@@ -1227,6 +1227,12 @@ Parser::isCXXDeclarationSpecifier(ImplicitTypenameContext AllowImplicitTypename,
   case tok::kw___global:
   case tok::kw___constant:
   case tok::kw___generic:
+  case tok::kw___metal_device:
+  case tok::kw___metal_threadgroup:
+  case tok::kw___metal_thread:
+  case tok::kw___metal_ray_data:
+  case tok::kw___metal_object_data:
+  case tok::kw___metal_threadgroup_imageblock:
     // OpenCL access qualifiers
   case tok::kw___read_only:
   case tok::kw___write_only:

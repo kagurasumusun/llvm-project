@@ -607,6 +607,32 @@ public:
     }
   }
 
+  /// If this is a Metal address space attribute, returns its representation
+  /// in LangAS, otherwise returns default address space.
+  LangAS asMetalLangAS() const {
+    switch (getParsedKind()) {
+    case ParsedAttr::AT_OpenCLGlobalAddressSpace:
+    case ParsedAttr::AT_MetalDeviceAddressSpace:
+      return LangAS::metal_device;
+    case ParsedAttr::AT_MetalConstantAddressSpace:
+      return LangAS::metal_constant;
+    case ParsedAttr::AT_OpenCLLocalAddressSpace:
+    case ParsedAttr::AT_MetalThreadGroupAddressSpace:
+      return LangAS::metal_threadgroup;
+    case ParsedAttr::AT_OpenCLPrivateAddressSpace:
+    case ParsedAttr::AT_MetalThreadAddressSpace:
+      return LangAS::metal_thread;
+    case ParsedAttr::AT_MetalRayDataAddressSpace:
+      return LangAS::metal_ray_data;
+    case ParsedAttr::AT_MetalObjectDataAddressSpace:
+      return LangAS::metal_object_data;
+    case ParsedAttr::AT_MetalThreadGroupImageblockAddressSpace:
+      return LangAS::metal_threadgroup_imageblock;
+    default:
+      return LangAS::Default;
+    }
+  }
+
   AttributeCommonInfo::Kind getKind() const {
     return AttributeCommonInfo::Kind(Info.AttrKind);
   }

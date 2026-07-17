@@ -4584,6 +4584,12 @@ void Parser::ParseDeclarationSpecifiers(
     case tok::kw___read_only:
     case tok::kw___write_only:
     case tok::kw___read_write:
+    case tok::kw___metal_device:
+    case tok::kw___metal_threadgroup:
+    case tok::kw___metal_thread:
+    case tok::kw___metal_ray_data:
+    case tok::kw___metal_object_data:
+    case tok::kw___metal_threadgroup_imageblock:
       ParseOpenCLQualifiers(DS.getAttributes());
       break;
 
@@ -5680,6 +5686,12 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___read_only:
   case tok::kw___read_write:
   case tok::kw___write_only:
+  case tok::kw___metal_device:
+  case tok::kw___metal_threadgroup:
+  case tok::kw___metal_thread:
+  case tok::kw___metal_ray_data:
+  case tok::kw___metal_object_data:
+  case tok::kw___metal_threadgroup_imageblock:
   case tok::kw___funcref:
     return true;
 
@@ -5962,6 +5974,12 @@ bool Parser::isDeclarationSpecifier(
   case tok::kw___read_only:
   case tok::kw___read_write:
   case tok::kw___write_only:
+  case tok::kw___metal_device:
+  case tok::kw___metal_threadgroup:
+  case tok::kw___metal_thread:
+  case tok::kw___metal_ray_data:
+  case tok::kw___metal_object_data:
+  case tok::kw___metal_threadgroup_imageblock:
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
 #define HLSL_INTANGIBLE_TYPE(Name, Id, SingletonId) case tok::kw_##Name:
@@ -6186,6 +6204,12 @@ void Parser::ParseTypeQualifierListOpt(
     case tok::kw___read_only:
     case tok::kw___write_only:
     case tok::kw___read_write:
+    case tok::kw___metal_device:
+    case tok::kw___metal_threadgroup:
+    case tok::kw___metal_thread:
+    case tok::kw___metal_ray_data:
+    case tok::kw___metal_object_data:
+    case tok::kw___metal_threadgroup_imageblock:
       ParseOpenCLQualifiers(DS.getAttributes());
       break;
 

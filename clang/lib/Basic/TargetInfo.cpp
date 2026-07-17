@@ -53,6 +53,13 @@ static const LangASMap FakeAddrSpaceMap = {
     16, // hlsl_device
     17, // hlsl_input
     18, // hlsl_push_constant
+    1,  // metal_device
+    2,  // metal_constant
+    3,  // metal_threadgroup
+    0,  // metal_thread
+    5,  // metal_ray_data
+    6,  // metal_object_data
+    7,  // metal_threadgroup_imageblock
     20, // wasm_funcref
 };
 
