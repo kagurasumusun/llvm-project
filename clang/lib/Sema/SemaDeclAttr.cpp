@@ -7988,6 +7988,28 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_MetalEarlyFragmentTests:
     handleSimpleAttribute<MetalEarlyFragmentTestsAttr>(S, D, AL);
     break;
+  case ParsedAttr::AT_MetalMutability: {
+    StringRef Kind;
+    if (AL.getNumArgs() > 0 && AL.isArgIdent(0))
+      Kind = AL.getArgAsIdent(0)->getIdentifierInfo()->getName();
+    else if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (const auto *SE = dyn_cast<StringLiteral>(AL.getArgAsExpr(0)->IgnoreParenCasts()))
+        Kind = SE->getString();
+    }
+    D->addAttr(::new (S.Context) MetalMutabilityAttr(S.Context, AL, Kind));
+    break;
+  }
+  case ParsedAttr::AT_MetalHostName: {
+    StringRef Name;
+    if (AL.getNumArgs() > 0 && AL.isArgIdent(0))
+      Name = AL.getArgAsIdent(0)->getIdentifierInfo()->getName();
+    else if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (const auto *SE = dyn_cast<StringLiteral>(AL.getArgAsExpr(0)->IgnoreParenCasts()))
+        Name = SE->getString();
+    }
+    D->addAttr(::new (S.Context) MetalHostNameAttr(S.Context, AL, Name));
+    break;
+  }
   case ParsedAttr::AT_HLSLPackOffset:
     S.HLSL().handlePackOffsetAttr(D, AL);
     break;

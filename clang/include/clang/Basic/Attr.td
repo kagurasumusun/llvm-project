@@ -5643,3 +5643,17 @@ def MetalEarlyFragmentTests : InheritableAttr {
   let LangOpts = [Metal];
   let Documentation = [Undocumented];
 }
+def MetalMutability : InheritableAttr {
+  let Spellings = [CXX11<"metal", "mutability">, GNU<"metal_mutability">];
+  let Args = [StringArgument<"Kind">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalHostName : InheritableAttr {
+  let Spellings = [CXX11<"metal", "host_name">, GNU<"metal_host_name">];
+  let Args = [StringArgument<"Name">];
+  let Subjects = SubjectList<[Function, Var]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
