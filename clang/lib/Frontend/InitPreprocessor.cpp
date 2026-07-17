@@ -440,7 +440,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__METAL__");
     Builder.defineMacro("__metal__");
     Builder.defineMacro("__METAL_VERSION__",
-                        Twine((unsigned)LangOpts.MetalVersion));
+                        Twine((unsigned)LangOpts.getMetalVersion()));
   }
   // C++ [cpp.predefined]p1:
   //   The following macro names shall be defined by the implementation:
