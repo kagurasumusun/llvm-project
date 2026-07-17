@@ -126,6 +126,10 @@ set(metal_subdir_files
   metal/metal_math.h
   metal/metal_graphics.h
   metal/metal_compute.h
+  metal/metal_raytracing.h
+  metal/metal_mesh.h
+  metal/metal_atomics.h
+  metal/metal_simdgroup.h
   )
 set(metal_files
   ${metal_h}

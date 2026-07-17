@@ -5,5 +5,9 @@
 #include <metal/metal_math.h>
 #include <metal/metal_graphics.h>
 #include <metal/metal_compute.h>
+#include <metal/metal_raytracing.h>
+#include <metal/metal_mesh.h>
+#include <metal/metal_atomics.h>
+#include <metal/metal_simdgroup.h>
 
 #endif // __METAL_STDLIB__
