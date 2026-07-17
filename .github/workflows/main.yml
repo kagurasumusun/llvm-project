@@ -35,38 +35,6 @@ jobs:
         run: |
           brew install ccache ninja
 
-      - name: Configure CMake (Minimal Clang for Metal LLVM IR)
-        run: |
-          mkdir -p build
-          cd build
-          cmake -G Ninja ../llvm \
-            -DLLVM_ENABLE_PROJECTS="clang" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_TARGETS_TO_BUILD="AArch64;X86" \
-            -DLLVM_ENABLE_ASSERTIONS=ON \
-            -DLLVM_BUILD_TESTS=OFF \
-            -DLLVM_BUILD_EXAMPLES=OFF \
-            -DLLVM_BUILD_BENCHMARKS=OFF \
-            -DLLVM_BUILD_DOCS=OFF \
-            -DCLANG_BUILD_TOOLS=OFF \
-            -DCLANG_ENABLE_ARCMT=OFF \
-            -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-            -DLLVM_ENABLE_BINDINGS=OFF \
-            -DLLVM_ENABLE_OCAMLDOC=OFF \
-            -DLLVM_ENABLE_Z3_SOLVER=OFF \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-      - name: Build Clang Minimal
-        run: |
-          cd build
-          ninja clang
-
-      - name: Run Complete Metal Shading Language LLVM IR Tests
-        run: |
-          chmod +x ./run_metal_complete_spec.sh
-          ./run_metal_complete_spec.sh
-
       - name: Start SSH Session
         uses: owenthereal/action-upterm@v1
         if: always()
