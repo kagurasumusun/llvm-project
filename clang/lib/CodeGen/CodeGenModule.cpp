@@ -2661,6 +2661,47 @@ void CodeGenModule::GenKernelArgMetadata(llvm::Function *Fn,
     Fn->setMetadata("kernel_arg_type_qual",
                     llvm::MDNode::get(VMContext, argTypeQuals));
   }
+  if (getLangOpts().isMetal() && FD && CGF) {
+    SmallVector<llvm::Metadata *, 8> metalArgAttrs;
+    for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i) {
+      const ParmVarDecl *parm = FD->getParamDecl(i);
+      std::string attrStr = "none";
+      if (const auto *A = parm->getAttr<MetalBufferAttr>())
+        attrStr = "buffer(" + std::to_string(A->getIndex()) + ")";
+      else if (const auto *A = parm->getAttr<MetalTextureAttr>())
+        attrStr = "texture(" + std::to_string(A->getIndex()) + ")";
+      else if (const auto *A = parm->getAttr<MetalSamplerAttr>())
+        attrStr = "sampler(" + std::to_string(A->getIndex()) + ")";
+      else if (parm->hasAttr<MetalStageInAttr>())
+        attrStr = "stage_in";
+      else if (parm->hasAttr<MetalThreadPositionInGridAttr>())
+        attrStr = "thread_position_in_grid";
+      else if (parm->hasAttr<MetalThreadPositionInThreadgroupAttr>())
+        attrStr = "thread_position_in_threadgroup";
+      else if (parm->hasAttr<MetalThreadIndexInThreadgroupAttr>())
+        attrStr = "thread_index_in_threadgroup";
+      else if (parm->hasAttr<MetalThreadgroupPositionInGridAttr>())
+        attrStr = "threadgroup_position_in_grid";
+      else if (parm->hasAttr<MetalThreadsPerThreadgroupAttr>())
+        attrStr = "threads_per_threadgroup";
+      else if (parm->hasAttr<MetalThreadsPerGridAttr>())
+        attrStr = "threads_per_grid";
+      else if (parm->hasAttr<MetalSimdgroupIndexInThreadgroupAttr>())
+        attrStr = "simdgroup_index_in_threadgroup";
+      else if (parm->hasAttr<MetalThreadIndexInSimdgroupAttr>())
+        attrStr = "thread_index_in_simdgroup";
+      else if (parm->hasAttr<MetalGridOriginAttr>())
+        attrStr = "grid_origin";
+      else if (parm->hasAttr<MetalGridSizeAttr>())
+        attrStr = "grid_size";
+      else if (parm->hasAttr<MetalDispatchThreadsPerThreadgroupAttr>())
+        attrStr = "dispatch_threads_per_threadgroup";
+
+      metalArgAttrs.push_back(llvm::MDString::get(VMContext, attrStr));
+    }
+    Fn->setMetadata("metal_arg_attributes",
+                    llvm::MDNode::get(VMContext, metalArgAttrs));
+  }
   if (getCodeGenOpts().EmitOpenCLArgMetadata ||
       getCodeGenOpts().HIPSaveKernelArgName)
     Fn->setMetadata("kernel_arg_name",
