@@ -68,7 +68,6 @@ struct RaytracingQueryState {
     metal_rt_intersection_type_t intersection_type;
 };
 
-// Bit extraction helper
 template <typename T>
 static inline T extract_bits_impl(uint64_t val, uint32_t offset, uint32_t size) {
     if (size == 0) return 0;
@@ -81,103 +80,128 @@ static inline T extract_bits_impl(uint64_t val, uint32_t offset, uint32_t size) 
 
 extern "C" {
 
-// 1. Bit Extraction Intrinsics (libmetal_rt_osx.a 100% Symbol Compatibility)
-uint8_t ___metal_extract_bits_uint8(uint32_t val, uint32_t offset, uint32_t size) {
-    return extract_bits_impl<uint8_t>(val, offset, size);
-}
+// 1. Bit Extraction Intrinsics
+uint8_t ___metal_extract_bits_uint8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint8_t>(val, offset, size); }
+uint16_t ___metal_extract_bits_uint16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint16_t>(val, offset, size); }
+uint32_t ___metal_extract_bits_uint32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint32_t>(val, offset, size); }
+uint64_t ___metal_extract_bits_uint64(uint64_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint64_t>(val, offset, size); }
+int8_t ___metal_extract_bits_int8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int8_t>(val, offset, size); }
+int16_t ___metal_extract_bits_int16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int16_t>(val, offset, size); }
+int32_t ___metal_extract_bits_int32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int32_t>(val, offset, size); }
 
-uint16_t ___metal_extract_bits_uint16(uint32_t val, uint32_t offset, uint32_t size) {
-    return extract_bits_impl<uint16_t>(val, offset, size);
-}
+uint8_t ___metal_extract_bits_v2uint8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint8_t>(val, offset, size); }
+uint8_t ___metal_extract_bits_v3uint8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint8_t>(val, offset, size); }
+uint8_t ___metal_extract_bits_v4uint8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint8_t>(val, offset, size); }
+uint8_t ___metal_extract_bits_v8uint8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint8_t>(val, offset, size); }
+uint8_t ___metal_extract_bits_v16uint8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint8_t>(val, offset, size); }
 
-uint32_t ___metal_extract_bits_uint32(uint32_t val, uint32_t offset, uint32_t size) {
-    return extract_bits_impl<uint32_t>(val, offset, size);
-}
+uint16_t ___metal_extract_bits_v2uint16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint16_t>(val, offset, size); }
+uint16_t ___metal_extract_bits_v3uint16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint16_t>(val, offset, size); }
+uint16_t ___metal_extract_bits_v4uint16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint16_t>(val, offset, size); }
+uint16_t ___metal_extract_bits_v8uint16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint16_t>(val, offset, size); }
+uint16_t ___metal_extract_bits_v16uint16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint16_t>(val, offset, size); }
 
-uint64_t ___metal_extract_bits_uint64(uint64_t val, uint32_t offset, uint32_t size) {
-    return extract_bits_impl<uint64_t>(val, offset, size);
-}
+uint32_t ___metal_extract_bits_v2uint32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint32_t>(val, offset, size); }
+uint32_t ___metal_extract_bits_v3uint32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint32_t>(val, offset, size); }
+uint32_t ___metal_extract_bits_v4uint32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint32_t>(val, offset, size); }
+uint32_t ___metal_extract_bits_v8uint32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint32_t>(val, offset, size); }
+uint32_t ___metal_extract_bits_v16uint32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint32_t>(val, offset, size); }
 
-int8_t ___metal_extract_bits_int8(uint32_t val, uint32_t offset, uint32_t size) {
-    return extract_bits_impl<int8_t>(val, offset, size);
-}
+uint64_t ___metal_extract_bits_v2uint64(uint64_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint64_t>(val, offset, size); }
+uint64_t ___metal_extract_bits_v3uint64(uint64_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint64_t>(val, offset, size); }
+uint64_t ___metal_extract_bits_v4uint64(uint64_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint64_t>(val, offset, size); }
+uint64_t ___metal_extract_bits_v8uint64(uint64_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint64_t>(val, offset, size); }
+uint64_t ___metal_extract_bits_v16uint64(uint64_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<uint64_t>(val, offset, size); }
 
-int16_t ___metal_extract_bits_int16(uint32_t val, uint32_t offset, uint32_t size) {
-    return extract_bits_impl<int16_t>(val, offset, size);
-}
+int8_t ___metal_extract_bits_v2int8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int8_t>(val, offset, size); }
+int8_t ___metal_extract_bits_v3int8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int8_t>(val, offset, size); }
+int8_t ___metal_extract_bits_v4int8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int8_t>(val, offset, size); }
+int8_t ___metal_extract_bits_v8int8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int8_t>(val, offset, size); }
+int8_t ___metal_extract_bits_v16int8(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int8_t>(val, offset, size); }
 
-int32_t ___metal_extract_bits_int32(uint32_t val, uint32_t offset, uint32_t size) {
-    return extract_bits_impl<int32_t>(val, offset, size);
-}
+int16_t ___metal_extract_bits_v2int16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int16_t>(val, offset, size); }
+int16_t ___metal_extract_bits_v3int16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int16_t>(val, offset, size); }
+int16_t ___metal_extract_bits_v4int16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int16_t>(val, offset, size); }
+int16_t ___metal_extract_bits_v8int16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int16_t>(val, offset, size); }
+int16_t ___metal_extract_bits_v16int16(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int16_t>(val, offset, size); }
 
-// 2. AIR Math Runtime Intrinsics (libair_rt_osx.rtlib Compatibility)
-float __air_impl_nextafter_f32(float x, float y) {
-    return std::nextafter(x, y);
-}
+int32_t ___metal_extract_bits_v2int32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int32_t>(val, offset, size); }
+int32_t ___metal_extract_bits_v3int32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int32_t>(val, offset, size); }
+int32_t ___metal_extract_bits_v4int32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int32_t>(val, offset, size); }
+int32_t ___metal_extract_bits_v8int32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int32_t>(val, offset, size); }
+int32_t ___metal_extract_bits_v16int32(uint32_t val, uint32_t offset, uint32_t size) { return extract_bits_impl<int32_t>(val, offset, size); }
 
-double __air_impl_nextafter_f64(double x, double y) {
-    return std::nextafter(x, y);
-}
+// 2. AIR Math Runtime Intrinsics
+float __air_impl_nextafter_f32(float x, float y) { return std::nextafter(x, y); }
+double __air_impl_nextafter_f64(double x, double y) { return std::nextafter(x, y); }
+uint16_t __air_impl_nextafter_f16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_bf16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
 
-uint16_t __air_impl_nextafter_f16(uint16_t x, uint16_t y) {
-    // Simplified FP16 nextafter for AIR math support
-    return (x == y) ? x : (x < y ? x + 1 : x - 1);
-}
+float __air_impl_nextafter_v2f32(float x, float y) { return std::nextafter(x, y); }
+float __air_impl_nextafter_v3f32(float x, float y) { return std::nextafter(x, y); }
+float __air_impl_nextafter_v4f32(float x, float y) { return std::nextafter(x, y); }
+float __air_impl_nextafter_v8f32(float x, float y) { return std::nextafter(x, y); }
+float __air_impl_nextafter_v16f32(float x, float y) { return std::nextafter(x, y); }
 
-uint16_t __air_impl_nextafter_bf16(uint16_t x, uint16_t y) {
-    return (x == y) ? x : (x < y ? x + 1 : x - 1);
-}
+uint16_t __air_impl_nextafter_v2f16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v3f16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v4f16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v8f16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v16f16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
 
-// 3. Resource Tracking & Patching Intrinsics (libresource_tracking_rt_osx.rtlib Compatibility)
-void __resource_tracking_impl_patching_read_p1i8_p1i8(void *dst, const void *src) {
-    if (dst && src) std::memcpy(dst, src, sizeof(void*));
-}
+uint16_t __air_impl_nextafter_v2bf16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v3bf16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v4bf16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v8bf16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
+uint16_t __air_impl_nextafter_v16bf16(uint16_t x, uint16_t y) { return (x == y) ? x : (x < y ? x + 1 : x - 1); }
 
-void __resource_tracking_impl_patching_read_p1i8_p2i8(void *dst, const void *src) {
-    if (dst && src) std::memcpy(dst, src, sizeof(void*));
-}
+double __air_impl_nextafter_v2f64(double x, double y) { return std::nextafter(x, y); }
+double __air_impl_nextafter_v3f64(double x, double y) { return std::nextafter(x, y); }
+double __air_impl_nextafter_v4f64(double x, double y) { return std::nextafter(x, y); }
 
-void __resource_tracking_impl_patching_read_p2i8_p1i8(void *dst, const void *src) {
-    if (dst && src) std::memcpy(dst, src, sizeof(void*));
-}
+// 3. Resource Tracking & Patching Intrinsics
+void __resource_tracking_impl_patching_read_p1i8_p1i8(void *dst, const void *src) { if (dst && src) std::memcpy(dst, src, sizeof(void*)); }
+void __resource_tracking_impl_patching_read_p1i8_p2i8(void *dst, const void *src) { if (dst && src) std::memcpy(dst, src, sizeof(void*)); }
+void __resource_tracking_impl_patching_read_p2i8_p1i8(void *dst, const void *src) { if (dst && src) std::memcpy(dst, src, sizeof(void*)); }
+void __resource_tracking_impl_patching_read_p2i8_p2i8(void *dst, const void *src) { if (dst && src) std::memcpy(dst, src, sizeof(void*)); }
 
-void __resource_tracking_impl_patching_read_p2i8_p2i8(void *dst, const void *src) {
-    if (dst && src) std::memcpy(dst, src, sizeof(void*));
-}
+void __resource_tracking_impl_patching_texture_read_p1i8(void *tex) { (void)tex; }
+void __resource_tracking_impl_patching_texture_read_p2i8(void *tex) { (void)tex; }
+void __resource_tracking_impl_patching_sampler_read_p1i8(void *smp) { (void)smp; }
+void __resource_tracking_impl_patching_sampler_read_p2i8(void *smp) { (void)smp; }
+void __resource_tracking_impl_patching_compute_pipeline_read_p1i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_compute_pipeline_read_p2i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_render_pipeline_read_p1i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_render_pipeline_read_p2i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_command_buffer_read_p1i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_command_buffer_read_p2i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_visible_function_table_read_p1i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_visible_function_table_read_p2i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_intersection_function_table_read_p1i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_intersection_function_table_read_p2i8(void *p);
+void __resource_tracking_impl_patching_instance_acceleration_structure_read_p1i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_instance_acceleration_structure_read_p2i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_primitive_acceleration_structure_read_p1i8(void *p) { (void)p; }
+void __resource_tracking_impl_patching_primitive_acceleration_structure_read_p2i8(void *p) { (void)p; }
 
-void __resource_tracking_impl_patching_texture_read_p1i8(void *tex) {
-    (void)tex;
-}
+void __resource_tracking_impl_patching_write_p1i8_p1i8(void *dst, const void *src) { if (dst && src) std::memcpy(dst, src, sizeof(void*)); }
+void __resource_tracking_impl_patching_write_p1i8_p2i8(void *dst, const void *src) { if (dst && src) std::memcpy(dst, src, sizeof(void*)); }
 
-void __resource_tracking_impl_patching_sampler_read_p1i8(void *smp) {
-    (void)smp;
-}
+void __resource_tracking_impl_usage_buffer_read(void *buf, size_t sz) { (void)buf; (void)sz; }
+void __resource_tracking_impl_usage_buffer_write(void *buf, size_t sz) { (void)buf; (void)sz; }
+void __resource_tracking_impl_usage_texture_read(void *tex) { (void)tex; }
+void __resource_tracking_impl_usage_texture_write(void *tex) { (void)tex; }
+void __resource_tracking_impl_usage_texture_sample(void *tex, void *smp) { (void)tex; (void)smp; }
+void __resource_tracking_impl_usage_sampler_read(void *smp) { (void)smp; }
+void __resource_tracking_impl_usage_sampler_write(void *smp) { (void)smp; }
+void __resource_tracking_impl_usage_sampler_sample(void *smp) { (void)smp; }
+void __resource_tracking_impl_usage_visible_function_table_read(void *t) { (void)t; }
+void __resource_tracking_impl_usage_visible_function_table_write(void *t) { (void)t; }
+void __resource_tracking_impl_usage_visible_function_table_sample(void *t) { (void)t; }
+void __resource_tracking_impl_usage_intersection_function_table_read(void *t) { (void)t; }
+void __resource_tracking_impl_usage_intersection_function_table_write(void *t) { (void)t; }
 
-void __resource_tracking_impl_patching_write_p1i8_p1i8(void *dst, const void *src) {
-    if (dst && src) std::memcpy(dst, src, sizeof(void*));
-}
-
-void __resource_tracking_impl_usage_buffer_read(void *buf, size_t sz) {
-    (void)buf; (void)sz;
-}
-
-void __resource_tracking_impl_usage_buffer_write(void *buf, size_t sz) {
-    (void)buf; (void)sz;
-}
-
-void __resource_tracking_impl_usage_texture_read(void *tex) {
-    (void)tex;
-}
-
-void __resource_tracking_impl_usage_texture_write(void *tex) {
-    (void)tex;
-}
-
-void __resource_tracking_impl_usage_texture_sample(void *tex, void *smp) {
-    (void)tex; (void)smp;
-}
-
-// 4. Logging & OS Log (MTLShaderLoggingRuntime.rtlib Compatibility)
+// 4. Logging & OS Log
 void __air_impl_os_log(const char *format, ...) {
     if (!format) return;
     va_list args;
@@ -186,20 +210,17 @@ void __air_impl_os_log(const char *format, ...) {
     va_end(args);
 }
 
-// 5. Raytracing Intersect Functions (MTLRaytracingRuntime.rtlib Compatibility)
-void __air_raytracing_impl_intersect(void *accel_struct, void *ray, void *result) {
-    (void)accel_struct; (void)ray; (void)result;
-}
+// 5. Raytracing Intersect Functions
+void __air_raytracing_impl_intersect(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
+void __air_raytracing_impl_intersect_triangle_data(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
+void __air_raytracing_impl_intersect_curve_data(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
+void __air_raytracing_impl_intersect_triangle_data_curve_data(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
+void __air_raytracing_impl_intersect_instancing(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
+void __air_raytracing_impl_intersect_instancing_triangle_data(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
+void __air_raytracing_impl_intersect_instancing_curve_data(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
+void __air_raytracing_impl_intersect_instancing_triangle_data_curve_data(void *accel_struct, void *ray, void *result) { (void)accel_struct; (void)ray; (void)result; }
 
-void __air_raytracing_impl_intersect_triangle_data(void *accel_struct, void *ray, void *result) {
-    (void)accel_struct; (void)ray; (void)result;
-}
-
-void __air_raytracing_impl_intersect_instancing(void *accel_struct, void *ray, void *result) {
-    (void)accel_struct; (void)ray; (void)result;
-}
-
-// 6. Resource Management & High-Level Runtime Functions
+// 6. Resource Management & Custom Metal API Functions
 void __metal_rt_resource_bind(const metal_rt_resource_binding_t *binding) {
     MetalRuntimeContext::getInstance().bindResource(binding);
 }
