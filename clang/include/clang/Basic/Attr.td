@@ -5603,3 +5603,43 @@ def MetalImageblockData : InheritableAttr {
   let LangOpts = [Metal];
   let Documentation = [Undocumented];
 }
+// Additional Advanced Metal Attributes
+def MetalId : InheritableAttr {
+  let Spellings = [CXX11<"metal", "id">, GNU<"metal_id">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalPayload : InheritableAttr {
+  let Spellings = [CXX11<"metal", "payload">, GNU<"metal_payload">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalMaxTotalThreadsPerThreadgroup : InheritableAttr {
+  let Spellings = [CXX11<"metal", "max_total_threads_per_threadgroup">, GNU<"metal_max_total_threads_per_threadgroup">];
+  let Args = [IntArgument<"MaxThreads">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalThreadsPerMeshGrid : InheritableAttr {
+  let Spellings = [CXX11<"metal", "threads_per_mesh_grid">, GNU<"metal_threads_per_mesh_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalPatch : InheritableAttr {
+  let Spellings = [CXX11<"metal", "patch">, GNU<"metal_patch">];
+  let Args = [StringArgument<"FacetType">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+def MetalEarlyFragmentTests : InheritableAttr {
+  let Spellings = [CXX11<"metal", "early_fragment_tests">, GNU<"metal_early_fragment_tests">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}

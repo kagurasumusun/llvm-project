@@ -4667,7 +4667,9 @@ void Parser::ParseCXX11AttributeSpecifierInternal(ParsedAttributes &Attrs,
           NameStr == "threads_per_grid" || NameStr == "simdgroup_index_in_threadgroup" ||
           NameStr == "thread_index_in_simdgroup" || NameStr == "grid_origin" ||
           NameStr == "grid_size" || NameStr == "dispatch_threads_per_threadgroup" ||
-          NameStr == "imageblock_data") {
+          NameStr == "imageblock_data" || NameStr == "id" || NameStr == "payload" ||
+          NameStr == "max_total_threads_per_threadgroup" || NameStr == "threads_per_mesh_grid" ||
+          NameStr == "patch" || NameStr == "early_fragment_tests") {
         ScopeName = PP.getIdentifierInfo("metal");
         if (ScopeLoc.isInvalid())
           ScopeLoc = AttrLoc;

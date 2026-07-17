@@ -7949,6 +7949,45 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_MetalImageblockData:
     handleSimpleAttribute<MetalImageblockDataAttr>(S, D, AL);
     break;
+
+  case ParsedAttr::AT_MetalId: {
+    uint32_t Index = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalIdAttr(S.Context, AL, Index));
+    break;
+  }
+  case ParsedAttr::AT_MetalPayload:
+    handleSimpleAttribute<MetalPayloadAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalMaxTotalThreadsPerThreadgroup: {
+    uint32_t MaxThreads = 0;
+    if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), MaxThreads))
+        break;
+    }
+    D->addAttr(::new (S.Context) MetalMaxTotalThreadsPerThreadgroupAttr(S.Context, AL, MaxThreads));
+    break;
+  }
+  case ParsedAttr::AT_MetalThreadsPerMeshGrid:
+    handleSimpleAttribute<MetalThreadsPerMeshGridAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalPatch: {
+    StringRef FacetType;
+    if (AL.getNumArgs() > 0 && AL.isArgIdent(0))
+      FacetType = AL.getArgAsIdent(0)->getIdentifierInfo()->getName();
+    else if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
+      if (const auto *SE = dyn_cast<StringLiteral>(AL.getArgAsExpr(0)->IgnoreParenCasts()))
+        FacetType = SE->getString();
+    }
+    D->addAttr(::new (S.Context) MetalPatchAttr(S.Context, AL, FacetType));
+    break;
+  }
+  case ParsedAttr::AT_MetalEarlyFragmentTests:
+    handleSimpleAttribute<MetalEarlyFragmentTestsAttr>(S, D, AL);
+    break;
   case ParsedAttr::AT_HLSLPackOffset:
     S.HLSL().handlePackOffsetAttr(D, AL);
     break;
