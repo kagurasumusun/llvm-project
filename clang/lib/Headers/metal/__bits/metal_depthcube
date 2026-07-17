@@ -1,0 +1,2477 @@
+// -*- Metal -*-
+//===-- __bits/metal_depthcube --------------------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __BITS_METAL_DEPTHCUBE
+#define __BITS_METAL_DEPTHCUBE
+
+#include <__bits/metal_texture_common>
+
+#if defined(__HAVE_ARRAY__)
+#include <metal_array>
+#endif
+#if defined(__HAVE_IMAGEBLOCKS__)
+#include <metal_imageblocks>
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depthcube_sample
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depthcube_sample<T, a, c, typename enable_if<_is_valid_sample(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depthcube<T, a, c>;
+#else
+  using __derived_t = depthcube<T, a>;
+#endif
+
+public:
+  METAL_FUNC T sample(sampler s, float3 coord) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, level options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, min_lod_clamp options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, level options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, min_lod_clamp options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float3 coord) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float3 coord) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample(sampler s, float3 coord) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, level options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, min_lod_clamp options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, level options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, min_lod_clamp options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float3 coord) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float3 coord) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC T sample(sampler s, float3 coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, level options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, min_lod_clamp options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, level options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, min_lod_clamp options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float3 coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float3 coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample(sampler s, float3 coord) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, level options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, min_lod_clamp options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, level options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, min_lod_clamp options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float3 coord) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float3 coord) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC T sample(sampler s, float3 coord) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, level options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, min_lod_clamp options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, level options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, min_lod_clamp options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float3 coord) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float3 coord) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC T sample(sampler s, float3 coord) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, level options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, min_lod_clamp options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+  METAL_FUNC T sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, level options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, min_lod_clamp options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, bias bias_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t(derived.t, s.val, coord, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample(sampler s, float3 coord, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_depth_cube_t_grad(derived.t, s.val, coord, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_CALCULATE_LOD__)
+  METAL_FUNC float calculate_clamped_lod(sampler s, float3 coord) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_calculate_clamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+  METAL_FUNC float calculate_unclamped_lod(sampler s, float3 coord) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_calculate_unclamped_lod_depth_cube_t(derived.t, s.val, coord, int(a));
+  }
+#endif
+#endif
+
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, level options) const thread  METAL_VALID_LEVEL_ARG(options)
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, level options) const thread  METAL_VALID_LEVEL_ARG(options)
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, level options) const device  METAL_VALID_LEVEL_ARG(options)
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, level options) const device  METAL_VALID_LEVEL_ARG(options)
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, level options) const device coherent(device) METAL_VALID_LEVEL_ARG(options)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, level options) const device coherent(device) METAL_VALID_LEVEL_ARG(options)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, level options) const constant  METAL_VALID_LEVEL_ARG(options)
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, level options) const constant  METAL_VALID_LEVEL_ARG(options)
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, level options) const ray_data  METAL_VALID_LEVEL_ARG(options)
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, level options) const ray_data  METAL_VALID_LEVEL_ARG(options)
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, level options) const object_data  METAL_VALID_LEVEL_ARG(options)
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC T sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#endif
+#endif
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, options.value, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, level options) const object_data  METAL_VALID_LEVEL_ARG(options)
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, true, options.lod, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, min_lod_clamp options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, 0.0f, options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_SAMPLE_COMPARE_BIAS_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, bias bias_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t(derived.t, s.val, coord, compare_value, false, bias_options.value, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_SAMPLE_COMPARE_GRADIENTCUBE_OVERLOAD__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, options.dPdx, options.dPdy, 0.0f, int(a), &nack);
+    return {v, !nack};
+  }
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+  METAL_FUNC sparse_color<T> sparse_sample_compare(sampler s, float3 coord, float compare_value, gradientcube grad_options, min_lod_clamp min_lod_clamp_options) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_sample_compare_depth_cube_t_grad(derived.t, s.val, coord, compare_value, grad_options.dPdx, grad_options.dPdy, min_lod_clamp_options.value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depthcube_read
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depthcube_read<T, a, c, typename enable_if<_is_valid_read(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depthcube<T, a, c>;
+#else
+  using __derived_t = depthcube<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_DEPTH_CUBE_READ__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort face, ushort lod = 0) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort face, ushort lod = 0) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint face, uint lod = 0) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint face, uint lod = 0) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort face, ushort lod = 0) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort face, ushort lod = 0) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint face, uint lod = 0) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint face, uint lod = 0) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort face, ushort lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort face, ushort lod = 0) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint face, uint lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint face, uint lod = 0) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort face, ushort lod = 0) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort face, ushort lod = 0) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint face, uint lod = 0) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint face, uint lod = 0) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort face, ushort lod = 0) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort face, ushort lod = 0) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint face, uint lod = 0) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint face, uint lod = 0) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC T read(ushort2 coord, ushort face, ushort lod = 0) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(ushort2 coord, ushort face, ushort lod = 0) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC T read(uint2 coord, uint face, uint lod = 0) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<T> sparse_read(uint2 coord, uint face, uint lod = 0) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    T v = __metal_read_depth_cube_t(derived.t, __metal_get_read_sampler(), coord, face, lod, int(a), int(c), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depthcube_gather
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depthcube_gather<T, a, c, typename enable_if<_is_valid_gather(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depthcube<T, a, c>;
+#else
+  using __derived_t = depthcube<T, a>;
+#endif
+
+public:
+  METAL_FUNC vec<T, 4> gather(sampler s, float3 coord) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float3 coord) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float3 coord) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float3 coord) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float3 coord) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float3 coord) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float3 coord) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float3 coord) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float3 coord) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float3 coord) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC vec<T, 4> gather(sampler s, float3 coord) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather(sampler s, float3 coord) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_depth_cube_t(derived.t, s.val, coord, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float3 coord, float compare_value) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float3 coord, float compare_value) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float3 coord, float compare_value) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float3 coord, float compare_value) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float3 coord, float compare_value) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float3 coord, float compare_value) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float3 coord, float compare_value) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float3 coord, float compare_value) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float3 coord, float compare_value) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float3 coord, float compare_value) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC vec<T, 4> gather_compare(sampler s, float3 coord, float compare_value) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), static_cast<thread bool*>(nullptr));
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_gather_compare(sampler s, float3 coord, float compare_value) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_gather_compare_depth_cube_t(derived.t, s.val, coord, compare_value, int(a), &nack);
+    return {v, !nack};
+  }
+#endif
+#endif
+};
+
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _depthcube
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _depthcube<T, a, c, typename enable_if<is_depth_texture_channel<T>::value && _is_valid_depth_query(a, c)>::type>
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  : _deleted_operators<depthcube<T, a, c>>
+  , _texture_explicit_conversion<c == memory_coherence_device, depthcube<T, a, c>, depthcube<T, a, memory_coherence_threadgroup>>
+  , _texture_implicit_conversion<c == memory_coherence_threadgroup, depthcube<T, a, c>, depthcube<T, a, memory_coherence_device>>
+#else
+  : _deleted_operators<depthcube<T, a>>
+#endif
+  , _depthcube_sample<T, a, c>
+  , _depthcube_read<T, a, c>
+  , _depthcube_gather<T, a, c>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = depthcube<T, a, c>;
+#else
+  using __derived_t = depthcube<T, a>;
+#endif
+
+public:
+  METAL_FUNC uint get_width(uint lod = 0) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_width_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_height_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_num_mip_levels() const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_cube_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width(uint lod = 0) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_width_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_height_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_num_mip_levels() const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_cube_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC uint get_width(uint lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_width_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_height_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_num_mip_levels() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_cube_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width(uint lod = 0) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_width_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_height_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_num_mip_levels() const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_cube_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC uint get_width(uint lod = 0) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_width_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_height_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_num_mip_levels() const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_cube_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC uint get_width(uint lod = 0) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_width_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_height(uint lod = 0) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_height_depth_cube_t(derived.t, lod);
+  }
+  METAL_FUNC uint get_num_mip_levels() const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_num_mip_levels_depth_cube_t(derived.t);
+  }
+#endif
+};
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c, typename _Enable>
+struct depthcube : _depthcube<T, a, c>
+#else
+template <typename T, access a, typename _Enable>
+struct depthcube : _depthcube<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_depth_texture_channel<T>::value, "invalid channel type 'T' for 'depthcube'");
+  static_assert(_is_valid_depth_query_access(a), "invalid access value 'a' for 'depthcube'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  depthcube() thread = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  depthcube() constant = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  depthcube() ray_data = delete;
+#endif
+
+  METAL_FUNC depthcube(const thread  depthcube &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const device  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depthcube(const device coherent(device) depthcube &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const constant  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const ray_data  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depthcube(const object_data  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const thread  depthcube &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const device  depthcube &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depthcube(const device coherent(device) depthcube &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const constant  depthcube &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const ray_data  depthcube &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depthcube(const object_data  depthcube &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const thread  depthcube &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const device  depthcube &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const device coherent(device) depthcube &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const constant  depthcube &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const ray_data  depthcube &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const object_data  depthcube &) ray_data = default;
+#endif
+#endif
+
+  thread  depthcube &operator=(const thread  depthcube &) thread  = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  depthcube &operator=(const device  depthcube &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  thread  depthcube &operator=(const device coherent(device) depthcube &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  depthcube &operator=(const constant  depthcube &) thread  = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  thread  depthcube &operator=(const ray_data  depthcube &) thread  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+  thread  depthcube &operator=(const object_data  depthcube &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depthcube &operator=(const thread  depthcube &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depthcube &operator=(const device  depthcube &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device  depthcube &operator=(const device coherent(device) depthcube &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  depthcube &operator=(const constant  depthcube &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  device  depthcube &operator=(const ray_data  depthcube &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  device  depthcube &operator=(const object_data  depthcube &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depthcube &operator=(const thread  depthcube &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depthcube &operator=(const device  depthcube &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depthcube &operator=(const device coherent(device) depthcube &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) depthcube &operator=(const constant  depthcube &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  device coherent(device) depthcube &operator=(const ray_data  depthcube &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  device coherent(device) depthcube &operator=(const object_data  depthcube &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depthcube &operator=(const thread  depthcube &) ray_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depthcube &operator=(const device  depthcube &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depthcube &operator=(const device coherent(device) depthcube &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depthcube &operator=(const constant  depthcube &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depthcube &operator=(const ray_data  depthcube &) ray_data  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  depthcube &operator=(const object_data  depthcube &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  depthcube &operator=(const thread  depthcube &) object_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  depthcube &operator=(const device  depthcube &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  object_data  depthcube &operator=(const device coherent(device) depthcube &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  depthcube &operator=(const constant  depthcube &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  object_data  depthcube &operator=(const ray_data  depthcube &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  depthcube &operator=(const object_data  depthcube &) object_data  = delete;
+#endif
+
+private:
+  __metal_depth_cube_t t;
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(depthcube<T, a, c>);
+  friend struct _depthcube_sample<T, a, c>;
+  friend struct _depthcube_read<T, a, c>;
+  friend struct _depthcube_gather<T, a, c>;
+  friend struct _depthcube<T, a, c>;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(depthcube<T, a>);
+#endif
+  friend struct _depthcube_sample<T, a, __memory_coherence_threadgroup>;
+  friend struct _depthcube_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _depthcube_gather<T, a, __memory_coherence_threadgroup>;
+  friend struct _depthcube<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__) && defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+struct depthcube<T, a, c, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _depthcube<T, a, c>
+#else
+template <typename T, access a>
+struct depthcube<T, a, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _depthcube<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_depth_texture_channel<T>::value, "invalid channel type 'T' for 'depthcube'");
+  static_assert(_is_valid_depth_query_access(a), "invalid access value 'a' for 'depthcube'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  METAL_FUNC depthcube() thread : t(__metal_get_null_depth_cube_t()) {}
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube() constant : t(__metal_get_null_depth_cube_t()) {}
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube() ray_data : t(__metal_get_null_depth_cube_t()) {}
+#endif
+
+  METAL_FUNC depthcube(const thread  depthcube &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const device  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depthcube(const device coherent(device) depthcube &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const constant  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const ray_data  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depthcube(const object_data  depthcube &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const thread  depthcube &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const device  depthcube &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC depthcube(const device coherent(device) depthcube &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC depthcube(const constant  depthcube &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const ray_data  depthcube &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC depthcube(const object_data  depthcube &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const thread  depthcube &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const device  depthcube &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const device coherent(device) depthcube &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const constant  depthcube &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const ray_data  depthcube &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC depthcube(const object_data  depthcube &) ray_data = default;
+#endif
+#endif
+
+  METAL_FUNC thread  depthcube &operator=(const thread  depthcube &) thread  = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  depthcube &operator=(const device  depthcube &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC thread  depthcube &operator=(const device coherent(device) depthcube &) thread  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  depthcube &operator=(const constant  depthcube &) thread  = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC thread  depthcube &operator=(const ray_data  depthcube &) thread  = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC thread  depthcube &operator=(const object_data  depthcube &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depthcube &operator=(const thread  depthcube &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depthcube &operator=(const device  depthcube &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device  depthcube &operator=(const device coherent(device) depthcube &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  depthcube &operator=(const constant  depthcube &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device  depthcube &operator=(const ray_data  depthcube &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device  depthcube &operator=(const object_data  depthcube &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depthcube &operator=(const thread  depthcube &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depthcube &operator=(const device  depthcube &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depthcube &operator=(const device coherent(device) depthcube &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) depthcube &operator=(const constant  depthcube &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device coherent(device) depthcube &operator=(const ray_data  depthcube &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device coherent(device) depthcube &operator=(const object_data  depthcube &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depthcube &operator=(const thread  depthcube &) ray_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depthcube &operator=(const device  depthcube &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depthcube &operator=(const device coherent(device) depthcube &) ray_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depthcube &operator=(const constant  depthcube &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depthcube &operator=(const ray_data  depthcube &) ray_data  = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  depthcube &operator=(const object_data  depthcube &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depthcube &operator=(const thread  depthcube &) object_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depthcube &operator=(const device  depthcube &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depthcube &operator=(const device coherent(device) depthcube &) object_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depthcube &operator=(const constant  depthcube &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC object_data  depthcube &operator=(const ray_data  depthcube &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  depthcube &operator=(const object_data  depthcube &) object_data  = default;
+#endif
+
+private:
+  __metal_depth_cube_t t;
+
+  METAL_FUNC depthcube(__metal_depth_cube_t t) thread : t(t) {}
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(depthcube<T, a, c>);
+  friend struct _depthcube_sample<T, a, c>;
+  friend struct _depthcube_read<T, a, c>;
+  friend struct _depthcube_gather<T, a, c>;
+  friend struct _depthcube<T, a, c>;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_explicit_conversion;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_implicit_conversion;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(depthcube<T, a>);
+#endif
+  friend struct _depthcube_sample<T, a, __memory_coherence_threadgroup>;
+  friend struct _depthcube_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _depthcube_gather<T, a, __memory_coherence_threadgroup>;
+  friend struct _depthcube<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+#endif
+
+#if defined(__HAVE_NULL_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+METAL_FUNC bool is_null_texture(depthcube<T, a, c> tex)
+#else
+template <typename T, access a>
+METAL_FUNC bool is_null_texture(depthcube<T, a> tex)
+#endif
+{
+  return __metal_is_null_depth_cube_t(tex.t);
+}
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif // __BITS_METAL_DEPTHCUBE

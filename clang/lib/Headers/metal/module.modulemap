@@ -1,0 +1,270 @@
+module metal_stdlib [system] {
+  requires metal
+  header "metal_stdlib"
+  export *
+}
+module metal_types [system] {
+  requires metal
+  header "metal_types"
+  header "metal_config"
+  header "metal_extended_vector"
+  header "metal_packed_vector"
+  header "metal_type_traits"
+  header "metal_tessellation"
+  export *
+}
+module __bits_metal_depth2d [system] {
+  requires metal
+  header "__bits/metal_depth2d"
+  export *
+}
+module __bits_metal_depth2d_array [system] {
+  requires metal
+  header "__bits/metal_depth2d_array"
+  export *
+}
+module __bits_metal_depth2d_ms [system] {
+  requires metal
+  header "__bits/metal_depth2d_ms"
+  export *
+}
+module __bits_metal_depth2d_ms_array [system] {
+  requires metal
+  header "__bits/metal_depth2d_ms_array"
+  export *
+}
+module __bits_metal_depthcube [system] {
+  requires metal
+  header "__bits/metal_depthcube"
+  export *
+}
+module __bits_metal_depthcube_array [system] {
+  requires metal
+  header "__bits/metal_depthcube_array"
+  export *
+}
+module __bits_metal_texture1d [system] {
+  requires metal
+  header "__bits/metal_texture1d"
+  export *
+}
+module __bits_metal_texture1d_array [system] {
+  requires metal
+  header "__bits/metal_texture1d_array"
+  export *
+}
+module __bits_metal_texture2d [system] {
+  requires metal
+  header "__bits/metal_texture2d"
+  export *
+}
+module __bits_metal_texture2d_array [system] {
+  requires metal
+  header "__bits/metal_texture2d_array"
+  export *
+}
+module __bits_metal_texture2d_ms [system] {
+  requires metal
+  header "__bits/metal_texture2d_ms"
+  export *
+}
+module __bits_metal_texture2d_ms_array [system] {
+  requires metal
+  header "__bits/metal_texture2d_ms_array"
+  export *
+}
+module __bits_metal_texture3d [system] {
+  requires metal
+  header "__bits/metal_texture3d"
+  export *
+}
+module __bits_metal_texture_buffer [system] {
+  requires metal
+  header "__bits/metal_texture_buffer"
+  export *
+}
+module __bits_metal_texture_common [system] {
+  requires metal
+  header "__bits/metal_texture_common"
+  export *
+}
+module __bits_metal_texturecube [system] {
+  requires metal
+  header "__bits/metal_texturecube"
+  export *
+}
+module __bits_metal_texturecube_array [system] {
+  requires metal
+  header "__bits/metal_texturecube_array"
+  export *
+}
+module metal_array [system] {
+  requires metal
+  header "metal_array"
+  export *
+}
+module metal_atomic [system] {
+  requires metal
+  header "metal_atomic"
+  export *
+}
+module metal_command_buffer [system] {
+  requires metal
+  header "metal_command_buffer"
+  export *
+}
+module metal_common [system] {
+  requires metal
+  header "metal_common"
+  export *
+}
+module metal_compute [system] {
+  requires metal
+  header "metal_compute"
+  export *
+}
+module metal_cooperative_tensor [system] {
+  requires metal
+  header "metal_cooperative_tensor"
+  export *
+}
+module metal_curves [system] {
+  requires metal
+  header "metal_curves"
+  export *
+}
+module metal_functional [system] {
+  requires metal
+  header "metal_functional"
+  export *
+}
+module metal_geometric [system] {
+  requires metal
+  header "metal_geometric"
+  export *
+}
+module metal_graphics [system] {
+  requires metal
+  header "metal_graphics"
+  export *
+}
+module metal_imageblocks [system] {
+  requires metal
+  header "metal_imageblocks"
+  export *
+}
+module metal_initializer_list [system] {
+  requires metal
+  header "metal_initializer_list"
+  export *
+}
+module metal_integer [system] {
+  requires metal
+  header "metal_integer"
+  export *
+}
+module metal_interpolate [system] {
+  requires metal
+  header "metal_interpolate"
+  export *
+}
+module metal_limits [system] {
+  requires metal
+  header "metal_limits"
+  export *
+}
+module metal_logging [system] {
+  requires metal
+  header "metal_logging"
+  export *
+}
+module metal_math [system] {
+  requires metal
+  header "metal_math"
+  export *
+}
+module metal_matrix [system] {
+  requires metal
+  header "metal_matrix"
+  export *
+}
+module metal_mesh [system] {
+  requires metal
+  header "metal_mesh"
+  export *
+}
+module metal_numeric [system] {
+  requires metal
+  header "metal_numeric"
+  export *
+}
+module metal_pack [system] {
+  requires metal
+  header "metal_pack"
+  export *
+}
+module metal_packed_numeric [system] {
+  requires metal
+  header "metal_packed_numeric"
+  export *
+}
+module metal_pixel [system] {
+  requires metal
+  header "metal_pixel"
+  export *
+}
+module metal_quadgroup [system] {
+  requires metal
+  header "metal_quadgroup"
+  export *
+}
+module metal_raytracing [system] {
+  requires metal
+  header "metal_raytracing"
+  export *
+}
+module metal_relational [system] {
+  requires metal
+  header "metal_relational"
+  export *
+}
+module metal_simdgroup [system] {
+  requires metal
+  header "metal_simdgroup"
+  export *
+}
+module metal_simdgroup_matrix [system] {
+  requires metal
+  header "metal_simdgroup_matrix"
+  export *
+}
+module metal_tensor [system] {
+  requires metal
+  header "metal_tensor"
+  export *
+}
+module metal_texture [system] {
+  requires metal
+  header "metal_texture"
+  export *
+}
+module metal_uniform [system] {
+  requires metal
+  header "metal_uniform"
+  export *
+}
+module metal_utility [system] {
+  requires metal
+  header "metal_utility"
+  export *
+}
+module metal_vertex_value [system] {
+  requires metal
+  header "metal_vertex_value"
+  export *
+}
+module metal_visible_function_table [system] {
+  requires metal
+  header "metal_visible_function_table"
+  export *
+}

@@ -1,0 +1,35 @@
+// -*- Metal -*-
+//===-- metal_vertex_value -----------------------------------------===//
+// Copyright (c) 2023 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __METAL_VERTEX_VALUE
+#define __METAL_VERTEX_VALUE
+
+#if defined(__HAVE_VERTEX_VALUE__)
+namespace metal
+{
+enum class vertex_index
+{
+  first = __METAL_VERTEX_INDEX_FIRST__,
+  second = __METAL_VERTEX_INDEX_SECOND__,
+  third = __METAL_VERTEX_INDEX_THIRD__
+};
+
+template <typename T>
+struct vertex_value
+{
+  static_assert(__is_metal_vertex_value_underlying_type(T), "invalid underlying type 'T' for 'vertex_value'");
+
+  METAL_FUNC T get(vertex_index i) const thread
+  {
+    return __metal_get_vertex_value(impl, int(i), T());
+  }
+
+private:
+  __metal_vertex_value_t impl;
+};
+} // namespace metal
+#endif
+
+#endif // __METAL_VERTEX_VALUE

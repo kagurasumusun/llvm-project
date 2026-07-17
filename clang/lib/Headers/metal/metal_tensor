@@ -1,0 +1,2204 @@
+// -*- Metal -*-
+//===-- metal_tensor ------------------------------------------------------===//
+// Copyright (c) 2025 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __METAL_TENSOR
+#define __METAL_TENSOR
+
+#if defined(__HAVE_TENSOR__)
+
+#include "__mdspan/extents.h"
+
+#if defined(__HAVE_PACKED_NUMERIC__)
+#include <metal_packed_numeric>
+#endif
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc++20-extensions"
+
+#pragma METAL internals : enable
+
+namespace metal
+{
+namespace __tensor_detail
+{
+template <typename T>
+struct __is_thread_addrspace : is_same<T, remove_addrspace_t<T>>
+{
+};
+template <typename T>
+constexpr constant bool __is_thread_addrspace_v = __is_thread_addrspace<T>::value;
+template <typename T>
+struct __is_device_addrspace : false_type
+{
+};
+template <typename T>
+struct __is_device_addrspace<device T> : true_type
+{
+};
+template <typename T>
+constexpr constant bool __is_device_addrspace_v = __is_device_addrspace<T>::value;
+template <typename T>
+struct __is_constant_addrspace : false_type
+{
+};
+template <typename T>
+struct __is_constant_addrspace<constant T> : true_type
+{
+};
+template <typename T>
+constexpr constant bool __is_constant_addrspace_v = __is_constant_addrspace<T>::value;
+template <typename T>
+struct __is_threadgroup_addrspace : false_type
+{
+};
+template <typename T>
+struct __is_threadgroup_addrspace<threadgroup T> : true_type
+{
+};
+template <typename T>
+constexpr constant bool __is_threadgroup_addrspace_v = __is_threadgroup_addrspace<T>::value;
+
+template <typename T, typename Enable = void>
+struct __is_tensor_element_format_impl : false_type
+{
+};
+#if defined(__HAVE_PACKED_NUMERIC__)
+template <typename T>
+struct __is_tensor_element_format_impl<T, enable_if_t<is_numeric_format_v<T>>> : true_type
+{
+};
+#endif
+template <typename T>
+struct __is_tensor_element_format : __is_tensor_element_format_impl<remove_cv_t<remove_addrspace_t<remove_coherent_t<T>>>>
+{
+};
+template<class T>
+constexpr constant bool __is_tensor_element_format_v = __is_tensor_element_format<T>::value;
+
+template <typename T>
+struct __is_tensor_element_impl : bool_constant<
+  is_same_v<T, half> || is_same_v<T, bfloat> || is_same_v<T, float> ||
+#if defined(__HAVE_NATIVE_DOUBLE__)
+  is_same_v<T, double> ||
+#endif
+  is_same_v<T, char> || is_same_v<T, signed char> || is_same_v<T, uchar> ||
+  is_same_v<T, short> || is_same_v<T, ushort> ||
+  is_same_v<T, int> || is_same_v<T, uint>
+  || __is_tensor_element_format_v<T>
+  >
+{
+};
+template <typename T>
+struct __is_tensor_element : __is_tensor_element_impl<remove_cv_t<remove_addrspace_t<remove_coherent_t<T>>>>
+{
+};
+template<class T>
+constexpr constant bool __is_tensor_element_v = __is_tensor_element<T>::value;
+
+template <typename T, typename Enable = void>
+struct __tensor_value_type_impl
+{
+  using type = T;
+};
+template <typename T>
+struct __tensor_value_type_impl<T, enable_if_t<__is_tensor_element_format_v<T>>>
+{
+  using type = uchar;
+};
+template <typename T>
+struct __tensor_value_type : __tensor_value_type_impl<remove_cv_t<remove_addrspace_t<remove_coherent_t<T>>>>
+{
+};
+template <typename T>
+using __tensor_value_t = typename __tensor_value_type<T>::type;
+
+template <typename T, typename U>
+struct __copy_cv
+{
+private:
+  using __t_with_const = conditional_t<is_const_v<U>, const T, T>;
+  using __t_with_cv = conditional_t<is_volatile_v<U>, volatile __t_with_const, __t_with_const>;
+public:
+  using type = __t_with_cv;
+};
+template <typename T, typename U>
+using __copy_cv_t = typename __copy_cv<T, U>::type;
+
+template <typename T, typename U>
+struct __copy_coherent
+{
+  using type = T;
+};
+template <typename T, typename U>
+struct __copy_coherent<T, coherent(device) U>
+{
+  using type = coherent(device) T;
+};
+template <typename T, typename U>
+using __copy_coherent_t = typename __copy_coherent<T, U>::type;
+
+template <typename T, typename U>
+struct __copy_addrspace
+{
+  using type = T;
+};
+template <typename T, typename U>
+struct __copy_addrspace<T, device U>
+{
+  using type = device T;
+};
+template <typename T, typename U>
+struct __copy_addrspace<T, constant U>
+{
+  using type = constant T;
+};
+template <typename T, typename U>
+struct __copy_addrspace<T, threadgroup U>
+{
+  using type = threadgroup T;
+};
+template <typename T, typename U>
+using __copy_addrspace_t = typename __copy_addrspace<T, U>::type;
+
+template <typename T, typename U>
+struct __copy_qualifiers
+{
+private:
+  using __with_cv = __copy_cv_t<T, U>;
+  using __with_coherence = __copy_coherent_t<__with_cv, U>;
+  using __with_addrspace = __copy_addrspace_t<__with_coherence, U>;
+public:
+  using type = __with_addrspace;
+};
+template <typename T, typename U>
+using __copy_qualifiers_t = typename __copy_qualifiers<T, U>::type;
+
+template <typename T, typename Enable = void>
+struct __tensor_data_handle_type
+{
+  using type = T;
+};
+template <typename T>
+struct __tensor_data_handle_type<T, enable_if_t<__is_tensor_element_format_v<T>>>
+{
+  using type = __copy_qualifiers_t<uchar, T>;
+};
+template <typename T>
+using __tensor_data_handle_t = typename add_pointer<typename __tensor_data_handle_type<T>::type>::type;
+
+template <typename T, typename Enable = void>
+struct __tensor_reference_type
+{
+  using type = thread T &;
+};
+template <typename T>
+struct __tensor_reference_type<T, enable_if_t<__is_tensor_element_format_v<T>>>
+{
+private:
+  using __qualified_type = __copy_qualifiers_t<uchar, T>;
+public:
+  using type = thread __qualified_type &;
+};
+template <typename T>
+using __tensor_reference_t = typename __tensor_reference_type<T>::type;
+
+template <typename T>
+struct __is_tensor_index_impl : bool_constant<
+  is_same_v<T, short> || is_same_v<T, ushort> ||
+  is_same_v<T, int> || is_same_v<T, uint> ||
+  is_same_v<T, long> || is_same_v<T, ulong>>
+{
+};
+template <typename T>
+struct __is_tensor_index : __is_tensor_index_impl<remove_cv_t<remove_addrspace_t<T>>>
+{
+};
+template<class T>
+constexpr constant bool __is_tensor_index_v = __is_tensor_index<T>::value;
+
+constexpr bool __is_tensor_rank(size_t Rank) { return Rank <= 16; }
+} // namespace __tensor_detail
+
+struct tensor_inline
+{
+};
+struct tensor_handle
+{
+};
+struct tensor_offset
+{
+};
+
+template <class ElementType, class Extents, class Descriptor, class... Tags>
+struct tensor;
+
+template <class ElementType, class Extents, class Descriptor, class... Tags>
+METAL_FUNC bool is_null_tensor(const thread  tensor<ElementType, Extents, Descriptor, Tags...> &t);
+template <class ElementType, class Extents, class Descriptor, class... Tags>
+METAL_FUNC bool is_null_tensor(const device  tensor<ElementType, Extents, Descriptor, Tags...> &t);
+#if defined(__HAVE_COHERENT__)
+template <class ElementType, class Extents, class Descriptor, class... Tags>
+METAL_FUNC bool is_null_tensor(const device coherent(device) tensor<ElementType, Extents, Descriptor, Tags...> &t);
+#endif
+template <class ElementType, class Extents, class Descriptor, class... Tags>
+METAL_FUNC bool is_null_tensor(const constant  tensor<ElementType, Extents, Descriptor, Tags...> &t);
+
+namespace __tensor_detail
+{
+template <typename T>
+struct __is_tensor_descriptor : bool_constant<
+  is_same_v<T, tensor_handle> || is_same_v<T, tensor_inline>>
+{
+};
+template<class T>
+constexpr constant bool __is_tensor_descriptor_v = __is_tensor_descriptor<T>::value;
+
+template <class Descriptor, class ElementType>
+struct __is_tensor_addrspace : false_type
+{
+};
+template <class ElementType>
+struct __is_tensor_addrspace<tensor_handle, ElementType>
+  : disjunction<
+      __tensor_detail::__is_device_addrspace<ElementType>,
+      __tensor_detail::__is_constant_addrspace<ElementType>
+  >
+{
+};
+template <class ElementType>
+struct __is_tensor_addrspace<tensor_inline, ElementType>
+  : disjunction<
+      __tensor_detail::__is_thread_addrspace<ElementType>,
+      __tensor_detail::__is_device_addrspace<ElementType>,
+      __tensor_detail::__is_constant_addrspace<ElementType>,
+      __tensor_detail::__is_threadgroup_addrspace<ElementType>
+  >
+{
+};
+template <class Descriptor, class ElementType>
+constexpr constant bool __is_tensor_addrspace_v = __is_tensor_addrspace<Descriptor, ElementType>::value;
+
+template <class ElementType>
+struct __is_tensor_inline_strides_packed
+  : __tensor_detail::__is_thread_addrspace<ElementType>
+{
+};
+template <class ElementType>
+constexpr constant bool __is_tensor_inline_strides_packed_v = __is_tensor_inline_strides_packed<ElementType>::value;
+
+template <class Extents, class SliceExtents>
+struct __is_slice_extents_compatible_impl : false_type
+{
+};
+template <class IndexType, size_t... Extents, size_t... SliceExtents>
+struct __is_slice_extents_compatible_impl<extents<IndexType, Extents...>, extents<IndexType, SliceExtents...>>
+  : bool_constant<(((Extents == dynamic_extent) || ((SliceExtents != dynamic_extent) && (SliceExtents <= Extents))) && ...)>
+{
+};
+template <class ExtentsType, size_t... SliceExtents>
+struct __is_slice_extents_compatible : false_type
+{
+};
+template <class IndexType, size_t... Extents, size_t... SliceExtents>
+struct __is_slice_extents_compatible<extents<IndexType, Extents...>, SliceExtents...>
+  : conditional_t<sizeof...(Extents) == sizeof...(SliceExtents),
+                  __is_slice_extents_compatible_impl<extents<IndexType, Extents...>,
+                                                     extents<IndexType, SliceExtents...>>,
+                  false_type>
+{
+};
+template <class IndexType, size_t... Extents>
+struct __is_slice_extents_compatible<extents<IndexType, Extents...>>
+  : __is_slice_extents_compatible_impl<extents<IndexType, Extents...>,
+                                       dextents<IndexType, sizeof...(Extents)>>
+{
+};
+template <class ExtentsType, size_t... SliceExtents>
+constexpr constant bool __is_slice_extents_compatible_v = __is_slice_extents_compatible<ExtentsType, SliceExtents...>::value;
+} // namespace __tensor_detail
+
+template <class ElementType,
+          class Extents,
+          class Descriptor = tensor_handle,
+          class... Tags>
+struct tensor
+{
+  static_assert(__tensor_detail::__is_tensor_descriptor_v<Descriptor>,
+                "tensor: Descriptor template parameter must be one of tensor_handle or tensor_inline");
+};
+
+namespace __tensor_detail
+{
+template <class Descriptor, class Tag>
+struct __is_tag : false_type
+{
+};
+template<>
+struct __is_tag<tensor_handle, tensor_offset> : true_type
+{
+};
+template <class Descriptor, class... Tags>
+struct __has_valid_tags : conjunction<__is_tag<Descriptor, Tags>...>
+{
+};
+template <class Descriptor, class... Tags>
+constexpr constant bool __has_valid_tags_v = __has_valid_tags<Descriptor, Tags...>::value;
+
+template <class Tag, class... Tags>
+struct __has_tag : disjunction<is_same<Tag, Tags>...>
+{
+};
+template <class Tag, class... Tags>
+constexpr constant bool __has_tag_v = __has_tag<Tag, Tags...>::value;
+template <class Tag, class... Tags>
+using __has_tag_t = typename __has_tag<Tag, Tags...>::type;
+
+template <class Tag, class T>
+struct __tensor_with_tag
+{
+};
+template <class Tag, class T, class E, class D, class... Tags>
+struct __tensor_with_tag<Tag, tensor<T, E, D, Tags...>>
+{
+  using type = conditional_t<__has_tag_v<Tag, Tags...>,
+                             tensor<T, E, D, Tags...>,
+                             tensor<T, E, D, Tag, Tags...>>;
+};
+template <class Tag, class T>
+using __tensor_with_tag_t = typename __tensor_with_tag<Tag, T>::type;
+
+template <class Extents, class T>
+struct __tensor_with_extents
+{
+};
+template <class Extents, class T, class E, class D, class... Tags>
+struct __tensor_with_extents<Extents, tensor<T, E, D, Tags...>>
+{
+  using type = tensor<T, Extents, D, Tags...>;
+};
+template <class Extents, class T>
+using __tensor_with_extents_t = typename __tensor_with_extents<Extents, T>::type;
+template <class T>
+using __tensor_with_dynamic_extents_t = typename __tensor_with_extents<dextents<typename T::index_type, T::get_rank()>, T>::type;
+
+template <class A, class B, class Enable = void>
+struct __is_extents_compatible_impl : false_type
+{
+};
+template<class IndexType, size_t... ExtentsA, size_t... ExtentsB>
+struct __is_extents_compatible_impl<extents<IndexType, ExtentsA...>, extents<IndexType, ExtentsB...>,
+                                    enable_if_t<sizeof...(ExtentsA) == sizeof...(ExtentsB)>>
+  : bool_constant<((ExtentsA == dynamic_extent || ExtentsB == dynamic_extent || ExtentsA == ExtentsB) && ... && true)>
+{
+};
+template <class A, class B>
+struct __is_extents_compatible : __is_extents_compatible_impl<remove_cv_t<A>, remove_cv_t<B>>
+{
+};
+template <class A, class B>
+constexpr constant bool __is_extents_compatible_v = __is_extents_compatible<A, B>::value;
+
+template <class T>
+struct __is_tensor_handle_impl : false_type
+{
+};
+template <class T, class E, class... Tags>
+struct __is_tensor_handle_impl<tensor<T, E, tensor_handle, Tags...>> : true_type
+{
+};
+
+template <class T>
+struct __is_tensor_inline_impl : false_type
+{
+};
+template <class T, class E, class... Tags>
+struct __is_tensor_inline_impl<tensor<T, E, tensor_inline, Tags...>> : true_type
+{
+};
+
+template <class T>
+struct __has_tensor_offset_impl : false_type
+{
+};
+template <class T, class E, class D, class... Tags>
+struct __has_tensor_offset_impl<tensor<T, E, D, Tags...>> : __has_tag_t<tensor_offset, Tags...>
+{
+};
+
+template <class E, class V>
+struct __is_value_type_compatible : is_same<E, make_scalar_t<V>>
+{
+};
+#if defined(__HAVE_PACKED_NUMERIC_TYPE__)
+template <class Format, size_t N>
+struct __is_value_type_compatible<uchar, packed_numeric_type<Format, N>> : true_type
+{
+};
+#endif
+template <class E, class V>
+constexpr constant bool __is_value_type_compatible_v = __is_value_type_compatible<E, V>::value;
+
+template <class T>
+struct __storage_type
+{
+  using type = T;
+  static type as_storage_type(T v)
+  {
+    return v;
+  }
+};
+#if defined(__HAVE_PACKED_NUMERIC_TYPE__)
+template <class Format, size_t N>
+struct __storage_type<packed_numeric_type<Format, N>>
+{
+  using type = typename packed_numeric_type<Format, N>::storage_type;
+  static type as_storage_type(packed_numeric_type<Format, N> v)
+  {
+    return v.as_storage_type();
+  }
+};
+#endif
+template <class T>
+using __storage_type_t = typename __storage_type<T>::type;
+} // namespace __tensor_detail
+
+template <class T>
+struct is_tensor_handle : __tensor_detail::__is_tensor_handle_impl<remove_cv_t<T>>
+{
+};
+template <class T>
+constexpr constant bool is_tensor_handle_v = is_tensor_handle<T>::value;
+
+template <class T>
+struct is_tensor_inline : __tensor_detail::__is_tensor_inline_impl<remove_cv_t<T>>
+{
+};
+template <class T>
+constexpr constant bool is_tensor_inline_v = is_tensor_inline<T>::value;
+
+template <class T>
+struct has_tensor_offset : __tensor_detail::__has_tensor_offset_impl<remove_cv_t<T>>
+{
+};
+template <class T>
+constexpr constant bool has_tensor_offset_v = has_tensor_offset<T>::value;
+
+template <class T, class Enable = true_type>
+struct __tensor_offsets;
+
+template <class T, class E, class D, class... Tags, class Enable>
+struct __tensor_offsets<tensor<T, E, D, Tags...>, Enable>
+{
+  using rank_type = typename E::rank_type;
+  using index_type = typename E::index_type;
+
+protected:
+  using offsets_type = array<index_type, E::rank()>;
+
+protected:
+  constexpr index_type get_offset(rank_type) thread  const
+  {
+    return index_type();
+  }
+  constexpr index_type get_offset(rank_type) device  const
+  {
+    return index_type();
+  }
+#if defined(__HAVE_COHERENT__)
+  constexpr index_type get_offset(rank_type) device coherent(device) const
+  {
+    return index_type();
+  }
+#endif
+  constexpr index_type get_offset(rank_type) constant  const
+  {
+    return index_type();
+  }
+};
+
+template <class T, class E, class D, class... Tags>
+struct __tensor_offsets<tensor<T, E, D, Tags...>,
+                        __tensor_detail::__has_tag_t<tensor_offset, Tags...>>
+{
+  using rank_type = typename E::rank_type;
+  using index_type = typename E::index_type;
+
+protected:
+  using offsets_type = array<index_type, E::rank()>;
+
+protected:
+
+  __tensor_offsets() thread
+    : _offsets([&]<size_t... Pos>(index_sequence<Pos...>) {
+        return offsets_type{ (Pos ? index_type() : index_type())... };
+      }(make_index_sequence<E::rank()>()))
+  {
+  }
+
+  __tensor_offsets(const thread offsets_type &offsets) thread
+    : _offsets(offsets)
+  {
+  }
+
+  constexpr index_type get_offset(rank_type r) thread const
+  {
+    return _offsets[r];
+  }
+
+private:
+  offsets_type _offsets;
+};
+
+template <class T, class Enable = void>
+struct __tensor_observer
+{
+};
+
+template <class T, class E, class D, class... Tags>
+struct __tensor_observer<tensor<T, E, D, Tags...>, typename enable_if<(E::rank() == 0)>::type>
+{
+};
+
+template <class T, class E, class D, class... Tags>
+struct __tensor_observer<tensor<T, E, D, Tags...>, typename enable_if<(E::rank() > 0)>::type>
+{
+  using tensor_type = tensor<T, E, D, Tags...>;
+  using extents_type = E;
+  using index_type = typename extents_type::index_type;
+  using size_type = typename extents_type::size_type;
+  using rank_type = typename extents_type::rank_type;
+
+  METAL_FUNC static constexpr size_t get_static_extent(rank_type r)
+  {
+    return extents_type::static_extent(r);
+  }
+
+  METAL_FUNC index_type get_extent(rank_type r) thread  const
+  {
+    if constexpr (extents_type::rank_dynamic() == 0)
+    {
+      return extents_type::static_extent(r);
+    }
+    else
+    {
+      if (extents_type::static_extent(r) != dynamic_extent)
+        return extents_type::static_extent(r);
+
+      const thread  tensor_type *self = static_cast<const thread  tensor_type *>(this);
+      return __metal_get_extent_tensor(self->handle(),
+                                       extents_type::rank(), r, size_type()) - self->get_offset(r);
+    }
+  }
+
+  METAL_FUNC index_type get_stride(rank_type r) thread  const
+  {
+    return __metal_get_stride_tensor(static_cast<const thread  tensor_type *>(this)->handle(),
+                                     extents_type::rank(), r, size_type());
+  }
+  METAL_FUNC index_type get_extent(rank_type r) device  const
+  {
+    if constexpr (extents_type::rank_dynamic() == 0)
+    {
+      return extents_type::static_extent(r);
+    }
+    else
+    {
+      if (extents_type::static_extent(r) != dynamic_extent)
+        return extents_type::static_extent(r);
+
+      const device  tensor_type *self = static_cast<const device  tensor_type *>(this);
+      return __metal_get_extent_tensor(self->handle(),
+                                       extents_type::rank(), r, size_type()) - self->get_offset(r);
+    }
+  }
+
+  METAL_FUNC index_type get_stride(rank_type r) device  const
+  {
+    return __metal_get_stride_tensor(static_cast<const device  tensor_type *>(this)->handle(),
+                                     extents_type::rank(), r, size_type());
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC index_type get_extent(rank_type r) device coherent(device) const
+  {
+    if constexpr (extents_type::rank_dynamic() == 0)
+    {
+      return extents_type::static_extent(r);
+    }
+    else
+    {
+      if (extents_type::static_extent(r) != dynamic_extent)
+        return extents_type::static_extent(r);
+
+      const device coherent(device) tensor_type *self = static_cast<const device coherent(device) tensor_type *>(this);
+      return __metal_get_extent_tensor(self->handle(),
+                                       extents_type::rank(), r, size_type()) - self->get_offset(r);
+    }
+  }
+
+  METAL_FUNC index_type get_stride(rank_type r) device coherent(device) const
+  {
+    return __metal_get_stride_tensor(static_cast<const device coherent(device) tensor_type *>(this)->handle(),
+                                     extents_type::rank(), r, size_type());
+  }
+#endif
+  METAL_FUNC index_type get_extent(rank_type r) constant  const
+  {
+    if constexpr (extents_type::rank_dynamic() == 0)
+    {
+      return extents_type::static_extent(r);
+    }
+    else
+    {
+      if (extents_type::static_extent(r) != dynamic_extent)
+        return extents_type::static_extent(r);
+
+      const constant  tensor_type *self = static_cast<const constant  tensor_type *>(this);
+      return __metal_get_extent_tensor(self->handle(),
+                                       extents_type::rank(), r, size_type()) - self->get_offset(r);
+    }
+  }
+
+  METAL_FUNC index_type get_stride(rank_type r) constant  const
+  {
+    return __metal_get_stride_tensor(static_cast<const constant  tensor_type *>(this)->handle(),
+                                     extents_type::rank(), r, size_type());
+  }
+};
+
+template <class T, class Enable = void>
+struct __tensor_accessor
+{
+};
+
+template <class T, class E, class D, class... Tags>
+struct __tensor_accessor<tensor<T, E, D, Tags...>, typename enable_if<(E::rank() == 0)>::type>
+{
+  using tensor_type = tensor<T, E, D, Tags...>;
+  using element_type = T;
+  using value_type = __tensor_detail::__tensor_value_t<element_type>;
+  using index_type = typename E::index_type;
+  using data_handle_type = __tensor_detail::__tensor_data_handle_t<element_type>;
+
+  METAL_FUNC value_type get() thread  const
+  {
+    return __metal_load_tensor(static_cast<const thread  tensor_type *>(this)->handle(),
+                               0, data_handle_type(), value_type());
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    value_type> get(thread const array<OtherIndexType, 0> &) thread  const
+  {
+    return get();
+  }
+
+  METAL_FUNC void set(value_type v) thread  const
+  {
+    __metal_store_tensor(static_cast<const thread  tensor_type *>(this)->handle(),
+                         0, data_handle_type(), v);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>)>
+  set(value_type v, thread const array<OtherIndexType, 0> &) thread  const
+  {
+    set(v);
+  }
+
+  METAL_FUNC value_type get() device  const
+  {
+    return __metal_load_tensor(static_cast<const device  tensor_type *>(this)->handle(),
+                               0, data_handle_type(), value_type());
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    value_type> get(thread const array<OtherIndexType, 0> &) device  const
+  {
+    return get();
+  }
+
+  METAL_FUNC void set(value_type v) device  const
+  {
+    __metal_store_tensor(static_cast<const device  tensor_type *>(this)->handle(),
+                         0, data_handle_type(), v);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>)>
+  set(value_type v, thread const array<OtherIndexType, 0> &) device  const
+  {
+    set(v);
+  }
+
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC value_type get() device coherent(device) const
+  {
+    return __metal_load_tensor(static_cast<const device coherent(device) tensor_type *>(this)->handle(),
+                               0, data_handle_type(), value_type());
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    value_type> get(thread const array<OtherIndexType, 0> &) device coherent(device) const
+  {
+    return get();
+  }
+
+  METAL_FUNC void set(value_type v) device coherent(device) const
+  {
+    __metal_store_tensor(static_cast<const device coherent(device) tensor_type *>(this)->handle(),
+                         0, data_handle_type(), v);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>)>
+  set(value_type v, thread const array<OtherIndexType, 0> &) device coherent(device) const
+  {
+    set(v);
+  }
+
+#endif
+  METAL_FUNC value_type get() constant  const
+  {
+    return __metal_load_tensor(static_cast<const constant  tensor_type *>(this)->handle(),
+                               0, data_handle_type(), value_type());
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    value_type> get(thread const array<OtherIndexType, 0> &) constant  const
+  {
+    return get();
+  }
+
+  METAL_FUNC void set(value_type v) constant  const
+  {
+    __metal_store_tensor(static_cast<const constant  tensor_type *>(this)->handle(),
+                         0, data_handle_type(), v);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>)>
+  set(value_type v, thread const array<OtherIndexType, 0> &) constant  const
+  {
+    set(v);
+  }
+
+};
+
+template <class T, class E, class D, class... Tags>
+struct __tensor_accessor<tensor<T, E, D, Tags...>, typename enable_if<(E::rank() > 0)>::type>
+{
+  using tensor_type = tensor<T, E, D, Tags...>;
+  using element_type = T;
+  using value_type = __tensor_detail::__tensor_value_t<element_type>;
+  using index_type = typename E::index_type;
+  using data_handle_type = __tensor_detail::__tensor_data_handle_t<element_type>;
+
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(OtherIndexTypes... index) thread  const
+  {
+    const thread  tensor_type *self = static_cast<const thread  tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return ValueType(__metal_load_tensor(static_cast<const thread  tensor_type *>(this)->handle(),
+                                 E::rank(), data_handle_type(),
+                                 __tensor_detail::__storage_type_t<ValueType>(),
+                                 static_cast<index_type>(static_cast<index_type>(index) +
+                                                         self->get_offset(Pos))...,
+                                 static_cast<index_type>(tensor_type::get_static_extent(Pos))...));
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexType, index_type>) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(thread const array<OtherIndexType, E::rank()> &index) thread  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return get<ValueType>(index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(OtherIndexTypes... index) thread  const
+  {
+    return get<value_type, OtherIndexTypes...>(index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type> &&
+                          !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(thread const array<OtherIndexType, E::rank()> &index) thread  const
+  {
+    return get<value_type, OtherIndexType>(index);
+  }
+
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()))>
+  set(ValueType v, OtherIndexTypes... index) thread  const
+  {
+    const thread  tensor_type *self = static_cast<const thread  tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      __metal_store_tensor(static_cast<const thread  tensor_type *>(this)->handle(),
+                           E::rank(), data_handle_type(),
+                           __tensor_detail::__storage_type<ValueType>::as_storage_type(v),
+                           static_cast<index_type>(static_cast<index_type>(index) +
+                                                   self->get_offset(Pos))...,
+                           static_cast<index_type>(tensor_type::get_static_extent(Pos))...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexType, index_type>))>
+  set(ValueType v, thread const array<OtherIndexType, E::rank()> &index) thread  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      set<ValueType>(v, index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, OtherIndexTypes... index) thread  const
+  {
+    set<value_type, OtherIndexTypes...>(v, index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (is_convertible_v<OtherIndexType, index_type> &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, thread const array<OtherIndexType, E::rank()> &index) thread  const
+  {
+    set<value_type, OtherIndexType>(v, index);
+  }
+
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(OtherIndexTypes... index) device  const
+  {
+    const device  tensor_type *self = static_cast<const device  tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return ValueType(__metal_load_tensor(static_cast<const device  tensor_type *>(this)->handle(),
+                                 E::rank(), data_handle_type(),
+                                 __tensor_detail::__storage_type_t<ValueType>(),
+                                 static_cast<index_type>(static_cast<index_type>(index) +
+                                                         self->get_offset(Pos))...,
+                                 static_cast<index_type>(tensor_type::get_static_extent(Pos))...));
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexType, index_type>) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(thread const array<OtherIndexType, E::rank()> &index) device  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return get<ValueType>(index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(OtherIndexTypes... index) device  const
+  {
+    return get<value_type, OtherIndexTypes...>(index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type> &&
+                          !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(thread const array<OtherIndexType, E::rank()> &index) device  const
+  {
+    return get<value_type, OtherIndexType>(index);
+  }
+
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()))>
+  set(ValueType v, OtherIndexTypes... index) device  const
+  {
+    const device  tensor_type *self = static_cast<const device  tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      __metal_store_tensor(static_cast<const device  tensor_type *>(this)->handle(),
+                           E::rank(), data_handle_type(),
+                           __tensor_detail::__storage_type<ValueType>::as_storage_type(v),
+                           static_cast<index_type>(static_cast<index_type>(index) +
+                                                   self->get_offset(Pos))...,
+                           static_cast<index_type>(tensor_type::get_static_extent(Pos))...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexType, index_type>))>
+  set(ValueType v, thread const array<OtherIndexType, E::rank()> &index) device  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      set<ValueType>(v, index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, OtherIndexTypes... index) device  const
+  {
+    set<value_type, OtherIndexTypes...>(v, index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (is_convertible_v<OtherIndexType, index_type> &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, thread const array<OtherIndexType, E::rank()> &index) device  const
+  {
+    set<value_type, OtherIndexType>(v, index);
+  }
+
+#if defined(__HAVE_COHERENT__)
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(OtherIndexTypes... index) device coherent(device) const
+  {
+    const device coherent(device) tensor_type *self = static_cast<const device coherent(device) tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return ValueType(__metal_load_tensor(static_cast<const device coherent(device) tensor_type *>(this)->handle(),
+                                 E::rank(), data_handle_type(),
+                                 __tensor_detail::__storage_type_t<ValueType>(),
+                                 static_cast<index_type>(static_cast<index_type>(index) +
+                                                         self->get_offset(Pos))...,
+                                 static_cast<index_type>(tensor_type::get_static_extent(Pos))...));
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexType, index_type>) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(thread const array<OtherIndexType, E::rank()> &index) device coherent(device) const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return get<ValueType>(index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(OtherIndexTypes... index) device coherent(device) const
+  {
+    return get<value_type, OtherIndexTypes...>(index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type> &&
+                          !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(thread const array<OtherIndexType, E::rank()> &index) device coherent(device) const
+  {
+    return get<value_type, OtherIndexType>(index);
+  }
+
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()))>
+  set(ValueType v, OtherIndexTypes... index) device coherent(device) const
+  {
+    const device coherent(device) tensor_type *self = static_cast<const device coherent(device) tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      __metal_store_tensor(static_cast<const device coherent(device) tensor_type *>(this)->handle(),
+                           E::rank(), data_handle_type(),
+                           __tensor_detail::__storage_type<ValueType>::as_storage_type(v),
+                           static_cast<index_type>(static_cast<index_type>(index) +
+                                                   self->get_offset(Pos))...,
+                           static_cast<index_type>(tensor_type::get_static_extent(Pos))...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexType, index_type>))>
+  set(ValueType v, thread const array<OtherIndexType, E::rank()> &index) device coherent(device) const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      set<ValueType>(v, index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, OtherIndexTypes... index) device coherent(device) const
+  {
+    set<value_type, OtherIndexTypes...>(v, index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (is_convertible_v<OtherIndexType, index_type> &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, thread const array<OtherIndexType, E::rank()> &index) device coherent(device) const
+  {
+    set<value_type, OtherIndexType>(v, index);
+  }
+
+#endif
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(OtherIndexTypes... index) constant  const
+  {
+    const constant  tensor_type *self = static_cast<const constant  tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return ValueType(__metal_load_tensor(static_cast<const constant  tensor_type *>(this)->handle(),
+                                 E::rank(), data_handle_type(),
+                                 __tensor_detail::__storage_type_t<ValueType>(),
+                                 static_cast<index_type>(static_cast<index_type>(index) +
+                                                         self->get_offset(Pos))...,
+                                 static_cast<index_type>(tensor_type::get_static_extent(Pos))...));
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexType, index_type>) &&
+     __tensor_detail::__is_value_type_compatible_v<value_type, ValueType>),
+    ValueType> get(thread const array<OtherIndexType, E::rank()> &index) constant  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return get<ValueType>(index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(OtherIndexTypes... index) constant  const
+  {
+    return get<value_type, OtherIndexTypes...>(index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type> &&
+                          !__tensor_detail::__is_tensor_element_format_v<element_type>),
+    value_type> get(thread const array<OtherIndexType, E::rank()> &index) constant  const
+  {
+    return get<value_type, OtherIndexType>(index);
+  }
+
+  template <class ValueType, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()))>
+  set(ValueType v, OtherIndexTypes... index) constant  const
+  {
+    const constant  tensor_type *self = static_cast<const constant  tensor_type *>(this);
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      __metal_store_tensor(static_cast<const constant  tensor_type *>(this)->handle(),
+                           E::rank(), data_handle_type(),
+                           __tensor_detail::__storage_type<ValueType>::as_storage_type(v),
+                           static_cast<index_type>(static_cast<index_type>(index) +
+                                                   self->get_offset(Pos))...,
+                           static_cast<index_type>(tensor_type::get_static_extent(Pos))...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class ValueType, class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (__tensor_detail::__is_value_type_compatible_v<value_type, ValueType> &&
+     (is_convertible_v<OtherIndexType, index_type>))>
+  set(ValueType v, thread const array<OtherIndexType, E::rank()> &index) constant  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      set<ValueType>(v, index[Pos]...);
+    }(make_index_sequence<E::rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == E::rank()) &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, OtherIndexTypes... index) constant  const
+  {
+    set<value_type, OtherIndexTypes...>(v, index...);
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<
+    (is_convertible_v<OtherIndexType, index_type> &&
+     !__tensor_detail::__is_tensor_element_format_v<element_type>)>
+  set(value_type v, thread const array<OtherIndexType, E::rank()> &index) constant  const
+  {
+    set<value_type, OtherIndexType>(v, index);
+  }
+
+};
+
+template <class Derived, class Enabled = void>
+struct __tensor_base
+{
+};
+
+template <class T, class E, class D, class... Tags>
+struct __tensor_base<tensor<T, E, D, Tags...>, typename enable_if<__mdspan_detail::is_extents_v<E>>::type>
+  : __tensor_offsets<tensor<T, E, D, Tags...>>,
+    __tensor_observer<tensor<T, E, D, Tags...>>,
+    __tensor_accessor<tensor<T, E, D, Tags...>>
+{
+public:
+  using tensor_type = tensor<T, E, D, Tags...>;
+  using extents_type = E;
+  using element_type = T;
+  using value_type = __tensor_detail::__tensor_value_t<element_type>;
+  using index_type = typename extents_type::index_type;
+  using size_type = typename extents_type::size_type;
+  using rank_type = typename extents_type::rank_type;
+  using data_handle_type = __tensor_detail::__tensor_data_handle_t<element_type>;
+  using reference = __tensor_detail::__tensor_reference_t<element_type>;
+
+public:
+  METAL_FUNC static constexpr rank_type get_rank()
+  {
+    return extents_type::rank();
+  }
+
+protected:
+  METAL_FUNC static constexpr bool has_static_extent(rank_type r)
+  {
+    return __tensor_base::get_static_extent(r) != dynamic_extent;
+  }
+  METAL_FUNC static constexpr bool has_all_static_extents()
+  {
+    return extents_type::rank_dynamic() == 0;
+  }
+
+protected:
+  using typename __tensor_offsets<tensor<T, E, D, Tags...>>::offsets_type;
+  METAL_FUNC __tensor_base(const thread offsets_type &other_offsets) thread
+    : __tensor_offsets<tensor_type>(other_offsets)
+  {
+  }
+
+  METAL_FUNC __tensor_base() thread = default;
+
+public:
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == get_rank())),
+    reference> operator[](OtherIndexTypes... index) thread  const
+  {
+    return *([&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return (data_handle_type) __metal_get_data_pointer_tensor(
+        static_cast<const thread  tensor_type *>(this)->handle(),
+        get_rank(), add_pointer_t<element_type>(),
+        static_cast<index_type>(static_cast<index_type>(index) +
+                                this->get_offset(Pos))...);
+    }(make_index_sequence<get_rank()>()));
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    reference> operator[](thread const array<OtherIndexType, get_rank()> &index) thread  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) -> reference {
+      return this->operator[](index[Pos]...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == get_rank())),
+    reference> operator[](OtherIndexTypes... index) device  const
+  {
+    return *([&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return (data_handle_type) __metal_get_data_pointer_tensor(
+        static_cast<const device  tensor_type *>(this)->handle(),
+        get_rank(), add_pointer_t<element_type>(),
+        static_cast<index_type>(static_cast<index_type>(index) +
+                                this->get_offset(Pos))...);
+    }(make_index_sequence<get_rank()>()));
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    reference> operator[](thread const array<OtherIndexType, get_rank()> &index) device  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) -> reference {
+      return this->operator[](index[Pos]...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+#if defined(__HAVE_COHERENT__)
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == get_rank())),
+    reference> operator[](OtherIndexTypes... index) device coherent(device) const
+  {
+    return *([&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return (data_handle_type) __metal_get_data_pointer_tensor(
+        static_cast<const device coherent(device) tensor_type *>(this)->handle(),
+        get_rank(), add_pointer_t<element_type>(),
+        static_cast<index_type>(static_cast<index_type>(index) +
+                                this->get_offset(Pos))...);
+    }(make_index_sequence<get_rank()>()));
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    reference> operator[](thread const array<OtherIndexType, get_rank()> &index) device coherent(device) const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) -> reference {
+      return this->operator[](index[Pos]...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+#endif
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == get_rank())),
+    reference> operator[](OtherIndexTypes... index) constant  const
+  {
+    return *([&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return (data_handle_type) __metal_get_data_pointer_tensor(
+        static_cast<const constant  tensor_type *>(this)->handle(),
+        get_rank(), add_pointer_t<element_type>(),
+        static_cast<index_type>(static_cast<index_type>(index) +
+                                this->get_offset(Pos))...);
+    }(make_index_sequence<get_rank()>()));
+  }
+
+  template <class OtherIndexType>
+  METAL_FUNC enable_if_t<(is_convertible_v<OtherIndexType, index_type>),
+    reference> operator[](thread const array<OtherIndexType, get_rank()> &index) constant  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) -> reference {
+      return this->operator[](index[Pos]...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+private:
+  METAL_FUNC data_handle_type data_handle() thread  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return __metal_get_data_pointer_tensor(static_cast<const thread  tensor_type *>(this)->handle(),
+                                             get_rank(), data_handle_type(),
+                                             this->get_offset(Pos)...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+  METAL_FUNC data_handle_type data_handle() device  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return __metal_get_data_pointer_tensor(static_cast<const device  tensor_type *>(this)->handle(),
+                                             get_rank(), data_handle_type(),
+                                             this->get_offset(Pos)...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC data_handle_type data_handle() device coherent(device) const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return __metal_get_data_pointer_tensor(static_cast<const device coherent(device) tensor_type *>(this)->handle(),
+                                             get_rank(), data_handle_type(),
+                                             this->get_offset(Pos)...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+#endif
+  METAL_FUNC data_handle_type data_handle() constant  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return __metal_get_data_pointer_tensor(static_cast<const constant  tensor_type *>(this)->handle(),
+                                             get_rank(), data_handle_type(),
+                                             this->get_offset(Pos)...);
+    }(make_index_sequence<get_rank()>());
+  }
+
+};
+
+// Host-bound tensors.
+
+template <class ElementType,
+          class Extents,
+          class... Tags>
+struct tensor<ElementType, Extents, tensor_handle, Tags...>
+  : public __tensor_base<tensor<ElementType, Extents, tensor_handle, Tags...>>
+{
+private:
+  using base = __tensor_base<tensor<ElementType, Extents, tensor_handle, Tags...>>;
+
+  template <class, class> friend struct __tensor_base;
+  template <class, class> friend struct __tensor_observer;
+  template <class, class> friend struct __tensor_accessor;
+  template <class, class, class, class...> friend struct tensor;
+  friend bool metal::is_null_tensor(const thread  tensor &);
+  friend bool metal::is_null_tensor(const device  tensor &);
+#if defined(__HAVE_COHERENT__)
+  friend bool metal::is_null_tensor(const device coherent(device) tensor &);
+#endif
+  friend bool metal::is_null_tensor(const constant  tensor &);
+
+private:
+  static_assert(__mdspan_detail::is_extents_v<Extents>,
+                "tensor: Extents template parameter must be a specialization of extents");
+  static_assert(__tensor_detail::__is_tensor_index_v<typename Extents::index_type>,
+                "tensor: Index type template parameter of extents must be one of (u)short/(u)int/(u)long");
+  static_assert(__tensor_detail::__is_tensor_rank(Extents::rank()),
+                "tensor: Rank template parameter of extents must be at most 16");
+  static_assert(__tensor_detail::__is_tensor_element_v<ElementType>,
+#if defined(__HAVE_PACKED_NUMERIC__)
+                "tensor: ElementType must be a scalar integer, floating point, or format type"
+#else
+                "tensor: ElementType must be a scalar integer or floating point type"
+#endif
+  );
+  static_assert(!__tensor_detail::__is_tensor_element_format_v<ElementType> || Extents::rank() != 0,
+                "tensor: ElementType cannot be a format type for rank 0 tensors");
+  static_assert(__tensor_detail::__is_tensor_addrspace_v<tensor_handle, ElementType>,
+                "tensor: ElementType must be device or constant qualified"
+  );
+  static_assert(__tensor_detail::__has_valid_tags_v<tensor_handle, Tags...>,
+                "tensor: Tags... invalid for tensor_handle");
+
+private:
+  using typename base::offsets_type;
+
+public:
+  using typename base::extents_type;
+  using typename base::element_type;
+  using typename base::value_type;
+  using typename base::index_type;
+  using typename base::size_type;
+  using typename base::rank_type;
+  using typename base::data_handle_type;
+  using typename base::reference;
+
+private:
+  // Copy-like constructor (with offsets)
+  METAL_FUNC tensor(__metal_tensor_t other, const thread offsets_type &other_offsets) thread
+    : base(other_offsets), _t(other)
+  {
+  }
+
+public:
+  // Default constructors.
+  METAL_FUNC tensor() thread : _t(__metal_get_null_tensor())
+  {
+  }
+
+  // Copy constructors.
+  METAL_FUNC tensor(const thread  tensor &) thread = default;
+  METAL_FUNC tensor(const device  tensor &) thread = default;
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC tensor(const device coherent(device) tensor &) thread = default;
+#endif
+  METAL_FUNC tensor(const constant  tensor &) thread = default;
+
+  // Conversion constructor extent <-> dextent
+  template <class OtherExtents,
+  typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                         is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC explicit tensor(const thread  tensor<element_type, OtherExtents, tensor_handle, Tags...> &other) thread
+    : tensor(reinterpret_cast<const thread  tensor &>(other))
+  {
+  }
+  template <class OtherExtents,
+  typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                         is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC explicit tensor(const device  tensor<element_type, OtherExtents, tensor_handle, Tags...> &other) thread
+    : tensor(reinterpret_cast<const device  tensor &>(other))
+  {
+  }
+#if defined(__HAVE_COHERENT__)
+  template <class OtherExtents,
+  typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                         is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC explicit tensor(const device coherent(device) tensor<element_type, OtherExtents, tensor_handle, Tags...> &other) thread
+    : tensor(reinterpret_cast<const device coherent(device) tensor &>(other))
+  {
+  }
+#endif
+  template <class OtherExtents,
+  typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                         is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC explicit tensor(const constant  tensor<element_type, OtherExtents, tensor_handle, Tags...> &other) thread
+    : tensor(reinterpret_cast<const constant  tensor &>(other))
+  {
+  }
+
+  // Conversion constructor tensor_handle, tensor_offset <- tensor_handle
+  template <class OtherExtents, class TensorTag = tensor_offset,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>,
+            typename = enable_if_t<__tensor_detail::__has_tag_v<TensorTag, Tags...>>>
+  METAL_FUNC tensor(const thread  tensor<element_type, OtherExtents, tensor_handle> &other) thread
+    : _t(other._t)
+  {
+  }
+  template <class OtherExtents, class TensorTag = tensor_offset,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>,
+            typename = enable_if_t<__tensor_detail::__has_tag_v<TensorTag, Tags...>>>
+  METAL_FUNC tensor(const device  tensor<element_type, OtherExtents, tensor_handle> &other) thread
+    : _t(other._t)
+  {
+  }
+#if defined(__HAVE_COHERENT__)
+  template <class OtherExtents, class TensorTag = tensor_offset,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>,
+            typename = enable_if_t<__tensor_detail::__has_tag_v<TensorTag, Tags...>>>
+  METAL_FUNC tensor(const device coherent(device) tensor<element_type, OtherExtents, tensor_handle> &other) thread
+    : _t(other._t)
+  {
+  }
+#endif
+  template <class OtherExtents, class TensorTag = tensor_offset,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>,
+            typename = enable_if_t<__tensor_detail::__has_tag_v<TensorTag, Tags...>>>
+  METAL_FUNC tensor(const constant  tensor<element_type, OtherExtents, tensor_handle> &other) thread
+    : _t(other._t)
+  {
+  }
+
+  // Assignment operator.
+  METAL_FUNC thread  tensor &operator=(const thread  tensor &) thread  = default;
+  METAL_FUNC thread  tensor &operator=(const device  tensor &) thread  = default;
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC thread  tensor &operator=(const device coherent(device) tensor &) thread  = default;
+#endif
+  METAL_FUNC thread  tensor &operator=(const constant  tensor &) thread  = default;
+  METAL_FUNC device  tensor &operator=(const thread  tensor &) device  = default;
+  METAL_FUNC device  tensor &operator=(const device  tensor &) device  = default;
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device  tensor &operator=(const device coherent(device) tensor &) device  = default;
+#endif
+  METAL_FUNC device  tensor &operator=(const constant  tensor &) device  = default;
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) tensor &operator=(const thread  tensor &) device coherent(device) = default;
+#endif
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) tensor &operator=(const device  tensor &) device coherent(device) = default;
+#endif
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) tensor &operator=(const device coherent(device) tensor &) device coherent(device) = default;
+#endif
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) tensor &operator=(const constant  tensor &) device coherent(device) = default;
+#endif
+
+  // Assignment: tensor_handle, tensor_offset <- tensor_handle
+  template <class... OtherTags, class TensorTag = tensor_offset>
+  METAL_FUNC
+  enable_if_t<!__tensor_detail::__has_tag_v<TensorTag, OtherTags...> &&
+              __tensor_detail::__has_tag_v<TensorTag, Tags...>,
+              thread tensor &>
+  operator=(const thread  tensor<element_type, extents_type, tensor_handle, OtherTags...> &other) thread
+  {
+    *this = tensor(other);
+    return *this;
+  }
+  template <class... OtherTags, class TensorTag = tensor_offset>
+  METAL_FUNC
+  enable_if_t<!__tensor_detail::__has_tag_v<TensorTag, OtherTags...> &&
+              __tensor_detail::__has_tag_v<TensorTag, Tags...>,
+              thread tensor &>
+  operator=(const device  tensor<element_type, extents_type, tensor_handle, OtherTags...> &other) thread
+  {
+    *this = tensor(other);
+    return *this;
+  }
+#if defined(__HAVE_COHERENT__)
+  template <class... OtherTags, class TensorTag = tensor_offset>
+  METAL_FUNC
+  enable_if_t<!__tensor_detail::__has_tag_v<TensorTag, OtherTags...> &&
+              __tensor_detail::__has_tag_v<TensorTag, Tags...>,
+              thread tensor &>
+  operator=(const device coherent(device) tensor<element_type, extents_type, tensor_handle, OtherTags...> &other) thread
+  {
+    *this = tensor(other);
+    return *this;
+  }
+#endif
+  template <class... OtherTags, class TensorTag = tensor_offset>
+  METAL_FUNC
+  enable_if_t<!__tensor_detail::__has_tag_v<TensorTag, OtherTags...> &&
+              __tensor_detail::__has_tag_v<TensorTag, Tags...>,
+              thread tensor &>
+  operator=(const constant  tensor<element_type, extents_type, tensor_handle, OtherTags...> &other) thread
+  {
+    *this = tensor(other);
+    return *this;
+  }
+
+  // Slice
+  template <size_t... OtherExtents, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherExtents) == tensor::get_rank()) && (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type, OtherExtents...>),
+  __tensor_detail::__tensor_with_extents_t<
+      extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) thread  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return __tensor_detail::__tensor_with_extents_t<
+          extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>(
+              _t, offsets_type{static_cast<index_type>(index + this->get_offset(Pos))...});
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((tensor::get_rank() > 0) &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type>),
+  __tensor_detail::__tensor_with_dynamic_extents_t<__tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) thread  const
+  {
+    return [&]<size_t... SliceExtents>(extents<index_type, SliceExtents...>) {
+      return slice<SliceExtents...>(index...);
+    }(dextents<index_type, tensor::get_rank()>());
+  }
+
+  template <size_t... OtherExtents, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherExtents) == tensor::get_rank()) && (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type, OtherExtents...>),
+  __tensor_detail::__tensor_with_extents_t<
+      extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) device  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return __tensor_detail::__tensor_with_extents_t<
+          extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>(
+              _t, offsets_type{static_cast<index_type>(index + this->get_offset(Pos))...});
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((tensor::get_rank() > 0) &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type>),
+  __tensor_detail::__tensor_with_dynamic_extents_t<__tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) device  const
+  {
+    return [&]<size_t... SliceExtents>(extents<index_type, SliceExtents...>) {
+      return slice<SliceExtents...>(index...);
+    }(dextents<index_type, tensor::get_rank()>());
+  }
+
+#if defined(__HAVE_COHERENT__)
+  template <size_t... OtherExtents, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherExtents) == tensor::get_rank()) && (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type, OtherExtents...>),
+  __tensor_detail::__tensor_with_extents_t<
+      extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) device coherent(device) const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return __tensor_detail::__tensor_with_extents_t<
+          extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>(
+              _t, offsets_type{static_cast<index_type>(index + this->get_offset(Pos))...});
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((tensor::get_rank() > 0) &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type>),
+  __tensor_detail::__tensor_with_dynamic_extents_t<__tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) device coherent(device) const
+  {
+    return [&]<size_t... SliceExtents>(extents<index_type, SliceExtents...>) {
+      return slice<SliceExtents...>(index...);
+    }(dextents<index_type, tensor::get_rank()>());
+  }
+
+#endif
+  template <size_t... OtherExtents, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherExtents) == tensor::get_rank()) && (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type, OtherExtents...>),
+  __tensor_detail::__tensor_with_extents_t<
+      extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) constant  const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>) {
+      return __tensor_detail::__tensor_with_extents_t<
+          extents<index_type, OtherExtents...>, __tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>(
+              _t, offsets_type{static_cast<index_type>(index + this->get_offset(Pos))...});
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((tensor::get_rank() > 0) &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == tensor::get_rank()) &&
+     __tensor_detail::__is_slice_extents_compatible_v<extents_type>),
+  __tensor_detail::__tensor_with_dynamic_extents_t<__tensor_detail::__tensor_with_tag_t<tensor_offset, tensor>>>
+  slice(OtherIndexTypes... index) constant  const
+  {
+    return [&]<size_t... SliceExtents>(extents<index_type, SliceExtents...>) {
+      return slice<SliceExtents...>(index...);
+    }(dextents<index_type, tensor::get_rank()>());
+  }
+
+
+private:
+  METAL_FUNC __metal_tensor_t handle() thread  const
+  {
+    return _t;
+  }
+  METAL_FUNC __metal_tensor_t handle() device  const
+  {
+    return _t;
+  }
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC __metal_tensor_t handle() device coherent(device) const
+  {
+    return _t;
+  }
+#endif
+  METAL_FUNC __metal_tensor_t handle() constant  const
+  {
+    return _t;
+  }
+
+private:
+  __metal_tensor_t _t;
+};
+
+template <class ElementType, class Extents, class... Tags>
+METAL_FUNC bool is_null_tensor(const thread  tensor<ElementType, Extents, tensor_handle, Tags...> &t)
+{
+  return __metal_is_null_tensor(t.handle());
+}
+template <class ElementType, class Extents, class... Tags>
+METAL_FUNC bool is_null_tensor(const device  tensor<ElementType, Extents, tensor_handle, Tags...> &t)
+{
+  return __metal_is_null_tensor(t.handle());
+}
+#if defined(__HAVE_COHERENT__)
+template <class ElementType, class Extents, class... Tags>
+METAL_FUNC bool is_null_tensor(const device coherent(device) tensor<ElementType, Extents, tensor_handle, Tags...> &t)
+{
+  return __metal_is_null_tensor(t.handle());
+}
+#endif
+template <class ElementType, class Extents, class... Tags>
+METAL_FUNC bool is_null_tensor(const constant  tensor<ElementType, Extents, tensor_handle, Tags...> &t)
+{
+  return __metal_is_null_tensor(t.handle());
+}
+
+// Shader-Allocated Tensors
+
+namespace __tensor_detail
+{
+template <class E, class Enable = void>
+struct __tensor_safe_extents
+{
+  using index_type = int;
+  static constexpr size_t rank() { return 0; }
+};
+
+template <class E>
+struct __tensor_safe_extents<E, typename enable_if<__mdspan_detail::is_extents_v<E>>::type>
+{
+  using index_type = typename E::index_type;
+  static constexpr size_t rank() { return E::rank(); }
+};
+} // namespace __tensor_detail
+
+#define __TENSOR_INLINE_ATTRS(EXTENTS_TYPE)                                                               \
+    [[sizeas(__metal_descriptor_size_tensor(__tensor_detail::__tensor_safe_extents<EXTENTS_TYPE>::rank(), \
+             sizeof(typename __tensor_detail::__tensor_safe_extents<EXTENTS_TYPE>::index_type)))]]        \
+    alignas(8)
+
+template <class ElementType,
+          class Extents,
+          class... Tags>
+struct __TENSOR_INLINE_ATTRS(Extents) tensor<ElementType, Extents, tensor_inline, Tags...>
+  : public __tensor_base<tensor<ElementType, Extents, tensor_inline, Tags...>>
+{
+private:
+  using base = __tensor_base<tensor<ElementType, Extents, tensor_inline, Tags...>>;
+
+  template <class, class> friend struct __tensor_base;
+  template <class, class> friend struct __tensor_observer;
+  template <class, class> friend struct __tensor_accessor;
+  template <class, class, class, class...> friend struct tensor;
+  friend bool metal::is_null_tensor(thread const tensor &);
+
+private:
+  static_assert(__mdspan_detail::is_extents_v<Extents>,
+                "tensor: Extents template parameter must be a specialization of extents");
+  static_assert(__tensor_detail::__is_tensor_index_v<typename Extents::index_type>,
+                "tensor: Index type template parameter of extents must be one of (u)short/(u)int/(u)long");
+  static_assert(__tensor_detail::__is_tensor_rank(Extents::rank()),
+                "tensor: Rank template parameter of extents must be at most 16");
+  static_assert(__tensor_detail::__is_tensor_element_v<ElementType>,
+#if defined(__HAVE_PACKED_NUMERIC__)
+                "tensor: ElementType must be a scalar integer, floating point, or format type"
+#else
+                "tensor: ElementType must be a scalar integer or floating point type"
+#endif
+  );
+  static_assert(!__tensor_detail::__is_tensor_element_format_v<ElementType> || Extents::rank() != 0,
+                "tensor: ElementType cannot be a format type for rank 0 tensors");
+  static_assert(__tensor_detail::__is_tensor_addrspace_v<tensor_inline, ElementType>,
+                "tensor: ElementType must be thread, device, constant or threadgroup qualified");
+  static_assert(__tensor_detail::__has_valid_tags_v<tensor_inline, Tags...>,
+                "tensor: Tags... invalid for tensor_inline");
+
+private:
+  using typename base::offsets_type;
+
+public:
+  using typename base::extents_type;
+  using typename base::element_type;
+  using typename base::value_type;
+  using typename base::index_type;
+  using typename base::size_type;
+  using typename base::rank_type;
+  using typename base::data_handle_type;
+  using typename base::reference;
+
+public:
+  // Default constructors.
+  METAL_FUNC tensor() thread
+  {
+    __metal_init_strided_tensor(handle(), 0, (thread char *) nullptr, nullptr, nullptr, uint16_t());
+  }
+
+  // Raw constructor with pointer, extents, strides.
+  template <class OtherExtentsType, class OtherStrideType,
+            typename ThisElementType = element_type,
+            typename = enable_if_t<!__tensor_detail::__is_tensor_inline_strides_packed_v<ThisElementType>>,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtentsType>>,
+            typename = enable_if_t<is_convertible_v<typename OtherExtentsType::index_type, index_type>>,
+            typename = enable_if_t<is_convertible_v<OtherStrideType, index_type>>>
+  METAL_FUNC tensor(data_handle_type ptr,
+                    thread const OtherExtentsType &_extents,
+                    thread const array<OtherStrideType, tensor::get_rank()> &_strides) thread
+  {
+    [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      __metal_init_strided_tensor(
+          handle(), tensor::get_rank(), add_pointer_t<element_type>(ptr),
+          array<index_type, tensor::get_rank()>{static_cast<index_type>(_extents.extent(Pos))...}.data(),
+          array<index_type, tensor::get_rank()>{static_cast<index_type>(_strides[Pos])...}.data(),
+          size_type());
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  // Raw constructor with pointer, extents (with implied packed layout for strides).
+  template <class OtherExtentsType,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtentsType>>,
+            typename = enable_if_t<is_convertible_v<typename OtherExtentsType::index_type, index_type>>>
+  METAL_FUNC tensor(data_handle_type ptr,
+                    thread const OtherExtentsType &_extents) thread
+  {
+    array<index_type, tensor::get_rank()> _strides;
+    if constexpr (tensor::get_rank() > 0) {
+      _strides[0] = 1;
+      for (rank_type i = 1; i < tensor::get_rank(); ++i)
+        _strides[i] = _strides[i - 1] * _extents.extent(i - 1);
+    }
+
+    [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      __metal_init_strided_tensor(
+          handle(), tensor::get_rank(), add_pointer_t<element_type>(ptr),
+          array<index_type, tensor::get_rank()>{static_cast<index_type>(_extents.extent(Pos))...}.data(),
+          array<index_type, tensor::get_rank()>{static_cast<index_type>(_strides[Pos])...}.data(),
+          size_type());
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  // Copy constructors.
+  METAL_FUNC tensor(const thread tensor &other) thread {
+    __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(), nullptr, nullptr, index_type());
+  }
+
+  // Conversion constructor extent <-> dextent
+  template <class OtherExtents,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC explicit tensor(const thread tensor<element_type, OtherExtents, tensor_inline, Tags...> &other) thread
+    : tensor(reinterpret_cast<const thread tensor &>(other))
+  {
+  }
+
+  // Conversion constructor from tensor<..., tensor_handle, ...>
+  template <class OtherExtents, class... OtherTags,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC tensor(const thread  tensor<element_type, OtherExtents, tensor_handle, OtherTags...> &other) thread
+  {
+    [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      if constexpr (__tensor_detail::__has_tag_v<tensor_offset, OtherTags...>)
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+      else
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                                 /* offsets = */ nullptr, /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ nullptr,
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+  template <class OtherExtents, class... OtherTags,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC tensor(const device  tensor<element_type, OtherExtents, tensor_handle, OtherTags...> &other) thread
+  {
+    [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      if constexpr (__tensor_detail::__has_tag_v<tensor_offset, OtherTags...>)
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+      else
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                                 /* offsets = */ nullptr, /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ nullptr,
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+#if defined(__HAVE_COHERENT__)
+  template <class OtherExtents, class... OtherTags,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC tensor(const device coherent(device) tensor<element_type, OtherExtents, tensor_handle, OtherTags...> &other) thread
+  {
+    [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      if constexpr (__tensor_detail::__has_tag_v<tensor_offset, OtherTags...>)
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+      else
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                                 /* offsets = */ nullptr, /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ nullptr,
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+#endif
+  template <class OtherExtents, class... OtherTags,
+            typename = enable_if_t<__tensor_detail::__is_extents_compatible_v<extents_type, OtherExtents> &&
+                                   is_same_v<index_type, typename OtherExtents::index_type>>>
+  METAL_FUNC tensor(const constant  tensor<element_type, OtherExtents, tensor_handle, OtherTags...> &other) thread
+  {
+    [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      if constexpr (__tensor_detail::__has_tag_v<tensor_offset, OtherTags...>)
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ offsets_type{other.get_offset(Pos)...}.data(),
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+      else
+      {
+        if constexpr (extents_type::rank_dynamic() == tensor::get_rank())
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                                 /* offsets = */ nullptr, /* extents = */ nullptr, index_type());
+        else
+          __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                               /* offsets = */ nullptr,
+                               /* extents = */ array<index_type, tensor::get_rank()>{
+                                 (tensor::has_static_extent(Pos) ? tensor::get_static_extent(Pos)
+                                                                 : static_cast<index_type>(this->get_extent(Pos)))...
+                               }.data(), index_type());
+      }
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  // Assignment operator (from tensor_inline).
+  METAL_FUNC thread tensor &operator=(const thread tensor &t) thread {
+    __metal_slice_tensor(handle(), t.handle(), tensor::get_rank(), nullptr, nullptr, index_type());
+    return *this;
+  }
+
+  METAL_FUNC ~tensor() thread {}
+
+private:
+  // Copy-like constructor (with offsets and extents)
+  template <class OtherExtents>
+  METAL_FUNC tensor(const thread tensor<element_type, OtherExtents, tensor_inline, Tags...> &other,
+                    const thread offsets_type &other_offsets,
+                    const thread array<index_type, tensor::get_rank()> &other_extents) thread
+  {
+    __metal_slice_tensor(handle(), other.handle(), tensor::get_rank(),
+                         /* offsets = */ other_offsets.data(),
+                         /* extents = */ other_extents.data(),
+                         index_type());
+  }
+
+  // Copy-like constructor (with offsets)
+  template <class OtherExtents>
+  METAL_FUNC tensor(const thread tensor<element_type, OtherExtents, tensor_inline, Tags...> &other,
+                    const thread offsets_type &other_offsets) thread
+    : tensor(other, other_offsets,
+             [&]<size_t... Pos>(index_sequence<Pos...>) {
+               if constexpr (tensor::get_rank() > 0)
+                 return array<index_type, tensor::get_rank()>{
+                   (other.get_extent(Pos) - other_offsets[Pos])...
+                 };
+               else
+                 return array<index_type, tensor::get_rank()>{};
+             }(make_index_sequence<tensor::get_rank()>()))
+  {
+  }
+
+public:
+  // Slice
+  template <size_t... OtherExtents, class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((tensor::get_rank() > 0) &&
+     (is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherExtents) == tensor::get_rank()) && (sizeof...(OtherIndexTypes) == tensor::get_rank())),
+    __tensor_detail::__tensor_with_extents_t<extents<index_type, OtherExtents...>, tensor>>
+  slice(OtherIndexTypes... index) thread const
+  {
+    return [&]<size_t... Pos>(index_sequence<Pos...>)
+    {
+      return __tensor_detail::__tensor_with_extents_t<extents<index_type, OtherExtents...>, tensor>(
+          *this,
+          offsets_type{static_cast<index_type>(index)...},
+          offsets_type{(OtherExtents == dynamic_extent ? (this->get_extent(Pos) - static_cast<index_type>(index))
+                                                       : static_cast<index_type>(OtherExtents))...}
+      );
+    }(make_index_sequence<tensor::get_rank()>());
+  }
+
+  template <class... OtherIndexTypes>
+  METAL_FUNC enable_if_t<
+    ((is_convertible_v<OtherIndexTypes, index_type> && ...) &&
+     (sizeof...(OtherIndexTypes) == tensor::get_rank())),
+    __tensor_detail::__tensor_with_dynamic_extents_t<tensor>>
+  slice(OtherIndexTypes... index) thread const
+  {
+    return __tensor_detail::__tensor_with_dynamic_extents_t<tensor>(
+        *this, offsets_type{static_cast<index_type>(index)...}
+    );
+  }
+
+  // Assignment operator (from tensor_handle).
+  template <class OtherElementType,
+            typename = enable_if_t<__tensor_detail::__is_tensor_element_v<OtherElementType>>,
+            typename = enable_if_t<__tensor_detail::__is_tensor_addrspace_v<tensor_handle, OtherElementType>>>
+  METAL_FUNC thread tensor &operator=(const thread  tensor<OtherElementType, extents_type, tensor_handle, Tags...> &t) thread {
+    __metal_slice_tensor(handle(), t.handle(), tensor::get_rank(), nullptr, nullptr, index_type());
+    return *this;
+  }
+  template <class OtherElementType,
+            typename = enable_if_t<__tensor_detail::__is_tensor_element_v<OtherElementType>>,
+            typename = enable_if_t<__tensor_detail::__is_tensor_addrspace_v<tensor_handle, OtherElementType>>>
+  METAL_FUNC thread tensor &operator=(const device  tensor<OtherElementType, extents_type, tensor_handle, Tags...> &t) thread {
+    __metal_slice_tensor(handle(), t.handle(), tensor::get_rank(), nullptr, nullptr, index_type());
+    return *this;
+  }
+#if defined(__HAVE_COHERENT__)
+  template <class OtherElementType,
+            typename = enable_if_t<__tensor_detail::__is_tensor_element_v<OtherElementType>>,
+            typename = enable_if_t<__tensor_detail::__is_tensor_addrspace_v<tensor_handle, OtherElementType>>>
+  METAL_FUNC thread tensor &operator=(const device coherent(device) tensor<OtherElementType, extents_type, tensor_handle, Tags...> &t) thread {
+    __metal_slice_tensor(handle(), t.handle(), tensor::get_rank(), nullptr, nullptr, index_type());
+    return *this;
+  }
+#endif
+  template <class OtherElementType,
+            typename = enable_if_t<__tensor_detail::__is_tensor_element_v<OtherElementType>>,
+            typename = enable_if_t<__tensor_detail::__is_tensor_addrspace_v<tensor_handle, OtherElementType>>>
+  METAL_FUNC thread tensor &operator=(const constant  tensor<OtherElementType, extents_type, tensor_handle, Tags...> &t) thread {
+    __metal_slice_tensor(handle(), t.handle(), tensor::get_rank(), nullptr, nullptr, index_type());
+    return *this;
+  }
+
+private:
+  METAL_FUNC __metal_tensor_thread_t handle() thread const
+  {
+    return __metal_get_tensor_handle(this);
+  }
+};
+
+#undef __TENSOR_INLINE_ATTRS
+
+template <class ElementType, class Extents, class... Tags>
+METAL_FUNC bool is_null_tensor(thread const tensor<ElementType, Extents, tensor_inline, Tags...> &t)
+{
+  return __metal_is_null_tensor(t.handle());
+}
+
+// Deduction guides
+template <class PointerType, class ExtentsType, class StrideType, class... Tags>
+tensor(PointerType,
+       thread const ExtentsType &,
+       thread const array<StrideType, ExtentsType::rank()> &)
+    -> tensor<remove_pointer_t<PointerType>, ExtentsType,
+              tensor_inline, Tags...>;
+
+template <class PointerType, class ExtentsType, class... Tags>
+tensor(PointerType,
+       thread const ExtentsType &)
+    -> tensor<remove_pointer_t<PointerType>, ExtentsType,
+              tensor_inline, Tags...>;
+} // namespace metal
+
+#pragma METAL internals : disable
+
+#pragma clang diagnostic pop
+
+#endif
+
+#endif // __METAL_TENSOR

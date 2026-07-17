@@ -1,0 +1,119 @@
+// -*- Metal -*-
+//===-- metal_packed_numeric ----------------------------------------------===//
+// Copyright (c) 2025 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __METAL_PACKED_NUMERIC
+#define __METAL_PACKED_NUMERIC
+
+#if defined(__HAVE_PACKED_NUMERIC__)
+
+#pragma METAL internals : enable
+namespace metal
+{
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+struct int4b_format
+{
+};
+#endif
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+struct uint4b_format
+{
+};
+#endif
+
+template <class Format>
+struct is_numeric_format : bool_constant<
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+                               is_same_v<Format, int4b_format> ||
+#endif
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+                               is_same_v<Format, uint4b_format> ||
+#endif
+                               false>
+{
+};
+template <class Format>
+constant constexpr bool is_numeric_format_v = is_numeric_format<Format>::value;
+
+#if defined(__HAVE_PACKED_NUMERIC_TYPE__)
+namespace __packed_numeric_detail
+{
+template <class Format, class Enable = void>
+struct _numeric_format_bits;
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+template <>
+struct _numeric_format_bits<int4b_format> : integral_constant<int, 4>
+{
+};
+#endif
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+template <>
+struct _numeric_format_bits<uint4b_format> : integral_constant<int, 4>
+{
+};
+#endif
+template <class Format>
+constant constexpr int _numeric_format_bits_v = _numeric_format_bits<Format>::value;
+
+template <class Format, size_t N, class Enable = void>
+struct _valid_packed_numeric_type : false_type
+{
+};
+template <class Format, size_t N>
+struct _valid_packed_numeric_type<Format, N, enable_if_t<is_numeric_format_v<Format>>> : bool_constant<(N > 0 && N <= 32 && N * _numeric_format_bits_v<Format> % 8 == 0)>
+{
+};
+template <class Format, size_t N>
+constant constexpr bool _valid_packed_numeric_type_v = _valid_packed_numeric_type<Format, N>::value;
+
+template <class Format, size_t N, class Enable = void>
+struct _packed_numeric_storage_type;
+template <class Format, size_t N>
+struct _packed_numeric_storage_type<Format, N, enable_if_t<is_numeric_format_v<Format>>>
+{
+  using type = packed_vec<uchar, N * _numeric_format_bits_v<Format> / 8>;
+};
+template <class Format, size_t N>
+using _packed_numeric_storage_type_t = typename _packed_numeric_storage_type<Format, N>::type;
+} // namespace __packed_numeric_detail
+
+template <class Format, size_t N>
+struct packed_numeric_type
+{
+  static_assert(__packed_numeric_detail::_valid_packed_numeric_type_v<Format, N>, "packed_numeric_type: invalid format 'Format' and element count 'N'");
+
+  using storage_type = __packed_numeric_detail::_packed_numeric_storage_type_t<Format, N>;
+
+  METAL_FUNC packed_numeric_type() thread = default;
+  METAL_FUNC packed_numeric_type(const thread packed_numeric_type &other) thread = default;
+  METAL_FUNC explicit packed_numeric_type(storage_type storage) thread : storage(storage)
+  {
+  }
+
+  METAL_FUNC thread packed_numeric_type &operator=(const thread packed_numeric_type &other) thread = default;
+
+  METAL_FUNC storage_type as_storage_type() const thread
+  {
+    return storage;
+  }
+
+private:
+  storage_type storage;
+};
+
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+template <size_t N>
+using packed_int4b = packed_numeric_type<int4b_format, N>;
+#endif
+#if defined(__HAVE_INT4B_FORMAT_TYPE__)
+template <size_t N>
+using packed_uint4b = packed_numeric_type<uint4b_format, N>;
+#endif
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif
+
+#endif // __METAL_PACKED_NUMERIC

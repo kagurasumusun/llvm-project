@@ -1,0 +1,969 @@
+// -*- Metal -*-
+//===-- __bits/metal_texture2d_ms_array -----------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __BITS_METAL_TEXTURE2D_MS_ARRAY
+#define __BITS_METAL_TEXTURE2D_MS_ARRAY
+
+#include <__bits/metal_texture_common>
+
+#if defined(__HAVE_ARRAY__)
+#include <metal_array>
+#endif
+#if defined(__HAVE_IMAGEBLOCKS__)
+#include <metal_imageblocks>
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+#if defined(__HAVE_TEXTURE_2D_MS_ARRAY__)
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture2d_ms_array_read
+{
+};
+
+#if defined(__HAVE_TEXTURE_ULONG_COLOR_CHANNEL__)
+template <access a, __memory_coherence c>
+struct _texture2d_ms_array_read<ulong, a, c, typename enable_if<_is_valid_read(a, c)>::type>
+{
+};
+#endif
+
+template <typename T, access a, __memory_coherence c>
+struct _texture2d_ms_array_read<T, a, c, typename enable_if<_is_valid_read(a, c)>::type>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture2d_ms_array<T, a, c>;
+#else
+  using __derived_t = texture2d_ms_array<T, a>;
+#endif
+
+public:
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort2 coord, ushort array, ushort sample) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort2 coord, ushort array, ushort sample) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint2 coord, uint array, uint sample) const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint2 coord, uint array, uint sample) const thread 
+  {
+    bool nack;
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort2 coord, ushort array, ushort sample) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort2 coord, ushort array, ushort sample) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint2 coord, uint array, uint sample) const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint2 coord, uint array, uint sample) const device 
+  {
+    bool nack;
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort2 coord, ushort array, ushort sample) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort2 coord, ushort array, ushort sample) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint2 coord, uint array, uint sample) const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint2 coord, uint array, uint sample) const device coherent(device)
+  {
+    bool nack;
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort2 coord, ushort array, ushort sample) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort2 coord, ushort array, ushort sample) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint2 coord, uint array, uint sample) const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint2 coord, uint array, uint sample) const constant 
+  {
+    bool nack;
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort2 coord, ushort array, ushort sample) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort2 coord, ushort array, ushort sample) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint2 coord, uint array, uint sample) const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint2 coord, uint array, uint sample) const ray_data 
+  {
+    bool nack;
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_16B_COORDS__)
+  METAL_FUNC vec<T, 4> read(ushort2 coord, ushort array, ushort sample) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(ushort2 coord, ushort array, ushort sample) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+  METAL_FUNC vec<T, 4> read(uint2 coord, uint array, uint sample) const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), static_cast<thread bool*>(nullptr), vec<T, 4>());
+  }
+#if defined(__HAVE_SPARSE_TEXTURES__)
+  METAL_FUNC sparse_color<vec<T, 4>> sparse_read(uint2 coord, uint array, uint sample) const object_data 
+  {
+    bool nack;
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    vec<T, 4> v = __metal_read_texture_2d_ms_array_t(derived.t, __metal_get_read_sampler(), coord, array, sample, int(a), int(c), &nack, vec<T, 4>());
+    return {v, !nack};
+  }
+#endif
+#endif
+};
+
+template <typename T, access a, __memory_coherence c, typename _Enable = void>
+struct _texture2d_ms_array
+{
+};
+
+template <typename T, access a, __memory_coherence c>
+struct _texture2d_ms_array<T, a, c, typename enable_if<is_color_texture_channel<T>::value && _is_valid_ms_query(a, c)>::type>
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  : _deleted_operators<texture2d_ms_array<T, a, c>>
+  , _texture_explicit_conversion<c == memory_coherence_device, texture2d_ms_array<T, a, c>, texture2d_ms_array<T, a, memory_coherence_threadgroup>>
+  , _texture_implicit_conversion<c == memory_coherence_threadgroup, texture2d_ms_array<T, a, c>, texture2d_ms_array<T, a, memory_coherence_device>>
+#else
+  : _deleted_operators<texture2d_ms_array<T, a>>
+#endif
+  , _texture2d_ms_array_read<T, a, c>
+{
+private:
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  using __derived_t = texture2d_ms_array<T, a, c>;
+#else
+  using __derived_t = texture2d_ms_array<T, a>;
+#endif
+
+public:
+  METAL_FUNC uint get_width() const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_width_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_height_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_array_size() const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_array_size_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const thread 
+  {
+    const thread  auto &derived = static_cast<const thread  __derived_t &>(*this);
+    return __metal_get_num_samples_texture_2d_ms_array_t(derived.t);
+  }
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width() const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_width_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_height_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_array_size() const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_array_size_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const device 
+  {
+    const device  auto &derived = static_cast<const device  __derived_t &>(*this);
+    return __metal_get_num_samples_texture_2d_ms_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC uint get_width() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_width_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_height_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_array_size() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_array_size_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const device coherent(device)
+  {
+    const device coherent(device) auto &derived = static_cast<const device coherent(device) __derived_t &>(*this);
+    return __metal_get_num_samples_texture_2d_ms_array_t(derived.t);
+  }
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC uint get_width() const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_width_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_height_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_array_size() const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_array_size_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const constant 
+  {
+    const constant  auto &derived = static_cast<const constant  __derived_t &>(*this);
+    return __metal_get_num_samples_texture_2d_ms_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC uint get_width() const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_width_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_height_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_array_size() const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_array_size_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const ray_data 
+  {
+    const ray_data  auto &derived = static_cast<const ray_data  __derived_t &>(*this);
+    return __metal_get_num_samples_texture_2d_ms_array_t(derived.t);
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC uint get_width() const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_width_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_height() const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_height_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_array_size() const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_array_size_texture_2d_ms_array_t(derived.t);
+  }
+  METAL_FUNC uint get_num_samples() const object_data 
+  {
+    const object_data  auto &derived = static_cast<const object_data  __derived_t &>(*this);
+    return __metal_get_num_samples_texture_2d_ms_array_t(derived.t);
+  }
+#endif
+};
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c, typename _Enable>
+struct texture2d_ms_array : _texture2d_ms_array<T, a, c>
+#else
+template <typename T, access a, typename _Enable>
+struct texture2d_ms_array : _texture2d_ms_array<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_color_texture_channel<T>::value, "invalid channel type 'T' for 'texture2d_ms_array'");
+  static_assert(_is_valid_ms_query_access(a), "invalid access value 'a' for 'texture2d_ms_array'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  texture2d_ms_array() thread = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  texture2d_ms_array() constant = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  texture2d_ms_array() ray_data = delete;
+#endif
+
+  METAL_FUNC texture2d_ms_array(const thread  texture2d_ms_array &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const device  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture2d_ms_array(const device coherent(device) texture2d_ms_array &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const constant  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const ray_data  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture2d_ms_array(const object_data  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const thread  texture2d_ms_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const device  texture2d_ms_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture2d_ms_array(const device coherent(device) texture2d_ms_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const constant  texture2d_ms_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const ray_data  texture2d_ms_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture2d_ms_array(const object_data  texture2d_ms_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const thread  texture2d_ms_array &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const device  texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const device coherent(device) texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const constant  texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const ray_data  texture2d_ms_array &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const object_data  texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+
+  thread  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) thread  = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  texture2d_ms_array &operator=(const device  texture2d_ms_array &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  thread  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  thread  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) thread  = delete;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  thread  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) thread  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+  thread  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture2d_ms_array &operator=(const device  texture2d_ms_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  device  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) device  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  device  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  device  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture2d_ms_array &operator=(const thread  texture2d_ms_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture2d_ms_array &operator=(const device  texture2d_ms_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  device coherent(device) texture2d_ms_array &operator=(const constant  texture2d_ms_array &) device coherent(device) = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  device coherent(device) texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  device coherent(device) texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) ray_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture2d_ms_array &operator=(const device  texture2d_ms_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) ray_data  = delete;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  ray_data  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) object_data  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  texture2d_ms_array &operator=(const device  texture2d_ms_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  object_data  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  object_data  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  object_data  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  object_data  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) object_data  = delete;
+#endif
+
+private:
+  __metal_texture_2d_ms_array_t t;
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(texture2d_ms_array<T, a, c>);
+  friend struct _texture2d_ms_array_read<T, a, c>;
+  friend struct _texture2d_ms_array<T, a, c>;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(texture2d_ms_array<T, a>);
+#endif
+  friend struct _texture2d_ms_array_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture2d_ms_array<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__) && defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+struct texture2d_ms_array<T, a, c, typename enable_if<_is_valid_default_construct(a, c) && _is_valid_copy_assign(a, c)>::type> : _texture2d_ms_array<T, a, c>
+#else
+template <typename T, access a>
+struct texture2d_ms_array<T, a, typename enable_if<_is_valid_default_construct(a, __memory_coherence_threadgroup) && _is_valid_copy_assign(a, __memory_coherence_threadgroup)>::type> : _texture2d_ms_array<T, a, __memory_coherence_threadgroup>
+#endif
+{
+  static_assert(is_color_texture_channel<T>::value, "invalid channel type 'T' for 'texture2d_ms_array'");
+  static_assert(_is_valid_ms_query_access(a), "invalid access value 'a' for 'texture2d_ms_array'");
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  static_assert(_is_valid_memory_coherence(c), "invalid memory_coherence");
+#endif
+
+  METAL_FUNC texture2d_ms_array() thread : t(__metal_get_null_texture_2d_ms_array_t()) {}
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array() constant : t(__metal_get_null_texture_2d_ms_array_t()) {}
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array() ray_data : t(__metal_get_null_texture_2d_ms_array_t()) {}
+#endif
+
+  METAL_FUNC texture2d_ms_array(const thread  texture2d_ms_array &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const device  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture2d_ms_array(const device coherent(device) texture2d_ms_array &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const constant  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const ray_data  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture2d_ms_array(const object_data  texture2d_ms_array &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const thread  texture2d_ms_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const device  texture2d_ms_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC texture2d_ms_array(const device coherent(device) texture2d_ms_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC texture2d_ms_array(const constant  texture2d_ms_array &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const ray_data  texture2d_ms_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC texture2d_ms_array(const object_data  texture2d_ms_array &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const thread  texture2d_ms_array &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const device  texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const device coherent(device) texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const constant  texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const ray_data  texture2d_ms_array &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC texture2d_ms_array(const object_data  texture2d_ms_array &) ray_data = default;
+#endif
+#endif
+
+  METAL_FUNC thread  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) thread  = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  texture2d_ms_array &operator=(const device  texture2d_ms_array &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC thread  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) thread  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC thread  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) thread  = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC thread  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) thread  = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC thread  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) thread  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture2d_ms_array &operator=(const device  texture2d_ms_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC device  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) device  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) device  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture2d_ms_array &operator=(const thread  texture2d_ms_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture2d_ms_array &operator=(const device  texture2d_ms_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC device coherent(device) texture2d_ms_array &operator=(const constant  texture2d_ms_array &) device coherent(device) = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC device coherent(device) texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC device coherent(device) texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) device coherent(device) = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) ray_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture2d_ms_array &operator=(const device  texture2d_ms_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) ray_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) ray_data  = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC ray_data  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) ray_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture2d_ms_array &operator=(const thread  texture2d_ms_array &) object_data  = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture2d_ms_array &operator=(const device  texture2d_ms_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture2d_ms_array &operator=(const device coherent(device) texture2d_ms_array &) object_data  = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture2d_ms_array &operator=(const constant  texture2d_ms_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC object_data  texture2d_ms_array &operator=(const ray_data  texture2d_ms_array &) object_data  = default;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC object_data  texture2d_ms_array &operator=(const object_data  texture2d_ms_array &) object_data  = default;
+#endif
+
+private:
+  __metal_texture_2d_ms_array_t t;
+
+  METAL_FUNC texture2d_ms_array(__metal_texture_2d_ms_array_t t) thread : t(t) {}
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a, c>(texture2d_ms_array<T, a, c>);
+  friend struct _texture2d_ms_array_read<T, a, c>;
+  friend struct _texture2d_ms_array<T, a, c>;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_explicit_conversion;
+  template <bool Enable, typename From, typename To>
+  friend struct _texture_implicit_conversion;
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+  friend METAL_FUNC bool metal::is_null_texture<T, a>(texture2d_ms_array<T, a>);
+#endif
+  friend struct _texture2d_ms_array_read<T, a, __memory_coherence_threadgroup>;
+  friend struct _texture2d_ms_array<T, a, __memory_coherence_threadgroup>;
+#endif
+};
+#endif
+
+#if defined(__HAVE_NULL_TEXTURE__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c>
+METAL_FUNC bool is_null_texture(texture2d_ms_array<T, a, c> tex)
+#else
+template <typename T, access a>
+METAL_FUNC bool is_null_texture(texture2d_ms_array<T, a> tex)
+#endif
+{
+  return __metal_is_null_texture_2d_ms_array_t(tex.t);
+}
+#endif
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif // __BITS_METAL_TEXTURE2D_MS_ARRAY

@@ -1,0 +1,1432 @@
+// -*- Metal -*-
+//===-- __bits/metal_texture ----------------------------------------------===//
+// Copyright (c) 2014-2024 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __BITS_METAL_TEXTURE
+#define __BITS_METAL_TEXTURE
+
+#if defined(__HAVE_ARRAY__)
+#include <metal_array>
+#endif
+#if defined(__HAVE_IMAGEBLOCKS__)
+#include <metal_imageblocks>
+#endif
+
+#pragma METAL internals : enable
+namespace metal
+{
+struct _sampler_state
+{
+  uchar s_address_v;
+  uchar t_address_v;
+  uchar r_address_v;
+  uchar mag_filter_v;
+  uchar min_filter_v;
+  uchar mip_filter_v;
+  uchar coord_v;
+  uchar compare_func_v;
+  uchar max_anisotropy_v;
+  float lod_clamp_min_v;
+  float lod_clamp_max_v;
+  uchar border_color_v;
+  uchar reduction_v;
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+  float lod_bias_v;
+#endif
+};
+
+enum class s_address
+{
+  clamp_to_zero = __METAL_ADDRESS_CLAMP_TO_ZERO__,
+  clamp_to_edge = __METAL_ADDRESS_CLAMP_TO_EDGE__,
+  repeat = __METAL_ADDRESS_REPEAT__,
+  mirrored_repeat = __METAL_ADDRESS_MIRRORED_REPEAT__,
+#if defined(__HAVE_BORDER_COLOR__)
+  clamp_to_border = __METAL_ADDRESS_CLAMP_TO_BORDER__
+#endif
+};
+
+enum class t_address
+{
+  clamp_to_zero = __METAL_ADDRESS_CLAMP_TO_ZERO__,
+  clamp_to_edge = __METAL_ADDRESS_CLAMP_TO_EDGE__,
+  repeat = __METAL_ADDRESS_REPEAT__,
+  mirrored_repeat = __METAL_ADDRESS_MIRRORED_REPEAT__,
+#if defined(__HAVE_BORDER_COLOR__)
+  clamp_to_border = __METAL_ADDRESS_CLAMP_TO_BORDER__
+#endif
+};
+
+enum class r_address
+{
+  clamp_to_zero = __METAL_ADDRESS_CLAMP_TO_ZERO__,
+  clamp_to_edge = __METAL_ADDRESS_CLAMP_TO_EDGE__,
+  repeat = __METAL_ADDRESS_REPEAT__,
+  mirrored_repeat = __METAL_ADDRESS_MIRRORED_REPEAT__,
+#if defined(__HAVE_BORDER_COLOR__)
+  clamp_to_border = __METAL_ADDRESS_CLAMP_TO_BORDER__
+#endif
+};
+
+enum class address
+{
+  clamp_to_zero = __METAL_ADDRESS_CLAMP_TO_ZERO__,
+  clamp_to_edge = __METAL_ADDRESS_CLAMP_TO_EDGE__,
+  repeat = __METAL_ADDRESS_REPEAT__,
+  mirrored_repeat = __METAL_ADDRESS_MIRRORED_REPEAT__,
+#if defined(__HAVE_BORDER_COLOR__)
+  clamp_to_border = __METAL_ADDRESS_CLAMP_TO_BORDER__
+#endif
+};
+
+enum class mag_filter
+{
+  nearest = __METAL_MAG_FILTER_NEAREST__,
+  linear = __METAL_MAG_FILTER_LINEAR__,
+#if defined(__HAVE_BICUBIC_FILTERING__)
+  bicubic = __METAL_MAG_FILTER_BICUBIC__
+#endif
+};
+
+enum class min_filter
+{
+  nearest = __METAL_MIN_FILTER_NEAREST__,
+  linear = __METAL_MIN_FILTER_LINEAR__,
+#if defined(__HAVE_BICUBIC_FILTERING__)
+  bicubic = __METAL_MIN_FILTER_BICUBIC__
+#endif
+};
+
+enum class filter
+{
+  nearest = __METAL_FILTER_NEAREST__,
+  linear = __METAL_FILTER_LINEAR__,
+#if defined(__HAVE_BICUBIC_FILTERING__)
+  bicubic = __METAL_FILTER_BICUBIC__
+#endif
+};
+
+enum class mip_filter
+{
+  none = __METAL_MIP_FILTER_NONE__,
+  nearest = __METAL_MIP_FILTER_NEAREST__,
+  linear = __METAL_MIP_FILTER_LINEAR__
+};
+
+enum class coord
+{
+  normalized = __METAL_COORD_NORMALIZED__,
+  pixel = __METAL_COORD_PIXEL__
+};
+
+enum class compare_func
+{
+#if defined(__HAVE_NONE_COMPARE_FUNCTION__)
+  none = __METAL_COMPARE_FUNC_NONE__,
+#endif
+  less = __METAL_COMPARE_FUNC_LESS__,
+  less_equal = __METAL_COMPARE_FUNC_LESS_EQUAL__,
+  greater = __METAL_COMPARE_FUNC_GREATER__,
+  greater_equal = __METAL_COMPARE_FUNC_GREATER_EQUAL__,
+  equal = __METAL_COMPARE_FUNC_EQUAL__,
+  not_equal = __METAL_COMPARE_FUNC_NOT_EQUAL__,
+#if defined(__HAVE_ALWAYS_NEVER_COMPARE_FUNCTION__)
+  always = __METAL_COMPARE_FUNC_ALWAYS__,
+  never = __METAL_COMPARE_FUNC_NEVER__
+#endif
+};
+
+#if defined(__HAVE_ANISOTROPY_LOD_MIN_MAX__)
+struct max_anisotropy
+{
+  METAL_FUNC constexpr explicit max_anisotropy(int v) thread
+      : value(v)
+  {
+  }
+
+private:
+  uchar value;
+
+  friend METAL_FUNC constexpr _sampler_state _build_sampler_state(_sampler_state, max_anisotropy);
+};
+
+struct lod_clamp
+{
+  METAL_FUNC constexpr explicit lod_clamp(float min, float max) thread
+      : min(min),
+        max(max)
+  {
+  }
+
+private:
+  float min;
+  float max;
+
+  friend METAL_FUNC constexpr _sampler_state _build_sampler_state(_sampler_state, lod_clamp);
+};
+#endif
+
+#if defined(__HAVE_BORDER_COLOR__)
+enum class border_color
+{
+  transparent_black = __METAL_BORDER_COLOR_TRANSPARENT_BLACK__,
+  opaque_black = __METAL_BORDER_COLOR_OPAQUE_BLACK__,
+  opaque_white = __METAL_BORDER_COLOR_OPAQUE_WHITE__
+};
+#endif
+
+#if defined(__HAVE_SAMPLER_REDUCTION__)
+enum class reduction
+{
+  weighted_average = __METAL_REDUCTION_WEIGHTED_AVERAGE__,
+  minimum = __METAL_REDUCTION_MINIMUM__,
+  maximum = __METAL_REDUCTION_MAXIMUM__
+};
+#endif
+
+struct bias
+{
+  METAL_FUNC constexpr bias(float value) thread
+      : value(value)
+  {
+  }
+  float value;
+};
+
+template <typename T>
+struct _is_sampler_init_type : bool_constant<is_same<T, s_address>::value ||
+                                             is_same<T, t_address>::value ||
+                                             is_same<T, r_address>::value ||
+                                             is_same<T, address>::value ||
+                                             is_same<T, mag_filter>::value ||
+                                             is_same<T, min_filter>::value ||
+                                             is_same<T, filter>::value ||
+                                             is_same<T, mip_filter>::value ||
+                                             is_same<T, coord>::value ||
+                                             is_same<T, compare_func>::value ||
+#if defined(__HAVE_ANISOTROPY_LOD_MIN_MAX__)
+                                             is_same<T, max_anisotropy>::value ||
+                                             is_same<T, lod_clamp>::value ||
+#endif
+#if defined(__HAVE_BORDER_COLOR__)
+                                             is_same<T, border_color>::value ||
+#endif
+#if defined(__HAVE_SAMPLER_REDUCTION__)
+                                             is_same<T, reduction>::value ||
+#endif
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+                                             is_same<T, bias>::value ||
+#endif
+                                             false>
+{
+};
+
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, s_address addr)
+{
+  return
+  {
+    static_cast<uchar>(addr), s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, t_address addr)
+{
+  return
+  {
+    s.s_address_v, static_cast<uchar>(addr), s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, r_address addr)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, static_cast<uchar>(addr),
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v, s.max_anisotropy_v,
+        s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, address addr)
+{
+  return
+  {
+    static_cast<uchar>(addr), static_cast<uchar>(addr), static_cast<uchar>(addr),
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, mag_filter flt)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        static_cast<uchar>(flt), s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, min_filter flt)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, static_cast<uchar>(flt), s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, filter flt)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        static_cast<uchar>(flt), static_cast<uchar>(flt), s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, mip_filter flt)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, static_cast<uchar>(flt),
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, coord c)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        static_cast<uchar>(c), s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, compare_func f)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, static_cast<uchar>(f),
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+#if defined(__HAVE_ANISOTROPY_LOD_MIN_MAX__)
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, max_anisotropy aniso)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        aniso.value, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, lod_clamp lod)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, lod.min, lod.max,
+        s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+#endif
+#if defined(__HAVE_BORDER_COLOR__)
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, border_color bc)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        static_cast<uchar>(bc), s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+#endif
+#if defined(__HAVE_SAMPLER_REDUCTION__)
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, reduction r)
+{
+  return
+  {
+    s.s_address_v, s.t_address_v, s.r_address_v,
+        s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+        s.coord_v, s.compare_func_v,
+        s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+        s.border_color_v, static_cast<uchar>(r),
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        s.lod_bias_v
+#endif
+  };
+}
+#endif
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+constexpr METAL_FUNC _sampler_state _build_sampler_state(_sampler_state s, bias lb)
+{
+  return {s.s_address_v, s.t_address_v, s.r_address_v,
+          s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+          s.coord_v, s.compare_func_v,
+          s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+          s.border_color_v, s.reduction_v, lb.value};
+}
+#endif
+
+constexpr METAL_FUNC _sampler_state _get_sampler_state()
+{
+  return
+  {
+    __METAL_ADDRESS_CLAMP_TO_EDGE__, __METAL_ADDRESS_CLAMP_TO_EDGE__, __METAL_ADDRESS_CLAMP_TO_EDGE__,
+        __METAL_FILTER_NEAREST__, __METAL_FILTER_NEAREST__, __METAL_MIP_FILTER_NONE__,
+        __METAL_COORD_NORMALIZED__,
+#if defined(__HAVE_ALWAYS_NEVER_COMPARE_FUNCTION__)
+        __METAL_COMPARE_FUNC_NEVER__,
+#else
+        __METAL_COMPARE_FUNC_NONE__,
+#endif
+        1u, 0.0f, FLT_MAX,
+        __METAL_BORDER_COLOR_TRANSPARENT_BLACK__, __METAL_REDUCTION_WEIGHTED_AVERAGE__,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+        0.0f
+#endif
+  };
+}
+
+template <typename T, typename... Ts>
+constexpr METAL_FUNC _sampler_state _get_sampler_state(T t, Ts... ts)
+{
+  return _build_sampler_state(_get_sampler_state(ts...), t);
+}
+
+// Metal 1.1 s2.6: Samplers.
+struct sampler
+{
+#if defined(__HAVE_OPERATOR_ADDRESSOF_DELETED__)
+#if !defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const thread sampler &operator&() const thread = delete;
+#endif
+#if !defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const constant sampler &operator&() const constant = delete;
+#endif
+#endif
+
+public:
+  METAL_FUNC constexpr sampler() thread : val(_get_metal_sampler(_get_sampler_state()))
+  {
+  }
+  template <typename... Ts,
+            typename = typename enable_if<_conjunction<_is_sampler_init_type<Ts>...>::value>::type>
+  METAL_FUNC constexpr sampler(Ts... ts) thread : val(_get_metal_sampler(_get_sampler_state(ts...)))
+  {
+  }
+  METAL_FUNC constexpr sampler() constant : val(_get_metal_sampler(_get_sampler_state()))
+  {
+  }
+  template <typename... Ts,
+            typename = typename enable_if<_conjunction<_is_sampler_init_type<Ts>...>::value>::type>
+  METAL_FUNC constexpr sampler(Ts... ts) constant : val(_get_metal_sampler(_get_sampler_state(ts...)))
+  {
+  }
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler() ray_data : val(_get_metal_sampler(_get_sampler_state()))
+  {
+  }
+  template <typename... Ts,
+            typename = typename enable_if<_conjunction<_is_sampler_init_type<Ts>...>::value>::type>
+  METAL_FUNC constexpr sampler(Ts... ts) ray_data : val(_get_metal_sampler(_get_sampler_state(ts...)))
+  {
+  }
+#endif
+
+  METAL_FUNC constexpr sampler(const thread  sampler &) thread = default;
+  METAL_FUNC constexpr sampler(const constant  sampler &) thread = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC constexpr sampler(const device  sampler &) thread = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC constexpr sampler(const device coherent(device) sampler &) thread = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const ray_data  sampler &) thread = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC constexpr sampler(const object_data  sampler &) thread = default;
+#endif
+  METAL_FUNC constexpr sampler(const thread  sampler &) constant = default;
+  METAL_FUNC constexpr sampler(const constant  sampler &) constant = default;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  METAL_FUNC constexpr sampler(const device  sampler &) constant = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+  METAL_FUNC constexpr sampler(const device coherent(device) sampler &) constant = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const ray_data  sampler &) constant = default;
+#endif
+#if defined(__HAVE_MESH__)
+  METAL_FUNC constexpr sampler(const object_data  sampler &) constant = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const thread  sampler &) ray_data = default;
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const constant  sampler &) ray_data = default;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const device  sampler &) ray_data = default;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const device coherent(device) sampler &) ray_data = default;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const ray_data  sampler &) ray_data = default;
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+  METAL_FUNC constexpr sampler(const object_data  sampler &) ray_data = default;
+#endif
+#endif
+
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC thread  sampler &operator=(const thread  sampler &) thread  = default;
+#else
+  thread  sampler &operator=(const thread  sampler &) thread  = delete;
+#endif
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC thread  sampler &operator=(const constant  sampler &) thread  = default;
+#else
+  thread  sampler &operator=(const constant  sampler &) thread  = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC thread  sampler &operator=(const device  sampler &) thread  = default;
+#else
+  thread  sampler &operator=(const device  sampler &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC thread  sampler &operator=(const device coherent(device) sampler &) thread  = default;
+#else
+  thread  sampler &operator=(const device coherent(device) sampler &) thread  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC thread  sampler &operator=(const ray_data  sampler &) thread  = default;
+#else
+  thread  sampler &operator=(const ray_data  sampler &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC thread  sampler &operator=(const object_data  sampler &) thread  = default;
+#else
+  thread  sampler &operator=(const object_data  sampler &) thread  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device  sampler &operator=(const thread  sampler &) device  = default;
+#else
+  device  sampler &operator=(const thread  sampler &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device  sampler &operator=(const constant  sampler &) device  = default;
+#else
+  device  sampler &operator=(const constant  sampler &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device  sampler &operator=(const device  sampler &) device  = default;
+#else
+  device  sampler &operator=(const device  sampler &) device  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device  sampler &operator=(const device coherent(device) sampler &) device  = default;
+#else
+  device  sampler &operator=(const device coherent(device) sampler &) device  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device  sampler &operator=(const ray_data  sampler &) device  = default;
+#else
+  device  sampler &operator=(const ray_data  sampler &) device  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device  sampler &operator=(const object_data  sampler &) device  = default;
+#else
+  device  sampler &operator=(const object_data  sampler &) device  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device coherent(device) sampler &operator=(const thread  sampler &) device coherent(device) = default;
+#else
+  device coherent(device) sampler &operator=(const thread  sampler &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device coherent(device) sampler &operator=(const constant  sampler &) device coherent(device) = default;
+#else
+  device coherent(device) sampler &operator=(const constant  sampler &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device coherent(device) sampler &operator=(const device  sampler &) device coherent(device) = default;
+#else
+  device coherent(device) sampler &operator=(const device  sampler &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device coherent(device) sampler &operator=(const device coherent(device) sampler &) device coherent(device) = default;
+#else
+  device coherent(device) sampler &operator=(const device coherent(device) sampler &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device coherent(device) sampler &operator=(const ray_data  sampler &) device coherent(device) = default;
+#else
+  device coherent(device) sampler &operator=(const ray_data  sampler &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC device coherent(device) sampler &operator=(const object_data  sampler &) device coherent(device) = default;
+#else
+  device coherent(device) sampler &operator=(const object_data  sampler &) device coherent(device) = delete;
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC ray_data  sampler &operator=(const thread  sampler &) ray_data  = default;
+#else
+  ray_data  sampler &operator=(const thread  sampler &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC ray_data  sampler &operator=(const constant  sampler &) ray_data  = default;
+#else
+  ray_data  sampler &operator=(const constant  sampler &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC ray_data  sampler &operator=(const device  sampler &) ray_data  = default;
+#else
+  ray_data  sampler &operator=(const device  sampler &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC ray_data  sampler &operator=(const device coherent(device) sampler &) ray_data  = default;
+#else
+  ray_data  sampler &operator=(const device coherent(device) sampler &) ray_data  = delete;
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC ray_data  sampler &operator=(const ray_data  sampler &) ray_data  = default;
+#else
+  ray_data  sampler &operator=(const ray_data  sampler &) ray_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC ray_data  sampler &operator=(const object_data  sampler &) ray_data  = default;
+#else
+  ray_data  sampler &operator=(const object_data  sampler &) ray_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC object_data  sampler &operator=(const thread  sampler &) object_data  = default;
+#else
+  object_data  sampler &operator=(const thread  sampler &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC object_data  sampler &operator=(const constant  sampler &) object_data  = default;
+#else
+  object_data  sampler &operator=(const constant  sampler &) object_data  = delete;
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC object_data  sampler &operator=(const device  sampler &) object_data  = default;
+#else
+  object_data  sampler &operator=(const device  sampler &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#if defined(__HAVE_COHERENT__)
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC object_data  sampler &operator=(const device coherent(device) sampler &) object_data  = default;
+#else
+  object_data  sampler &operator=(const device coherent(device) sampler &) object_data  = delete;
+#endif
+#endif
+#endif
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_RAYTRACING__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC object_data  sampler &operator=(const ray_data  sampler &) object_data  = default;
+#else
+  object_data  sampler &operator=(const ray_data  sampler &) object_data  = delete;
+#endif
+#endif
+#endif
+#if defined(__HAVE_MESH__)
+#if defined(__HAVE_ARRAYS_OF_SAMPLERS__)
+  METAL_FUNC object_data  sampler &operator=(const object_data  sampler &) object_data  = default;
+#else
+  object_data  sampler &operator=(const object_data  sampler &) object_data  = delete;
+#endif
+#endif
+
+private:
+  __metal_sampler_t val;
+
+private:
+  static constexpr METAL_FUNC __metal_sampler_t _get_metal_sampler(_sampler_state s)
+  {
+    return __metal_get_sampler(s.s_address_v, s.t_address_v, s.r_address_v,
+                               s.mag_filter_v, s.min_filter_v, s.mip_filter_v,
+                               s.coord_v, s.compare_func_v,
+                               s.max_anisotropy_v, s.lod_clamp_min_v, s.lod_clamp_max_v,
+                               s.border_color_v, s.reduction_v,
+#if defined(__HAVE_SAMPLER_LOD_BIAS__)
+                               s.lod_bias_v
+#else
+                               0.0f
+#endif
+    );
+  }
+
+private:
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texture1d_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texture1d_array_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texture2d_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texture2d_gather;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texture2d_array_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texture2d_array_gather;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texture3d_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texturecube_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texturecube_gather;
+#if defined(__HAVE_TEXTURE_CUBE_ARRAY__)
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texturecube_array_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _texturecube_array_gather;
+#endif
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depth2d_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depth2d_gather;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depth2d_array_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depth2d_array_gather;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depthcube_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depthcube_gather;
+#if defined(__HAVE_DEPTH_CUBE_ARRAY__)
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depthcube_array_sample;
+  template <typename T, access a, __memory_coherence c, typename _Enable>
+  friend struct _depthcube_array_gather;
+#endif
+};
+
+template <typename T>
+struct _is_color_texture_channel_impl : bool_constant<__is_metal_color_texture_channel(T)>
+{
+};
+
+template <typename T>
+struct is_color_texture_channel : _is_color_texture_channel_impl<remove_cv_t<T>>
+{
+};
+#ifdef __cpp_variable_templates
+template <typename T>
+constexpr constant bool is_color_texture_channel_v = is_color_texture_channel<T>::value;
+#endif
+
+template <typename T>
+struct _is_depth_texture_channel_impl : bool_constant<__is_metal_depth_texture_channel(T)>
+{
+};
+
+template <typename T>
+struct is_depth_texture_channel : _is_depth_texture_channel_impl<remove_cv_t<T>>
+{
+};
+#ifdef __cpp_variable_templates
+template <typename T>
+constexpr constant bool is_depth_texture_channel_v = is_depth_texture_channel<T>::value;
+#endif
+
+#if defined(__HAVE_SPARSE_TEXTURES__)
+template <typename T, typename _E = typename enable_if<is_color_texture_channel<make_scalar_t<T>>::value || is_depth_texture_channel<make_scalar_t<T>>::value>::type>
+struct sparse_color
+{
+public:
+  METAL_FUNC constexpr sparse_color(T value, bool resident) thread
+      : color_value(value), from_resident_pages(resident)
+  {
+  }
+
+  // Indicates whether all memory addressed to retrieve the value was mapped.
+  METAL_FUNC constexpr bool resident() const thread
+  {
+    return from_resident_pages;
+  }
+  METAL_FUNC constexpr T const value() const thread
+  {
+    return color_value;
+  }
+
+private:
+  T color_value;
+  ulong from_resident_pages : 1;
+  ulong reserved : 63;
+};
+#endif
+
+struct level
+{
+  METAL_FUNC constexpr level(float lod) thread
+      : lod(lod)
+  {
+  }
+  float lod;
+};
+
+#if defined(__HAVE_MIN_LOD_CLAMP__)
+struct min_lod_clamp
+{
+  METAL_FUNC constexpr min_lod_clamp(float value) thread
+      : value(value)
+  {
+  }
+  float value;
+};
+#endif
+
+// To allow level to be used in constant argument checks.
+template <>
+struct _constarg_traits<level>
+{
+  constexpr static METAL_INTERNAL bool check(level l)
+  {
+    return _constarg_traits<float>::check(l.lod);
+  }
+};
+
+struct gradient2d
+{
+  METAL_FUNC constexpr gradient2d(float2 dPdx, float2 dPdy) thread
+      : dPdx(dPdx), dPdy(dPdy)
+  {
+  }
+  float2 dPdx;
+  float2 dPdy;
+};
+
+struct gradient3d
+{
+  METAL_FUNC constexpr gradient3d(float3 dPdx, float3 dPdy) thread
+      : dPdx(dPdx), dPdy(dPdy)
+  {
+  }
+  float3 dPdx;
+  float3 dPdy;
+};
+
+struct gradientcube
+{
+  METAL_FUNC constexpr gradientcube(float3 dPdx, float3 dPdy) thread
+      : dPdx(dPdx), dPdy(dPdy)
+  {
+  }
+  float3 dPdx;
+  float3 dPdy;
+};
+
+enum class component
+{
+  x,
+  y,
+  z,
+  w
+};
+
+METAL_INTERNAL constexpr bool _is_zero(uint a)
+{
+  return a == 0;
+}
+METAL_INTERNAL constexpr bool _is_zero(level a)
+{
+  return a.lod == 0;
+}
+#define METAL_ZERO_ARG(A) \
+  METAL_ENABLE_IF(_is_zero(A), "'" #A "' argument value must be 0")
+
+#if defined(__HAVE_ZERO_LOD_ARG__)
+#define METAL_VALID_LOD_ARG(A) \
+  METAL_CONST_ARG(A)           \
+  METAL_ZERO_ARG(A)
+#else
+#define METAL_VALID_LOD_ARG(A)
+#endif
+
+#if defined(__HAVE_ZERO_LOD_ARG__)
+#define METAL_VALID_LEVEL_ARG(A) \
+  METAL_CONST_ARG(A)             \
+  METAL_ZERO_ARG(A)
+#else
+#define METAL_VALID_LEVEL_ARG(A)
+#endif
+
+// Metal 1.1 s2.5: Textures.
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture1d;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture1d_array;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture2d;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture2d_array;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture3d;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texturecube;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texturecube_array;
+template <typename T, access a = access::read, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture2d_ms;
+template <typename T, access a = access::read, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture2d_ms_array;
+template <typename T, access a = access::read, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct texture_buffer;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct depth2d;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct depth2d_array;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct depthcube;
+template <typename T, access a = access::sample, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct depthcube_array;
+template <typename T, access a = access::read, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct depth2d_ms;
+template <typename T, access a = access::read, memory_coherence c = memory_coherence_threadgroup, typename _Enable = void>
+struct depth2d_ms_array;
+#else
+template <typename T, access a = access::sample, typename _Enable = void>
+struct texture1d;
+template <typename T, access a = access::sample, typename _Enable = void>
+struct texture1d_array;
+template <typename T, access a = access::sample, typename _Enable = void>
+struct texture2d;
+template <typename T, access a = access::sample, typename _Enable = void>
+struct texture2d_array;
+template <typename T, access a = access::sample, typename _Enable = void>
+struct texture3d;
+template <typename T, access a = access::sample, typename _Enable = void>
+struct texturecube;
+#if defined(__HAVE_TEXTURE_CUBE_ARRAY__)
+template <typename T, access a = access::sample, typename _Enable = void>
+struct texturecube_array;
+#endif
+template <typename T, access a = access::read, typename _Enable = void>
+struct texture2d_ms;
+#if defined(__HAVE_TEXTURE_2D_MS_ARRAY__)
+template <typename T, access a = access::read, typename _Enable = void>
+struct texture2d_ms_array;
+#endif
+#if defined(__HAVE_TEXTURE_BUFFER__)
+template <typename T, access a = access::read, typename _Enable = void>
+struct texture_buffer;
+#endif
+template <typename T, access a = access::sample, typename _Enable = void>
+struct depth2d;
+template <typename T, access a = access::sample, typename _Enable = void>
+struct depth2d_array;
+template <typename T, access a = access::sample, typename _Enable = void>
+struct depthcube;
+#if defined(__HAVE_DEPTH_CUBE_ARRAY__)
+template <typename T, access a = access::sample, typename _Enable = void>
+struct depthcube_array;
+#endif
+template <typename T, access a = access::read, typename _Enable = void>
+struct depth2d_ms;
+#if defined(__HAVE_DEPTH_2D_MS_ARRAY__)
+template <typename T, access a = access::read, typename _Enable = void>
+struct depth2d_ms_array;
+#endif
+#endif
+
+// Metal 1.2 s5.10.15: Null Texture Functions.
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture1d<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture1d_array<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture2d<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture2d_array<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture3d<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texturecube<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texturecube_array<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture2d_ms<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture2d_ms_array<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(texture_buffer<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(depth2d<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(depth2d_array<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(depthcube<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(depthcube_array<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(depth2d_ms<T, a, c> tex);
+template <typename T, access a, memory_coherence c> METAL_FUNC bool is_null_texture(depth2d_ms_array<T, a, c> tex);
+#else
+#if defined(__HAVE_NULL_TEXTURE__)
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture1d<T, a> tex);
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture1d_array<T, a> tex);
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture2d<T, a> tex);
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture2d_array<T, a> tex);
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture3d<T, a> tex);
+template <typename T, access a> METAL_FUNC bool is_null_texture(texturecube<T, a> tex);
+#if defined(__HAVE_TEXTURE_CUBE_ARRAY__)
+template <typename T, access a> METAL_FUNC bool is_null_texture(texturecube_array<T, a> tex);
+#endif
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture2d_ms<T, a> tex);
+#if defined(__HAVE_TEXTURE_2D_MS_ARRAY__)
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture2d_ms_array<T, a> tex);
+#endif
+#if defined(__HAVE_TEXTURE_BUFFER__)
+template <typename T, access a> METAL_FUNC bool is_null_texture(texture_buffer<T, a> tex);
+#endif
+template <typename T, access a> METAL_FUNC bool is_null_texture(depth2d<T, a> tex);
+template <typename T, access a> METAL_FUNC bool is_null_texture(depth2d_array<T, a> tex);
+template <typename T, access a> METAL_FUNC bool is_null_texture(depthcube<T, a> tex);
+#if defined(__HAVE_DEPTH_CUBE_ARRAY__)
+template <typename T, access a> METAL_FUNC bool is_null_texture(depthcube_array<T, a> tex);
+#endif
+template <typename T, access a> METAL_FUNC bool is_null_texture(depth2d_ms<T, a> tex);
+#if defined(__HAVE_DEPTH_2D_MS_ARRAY__)
+template <typename T, access a> METAL_FUNC bool is_null_texture(depth2d_ms_array<T, a> tex);
+#endif
+#endif
+#endif
+
+#if defined(__HAVE_IMAGEBLOCKS__)
+template <typename E, typename T>
+struct _is_color_texture_imageblock_slice_storage_valid_impl : bool_constant<__is_metal_color_texture_imageblock_slice_storage_valid(E, T)>
+{
+};
+
+template <typename E, typename T>
+struct is_color_texture_imageblock_slice_storage_valid : _is_color_texture_imageblock_slice_storage_valid_impl<remove_cv_t<E>, remove_cv_t<T>>
+{
+};
+#ifdef __cpp_variable_templates
+template <typename E, typename T>
+constexpr constant bool is_color_texture_imageblock_slice_storage_valid_v = is_color_texture_imageblock_slice_storage_valid<E, T>::value;
+#endif
+#endif
+
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+template <typename T>
+struct _is_color_texture_atomic_channel_impl : bool_constant<is_same_v<T, int> || is_same_v<T, uint>>
+{
+};
+
+template <typename T>
+struct is_color_texture_atomic_channel : _is_color_texture_atomic_channel_impl<remove_cv_t<T>>
+{
+};
+#ifdef __cpp_variable_templates
+template <typename T>
+constexpr constant bool is_color_texture_atomic_channel_v = is_color_texture_atomic_channel<T>::value;
+#endif
+#endif
+
+template <typename T>
+METAL_INTERNAL constexpr bool _is_any_of(T)
+{
+  return false;
+}
+
+template <typename T, typename... Ts>
+METAL_INTERNAL constexpr bool _is_any_of(T a, T b, Ts... bs)
+{
+  return a == b || _is_any_of(a, bs...);
+}
+
+
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__)
+#if !defined(__HAVE_INDIRECT_WRITABLE_TEXTURES__)
+#define _is_valid_default_construct_access(_a) _is_any_of(_a, access::read, access::sample)
+#elif !defined(__HAVE_TEXTURE_READWRITE__)
+#define _is_valid_default_construct_access(_a) _is_any_of(_a, access::read, access::sample, access::write)
+#else
+#define _is_valid_default_construct_access(_a) _is_any_of(_a, access::read, access::sample, access::write, access::read_write)
+#endif
+#endif
+
+#if defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#if !defined(__HAVE_INDIRECT_WRITABLE_TEXTURES__)
+#define _is_valid_copy_assign_access(a) _is_any_of(a, access::read, access::sample)
+#elif !defined(__HAVE_TEXTURE_READWRITE__)
+#define _is_valid_copy_assign_access(a) _is_any_of(a, access::read, access::sample, access::write)
+#else
+#define _is_valid_copy_assign_access(a) _is_any_of(a, access::read, access::sample, access::write, access::read_write)
+#endif
+#endif
+
+#define _is_valid_sample_access(_a) _is_any_of(_a, access::sample)
+
+#if defined(__HAVE_TEXTURE_READWRITE__)
+#define _is_valid_read_access(_a) _is_any_of(_a, access::sample, access::read, access::read_write)
+#define _is_valid_write_access(_a) _is_any_of(_a, access::write, access::read_write)
+#else
+#define _is_valid_read_access(_a) _is_any_of(_a, access::sample, access::read)
+#define _is_valid_write_access(_a) _is_any_of(_a, access::write)
+#endif
+
+#define _is_valid_gather_access(_a) _is_any_of(_a, access::sample)
+
+#define _is_valid_ms_query_access(_a) _is_any_of(_a, access::read)
+
+#define _is_valid_texture_buffer_query_access(_a) _is_any_of(_a, access::read, access::write, access::read_write)
+
+#define _is_valid_depth_query_access(_a) _is_any_of(_a, access::sample, access::read)
+
+#if defined(__HAVE_IMAGEBLOCKS__)
+#define _is_valid_imageblock_slice_write_access(_e, _t) (is_color_texture_imageblock_slice_storage_valid_v<_e, _t>)
+#endif
+
+#if defined(__HAVE_TEXTURE_RELAXED_ORDER_ATOMIC__)
+#define _is_color_texture_atomic_channel_type(_t) (is_color_texture_atomic_channel_v<_t>)
+#endif
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__)
+#define _is_valid_default_construct(_a, _c) _is_valid_default_construct_access(_a)
+#endif
+#if defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#define _is_valid_copy_assign(_a, _c) _is_valid_copy_assign_access(_a)
+#endif
+#define _is_valid_sample(_a, _c) _is_valid_sample_access(_a) && _is_any_of(_c, memory_coherence_threadgroup)
+#define _is_valid_read(_a, _c) _is_valid_read_access(_a)
+#define _is_valid_write(_a, _c) _is_valid_write_access(_a)
+#define _is_valid_gather(_a, _c) _is_valid_gather_access(_a) && _is_any_of(_c, memory_coherence_threadgroup)
+#define _is_valid_ms_query(_a, _c) _is_valid_ms_query_access(_a)
+#define _is_valid_texture_buffer_query(_a, _c) _is_valid_texture_buffer_query_access(_a)
+#define _is_valid_depth_query(_a, _c) _is_valid_depth_query_access(_a)
+#else
+#if defined(__HAVE_DEFAULT_CONSTRUCTABLE_TEXTURE__)
+#define _is_valid_default_construct(_a, _) _is_valid_default_construct_access(_a)
+#endif
+#if defined(__HAVE_COPY_ASSIGNABLE_TEXTURE__)
+#define _is_valid_copy_assign(_a, _) _is_valid_copy_assign_access(_a)
+#endif
+#define _is_valid_sample(_a, _) _is_valid_sample_access(_a)
+#define _is_valid_read(_a, _) _is_valid_read_access(_a)
+#define _is_valid_write(_a, _) _is_valid_write_access(_a)
+#define _is_valid_gather(_a, _) _is_valid_gather_access(_a)
+#define _is_valid_ms_query(_a, _) _is_valid_ms_query_access(_a)
+#define _is_valid_texture_buffer_query(_a, _) _is_valid_texture_buffer_query_access(_a)
+#define _is_valid_depth_query(_a, _) _is_valid_depth_query_access(_a)
+#endif
+
+#if defined(__HAVE_IMAGEBLOCKS__)
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+#define _is_valid_imageblock_slice_write(_e, _t, _c) (is_color_texture_imageblock_slice_storage_valid_v<_e, _t>) && _is_any_of(_c, memory_coherence_threadgroup)
+#else
+#define _is_valid_imageblock_slice_write(_e, _t, _) (is_color_texture_imageblock_slice_storage_valid_v<_e, _t>)
+#endif
+#endif
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+#define _is_valid_memory_coherence(_c) _is_any_of(_c, memory_coherence_threadgroup, memory_coherence_device)
+#endif
+
+template <typename _T>
+struct _deleted_operators {
+#if defined(__HAVE_OPERATOR_ADDRESSOF_DELETED__)
+#if !defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const thread _deleted_operators &operator&() const thread = delete;
+#endif
+#endif
+
+#if defined(__HAVE_OPERATOR_COMMA_DELETED__)
+  const thread _deleted_operators &operator,(const thread _deleted_operators &) const thread = delete;
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const device _deleted_operators &operator,(const device _deleted_operators &) const thread = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const constant _deleted_operators &operator,(const constant _deleted_operators &) const thread = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const thread _deleted_operators &operator,(const thread _deleted_operators &) const device = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const device _deleted_operators &operator,(const device _deleted_operators &) const device = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const constant _deleted_operators &operator,(const constant _deleted_operators &) const device = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const thread _deleted_operators &operator,(const thread _deleted_operators &) const constant = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const device _deleted_operators &operator,(const device _deleted_operators &) const constant = delete;
+#endif
+#if defined(__HAVE_INDIRECT_ARGUMENT_BUFFER__)
+  const constant _deleted_operators &operator,(const constant _deleted_operators &) const constant = delete;
+#endif
+#endif
+};
+
+#if defined(__HAVE_DEVICE_COHERENT_READ_WRITE_TEXTURES__)
+template<bool Enable, typename From, typename To>
+struct _texture_explicit_conversion {};
+
+template<typename From, typename To>
+struct _texture_explicit_conversion<true, From, To>
+{
+  explicit operator To() const thread 
+  {
+    return To{static_cast<const thread  From *>(this)->t};
+  }
+  explicit operator To() const device 
+  {
+    return To{static_cast<const device  From *>(this)->t};
+  }
+#if defined(__HAVE_COHERENT__)
+  explicit operator To() const device coherent(device)
+  {
+    return To{static_cast<const device coherent(device) From *>(this)->t};
+  }
+#endif
+  explicit operator To() const constant 
+  {
+    return To{static_cast<const constant  From *>(this)->t};
+  }
+#if defined(__HAVE_RAYTRACING__)
+  explicit operator To() const ray_data 
+  {
+    return To{static_cast<const ray_data  From *>(this)->t};
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  explicit operator To() const object_data 
+  {
+    return To{static_cast<const object_data  From *>(this)->t};
+  }
+#endif
+};
+
+template<bool Enable, typename From, typename To>
+struct _texture_implicit_conversion {};
+
+template<typename From, typename To>
+struct _texture_implicit_conversion<true, From, To>
+{
+  operator To() const thread 
+  {
+    return To{static_cast<const thread  From *>(this)->t};
+  }
+  operator To() const device 
+  {
+    return To{static_cast<const device  From *>(this)->t};
+  }
+#if defined(__HAVE_COHERENT__)
+  operator To() const device coherent(device)
+  {
+    return To{static_cast<const device coherent(device) From *>(this)->t};
+  }
+#endif
+  operator To() const constant 
+  {
+    return To{static_cast<const constant  From *>(this)->t};
+  }
+#if defined(__HAVE_RAYTRACING__)
+  operator To() const ray_data 
+  {
+    return To{static_cast<const ray_data  From *>(this)->t};
+  }
+#endif
+#if defined(__HAVE_MESH__)
+  operator To() const object_data 
+  {
+    return To{static_cast<const object_data  From *>(this)->t};
+  }
+#endif
+};
+#endif
+} // namespace metal
+#pragma METAL internals : disable
+
+#endif // __BITS_METAL_TEXTURE

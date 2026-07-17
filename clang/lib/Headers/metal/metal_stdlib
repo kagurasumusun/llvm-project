@@ -1,0 +1,157 @@
+// -*- Metal -*-
+//===-- metal_stdlib ------------------------------------------------------===//
+// Copyright (c) 2014-2026 Apple Inc. All rights reserved
+//===----------------------------------------------------------------------===//
+
+#ifndef __METAL_STDLIB
+#define __METAL_STDLIB
+
+#if defined(__METAL_IOS__) && !defined(__METAL__)
+#include <__bits/metal_depth2d>
+#include <__bits/metal_depth2d_array>
+#include <__bits/metal_depth2d_ms>
+#include <__bits/metal_depth2d_ms_array>
+#include <__bits/metal_depthcube>
+#include <__bits/metal_depthcube_array>
+#include <__bits/metal_texture1d>
+#include <__bits/metal_texture1d_array>
+#include <__bits/metal_texture2d>
+#include <__bits/metal_texture2d_array>
+#include <__bits/metal_texture2d_ms>
+#include <__bits/metal_texture2d_ms_array>
+#include <__bits/metal_texture3d>
+#include <__bits/metal_texture_buffer>
+#include <__bits/metal_texture_common>
+#include <__bits/metal_texturecube>
+#include <__bits/metal_texturecube_array>
+#include <metal_array>
+#include <metal_atomic>
+#include <metal_command_buffer>
+#include <metal_common>
+#include <metal_compute>
+#include <metal_functional>
+#include <metal_geometric>
+#include <metal_graphics>
+#include <metal_imageblocks>
+#include <metal_initializer_list>
+#include <metal_integer>
+#include <metal_interpolate>
+#include <metal_limits>
+#include <metal_math>
+#include <metal_matrix>
+#include <metal_numeric>
+#include <metal_pack>
+#include <metal_pixel>
+#include <metal_quadgroup>
+#include <metal_raytracing>
+#include <metal_relational>
+#include <metal_simdgroup>
+#include <metal_simdgroup_matrix>
+#include <metal_texture>
+#include <metal_uniform>
+#include <metal_utility>
+#include <metal_visible_function_table>
+#endif // __METAL_IOS__
+
+#if defined(__METAL_MACOS__) && !defined(__METAL__)
+#include <__bits/metal_depth2d>
+#include <__bits/metal_depth2d_array>
+#include <__bits/metal_depth2d_ms>
+#include <__bits/metal_depth2d_ms_array>
+#include <__bits/metal_depthcube>
+#include <__bits/metal_depthcube_array>
+#include <__bits/metal_texture1d>
+#include <__bits/metal_texture1d_array>
+#include <__bits/metal_texture2d>
+#include <__bits/metal_texture2d_array>
+#include <__bits/metal_texture2d_ms>
+#include <__bits/metal_texture2d_ms_array>
+#include <__bits/metal_texture3d>
+#include <__bits/metal_texture_buffer>
+#include <__bits/metal_texture_common>
+#include <__bits/metal_texturecube>
+#include <__bits/metal_texturecube_array>
+#include <metal_array>
+#include <metal_atomic>
+#include <metal_command_buffer>
+#include <metal_common>
+#include <metal_compute>
+#include <metal_functional>
+#include <metal_geometric>
+#include <metal_graphics>
+#include <metal_imageblocks>
+#include <metal_initializer_list>
+#include <metal_integer>
+#include <metal_interpolate>
+#include <metal_limits>
+#include <metal_math>
+#include <metal_matrix>
+#include <metal_numeric>
+#include <metal_pack>
+#include <metal_pixel>
+#include <metal_quadgroup>
+#include <metal_raytracing>
+#include <metal_relational>
+#include <metal_simdgroup>
+#include <metal_simdgroup_matrix>
+#include <metal_texture>
+#include <metal_uniform>
+#include <metal_utility>
+#include <metal_visible_function_table>
+#endif // __METAL_MACOS__
+
+#ifdef __METAL__
+#include <__bits/metal_depth2d>
+#include <__bits/metal_depth2d_array>
+#include <__bits/metal_depth2d_ms>
+#include <__bits/metal_depth2d_ms_array>
+#include <__bits/metal_depthcube>
+#include <__bits/metal_depthcube_array>
+#include <__bits/metal_texture1d>
+#include <__bits/metal_texture1d_array>
+#include <__bits/metal_texture2d>
+#include <__bits/metal_texture2d_array>
+#include <__bits/metal_texture2d_ms>
+#include <__bits/metal_texture2d_ms_array>
+#include <__bits/metal_texture3d>
+#include <__bits/metal_texture_buffer>
+#include <__bits/metal_texture_common>
+#include <__bits/metal_texturecube>
+#include <__bits/metal_texturecube_array>
+#include <metal_array>
+#include <metal_atomic>
+#include <metal_command_buffer>
+#include <metal_common>
+#include <metal_compute>
+#include <metal_cooperative_tensor>
+#include <metal_curves>
+#include <metal_functional>
+#include <metal_geometric>
+#include <metal_graphics>
+#include <metal_imageblocks>
+#include <metal_initializer_list>
+#include <metal_integer>
+#include <metal_interpolate>
+#include <metal_limits>
+#include <metal_logging>
+#include <metal_math>
+#include <metal_matrix>
+#include <metal_mesh>
+#include <metal_numeric>
+#include <metal_pack>
+#include <metal_packed_numeric>
+#include <metal_pixel>
+#include <metal_quadgroup>
+#include <metal_raytracing>
+#include <metal_relational>
+#include <metal_simdgroup>
+#include <metal_simdgroup_matrix>
+#include <metal_tensor>
+#include <metal_texture>
+#include <metal_uniform>
+#include <metal_utility>
+#include <metal_vertex_value>
+#include <metal_visible_function_table>
+#endif // __METAL__
+
+#endif // __METAL_STDLIB

@@ -9,6 +9,71 @@
 #ifndef _OPENCL_BASE_H_
 #define _OPENCL_BASE_H_
 
+// Define extension macros
+
+#if (defined(__OPENCL_CPP_VERSION__) || __OPENCL_C_VERSION__ >= 200)
+// For SPIR and SPIR-V all extensions are supported.
+#if defined(__SPIR__) || defined(__SPIRV__)
+#define cl_khr_subgroup_extended_types 1
+#define cl_khr_subgroup_non_uniform_vote 1
+#define cl_khr_subgroup_ballot 1
+#define cl_khr_subgroup_non_uniform_arithmetic 1
+#define cl_khr_subgroup_shuffle 1
+#define cl_khr_subgroup_shuffle_relative 1
+#define cl_khr_subgroup_clustered_reduce 1
+#define cl_khr_extended_bit_ops 1
+#define cl_khr_integer_dot_product 1
+#define __opencl_c_integer_dot_product_input_4x8bit 1
+#define __opencl_c_integer_dot_product_input_4x8bit_packed 1
+#define cl_ext_float_atomics 1
+#ifdef cl_khr_fp16
+#define __opencl_c_ext_fp16_global_atomic_load_store 1
+#define __opencl_c_ext_fp16_local_atomic_load_store 1
+#define __opencl_c_ext_fp16_global_atomic_add 1
+#define __opencl_c_ext_fp16_local_atomic_add 1
+#define __opencl_c_ext_fp16_global_atomic_min_max 1
+#define __opencl_c_ext_fp16_local_atomic_min_max 1
+#endif
+#ifdef cl_khr_fp64
+#define __opencl_c_ext_fp64_global_atomic_add 1
+#define __opencl_c_ext_fp64_local_atomic_add 1
+#define __opencl_c_ext_fp64_global_atomic_min_max 1
+#define __opencl_c_ext_fp64_local_atomic_min_max 1
+#endif
+#define __opencl_c_ext_fp32_global_atomic_add 1
+#define __opencl_c_ext_fp32_local_atomic_add 1
+#define __opencl_c_ext_fp32_global_atomic_min_max 1
+#define __opencl_c_ext_fp32_local_atomic_min_max 1
+
+#endif // defined(__SPIR__) || defined(__SPIRV__)
+#endif // (defined(__OPENCL_CPP_VERSION__) || __OPENCL_C_VERSION__ >= 200)
+
+// Define feature macros for OpenCL C 2.0
+#if (__OPENCL_CPP_VERSION__ == 100 || __OPENCL_C_VERSION__ == 200)
+#define __opencl_c_pipes 1
+#define __opencl_c_generic_address_space 1
+#define __opencl_c_work_group_collective_functions 1
+#define __opencl_c_atomic_order_acq_rel 1
+#define __opencl_c_atomic_order_seq_cst 1
+#define __opencl_c_atomic_scope_device 1
+#define __opencl_c_atomic_scope_all_devices 1
+#define __opencl_c_device_enqueue 1
+#define __opencl_c_read_write_images 1
+#define __opencl_c_program_scope_global_variables 1
+#define __opencl_c_images 1
+#endif
+
+// Define header-only feature macros for OpenCL C 3.0.
+#if (__OPENCL_CPP_VERSION__ == 202100 || __OPENCL_C_VERSION__ == 300)
+// For the SPIR and SPIR-V target all features are supported.
+#if defined(__SPIR__) || defined(__SPIRV__)
+#define __opencl_c_atomic_order_seq_cst 1
+#define __opencl_c_atomic_scope_device 1
+#define __opencl_c_atomic_scope_all_devices 1
+#define __opencl_c_read_write_images 1
+#endif // defined(__SPIR__)
+#endif // (__OPENCL_CPP_VERSION__ == 202100 || __OPENCL_C_VERSION__ == 300)
+
 #if !defined(__opencl_c_generic_address_space)
 // Internal feature macro to provide named (global, local, private) address
 // space overloads for builtin functions that take a pointer argument.
@@ -136,9 +201,14 @@ typedef double double4 __attribute__((ext_vector_type(4)));
 typedef double double8 __attribute__((ext_vector_type(8)));
 typedef double double16 __attribute__((ext_vector_type(16)));
 #endif
-
-// An internal alias for half, for use by OpenCLBuiltins.td.
-#define __half half
+#ifdef cl_APPLE_bool_vec
+#pragma OPENCL EXTENSION cl_APPLE_bool_vec : enable
+typedef bool bool2 __attribute__((ext_vector_type(2)));
+typedef bool bool3 __attribute__((ext_vector_type(3)));
+typedef bool bool4 __attribute__((ext_vector_type(4)));
+typedef bool bool8 __attribute__((ext_vector_type(8)));
+typedef bool bool16 __attribute__((ext_vector_type(16)));
+#endif
 
 #if defined(__OPENCL_CPP_VERSION__)
 #define NULL nullptr
@@ -166,6 +236,16 @@ typedef double double16 __attribute__((ext_vector_type(16)));
  */
 #define HUGE_VAL (__builtin_huge_val())
 
+// OpenCL: Define `HUGE_VALH`.
+#ifdef cl_khr_fp16
+/**
+ * A positive double constant expression. HUGE_VALH evaluates
+ * to +infinity. Used as an error value returned by the built-in
+ * math functions.
+ */
+#define HUGE_VALH (__builtin_huge_valh())
+#endif
+
 /**
  * A constant expression of type float representing positive or
  * unsigned infinity.
@@ -175,105 +255,127 @@ typedef double double16 __attribute__((ext_vector_type(16)));
 /**
  * A constant expression of type float representing a quiet NaN.
  */
-#define NAN as_float(INT_MAX)
+// OpenCL: Define NAN using `__builtin_nanf`.
+#define NAN (__builtin_nanf(""))
 
-#define FP_ILOGB0    INT_MIN
-#define FP_ILOGBNAN  INT_MAX
+// OpenCL: Define `FP_ILOGB0` and `FP_ILOGBNAN` using the corresponding
+// internal macros if available.
+#if defined(__FP_ILOGB0__)
+#define FP_ILOGB0 __FP_ILOGB0__
+#else
+#define FP_ILOGB0 INT_MIN
+#endif
+#if defined(__FP_ILOGBNAN__)
+#define FP_ILOGBNAN __FP_ILOGBNAN__
+#else
+#define FP_ILOGBNAN INT_MAX
+#endif
 
-#define FLT_DIG 6
-#define FLT_MANT_DIG 24
-#define FLT_MAX_10_EXP +38
-#define FLT_MAX_EXP +128
-#define FLT_MIN_10_EXP -37
-#define FLT_MIN_EXP -125
-#define FLT_RADIX 2
-#define FLT_MAX 0x1.fffffep127f
-#define FLT_MIN 0x1.0p-126f
-#define FLT_EPSILON 0x1.0p-23f
+// OpenCL: Define `FLT_*` macros using the corresponding internal macros.
+#define FLT_DIG __FLT_DIG__
+#define FLT_MANT_DIG __FLT_MANT_DIG__
+#define FLT_MAX_10_EXP __FLT_MAX_10_EXP__
+#define FLT_MAX_EXP __FLT_MAX_EXP__
+#define FLT_MIN_10_EXP __FLT_MIN_10_EXP__
+#define FLT_MIN_EXP __FLT_MIN_EXP__
+#define FLT_RADIX __FLT_RADIX__
+#define FLT_MAX __FLT_MAX__
+#define FLT_MIN __FLT_MIN__
+#define FLT_EPSILON __FLT_EPSILON__
 
-#define M_E_F         2.71828182845904523536028747135266250f
-#define M_LOG2E_F     1.44269504088896340735992468100189214f
-#define M_LOG10E_F    0.434294481903251827651128918916605082f
-#define M_LN2_F       0.693147180559945309417232121458176568f
-#define M_LN10_F      2.30258509299404568401799145468436421f
-#define M_PI_F        3.14159265358979323846264338327950288f
-#define M_PI_2_F      1.57079632679489661923132169163975144f
-#define M_PI_4_F      0.785398163397448309615660845819875721f
-#define M_1_PI_F      0.318309886183790671537767526745028724f
-#define M_2_PI_F      0.636619772367581343075535053490057448f
-#define M_2_SQRTPI_F  1.12837916709551257389615890312154517f
-#define M_SQRT2_F     1.41421356237309504880168872420969808f
-#define M_SQRT1_2_F   0.707106781186547524400844362104849039f
+// OpenCL: Define `M_*_F` macros using the corresponding internal macros.
+#define M_E_F __FLT_M_E__
+#define M_LOG2E_F __FLT_M_LOG2E__
+#define M_LOG10E_F __FLT_M_LOG10E__
+#define M_LN2_F __FLT_M_LN2__
+#define M_LN10_F __FLT_M_LN10__
+#define M_PI_F __FLT_M_PI__
+#define M_PI_2_F __FLT_M_PI_2__
+#define M_PI_4_F __FLT_M_PI_4__
+#define M_1_PI_F __FLT_M_1_PI__
+#define M_2_PI_F __FLT_M_2_PI__
+#define M_2_SQRTPI_F __FLT_M_2_SQRTPI__
+#define M_SQRT2_F __FLT_M_SQRT2__
+#define M_SQRT1_2_F __FLT_M_SQRT1_2__
 
-#define DBL_DIG 15
-#define DBL_MANT_DIG 53
-#define DBL_MAX_10_EXP +308
-#define DBL_MAX_EXP +1024
-#define DBL_MIN_10_EXP -307
-#define DBL_MIN_EXP -1021
-#define DBL_RADIX 2
-#define DBL_MAX 0x1.fffffffffffffp1023
-#define DBL_MIN 0x1.0p-1022
-#define DBL_EPSILON 0x1.0p-52
+// OpenCL: Define `DBL_*` macros using the corresponding internal macros.
+#define DBL_DIG __DBL_DIG__
+#define DBL_MANT_DIG __DBL_MANT_DIG__
+#define DBL_MAX_10_EXP __DBL_MAX_10_EXP__
+#define DBL_MAX_EXP __DBL_MAX_EXP__
+#define DBL_MIN_10_EXP __DBL_MIN_10_EXP__
+#define DBL_MIN_EXP __DBL_MIN_EXP__
+#define DBL_RADIX __DBL_RADIX__
+#define DBL_MAX __DBL_MAX__
+#define DBL_MIN __DBL_MIN__
+#define DBL_EPSILON __DBL_EPSILON__
 
-#define M_E           0x1.5bf0a8b145769p+1
-#define M_LOG2E       0x1.71547652b82fep+0
-#define M_LOG10E      0x1.bcb7b1526e50ep-2
-#define M_LN2         0x1.62e42fefa39efp-1
-#define M_LN10        0x1.26bb1bbb55516p+1
-#define M_PI          0x1.921fb54442d18p+1
-#define M_PI_2        0x1.921fb54442d18p+0
-#define M_PI_4        0x1.921fb54442d18p-1
-#define M_1_PI        0x1.45f306dc9c883p-2
-#define M_2_PI        0x1.45f306dc9c883p-1
-#define M_2_SQRTPI    0x1.20dd750429b6dp+0
-#define M_SQRT2       0x1.6a09e667f3bcdp+0
-#define M_SQRT1_2     0x1.6a09e667f3bcdp-1
+// OpenCL: Define `M_*` macros using the corresponding internal macros.
+#define M_E __DBL_M_E__
+#define M_LOG2E __DBL_M_LOG2E__
+#define M_LOG10E __DBL_M_LOG10E__
+#define M_LN2 __DBL_M_LN2__
+#define M_LN10 __DBL_M_LN10__
+#define M_PI __DBL_M_PI__
+#define M_PI_2 __DBL_M_PI_2__
+#define M_PI_4 __DBL_M_PI_4__
+#define M_1_PI __DBL_M_1_PI__
+#define M_2_PI __DBL_M_2_PI__
+#define M_2_SQRTPI __DBL_M_2_SQRTPI__
+#define M_SQRT2 __DBL_M_SQRT2__
+#define M_SQRT1_2 __DBL_M_SQRT1_2__
 
 #ifdef cl_khr_fp16
 
-#define HALF_DIG 3
-#define HALF_MANT_DIG 11
-#define HALF_MAX_10_EXP +4
-#define HALF_MAX_EXP +16
-#define HALF_MIN_10_EXP -4
-#define HALF_MIN_EXP -13
-#define HALF_RADIX 2
-#define HALF_MAX ((0x1.ffcp15h))
-#define HALF_MIN ((0x1.0p-14h))
-#define HALF_EPSILON ((0x1.0p-10h))
+// OpenCL: Define `HALF_*` macros using the corresponding internal macros.
+#define HALF_DIG __HALF_DIG__
+#define HALF_MANT_DIG __HALF_MANT_DIG__
+#define HALF_MAX_10_EXP __HALF_MAX_10_EXP__
+#define HALF_MAX_EXP __HALF_MAX_EXP__
+#define HALF_MIN_10_EXP __HALF_MIN_10_EXP__
+#define HALF_MIN_EXP __HALF_MIN_EXP__
+#define HALF_RADIX __HALF_RADIX__
+#define HALF_MAX __HALF_MAX__
+#define HALF_MIN __HALF_MIN__
+#define HALF_EPSILON __HALF_EPSILON__
 
-#define M_E_H         2.71828182845904523536028747135266250h
-#define M_LOG2E_H     1.44269504088896340735992468100189214h
-#define M_LOG10E_H    0.434294481903251827651128918916605082h
-#define M_LN2_H       0.693147180559945309417232121458176568h
-#define M_LN10_H      2.30258509299404568401799145468436421h
-#define M_PI_H        3.14159265358979323846264338327950288h
-#define M_PI_2_H      1.57079632679489661923132169163975144h
-#define M_PI_4_H      0.785398163397448309615660845819875721h
-#define M_1_PI_H      0.318309886183790671537767526745028724h
-#define M_2_PI_H      0.636619772367581343075535053490057448h
-#define M_2_SQRTPI_H  1.12837916709551257389615890312154517h
-#define M_SQRT2_H     1.41421356237309504880168872420969808h
-#define M_SQRT1_2_H   0.707106781186547524400844362104849039h
+// OpenCL: Define `M_*_H` macros using the corresponding internal macros.
+#define M_E_H __HALF_M_E__
+#define M_LOG2E_H __HALF_M_LOG2E__
+#define M_LOG10E_H __HALF_M_LOG10E__
+#define M_LN2_H __HALF_M_LN2__
+#define M_LN10_H __HALF_M_LN10__
+#define M_PI_H __HALF_M_PI__
+#define M_PI_2_H __HALF_M_PI_2__
+#define M_PI_4_H __HALF_M_PI_4__
+#define M_1_PI_H __HALF_M_1_PI__
+#define M_2_PI_H __HALF_M_2_PI__
+#define M_2_SQRTPI_H __HALF_M_2_SQRTPI__
+#define M_SQRT2_H __HALF_M_SQRT2__
+#define M_SQRT1_2_H __HALF_M_SQRT1_2__
 
 #endif //cl_khr_fp16
 
-#define CHAR_BIT  8
-#define SCHAR_MAX 127
-#define SCHAR_MIN (-128)
-#define UCHAR_MAX 255
-#define CHAR_MAX  SCHAR_MAX
-#define CHAR_MIN  SCHAR_MIN
-#define USHRT_MAX 65535
-#define SHRT_MAX  32767
-#define SHRT_MIN  (-32768)
-#define UINT_MAX  0xffffffff
-#define INT_MAX   2147483647
-#define INT_MIN   (-2147483647-1)
-#define ULONG_MAX 0xffffffffffffffffUL
-#define LONG_MAX  0x7fffffffffffffffL
-#define LONG_MIN  (-0x7fffffffffffffffL-1)
+// OpenCL: Defines integer constants using the compiler macros.
+#define CHAR_BIT __CHAR_BIT__
+#define SCHAR_MAX __SCHAR_MAX__
+#define SCHAR_MIN (-__SCHAR_MAX__ - 1)
+#define UCHAR_MAX (__SCHAR_MAX__ * 2 + 1)
+#define CHAR_MAX SCHAR_MAX
+#define CHAR_MIN SCHAR_MIN
+#define USHRT_MAX (__SHRT_MAX__ * 2 + 1)
+#define SHRT_MAX __SHRT_MAX__
+#define SHRT_MIN (-__SHRT_MAX__ - 1)
+#define UINT_MAX (__INT_MAX__ * 2U + 1U)
+#define INT_MAX __INT_MAX__
+#define INT_MIN (-__INT_MAX__ - 1)
+#define ULONG_MAX (__LONG_MAX__ * 2UL + 1UL)
+#define LONG_MAX __LONG_MAX__
+#define LONG_MIN (-__LONG_MAX__ - 1L)
+// OpenCL: Reserve `long long` macros.
+#define ULLONG_MAX (__LONG_LONG_MAX__ * 2ULL + 1ULL)
+#define LLONG_MAX __LONG_LONG_MAX__
+#define LLONG_MIN (-__LONG_LONG_MAX__ - 1LL)
 
 // OpenCL v1.1 s6.11.8, v1.2 s6.12.8, v2.0 s6.13.8 - Synchronization Functions
 
@@ -388,24 +490,6 @@ typedef enum memory_order
 #define CLK_HALF_FLOAT        0x10DD
 #define CLK_FLOAT             0x10DE
 #define CLK_UNORM_INT24       0x10DF
-#if __OPENCL_C_VERSION__ >= CL_VERSION_3_0
-#define CLK_UNORM_INT_101010_2 0x10E0
-#endif // __OPENCL_C_VERSION__ >= CL_VERSION_3_0
-#ifdef __opencl_c_ext_image_raw10_raw12
-#define CLK_UNSIGNED_INT_RAW10_EXT 0x10E3
-#define CLK_UNSIGNED_INT_RAW12_EXT 0x10E4
-#endif // __opencl_c_ext_image_raw10_raw12
-#ifdef __opencl_c_ext_image_unorm_int_2_101010
-#define CLK_UNORM_INT_2_101010_EXT 0x10E5
-#endif // __opencl_c_ext_image_unorm_int_2_101010
-#ifdef __opencl_c_ext_image_unsigned_10x6_12x4_14x2
-#define CLK_UNSIGNED_INT10X6_EXT 0x10E6
-#define CLK_UNSIGNED_INT12X4_EXT 0x10E7
-#define CLK_UNSIGNED_INT14X2_EXT 0x10E8
-#define CLK_UNORM_10X6_EXT 0x10E1
-#define CLK_UNORM_12X4_EXT 0x10E9
-#define CLK_UNORM_14X2_EXT 0x10EA
-#endif // __opencl_c_ext_image_unsigned_10x6_12x4_14x2
 
 // Channel order, numbering must be aligned with cl_channel_order in cl.h
 //
@@ -604,16 +688,7 @@ template <typename _Tp> struct __remove_address_space<__constant _Tp> {
 #if defined(__OPENCL_CPP_VERSION__) || (__OPENCL_C_VERSION__ >= CL_VERSION_1_2)
 // OpenCL v1.2 s6.12.13, v2.0 s6.13.13 - printf
 
-#ifdef __OPENCL_CPP_VERSION__
-#define CLINKAGE extern "C"
-#else
-#define CLINKAGE
-#endif
-
-CLINKAGE int printf(__constant const char *st, ...)
-    __attribute__((format(printf, 1, 2)));
-
-#undef CLINKAGE
+int printf(__constant const char* st, ...) __attribute__((format(printf, 1, 2)));
 #endif
 
 #ifdef cl_intel_device_side_avc_motion_estimation
