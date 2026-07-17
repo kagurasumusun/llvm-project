@@ -1,0 +1,9 @@
+#ifndef __METAL_STDLIB__
+#define __METAL_STDLIB__
+
+#include <metal/metal_types.h>
+#include <metal/metal_math.h>
+#include <metal/metal_graphics.h>
+#include <metal/metal_compute.h>
+
+#endif // __METAL_STDLIB__

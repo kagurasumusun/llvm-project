@@ -140,6 +140,8 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
   }
   Opts.Metal = Lang == Language::Metal;
   if (Opts.Metal) {
+    if (Opts.IncludeDefaultHeader)
+      Includes.push_back("metal_stdlib");
     // Set maximum matrix dimension to 4 for Metal
     Opts.MaxMatrixDimension = 4;
   }

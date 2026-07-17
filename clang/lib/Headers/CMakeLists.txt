@@ -118,6 +118,20 @@ set(opencl_files
   opencl-c-base.h
   )
 
+set(metal_h
+  metal_stdlib
+  )
+set(metal_subdir_files
+  metal/metal_types.h
+  metal/metal_math.h
+  metal/metal_graphics.h
+  metal/metal_compute.h
+  )
+set(metal_files
+  ${metal_h}
+  ${metal_subdir_files}
+  )
+
 set(ppc_files
   altivec.h
   amo.h
@@ -322,6 +336,7 @@ set(files
   ${loongarch_files}
   ${mips_msa_files}
   ${opencl_files}
+  ${metal_files}
   ${ppc_files}
   ${ppc_htm_files}
   ${riscv_files}
@@ -578,6 +593,7 @@ add_header_target("gpu-resource-headers" "${gpu_files}")
 add_header_target("hlsl-resource-headers" ${hlsl_files})
 add_header_target("spirv-resource-headers" ${spirv_files})
 add_header_target("opencl-resource-headers" ${opencl_files})
+add_header_target("metal-resource-headers" ${metal_files})
 add_header_target("llvm-libc-resource-headers" ${llvm_libc_wrapper_files})
 add_header_target("openmp-resource-headers" ${openmp_wrapper_files})
 add_header_target("llvm-offload-resource-headers" ${llvm_libc_wrapper_files})
@@ -804,6 +820,16 @@ install(
   DESTINATION ${header_install_dir}
   EXCLUDE_FROM_ALL
   COMPONENT opencl-resource-headers)
+
+install(
+  FILES ${metal_h}
+  DESTINATION ${header_install_dir}
+  COMPONENT metal-resource-headers)
+
+install(
+  FILES ${metal_subdir_files}
+  DESTINATION ${header_install_dir}/metal
+  COMPONENT metal-resource-headers)
 
 install(
   FILES ${openmp_wrapper_files}

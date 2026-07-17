@@ -7892,7 +7892,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_MetalUser: {
     StringRef Name;
     if (AL.getNumArgs() > 0 && AL.isArgIdent(0))
-      Name = AL.getArgAsIdent(0)->Ident->getName();
+      Name = AL.getArgAsIdent(0)->getIdentifierInfo()->getName();
     else if (AL.getNumArgs() > 0 && AL.isArgExpr(0)) {
       if (const auto *SE = dyn_cast<StringLiteral>(AL.getArgAsExpr(0)->IgnoreParenCasts()))
         Name = SE->getString();
