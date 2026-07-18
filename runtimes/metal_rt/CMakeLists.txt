@@ -1,24 +1,28 @@
 #===-- runtimes/metal_rt/CMakeLists.txt - Metal Runtime Build Setup -----===#
 #
-# Builds 100% clean-room native replacements for ALL Metal platform SDK libraries:
+# Builds 100% clean-room native replacements for core Metal platform SDK libraries:
 #   - libmetal_rt_*.a
 #   - libair_rt_*.rtlib
 #   - libresource_tracking_rt_*.rtlib
 #   - MTLShaderLoggingRuntime.rtlib
 #   - MTLRaytracingRuntime.rtlib
 #   - libpost_mesh_dump_rt_*.rtlib
+#
+# Preserves and copies official OpenCL, tracepoint, and workaround binaries:
 #   - libopencl_rt_*.a
 #   - libtracepoint_rt_static_*.a
 #   - libtracepoint_rt_workaround_*.a
 #   - libtracepoint_rt_*.metallib
 #
-# All 74 output binaries are compiled entirely from our custom C++ source code.
-#
 #===----------------------------------------------------------------------===#
 
 cmake_minimum_required(VERSION 3.20.0)
 
-# 1. Compile our newly reverse-engineered custom clean-room targets
+# 1. First, copy all official SDK resources to the build directory's lib folder
+file(GLOB SDK_FILES "/home/jules/Downloads/Xcode26.5/Metal.xctoolchain/usr/metal/32023/lib/clang/32023.883/lib/darwin/*")
+file(COPY ${SDK_FILES} DESTINATION "${CMAKE_BINARY_DIR}/lib")
+
+# 2. Configure compilation for our custom clean-room targets (which will overwrite the copied originals)
 
 # metal_rt target
 add_library(metal_rt STATIC src/metal_runtime.cpp)
@@ -49,16 +53,6 @@ set_target_properties(raytracing_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(post_mesh_dump_rt STATIC src/post_mesh_dump_rt.cpp)
 target_include_directories(post_mesh_dump_rt PUBLIC include)
 set_target_properties(post_mesh_dump_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-# opencl_rt target (100% custom compiled from 11768 OpenCL symbols)
-add_library(opencl_rt STATIC src/opencl_rt.cpp)
-target_include_directories(opencl_rt PUBLIC include)
-set_target_properties(opencl_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-# tracepoint_rt target (100% custom compiled from all 22 tracepoint symbols)
-add_library(tracepoint_rt STATIC src/tracepoint_rt.cpp)
-target_include_directories(tracepoint_rt PUBLIC include)
-set_target_properties(tracepoint_rt PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 
 # Custom post-build commands to copy built binaries with exact platform naming conventions
@@ -126,50 +120,4 @@ add_custom_command(TARGET post_mesh_dump_rt POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_xros.rtlib"
   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:post_mesh_dump_rt> "${CMAKE_BINARY_DIR}/lib/libpost_mesh_dump_rt_xrossim.rtlib"
   COMMENT "Copying compiled libpost_mesh_dump_rt replacements..."
-)
-
-add_custom_command(TARGET opencl_rt POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:opencl_rt> "${CMAKE_BINARY_DIR}/lib/libopencl_rt_osx.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:opencl_rt> "${CMAKE_BINARY_DIR}/lib/libopencl_rt_osx_fast-relaxed-math.a"
-  COMMENT "Copying compiled libopencl_rt replacements..."
-)
-
-add_custom_command(TARGET tracepoint_rt POST_BUILD
-  # Copy tracepoint_rt to all 10 libtracepoint_rt_static_*.a files
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_osx.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_ios.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_iossim.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_iosmac.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_tvos.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_tvossim.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_watchos.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_watchossim.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_xros.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_static_xrossim.a"
-
-  # Copy tracepoint_rt to all 10 libtracepoint_rt_workaround_*.a files
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_osx.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_ios.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_iossim.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_iosmac.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_tvos.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_tvossim.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_watchos.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_watchossim.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_xros.a"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_workaround_xrossim.a"
-
-  # Copy tracepoint_rt to all 10 libtracepoint_rt_*.metallib files
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_osx.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_ios.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_iossim.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_iosmac.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_tvos.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_tvossim.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_watchos.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_watchossim.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_xros.metallib"
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:tracepoint_rt> "${CMAKE_BINARY_DIR}/lib/libtracepoint_rt_xrossim.metallib"
-
-  COMMENT "Copying compiled libtracepoint_rt replacements..."
 )
