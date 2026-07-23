@@ -880,6 +880,16 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
 
     llvm::MDNode *OutputMetadata = BuildAIRStageOutputMetadata();
 
+    auto AddBuiltinInputRecord = [&](SmallVectorImpl<llvm::Metadata *> &Ops,
+                                     StringRef AIRName,
+                                     const ParmVarDecl *Param) {
+      Ops.push_back(MDStr(AIRName));
+      Ops.push_back(MDStr("air.arg_type_name"));
+      Ops.push_back(MDStr(GetTypeName(Param->getType())));
+      Ops.push_back(MDStr("air.arg_name"));
+      Ops.push_back(MDStr(Param->getName()));
+    };
+
     SmallVector<llvm::Metadata *, 8> ArgMetadata;
     for (unsigned I = 0, E = FD->getNumParams(); I != E; ++I) {
       const ParmVarDecl *Param = FD->getParamDecl(I);
@@ -972,6 +982,38 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
         Ops.push_back(Int32MD(I));
         Ops.push_back(Int32MD(1));
         AddArgTypeInfo(Ops, Param);
+      } else if (Param->hasAttr<MetalVertexIdAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.vertex_id", Param);
+      } else if (Param->hasAttr<MetalInstanceIdAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.instance_id", Param);
+      } else if (Param->hasAttr<MetalAmplificationIdAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.amplification_id", Param);
+      } else if (Param->hasAttr<MetalBaseVertexAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.base_vertex", Param);
+      } else if (Param->hasAttr<MetalBaseInstanceAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.base_instance", Param);
+      } else if (Param->hasAttr<MetalFrontFacingAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.front_facing", Param);
+      } else if (Param->hasAttr<MetalPositionAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.position", Param);
+      } else if (Param->hasAttr<MetalSampleIdAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.sample_id", Param);
+      } else if (Param->hasAttr<MetalSampleMaskAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.sample_mask", Param);
+      } else if (Param->hasAttr<MetalPrimitiveIdAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.primitive_id", Param);
+      } else if (Param->hasAttr<MetalBarycentricCoordAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.barycentric_coord", Param);
+      } else if (Param->hasAttr<MetalThreadgroupPositionInGridAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.threadgroup_position_in_grid", Param);
+      } else if (Param->hasAttr<MetalThreadsPerGridAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.threads_per_grid", Param);
+      } else if (Param->hasAttr<MetalThreadIndexInSIMDGroupAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.thread_index_in_simdgroup", Param);
+      } else if (Param->hasAttr<MetalSIMDGroupIndexInThreadgroupAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.simdgroup_index_in_threadgroup", Param);
+      } else if (Param->hasAttr<MetalSIMDGroupsPerThreadgroupAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.simdgroups_per_threadgroup", Param);
       } else if (Param->hasAttr<MetalThreadPositionInGridAttr>()) {
         Ops.push_back(MDStr("air.thread_position_in_grid"));
         Ops.push_back(MDStr("air.arg_type_name"));

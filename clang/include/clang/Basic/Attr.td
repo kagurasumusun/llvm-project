@@ -1704,6 +1704,38 @@ def MetalTexture : MetalResourceBindingAttr<"texture">;
 def MetalSampler : MetalResourceBindingAttr<"sampler">;
 def MetalThreadgroup : MetalResourceBindingAttr<"threadgroup">;
 
+class MetalBuiltinInputAttr<string Name> : InheritableParamAttr {
+  let Spellings = [CXX11<"", Name>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalVertexId : MetalBuiltinInputAttr<"vertex_id">;
+def MetalInstanceId : MetalBuiltinInputAttr<"instance_id">;
+def MetalAmplificationId : MetalBuiltinInputAttr<"amplification_id">;
+def MetalBaseVertex : MetalBuiltinInputAttr<"base_vertex">;
+def MetalBaseInstance : MetalBuiltinInputAttr<"base_instance">;
+def MetalFrontFacing : MetalBuiltinInputAttr<"front_facing">;
+def MetalSampleId : MetalBuiltinInputAttr<"sample_id">;
+def MetalSampleMask : MetalBuiltinInputAttr<"sample_mask">;
+def MetalPrimitiveId : MetalBuiltinInputAttr<"primitive_id">;
+def MetalBarycentricCoord : MetalBuiltinInputAttr<"barycentric_coord">;
+def MetalThreadgroupPositionInGrid : MetalBuiltinInputAttr<"threadgroup_position_in_grid">;
+def MetalThreadsPerGrid : MetalBuiltinInputAttr<"threads_per_grid">;
+def MetalThreadIndexInSIMDGroup : MetalBuiltinInputAttr<"thread_index_in_simdgroup">;
+def MetalSIMDGroupIndexInThreadgroup : MetalBuiltinInputAttr<"simdgroup_index_in_threadgroup">;
+def MetalSIMDGroupsPerThreadgroup : MetalBuiltinInputAttr<"simdgroups_per_threadgroup">;
+
+def MetalLocalIndex : MetalBuiltinInputAttr<"local_index">;
+
+def MetalId : MetalBuiltinInputAttr<"id">;
+def MetalObject : MetalBuiltinInputAttr<"object">;
+def MetalMesh : MetalBuiltinInputAttr<"mesh">;
+def MetalPayload : MetalBuiltinInputAttr<"payload">;
+def MetalIntersection : MetalBuiltinInputAttr<"intersection">;
+def MetalVisible : MetalBuiltinInputAttr<"visible">;
+
 def MetalFunctionConstant : InheritableAttr {
   let Spellings = [CXX11<"", "function_constant">];
   let Args = [IntArgument<"Index">];
@@ -1757,7 +1789,7 @@ def MetalAttribute : InheritableAttr {
 
 def MetalPosition : InheritableAttr {
   let Spellings = [CXX11<"", "position">];
-  let Subjects = SubjectList<[Field]>;
+  let Subjects = SubjectList<[Field, ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
