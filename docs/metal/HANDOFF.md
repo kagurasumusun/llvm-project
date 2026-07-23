@@ -181,3 +181,17 @@ Latest CI run dispatched after this update:
 - Status at dispatch-time check: `in_progress`.
 
 Next agent should check run `30051384548`; if it fails, download job log/artifact and fix the first compile/configure/smoke-test error.
+
+
+## Update 2026-07-24 JST — Attr.td CXX11 spelling version fix
+
+Latest cached CI run `30051384548` failed in clang-tblgen with:
+
+```text
+clang/include/clang/Basic/Attr.td:1709:20: error: Standard attributes must have valid version information.
+  let Spellings = [CXX11<"", Name>];
+```
+
+Cause: Metal attributes use global-scope `[[buffer]]` / `[[stage_in]]` style CXX11 spellings. In Attr.td an empty namespace `CXX11<"", ...>` is treated as a standard attribute spelling and must include a standards-version number. Fix: in the Metal attr block, change all `CXX11<"", ...>` to `CXX11<"", ..., 202600>`.
+
+Next agent should rerun cached workflow v5 after this commit and inspect the next error.

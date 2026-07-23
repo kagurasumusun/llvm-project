@@ -1693,7 +1693,7 @@ def MetalFragment : InheritableAttr {
 }
 
 class MetalResourceBindingAttr<string Name> : InheritableParamAttr {
-  let Spellings = [CXX11<"", Name>];
+  let Spellings = [CXX11<"", Name, 202600>];
   let Args = [IntArgument<"Index">];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
@@ -1706,7 +1706,7 @@ def MetalSampler : MetalResourceBindingAttr<"sampler">;
 def MetalThreadgroup : MetalResourceBindingAttr<"threadgroup">;
 
 class MetalBuiltinInputAttr<string Name> : InheritableParamAttr {
-  let Spellings = [CXX11<"", Name>];
+  let Spellings = [CXX11<"", Name, 202600>];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
@@ -1738,7 +1738,7 @@ def MetalIntersection : MetalBuiltinInputAttr<"intersection">;
 def MetalVisible : MetalBuiltinInputAttr<"visible">;
 
 def MetalFunctionConstant : InheritableAttr {
-  let Spellings = [CXX11<"", "function_constant">];
+  let Spellings = [CXX11<"", "function_constant", 202600>];
   let Args = [IntArgument<"Index">];
   let Subjects = SubjectList<[Var]>;
   let LangOpts = [Metal];
@@ -1746,42 +1746,42 @@ def MetalFunctionConstant : InheritableAttr {
 }
 
 def MetalThreadPositionInGrid : InheritableParamAttr {
-  let Spellings = [CXX11<"", "thread_position_in_grid">];
+  let Spellings = [CXX11<"", "thread_position_in_grid", 202600>];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalThreadPositionInThreadgroup : InheritableParamAttr {
-  let Spellings = [CXX11<"", "thread_position_in_threadgroup">];
+  let Spellings = [CXX11<"", "thread_position_in_threadgroup", 202600>];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalThreadIndexInThreadgroup : InheritableParamAttr {
-  let Spellings = [CXX11<"", "thread_index_in_threadgroup">];
+  let Spellings = [CXX11<"", "thread_index_in_threadgroup", 202600>];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalThreadsPerThreadgroup : InheritableParamAttr {
-  let Spellings = [CXX11<"", "threads_per_threadgroup">];
+  let Spellings = [CXX11<"", "threads_per_threadgroup", 202600>];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalStageIn : InheritableParamAttr {
-  let Spellings = [CXX11<"", "stage_in">];
+  let Spellings = [CXX11<"", "stage_in", 202600>];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalAttribute : InheritableAttr {
-  let Spellings = [CXX11<"", "attribute">];
+  let Spellings = [CXX11<"", "attribute", 202600>];
   let Args = [IntArgument<"Index">];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
@@ -1789,35 +1789,35 @@ def MetalAttribute : InheritableAttr {
 }
 
 def MetalPosition : InheritableAttr {
-  let Spellings = [CXX11<"", "position">];
+  let Spellings = [CXX11<"", "position", 202600>];
   let Subjects = SubjectList<[Field, ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalPointSize : InheritableAttr {
-  let Spellings = [CXX11<"", "point_size">];
+  let Spellings = [CXX11<"", "point_size", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalRenderTargetArrayIndex : InheritableAttr {
-  let Spellings = [CXX11<"", "render_target_array_index">];
+  let Spellings = [CXX11<"", "render_target_array_index", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalViewportArrayIndex : InheritableAttr {
-  let Spellings = [CXX11<"", "viewport_array_index">];
+  let Spellings = [CXX11<"", "viewport_array_index", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalUser : InheritableAttr {
-  let Spellings = [CXX11<"", "user">];
+  let Spellings = [CXX11<"", "user", 202600>];
   let Args = [IdentifierArgument<"Name">];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
@@ -1825,7 +1825,7 @@ def MetalUser : InheritableAttr {
 }
 
 def MetalColor : InheritableAttr {
-  let Spellings = [CXX11<"", "color">];
+  let Spellings = [CXX11<"", "color", 202600>];
   let Args = [IntArgument<"Index">];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
@@ -1833,7 +1833,7 @@ def MetalColor : InheritableAttr {
 }
 
 def MetalDepth : InheritableAttr {
-  let Spellings = [CXX11<"", "depth">];
+  let Spellings = [CXX11<"", "depth", 202600>];
   let Args = [EnumArgument<"Qualifier", "DepthQualifier", /*is_string=*/false,
                            ["any", "greater", "less"],
                            ["Any", "Greater", "Less"]>];
@@ -1843,56 +1843,56 @@ def MetalDepth : InheritableAttr {
 }
 
 def MetalFlat : InheritableAttr {
-  let Spellings = [CXX11<"", "flat">];
+  let Spellings = [CXX11<"", "flat", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalCenterPerspective : InheritableAttr {
-  let Spellings = [CXX11<"", "center_perspective">];
+  let Spellings = [CXX11<"", "center_perspective", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalCenterNoPerspective : InheritableAttr {
-  let Spellings = [CXX11<"", "center_no_perspective">];
+  let Spellings = [CXX11<"", "center_no_perspective", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalCentroidPerspective : InheritableAttr {
-  let Spellings = [CXX11<"", "centroid_perspective">];
+  let Spellings = [CXX11<"", "centroid_perspective", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalCentroidNoPerspective : InheritableAttr {
-  let Spellings = [CXX11<"", "centroid_no_perspective">];
+  let Spellings = [CXX11<"", "centroid_no_perspective", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalSamplePerspective : InheritableAttr {
-  let Spellings = [CXX11<"", "sample_perspective">];
+  let Spellings = [CXX11<"", "sample_perspective", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalSampleNoPerspective : InheritableAttr {
-  let Spellings = [CXX11<"", "sample_no_perspective">];
+  let Spellings = [CXX11<"", "sample_no_perspective", 202600>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalEarlyFragmentTests : InheritableAttr {
-  let Spellings = [CXX11<"", "early_fragment_tests">];
+  let Spellings = [CXX11<"", "early_fragment_tests", 202600>];
   let Subjects = SubjectList<[Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
