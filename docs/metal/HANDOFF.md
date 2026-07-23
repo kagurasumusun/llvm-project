@@ -156,3 +156,28 @@ Still preliminary: exact Apple ABI global initializers, exact output name genera
 - If implementation files are missing, restore from implementation commit `a148c4b1aec75b4a464c453b6921db87a557e077` and overlay later workflow/docs/fix changes.
 - Use GitHub API blob/tree/commit/ref updates rather than full clone when possible.
 - Before each final response, update this file with the latest status, new commits, CI run IDs, and remaining blockers.
+
+
+## Update 2026-07-24 JST — platform-qualified old standards
+
+Implemented in commit `2f1bfccc505b72df7eda4e44855f5c1491367022`:
+
+- Restored the Metal implementation tree on `metal-test` from implementation base `a148c4b1aec75b4a464c453b6921db87a557e077` after workflow-only branch drift.
+- Added `def Metal : LangOpt<"Metal">;` in `Attr.td` to fix the TableGen error from `let LangOpts = [Metal]`.
+- Replaced old unqualified `metal1.*` / `metal2.*` standard definitions with platform-qualified standards:
+  - `ios-metal1.0` ... `ios-metal2.4`
+  - `macos-metal1.1` ... `macos-metal2.4`
+  - aliases `osx-metal1.1`, `osx-metal1.2`, `osx-metal2.0`.
+- Kept `metal3.*` / `metal4.*` unqualified.
+- Updated focused tests and cached smoke workflows to use `macos-metal2.0`, `macos-metal1.1`, and `ios-metal1.0`.
+- Added `docs/metal/MetalVersionAvailability.md`.
+- Added platform-family compatibility checks for prefixed standards in `CompilerInvocation.cpp`.
+
+Workflow update on default branch `metal`: `81432f973c55e3fb75033262cb806c440c7c88a9`.
+
+Latest CI run dispatched after this update:
+
+- `30051384548` — https://github.com/kagurasumusun/llvm-project/actions/runs/30051384548
+- Status at dispatch-time check: `in_progress`.
+
+Next agent should check run `30051384548`; if it fails, download job log/artifact and fix the first compile/configure/smoke-test error.
