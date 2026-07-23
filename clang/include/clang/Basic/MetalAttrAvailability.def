@@ -1,0 +1,78 @@
+//===--- MetalAttrAvailability.def - Metal attr availability ----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Conservative Metal language-version availability table for Metal attributes
+// currently modeled by this bring-up.  The table is seeded from the broad
+// metal-info AST-dump scan and hand-tightened for attributes whose source
+// fixtures are explicitly guarded by Metal version checks.
+//
+// METAL_ATTR_AVAILABILITY(ClangAttrNameWithoutAttrSuffix, MinMetalVersion)
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef METAL_ATTR_AVAILABILITY
+#error "Define METAL_ATTR_AVAILABILITY before including MetalAttrAvailability.def"
+#endif
+
+// Metal 1.x core shader stage, resource, IO, and dispatch attributes.
+METAL_ATTR_AVAILABILITY(MetalVertex, 100)
+METAL_ATTR_AVAILABILITY(MetalFragment, 100)
+METAL_ATTR_AVAILABILITY(DeviceKernel, 100)
+METAL_ATTR_AVAILABILITY(MetalBuffer, 100)
+METAL_ATTR_AVAILABILITY(MetalTexture, 100)
+METAL_ATTR_AVAILABILITY(MetalSampler, 100)
+METAL_ATTR_AVAILABILITY(MetalThreadgroup, 100)
+METAL_ATTR_AVAILABILITY(MetalAttribute, 100)
+METAL_ATTR_AVAILABILITY(MetalStageIn, 100)
+METAL_ATTR_AVAILABILITY(MetalPosition, 100)
+METAL_ATTR_AVAILABILITY(MetalPointSize, 100)
+METAL_ATTR_AVAILABILITY(MetalColor, 100)
+METAL_ATTR_AVAILABILITY(MetalDepth, 100)
+METAL_ATTR_AVAILABILITY(MetalFlat, 100)
+METAL_ATTR_AVAILABILITY(MetalCenterPerspective, 100)
+METAL_ATTR_AVAILABILITY(MetalCenterNoPerspective, 100)
+METAL_ATTR_AVAILABILITY(MetalCentroidPerspective, 100)
+METAL_ATTR_AVAILABILITY(MetalCentroidNoPerspective, 100)
+METAL_ATTR_AVAILABILITY(MetalSamplePerspective, 100)
+METAL_ATTR_AVAILABILITY(MetalSampleNoPerspective, 100)
+METAL_ATTR_AVAILABILITY(MetalUser, 100)
+METAL_ATTR_AVAILABILITY(MetalVertexId, 100)
+METAL_ATTR_AVAILABILITY(MetalInstanceId, 100)
+METAL_ATTR_AVAILABILITY(MetalBaseVertex, 100)
+METAL_ATTR_AVAILABILITY(MetalBaseInstance, 100)
+METAL_ATTR_AVAILABILITY(MetalFrontFacing, 100)
+METAL_ATTR_AVAILABILITY(MetalSampleId, 100)
+METAL_ATTR_AVAILABILITY(MetalSampleMask, 100)
+METAL_ATTR_AVAILABILITY(MetalPrimitiveId, 100)
+METAL_ATTR_AVAILABILITY(MetalThreadPositionInGrid, 100)
+METAL_ATTR_AVAILABILITY(MetalThreadPositionInThreadgroup, 100)
+METAL_ATTR_AVAILABILITY(MetalThreadIndexInThreadgroup, 100)
+METAL_ATTR_AVAILABILITY(MetalThreadsPerThreadgroup, 100)
+
+// Metal 1.2+ / 2.x era additions used by reference fixtures.
+METAL_ATTR_AVAILABILITY(MetalRenderTargetArrayIndex, 120)
+METAL_ATTR_AVAILABILITY(MetalViewportArrayIndex, 120)
+METAL_ATTR_AVAILABILITY(MetalFunctionConstant, 120)
+METAL_ATTR_AVAILABILITY(MetalEarlyFragmentTests, 200)
+METAL_ATTR_AVAILABILITY(MetalAmplificationId, 200)
+METAL_ATTR_AVAILABILITY(MetalBarycentricCoord, 200)
+METAL_ATTR_AVAILABILITY(MetalThreadgroupPositionInGrid, 200)
+METAL_ATTR_AVAILABILITY(MetalThreadsPerGrid, 200)
+METAL_ATTR_AVAILABILITY(MetalThreadIndexInSIMDGroup, 200)
+METAL_ATTR_AVAILABILITY(MetalSIMDGroupIndexInThreadgroup, 200)
+METAL_ATTR_AVAILABILITY(MetalSIMDGroupsPerThreadgroup, 200)
+METAL_ATTR_AVAILABILITY(MetalLocalIndex, 200)
+
+// Mesh/object/raytracing/tensor spellings are modeled as newer-family entry
+// points until their exact platform matrix is generated from more fixtures.
+METAL_ATTR_AVAILABILITY(MetalId, 300)
+METAL_ATTR_AVAILABILITY(MetalObject, 300)
+METAL_ATTR_AVAILABILITY(MetalMesh, 300)
+METAL_ATTR_AVAILABILITY(MetalPayload, 300)
+METAL_ATTR_AVAILABILITY(MetalIntersection, 300)
+METAL_ATTR_AVAILABILITY(MetalVisible, 300)

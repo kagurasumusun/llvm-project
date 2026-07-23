@@ -5371,6 +5371,33 @@ static constexpr unsigned MetalFragmentStage =
     static_cast<unsigned>(MetalFunctionStage::Fragment);
 static constexpr unsigned MetalVertexOrFragmentStage = MetalVertexStage | MetalFragmentStage;
 
+static unsigned getMetalAttributeMinVersion(const ParsedAttr &AL) {
+  switch (AL.getKind()) {
+#define METAL_ATTR_AVAILABILITY(Name, MinVersion)                              \
+  case ParsedAttr::AT_##Name:                                                  \
+    return MinVersion;
+#include "clang/Basic/MetalAttrAvailability.def"
+#undef METAL_ATTR_AVAILABILITY
+  default:
+    return 0;
+  }
+}
+
+static bool checkMetalAttributeAvailability(Sema &S, const ParsedAttr &AL) {
+  if (!S.getLangOpts().Metal)
+    return false;
+  unsigned MinVersion = getMetalAttributeMinVersion(AL);
+  if (!MinVersion)
+    return false;
+  unsigned CurVersion = S.getLangOpts().MetalVersion;
+  if (CurVersion >= MinVersion)
+    return false;
+  S.Diag(AL.getLoc(), diag::err_metal_attribute_requires_version)
+      << AL << (MinVersion / 100) << ((MinVersion % 100) / 10);
+  AL.setInvalid();
+  return true;
+}
+
 static unsigned getMetalFunctionStageMaskForFunction(const FunctionDecl *FD) {
   if (!FD)
     return static_cast<unsigned>(MetalFunctionStage::None);
@@ -7430,6 +7457,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     }
     return;
   }
+
+  if (checkMetalAttributeAvailability(S, AL))
+    return;
 
   // Check if argument population must delayed to after template instantiation.
   bool MustDelayArgs = MustDelayAttributeArguments(AL);

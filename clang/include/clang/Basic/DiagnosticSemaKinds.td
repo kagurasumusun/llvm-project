@@ -3446,6 +3446,8 @@ def err_metal_attribute_wrong_stage : Error<
   "%0 attribute is only valid on %select{kernel|vertex|fragment|vertex or fragment}1 functions">;
 def err_metal_attribute_wrong_param_type : Error<
   "%0 attribute requires parameter type %1">;
+def err_metal_attribute_requires_version : Error<
+  "%0 attribute requires Metal %1.%2 or later">;
 def err_attribute_only_once_per_parameter : Error<
   "%0 attribute can only be applied once per parameter">;
 def err_mismatched_uuid : Error<"uuid does not match previous declaration">;
