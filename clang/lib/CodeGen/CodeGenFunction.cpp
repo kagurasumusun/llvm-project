@@ -38,6 +38,7 @@
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
 #include "llvm/IR/DataLayout.h"
@@ -744,6 +745,34 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
       }
     };
 
+    auto EmitAIRFunctionConstantMetadata = [&]() {
+      llvm::NamedMDNode *FCMD =
+          CGM.getModule().getOrInsertNamedMetadata("air.function_constants");
+      if (FCMD->getNumOperands() != 0)
+        return;
+
+      SmallVector<const VarDecl *, 8> FunctionConstants;
+      for (const Decl *D : FD->getTranslationUnitDecl()->decls()) {
+        const auto *VD = dyn_cast<VarDecl>(D);
+        if (!VD || !VD->hasAttr<MetalFunctionConstantAttr>())
+          continue;
+        FunctionConstants.push_back(VD);
+      }
+      llvm::sort(FunctionConstants, [](const VarDecl *LHS, const VarDecl *RHS) {
+        return LHS->getAttr<MetalFunctionConstantAttr>()->getIndex() <
+               RHS->getAttr<MetalFunctionConstantAttr>()->getIndex();
+      });
+
+      for (const VarDecl *VD : FunctionConstants) {
+        const auto *Attr = VD->getAttr<MetalFunctionConstantAttr>();
+        llvm::Constant *Addr = CGM.GetAddrOfGlobalVar(VD);
+        llvm::Metadata *Ops[] = {
+            llvm::ValueAsMetadata::get(Addr), MDStr(GetTypeName(VD->getType())),
+            MDStr(VD->getName()), Int32MD(Attr->getIndex())};
+        FCMD->addOperand(llvm::MDNode::get(Context, Ops));
+      }
+    };
+
     auto GetAIRTypeMangle = [&](QualType Ty) -> std::string {
       std::string TypeName = GetTypeName(Ty);
       return llvm::StringSwitch<std::string>(TypeName)
@@ -880,6 +909,7 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
     };
 
     EmitAIRModuleMetadata();
+    EmitAIRFunctionConstantMetadata();
 
     llvm::MDNode *OutputMetadata = BuildAIRStageOutputMetadata();
 
