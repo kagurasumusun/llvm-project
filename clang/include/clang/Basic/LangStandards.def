@@ -236,6 +236,7 @@ LANGSTANDARD(metal10, "metal1.0",
              Metal, "Metal Shading Language 1.0",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
              Digraphs | HexFloat, 100)
+LANGSTANDARD_ALIAS(metal10, "metal1")
 LANGSTANDARD(metal11, "metal1.1",
              Metal, "Metal Shading Language 1.1",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
@@ -250,6 +251,7 @@ LANGSTANDARD(metal20, "metal2.0",
              Metal, "Metal Shading Language 2.0",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
              Digraphs | HexFloat, 200)
+LANGSTANDARD_ALIAS(metal20, "metal2")
 
 LANGSTANDARD(metal21, "metal2.1",
              Metal, "Metal Shading Language 2.1",
@@ -275,6 +277,7 @@ LANGSTANDARD(metal30, "metal3.0",
              Metal, "Metal Shading Language 3.0",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
              CPlusPlus17 | Digraphs | HexFloat, 300)
+LANGSTANDARD_ALIAS(metal30, "metal3")
 
 LANGSTANDARD(metal31, "metal3.1",
              Metal, "Metal Shading Language 3.1",
@@ -285,12 +288,13 @@ LANGSTANDARD(metal32, "metal3.2",
              Metal, "Metal Shading Language 3.2",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
              CPlusPlus17 | Digraphs | HexFloat, 320)
-LANGSTANDARD_ALIAS(metal32, "metal")
 
 LANGSTANDARD(metal40, "metal4.0",
              Metal, "Metal Shading Language 4.0",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
              CPlusPlus17 | Digraphs | HexFloat, 400)
+LANGSTANDARD_ALIAS(metal40, "metal4")
+LANGSTANDARD_ALIAS(metal40, "metal")
 
 LANGSTANDARD(metal41, "metal4.1",
              Metal, "Metal Shading Language 4.1",

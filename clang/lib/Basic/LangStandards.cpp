@@ -120,7 +120,7 @@ LangStandard::Kind clang::getDefaultLanguageStandard(clang::Language Lang,
   case Language::HLSL:
     return LangStandard::lang_hlsl202x;
   case Language::Metal:
-    return LangStandard::lang_metal32;
+    return LangStandard::lang_metal40;
   }
   llvm_unreachable("unhandled Language kind!");
 }
