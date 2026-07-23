@@ -1692,50 +1692,191 @@ def MetalFragment : InheritableAttr {
   let Documentation = [InternalOnly];
 }
 
-class MetalResourceBindingAttr<string Name> : InheritableParamAttr {
-  let Spellings = [CXX11<"", Name, 202600>];
+def MetalBuffer : InheritableParamAttr {
+  let Spellings = [CXX11<"", "buffer", 202600>];
   let Args = [IntArgument<"Index">];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
-def MetalBuffer : MetalResourceBindingAttr<"buffer">;
-def MetalTexture : MetalResourceBindingAttr<"texture">;
-def MetalSampler : MetalResourceBindingAttr<"sampler">;
-def MetalThreadgroup : MetalResourceBindingAttr<"threadgroup">;
-
-class MetalBuiltinInputAttr<string Name> : InheritableParamAttr {
-  let Spellings = [CXX11<"", Name, 202600>];
+def MetalTexture : InheritableParamAttr {
+  let Spellings = [CXX11<"", "texture", 202600>];
+  let Args = [IntArgument<"Index">];
   let Subjects = SubjectList<[ParmVar]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
-def MetalVertexId : MetalBuiltinInputAttr<"vertex_id">;
-def MetalInstanceId : MetalBuiltinInputAttr<"instance_id">;
-def MetalAmplificationId : MetalBuiltinInputAttr<"amplification_id">;
-def MetalBaseVertex : MetalBuiltinInputAttr<"base_vertex">;
-def MetalBaseInstance : MetalBuiltinInputAttr<"base_instance">;
-def MetalFrontFacing : MetalBuiltinInputAttr<"front_facing">;
-def MetalSampleId : MetalBuiltinInputAttr<"sample_id">;
-def MetalSampleMask : MetalBuiltinInputAttr<"sample_mask">;
-def MetalPrimitiveId : MetalBuiltinInputAttr<"primitive_id">;
-def MetalBarycentricCoord : MetalBuiltinInputAttr<"barycentric_coord">;
-def MetalThreadgroupPositionInGrid : MetalBuiltinInputAttr<"threadgroup_position_in_grid">;
-def MetalThreadsPerGrid : MetalBuiltinInputAttr<"threads_per_grid">;
-def MetalThreadIndexInSIMDGroup : MetalBuiltinInputAttr<"thread_index_in_simdgroup">;
-def MetalSIMDGroupIndexInThreadgroup : MetalBuiltinInputAttr<"simdgroup_index_in_threadgroup">;
-def MetalSIMDGroupsPerThreadgroup : MetalBuiltinInputAttr<"simdgroups_per_threadgroup">;
+def MetalSampler : InheritableParamAttr {
+  let Spellings = [CXX11<"", "sampler", 202600>];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
 
-def MetalLocalIndex : MetalBuiltinInputAttr<"local_index">;
+def MetalThreadgroup : InheritableParamAttr {
+  let Spellings = [CXX11<"", "threadgroup", 202600>];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
 
-def MetalId : MetalBuiltinInputAttr<"id">;
-def MetalObject : MetalBuiltinInputAttr<"object">;
-def MetalMesh : MetalBuiltinInputAttr<"mesh">;
-def MetalPayload : MetalBuiltinInputAttr<"payload">;
-def MetalIntersection : MetalBuiltinInputAttr<"intersection">;
-def MetalVisible : MetalBuiltinInputAttr<"visible">;
+def MetalVertexId : InheritableParamAttr {
+  let Spellings = [CXX11<"", "vertex_id", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalInstanceId : InheritableParamAttr {
+  let Spellings = [CXX11<"", "instance_id", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalAmplificationId : InheritableParamAttr {
+  let Spellings = [CXX11<"", "amplification_id", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalBaseVertex : InheritableParamAttr {
+  let Spellings = [CXX11<"", "base_vertex", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalBaseInstance : InheritableParamAttr {
+  let Spellings = [CXX11<"", "base_instance", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalFrontFacing : InheritableParamAttr {
+  let Spellings = [CXX11<"", "front_facing", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalSampleId : InheritableParamAttr {
+  let Spellings = [CXX11<"", "sample_id", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalSampleMask : InheritableParamAttr {
+  let Spellings = [CXX11<"", "sample_mask", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalPrimitiveId : InheritableParamAttr {
+  let Spellings = [CXX11<"", "primitive_id", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalBarycentricCoord : InheritableParamAttr {
+  let Spellings = [CXX11<"", "barycentric_coord", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalThreadgroupPositionInGrid : InheritableParamAttr {
+  let Spellings = [CXX11<"", "threadgroup_position_in_grid", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalThreadsPerGrid : InheritableParamAttr {
+  let Spellings = [CXX11<"", "threads_per_grid", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalThreadIndexInSIMDGroup : InheritableParamAttr {
+  let Spellings = [CXX11<"", "thread_index_in_simdgroup", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalSIMDGroupIndexInThreadgroup : InheritableParamAttr {
+  let Spellings = [CXX11<"", "simdgroup_index_in_threadgroup", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalSIMDGroupsPerThreadgroup : InheritableParamAttr {
+  let Spellings = [CXX11<"", "simdgroups_per_threadgroup", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalLocalIndex : InheritableParamAttr {
+  let Spellings = [CXX11<"", "local_index", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalId : InheritableParamAttr {
+  let Spellings = [CXX11<"", "id", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalObject : InheritableParamAttr {
+  let Spellings = [CXX11<"", "object", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalMesh : InheritableParamAttr {
+  let Spellings = [CXX11<"", "mesh", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalPayload : InheritableParamAttr {
+  let Spellings = [CXX11<"", "payload", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalIntersection : InheritableParamAttr {
+  let Spellings = [CXX11<"", "intersection", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalVisible : InheritableParamAttr {
+  let Spellings = [CXX11<"", "visible", 202600>];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
 
 def MetalFunctionConstant : InheritableAttr {
   let Spellings = [CXX11<"", "function_constant", 202600>];

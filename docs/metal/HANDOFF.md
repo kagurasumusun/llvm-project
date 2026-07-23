@@ -200,3 +200,22 @@ Static review after patch:
 - no version-less `CXX11<"", ...>` spellings in the Metal attribute block
 
 Next agent: rerun cached smoke workflow v5 and inspect the next compiler/test error.
+
+
+## Update 2026-07-24 JST — Attr generated class inheritance fix
+
+Latest run `30052906006` failed after the CXX11 version fix with generated `Attrs.inc` errors:
+
+```text
+tools/clang/include/clang/AST/Attrs.inc:8045:73: error: expected class-name before '{' token
+../clang/include/clang/AST/AttrVisitor.h:29:54: error: invalid static_cast from Attr* to Metal*Attr*
+```
+
+Cause: The Metal attribute definitions used custom TableGen classes such as `class MetalResourceBindingAttr<string Name> : InheritableParamAttr` and then concrete defs like `def MetalBuffer : MetalResourceBindingAttr<"buffer">;`. The generated C++ attempted to use these TableGen helper classes as C++ base classes. Fix: expand the Metal resource and builtin-input attributes into direct `def ... : InheritableParamAttr` definitions instead of deriving concrete attrs from custom Metal*Attr TableGen classes.
+
+Static review after patch:
+
+- no `class Metal*Attr` helper remains in the Metal block
+- no version-less global-scope `CXX11<"", ...>` spelling remains in the Metal block
+
+Next agent should rerun cached workflow v5 and inspect the next compiler/test error.
