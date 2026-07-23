@@ -1,0 +1,12 @@
+# RUN: %python %S/../../utils/metal/gen-metal-ast-support.py --input %s --output %t
+# RUN: FileCheck %s < %t
+
+TranslationUnitDecl 0x0 <>
+|-TypedefDecl 0x1 <> implicit __metal_texture_2d_t '__metal_texture_2d_t'
+| `-BuiltinType 0x2 '__metal_texture_2d_t'
+`-ParmVarDecl 0x3 <col:1> p 'device int *'
+  `-MetalBufferIndexAttr 0x4
+
+# CHECK: METAL_AST_BUILTIN_TYPE(__metal_texture_2d_t)
+# CHECK: METAL_AST_ATTR(MetalBufferIndexAttr)
+# CHECK: METAL_AST_ATTR_ALIAS(MetalBufferIndexAttr, MetalBufferAttr)
