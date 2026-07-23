@@ -396,6 +396,40 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
       Builder.defineMacro("__METAL_MACOS__");
     else if (TI.getTriple().isOSDarwin())
       Builder.defineMacro("__METAL_IOS__");
+
+    Builder.append(R"(
+#ifndef __CLANG_METAL_PRELUDE_TYPES
+#define __CLANG_METAL_PRELUDE_TYPES 1
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+typedef __fp16 half;
+typedef float float2 __attribute__((ext_vector_type(2)));
+typedef float float3 __attribute__((ext_vector_type(3)));
+typedef float float4 __attribute__((ext_vector_type(4)));
+typedef half half2 __attribute__((ext_vector_type(2)));
+typedef half half3 __attribute__((ext_vector_type(3)));
+typedef half half4 __attribute__((ext_vector_type(4)));
+typedef int int2 __attribute__((ext_vector_type(2)));
+typedef int int3 __attribute__((ext_vector_type(3)));
+typedef int int4 __attribute__((ext_vector_type(4)));
+typedef uint uint2 __attribute__((ext_vector_type(2)));
+typedef uint uint3 __attribute__((ext_vector_type(3)));
+typedef uint uint4 __attribute__((ext_vector_type(4)));
+typedef float float2x2 __attribute__((ext_vector_type(4)));
+typedef float float3x3 __attribute__((ext_vector_type(9)));
+typedef float float4x4 __attribute__((ext_vector_type(16)));
+namespace metal {
+using ::uchar; using ::ushort; using ::uint; using ::ulong; using ::half;
+using ::float2; using ::float3; using ::float4;
+using ::half2; using ::half3; using ::half4;
+using ::int2; using ::int3; using ::int4;
+using ::uint2; using ::uint3; using ::uint4;
+using ::float2x2; using ::float3x3; using ::float4x4;
+}
+#endif
+)");
   }
 
   if (LangOpts.HLSL) {

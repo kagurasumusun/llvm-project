@@ -1704,6 +1704,14 @@ def MetalTexture : MetalResourceBindingAttr<"texture">;
 def MetalSampler : MetalResourceBindingAttr<"sampler">;
 def MetalThreadgroup : MetalResourceBindingAttr<"threadgroup">;
 
+def MetalFunctionConstant : InheritableAttr {
+  let Spellings = [CXX11<"", "function_constant">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[Var]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
 def MetalThreadPositionInGrid : InheritableParamAttr {
   let Spellings = [CXX11<"", "thread_position_in_grid">];
   let Subjects = SubjectList<[ParmVar]>;
@@ -1739,6 +1747,14 @@ def MetalStageIn : InheritableParamAttr {
   let Documentation = [InternalOnly];
 }
 
+def MetalAttribute : InheritableAttr {
+  let Spellings = [CXX11<"", "attribute">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
 def MetalPosition : InheritableAttr {
   let Spellings = [CXX11<"", "position">];
   let Subjects = SubjectList<[Field]>;
@@ -1748,6 +1764,20 @@ def MetalPosition : InheritableAttr {
 
 def MetalPointSize : InheritableAttr {
   let Spellings = [CXX11<"", "point_size">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalRenderTargetArrayIndex : InheritableAttr {
+  let Spellings = [CXX11<"", "render_target_array_index">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalViewportArrayIndex : InheritableAttr {
+  let Spellings = [CXX11<"", "viewport_array_index">];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];

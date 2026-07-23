@@ -818,6 +818,10 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
           Ops.push_back(MDStr("air.position"));
         } else if (Field->hasAttr<MetalPointSizeAttr>()) {
           Ops.push_back(MDStr("air.point_size"));
+        } else if (Field->hasAttr<MetalRenderTargetArrayIndexAttr>()) {
+          Ops.push_back(MDStr("air.render_target_array_index"));
+        } else if (Field->hasAttr<MetalViewportArrayIndexAttr>()) {
+          Ops.push_back(MDStr("air.viewport_array_index"));
         } else if (const auto *A = Field->getAttr<MetalUserAttr>()) {
           Ops.push_back(MDStr("air.vertex_output"));
           StringRef UserName = A->getName() ? A->getName()->getName()
@@ -841,8 +845,54 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
     SmallVector<llvm::Metadata *, 8> ArgMetadata;
     for (unsigned I = 0, E = FD->getNumParams(); I != E; ++I) {
       const ParmVarDecl *Param = FD->getParamDecl(I);
+
+      if (Param->hasAttr<MetalStageInAttr>()) {
+        const RecordType *RT = Param->getType()->getAs<RecordType>();
+        const RecordDecl *RD = RT ? RT->getDecl()->getDefinition() : nullptr;
+        bool ExpandedStageIn = false;
+        if (RD) {
+          for (const FieldDecl *Field : RD->fields()) {
+            const auto *Attribute = Field->getAttr<MetalAttributeAttr>();
+            bool HasRecognizedIO = Attribute || Field->hasAttr<MetalPositionAttr>() ||
+                                   Field->hasAttr<MetalUserAttr>() ||
+                                   Field->hasAttr<MetalFlatAttr>() ||
+                                   Field->hasAttr<MetalCenterPerspectiveAttr>() ||
+                                   Field->hasAttr<MetalCenterNoPerspectiveAttr>() ||
+                                   Field->hasAttr<MetalCentroidPerspectiveAttr>() ||
+                                   Field->hasAttr<MetalCentroidNoPerspectiveAttr>() ||
+                                   Field->hasAttr<MetalSamplePerspectiveAttr>() ||
+                                   Field->hasAttr<MetalSampleNoPerspectiveAttr>();
+            if (!HasRecognizedIO)
+              continue;
+
+            SmallVector<llvm::Metadata *, 16> FieldOps;
+            FieldOps.push_back(Int32MD(ArgMetadata.size()));
+            if (Field->hasAttr<MetalPositionAttr>()) {
+              FieldOps.push_back(MDStr("air.position"));
+            } else {
+              FieldOps.push_back(MDStr(IsMetalFragment ? "air.fragment_input"
+                                                       : "air.vertex_input"));
+              if (Attribute) {
+                FieldOps.push_back(MDStr("air.location_index"));
+                FieldOps.push_back(Int32MD(Attribute->getIndex()));
+                FieldOps.push_back(Int32MD(1));
+              } else {
+                FieldOps.push_back(MDStr((Twine("generated(") +
+                                          Field->getName() + ")").str()));
+              }
+            }
+            AddInterpolationInfo(FieldOps, Field);
+            AddTypeAndNameInfo(FieldOps, Field->getType(), Field->getName());
+            ArgMetadata.push_back(llvm::MDNode::get(Context, FieldOps));
+            ExpandedStageIn = true;
+          }
+        }
+        if (ExpandedStageIn)
+          continue;
+      }
+
       SmallVector<llvm::Metadata *, 16> Ops;
-      Ops.push_back(Int32MD(I));
+      Ops.push_back(Int32MD(ArgMetadata.size()));
 
       if (const auto *A = Param->getAttr<MetalBufferAttr>()) {
         Ops.push_back(MDStr("air.buffer"));
