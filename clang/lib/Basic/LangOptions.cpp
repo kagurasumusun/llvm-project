@@ -131,6 +131,8 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
   Opts.RawStringLiterals = Std.hasRawStringLiterals();
   Opts.NamedLoops = Std.isC2y();
 
+  Opts.Metal = Lang == Language::Metal;
+
   Opts.HLSL = Lang == Language::HLSL;
   if (Opts.HLSL) {
     if (Opts.IncludeDefaultHeader)
@@ -155,6 +157,32 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
     Opts.OpenCLCPlusPlusVersion = 100;
   else if (LangStd == LangStandard::lang_openclcpp2021)
     Opts.OpenCLCPlusPlusVersion = 202100;
+  else if (LangStd == LangStandard::lang_metal10)
+    Opts.MetalVersion = 100;
+  else if (LangStd == LangStandard::lang_metal11)
+    Opts.MetalVersion = 110;
+  else if (LangStd == LangStandard::lang_metal12)
+    Opts.MetalVersion = 120;
+  else if (LangStd == LangStandard::lang_metal20)
+    Opts.MetalVersion = 200;
+  else if (LangStd == LangStandard::lang_metal21)
+    Opts.MetalVersion = 210;
+  else if (LangStd == LangStandard::lang_metal22)
+    Opts.MetalVersion = 220;
+  else if (LangStd == LangStandard::lang_metal23)
+    Opts.MetalVersion = 230;
+  else if (LangStd == LangStandard::lang_metal24)
+    Opts.MetalVersion = 240;
+  else if (LangStd == LangStandard::lang_metal30)
+    Opts.MetalVersion = 300;
+  else if (LangStd == LangStandard::lang_metal31)
+    Opts.MetalVersion = 310;
+  else if (LangStd == LangStandard::lang_metal32)
+    Opts.MetalVersion = 320;
+  else if (LangStd == LangStandard::lang_metal40)
+    Opts.MetalVersion = 400;
+  else if (LangStd == LangStandard::lang_metal41)
+    Opts.MetalVersion = 410;
   else if (LangStd == LangStandard::lang_hlsl2015)
     Opts.HLSLVersion = (unsigned)LangOptions::HLSL_2015;
   else if (LangStd == LangStandard::lang_hlsl2016)
@@ -214,8 +242,8 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
   // OpenCL, C++ and C23 have bool, true, false keywords.
   Opts.Bool = Opts.OpenCL || Opts.CPlusPlus || Opts.C23;
 
-  // OpenCL and HLSL have half keyword
-  Opts.Half = Opts.OpenCL || Opts.HLSL;
+  // OpenCL, HLSL, and Metal have half keyword
+  Opts.Half = Opts.OpenCL || Opts.HLSL || Opts.Metal;
 
   Opts.PreserveVec3Type = Opts.HLSL;
 }

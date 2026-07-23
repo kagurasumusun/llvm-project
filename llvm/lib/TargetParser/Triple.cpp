@@ -28,6 +28,8 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case aarch64:        return "aarch64";
   case aarch64_32:     return "aarch64_32";
   case aarch64_be:     return "aarch64_be";
+  case air32:          return "air32";
+  case air64:          return "air64";
   case amdgcn:         return "amdgcn";
   case amdil64:        return "amdil64";
   case amdil:          return "amdil";
@@ -180,6 +182,9 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
   case aarch64:
   case aarch64_be:
   case aarch64_32:  return "aarch64";
+
+  case air32:
+  case air64:       return "air";
 
   case arc:         return "arc";
 
@@ -460,6 +465,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
       .Case("arm64_32", aarch64_32)
       .Case("arm", arm)
       .Case("armeb", armeb)
+      .Case("air32", air32)
+      .Case("air64", air64)
       .Case("avr", avr)
       .StartsWith("bpf", BPFArch)
       .Case("m68k", m68k)
@@ -610,6 +617,8 @@ static Triple::ArchType parseArch(StringRef ArchName) {
           .Case("arm64ec", Triple::aarch64)
           .Case("arm", Triple::arm)
           .Case("armeb", Triple::armeb)
+          .StartsWith("air32", Triple::air32)
+          .StartsWith("air64", Triple::air64)
           .Case("thumb", Triple::thumb)
           .Case("thumbeb", Triple::thumbeb)
           .Case("avr", Triple::avr)
@@ -972,6 +981,8 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   case Triple::UnknownArch:
   case Triple::aarch64:
   case Triple::aarch64_32:
+  case Triple::air32:
+  case Triple::air64:
   case Triple::arm:
   case Triple::thumb:
   case Triple::x86:
@@ -1720,6 +1731,7 @@ unsigned Triple::getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
     return 16;
 
   case llvm::Triple::aarch64_32:
+  case llvm::Triple::air32:
   case llvm::Triple::amdil:
   case llvm::Triple::arc:
   case llvm::Triple::arm:
@@ -1758,6 +1770,7 @@ unsigned Triple::getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
 
   case llvm::Triple::aarch64:
   case llvm::Triple::aarch64_be:
+  case llvm::Triple::air64:
   case llvm::Triple::amdgcn:
   case llvm::Triple::amdil64:
   case llvm::Triple::bpfeb:
@@ -1830,6 +1843,7 @@ Triple Triple::get32BitArchVariant() const {
     break;
 
   case Triple::aarch64_32:
+  case Triple::air32:
   case Triple::amdil:
   case Triple::arc:
   case Triple::arm:
@@ -1868,6 +1882,7 @@ Triple Triple::get32BitArchVariant() const {
     break;
 
   case Triple::aarch64:        T.setArch(Triple::arm);     break;
+  case Triple::air64:          T.setArch(Triple::air32);   break;
   case Triple::aarch64_be:     T.setArch(Triple::armeb);   break;
   case Triple::amdil64:        T.setArch(Triple::amdil);   break;
   case Triple::hsail64:        T.setArch(Triple::hsail);   break;
@@ -1923,6 +1938,7 @@ Triple Triple::get64BitArchVariant() const {
 
   case Triple::aarch64:
   case Triple::aarch64_be:
+  case Triple::air64:
   case Triple::amdgcn:
   case Triple::amdil64:
   case Triple::bpfeb:
@@ -1948,6 +1964,7 @@ Triple Triple::get64BitArchVariant() const {
     break;
 
   case Triple::aarch64_32:      T.setArch(Triple::aarch64);    break;
+  case Triple::air32:           T.setArch(Triple::air64);       break;
   case Triple::amdil:           T.setArch(Triple::amdil64);    break;
   case Triple::arm:             T.setArch(Triple::aarch64);    break;
   case Triple::armeb:           T.setArch(Triple::aarch64_be); break;
@@ -1989,6 +2006,8 @@ Triple Triple::getBigEndianArchVariant() const {
   switch (getArch()) {
   case Triple::UnknownArch:
   case Triple::amdgcn:
+  case Triple::air32:
+  case Triple::air64:
   case Triple::amdil64:
   case Triple::amdil:
   case Triple::avr:
@@ -2098,6 +2117,8 @@ bool Triple::isLittleEndian() const {
   switch (getArch()) {
   case Triple::aarch64:
   case Triple::aarch64_32:
+  case Triple::air32:
+  case Triple::air64:
   case Triple::amdgcn:
   case Triple::amdil64:
   case Triple::amdil:

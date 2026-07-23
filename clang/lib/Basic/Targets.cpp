@@ -14,6 +14,7 @@
 #include "Targets.h"
 
 #include "Targets/AArch64.h"
+#include "Targets/AIR.h"
 #include "Targets/AMDGPU.h"
 #include "Targets/ARC.h"
 #include "Targets/ARM.h"
@@ -750,6 +751,10 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
       default:
         return nullptr;
     }
+
+  case llvm::Triple::air32:
+  case llvm::Triple::air64:
+    return std::make_unique<AIRTargetInfo>(Triple, Opts);
 
   case llvm::Triple::dxil:
     return std::make_unique<DirectXTargetInfo>(Triple, Opts);

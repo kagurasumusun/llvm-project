@@ -389,6 +389,15 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
                                                const LangOptions &LangOpts,
                                                const FrontendOptions &FEOpts,
                                                MacroBuilder &Builder) {
+  if (LangOpts.Metal) {
+    Builder.defineMacro("__METAL__");
+    Builder.defineMacro("__METAL_VERSION__", Twine(LangOpts.MetalVersion));
+    if (TI.getTriple().isMacOSX())
+      Builder.defineMacro("__METAL_MACOS__");
+    else if (TI.getTriple().isOSDarwin())
+      Builder.defineMacro("__METAL_IOS__");
+  }
+
   if (LangOpts.HLSL) {
     Builder.defineMacro("__hlsl_clang");
     // HLSL Version

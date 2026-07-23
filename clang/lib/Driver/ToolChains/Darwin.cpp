@@ -61,6 +61,8 @@ llvm::Triple::ArchType darwin::getArchTypeForMachOArchName(StringRef Str) {
       .Cases({"armv7s", "xscale"}, llvm::Triple::arm)
       .Cases({"arm64", "arm64e"}, llvm::Triple::aarch64)
       .Case("arm64_32", llvm::Triple::aarch64_32)
+      .Case("air32", llvm::Triple::air32)
+      .Case("air64", llvm::Triple::air64)
       .Case("r600", llvm::Triple::r600)
       .Case("amdgcn", llvm::Triple::amdgcn)
       .Case("nvptx", llvm::Triple::nvptx)
@@ -1070,6 +1072,12 @@ StringRef MachO::getMachOArchName(const ArgList &Args) const {
 
   case llvm::Triple::aarch64_32:
     return "arm64_32";
+
+  case llvm::Triple::air32:
+    return "air32";
+
+  case llvm::Triple::air64:
+    return "air64";
 
   case llvm::Triple::aarch64: {
     if (getTriple().isArm64e())

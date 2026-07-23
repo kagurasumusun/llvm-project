@@ -152,6 +152,7 @@ bool types::isAcceptedByClang(ID Id) {
   case TY_AST: case TY_ModuleFile: case TY_PCH:
   case TY_LLVM_IR: case TY_LLVM_BC:
   case TY_API_INFO:
+  case TY_Metal:
     return true;
   }
 }
@@ -209,6 +210,7 @@ bool types::isDerivedFromC(ID Id) {
   case TY_ObjCXXHeader:
   case TY_CXXModule:
   case TY_PP_CXXModule:
+  case TY_Metal:
     return true;
   }
 }
@@ -255,6 +257,7 @@ bool types::isCXX(ID Id) {
   case TY_PP_CXXModule:
   case TY_ModuleFile:
   case TY_PP_CLCXX:
+  case TY_Metal:
   case TY_CUDA: case TY_PP_CUDA: case TY_CUDA_DEVICE:
   case TY_HIP:
   case TY_PP_HIP:
@@ -301,6 +304,8 @@ bool types::isHIP(ID Id) {
 }
 
 bool types::isHLSL(ID Id) { return Id == TY_HLSL; }
+
+bool types::isMetal(ID Id) { return Id == TY_Metal; }
 
 bool types::isSrcFile(ID Id) {
   return Id != TY_Object && getPreprocessedType(Id) != TY_INVALID;
@@ -375,6 +380,7 @@ types::ID types::lookupTypeForExtension(llvm::StringRef Ext) {
       .Case("cppm", TY_CXXModule)
       .Case("cxxm", TY_CXXModule)
       .Case("hlsl", TY_HLSL)
+      .Case("metal", TY_Metal)
       .Default(TY_INVALID);
 }
 
