@@ -5271,6 +5271,19 @@ static void handleCallConvAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 }
 
+static void handleMetalColorAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  uint32_t Index = 0;
+  if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+    return;
+  if (Index > 7) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_out_of_range)
+        << AL << 0 << 7;
+    AL.setInvalid();
+    return;
+  }
+  D->addAttr(::new (S.Context) MetalColorAttr(S.Context, AL, Index));
+}
+
 static void handleDeviceKernelAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   const auto *FD = dyn_cast_or_null<FunctionDecl>(D);
   bool IsFunctionTemplate = FD && FD->getDescribedFunctionTemplate();
@@ -7699,6 +7712,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_DeviceKernel:
     handleDeviceKernelAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalColor:
+    handleMetalColorAttr(S, D, AL);
     break;
   case ParsedAttr::AT_Suppress:
     handleSuppressAttr(S, D, AL);

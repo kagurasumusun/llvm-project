@@ -38,6 +38,7 @@
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
@@ -743,16 +744,18 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
     auto GetAIRTypeMangle = [&](QualType Ty) -> std::string {
       std::string TypeName = GetTypeName(Ty);
       return llvm::StringSwitch<std::string>(TypeName)
-          .Case("float", "f")
-          .Case("float2", "Dv2_f")
-          .Case("float3", "Dv3_f")
-          .Case("float4", "Dv4_f")
-          .Case("half", "Dh")
-          .Case("half2", "Dv2_Dh")
-          .Case("half3", "Dv3_Dh")
-          .Case("half4", "Dv4_Dh")
+          .Case("char", "c")
+          .Case("unsigned char", "h")
+          .Case("short", "s")
+          .Case("unsigned short", "t")
           .Case("int", "i")
-          .Case("uint", "j")
+          .Case("unsigned int", "j")
+          .Case("long", "l")
+          .Case("unsigned long", "m")
+          .Case("float", "f")
+#define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                           .Case(AIRName, AIRItaniumMangle)
+#include "clang/Basic/MetalAIRTypes.def"
+#undef METAL_AIR_TYPE
           .Default("");
     };
 
