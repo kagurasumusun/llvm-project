@@ -3442,6 +3442,10 @@ def warn_init_priority_reserved : Warning<
   InGroup<DiagGroup<"init-priority-reserved">>, DefaultError;
 def err_attribute_argument_out_of_bounds : Error<
   "%0 attribute parameter %1 is out of bounds">;
+def err_metal_attribute_wrong_stage : Error<
+  "%0 attribute is only valid on %select{kernel|vertex|fragment|vertex or fragment}1 functions">;
+def err_metal_attribute_wrong_param_type : Error<
+  "%0 attribute requires parameter type %1">;
 def err_attribute_only_once_per_parameter : Error<
   "%0 attribute can only be applied once per parameter">;
 def err_mismatched_uuid : Error<"uuid does not match previous declaration">;

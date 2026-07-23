@@ -5271,6 +5271,106 @@ static void handleCallConvAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 }
 
+enum class MetalFunctionStage : unsigned {
+  None = 0,
+  Kernel = 1 << 0,
+  Vertex = 1 << 1,
+  Fragment = 1 << 2,
+};
+
+static unsigned getMetalFunctionStageMask(const Decl *D) {
+  const auto *PVD = dyn_cast<ParmVarDecl>(D);
+  if (!PVD)
+    return static_cast<unsigned>(MetalFunctionStage::None);
+  const auto *FD = dyn_cast_or_null<FunctionDecl>(PVD->getDeclContext());
+  if (!FD)
+    return static_cast<unsigned>(MetalFunctionStage::None);
+  if (FD->hasAttr<DeviceKernelAttr>())
+    return static_cast<unsigned>(MetalFunctionStage::Kernel);
+  if (FD->hasAttr<MetalVertexAttr>())
+    return static_cast<unsigned>(MetalFunctionStage::Vertex);
+  if (FD->hasAttr<MetalFragmentAttr>())
+    return static_cast<unsigned>(MetalFunctionStage::Fragment);
+  return static_cast<unsigned>(MetalFunctionStage::None);
+}
+
+static bool isMetalUnsignedIntType(Sema &S, QualType T) {
+  return S.Context.hasSameUnqualifiedType(T, S.Context.UnsignedIntTy);
+}
+
+static bool isMetalBoolType(Sema &S, QualType T) {
+  return S.Context.hasSameUnqualifiedType(T, S.Context.BoolTy);
+}
+
+static bool isMetalFloatType(Sema &S, QualType T) {
+  return S.Context.hasSameUnqualifiedType(T, S.Context.FloatTy);
+}
+
+static bool isMetalExtVectorOf(Sema &S, QualType T, QualType ElementTy,
+                               unsigned MinElements, unsigned MaxElements) {
+  const auto *VT = T.getUnqualifiedType()->getAs<ExtVectorType>();
+  if (!VT)
+    return false;
+  unsigned NumElements = VT->getNumElements();
+  return NumElements >= MinElements && NumElements <= MaxElements &&
+         S.Context.hasSameUnqualifiedType(VT->getElementType(), ElementTy);
+}
+
+static bool isMetalUIntOrUIntVector(Sema &S, QualType T) {
+  return isMetalUnsignedIntType(S, T) ||
+         isMetalExtVectorOf(S, T, S.Context.UnsignedIntTy, 2, 4);
+}
+
+static bool isMetalFloatVector(Sema &S, QualType T, unsigned MinElements,
+                               unsigned MaxElements) {
+  return isMetalExtVectorOf(S, T, S.Context.FloatTy, MinElements, MaxElements);
+}
+
+static bool isMetalRecordType(QualType T) {
+  return T.getUnqualifiedType()->isRecordType();
+}
+
+template <typename AttrTy, typename TypeCheck>
+static void handleMetalBuiltinInputAttr(Sema &S, Decl *D, const ParsedAttr &AL,
+                                        unsigned AllowedStages,
+                                        unsigned StageDiag, StringRef TypeName,
+                                        TypeCheck Check) {
+  const auto *PVD = dyn_cast<ParmVarDecl>(D);
+  if (!PVD) {
+    handleSimpleAttribute<AttrTy>(S, D, AL);
+    return;
+  }
+
+  unsigned Stage = getMetalFunctionStageMask(D);
+  // Parameter attributes may be processed before the enclosing function's
+  // stage attribute is attached.  When the stage is available, enforce it;
+  // otherwise still perform type validation and let later passes refine this.
+  if (Stage != static_cast<unsigned>(MetalFunctionStage::None) &&
+      (Stage & AllowedStages) == 0) {
+    S.Diag(AL.getLoc(), diag::err_metal_attribute_wrong_stage) << AL
+                                                               << StageDiag;
+    AL.setInvalid();
+    return;
+  }
+
+  if (!Check(PVD->getType())) {
+    S.Diag(AL.getLoc(), diag::err_metal_attribute_wrong_param_type)
+        << AL << TypeName;
+    AL.setInvalid();
+    return;
+  }
+
+  handleSimpleAttribute<AttrTy>(S, D, AL);
+}
+
+static constexpr unsigned MetalKernelStage =
+    static_cast<unsigned>(MetalFunctionStage::Kernel);
+static constexpr unsigned MetalVertexStage =
+    static_cast<unsigned>(MetalFunctionStage::Vertex);
+static constexpr unsigned MetalFragmentStage =
+    static_cast<unsigned>(MetalFunctionStage::Fragment);
+static constexpr unsigned MetalVertexOrFragmentStage = MetalVertexStage | MetalFragmentStage;
+
 static void handleMetalColorAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   uint32_t Index = 0;
   if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
@@ -7715,6 +7815,114 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalColor:
     handleMetalColorAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalStageIn:
+    handleMetalBuiltinInputAttr<MetalStageInAttr>(
+        S, D, AL, MetalVertexOrFragmentStage, 3, "a record type",
+        [](QualType T) { return isMetalRecordType(T); });
+    break;
+  case ParsedAttr::AT_MetalVertexId:
+    handleMetalBuiltinInputAttr<MetalVertexIdAttr>(
+        S, D, AL, MetalVertexStage, 1, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalInstanceId:
+    handleMetalBuiltinInputAttr<MetalInstanceIdAttr>(
+        S, D, AL, MetalVertexStage, 1, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalAmplificationId:
+    handleMetalBuiltinInputAttr<MetalAmplificationIdAttr>(
+        S, D, AL, MetalVertexStage, 1, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalBaseVertex:
+    handleMetalBuiltinInputAttr<MetalBaseVertexAttr>(
+        S, D, AL, MetalVertexStage, 1, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalBaseInstance:
+    handleMetalBuiltinInputAttr<MetalBaseInstanceAttr>(
+        S, D, AL, MetalVertexStage, 1, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalFrontFacing:
+    handleMetalBuiltinInputAttr<MetalFrontFacingAttr>(
+        S, D, AL, MetalFragmentStage, 2, "bool",
+        [&](QualType T) { return isMetalBoolType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalPosition:
+    if (isa<ParmVarDecl>(D))
+      handleMetalBuiltinInputAttr<MetalPositionAttr>(
+          S, D, AL, MetalFragmentStage, 2, "float4",
+          [&](QualType T) { return isMetalFloatVector(S, T, 4, 4); });
+    else
+      handleSimpleAttribute<MetalPositionAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalSampleId:
+    handleMetalBuiltinInputAttr<MetalSampleIdAttr>(
+        S, D, AL, MetalFragmentStage, 2, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalSampleMask:
+    handleMetalBuiltinInputAttr<MetalSampleMaskAttr>(
+        S, D, AL, MetalFragmentStage, 2, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalPrimitiveId:
+    handleMetalBuiltinInputAttr<MetalPrimitiveIdAttr>(
+        S, D, AL, MetalFragmentStage, 2, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalBarycentricCoord:
+    handleMetalBuiltinInputAttr<MetalBarycentricCoordAttr>(
+        S, D, AL, MetalFragmentStage, 2, "float2 or float3",
+        [&](QualType T) { return isMetalFloatVector(S, T, 2, 3); });
+    break;
+  case ParsedAttr::AT_MetalThreadPositionInGrid:
+    handleMetalBuiltinInputAttr<MetalThreadPositionInGridAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint or uint vector",
+        [&](QualType T) { return isMetalUIntOrUIntVector(S, T); });
+    break;
+  case ParsedAttr::AT_MetalThreadPositionInThreadgroup:
+    handleMetalBuiltinInputAttr<MetalThreadPositionInThreadgroupAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint or uint vector",
+        [&](QualType T) { return isMetalUIntOrUIntVector(S, T); });
+    break;
+  case ParsedAttr::AT_MetalThreadIndexInThreadgroup:
+    handleMetalBuiltinInputAttr<MetalThreadIndexInThreadgroupAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalThreadsPerThreadgroup:
+    handleMetalBuiltinInputAttr<MetalThreadsPerThreadgroupAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint or uint vector",
+        [&](QualType T) { return isMetalUIntOrUIntVector(S, T); });
+    break;
+  case ParsedAttr::AT_MetalThreadgroupPositionInGrid:
+    handleMetalBuiltinInputAttr<MetalThreadgroupPositionInGridAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint or uint vector",
+        [&](QualType T) { return isMetalUIntOrUIntVector(S, T); });
+    break;
+  case ParsedAttr::AT_MetalThreadsPerGrid:
+    handleMetalBuiltinInputAttr<MetalThreadsPerGridAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint or uint vector",
+        [&](QualType T) { return isMetalUIntOrUIntVector(S, T); });
+    break;
+  case ParsedAttr::AT_MetalThreadIndexInSIMDGroup:
+    handleMetalBuiltinInputAttr<MetalThreadIndexInSIMDGroupAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalSIMDGroupIndexInThreadgroup:
+    handleMetalBuiltinInputAttr<MetalSIMDGroupIndexInThreadgroupAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalSIMDGroupsPerThreadgroup:
+    handleMetalBuiltinInputAttr<MetalSIMDGroupsPerThreadgroupAttr>(
+        S, D, AL, MetalKernelStage, 0, "uint",
+        [&](QualType T) { return isMetalUnsignedIntType(S, T); });
     break;
   case ParsedAttr::AT_Suppress:
     handleSuppressAttr(S, D, AL);
