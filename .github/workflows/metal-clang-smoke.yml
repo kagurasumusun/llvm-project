@@ -1,6 +1,6 @@
 name: Metal Clang Smoke Build
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       ref:
@@ -16,7 +16,7 @@ on:
           - Release
           - RelWithDebInfo
           - Debug
-      jobs:
+      ninja_jobs:
         description: "Parallel ninja jobs"
         required: true
         default: "2"
@@ -66,7 +66,7 @@ jobs:
       - name: Build clang and FileCheck
         run: |
           set -o pipefail
-          ninja -C build -j"${{ inputs.jobs }}" clang FileCheck 2>&1 | tee build.log
+          ninja -C build -j"${{ inputs.ninja_jobs }}" clang FileCheck 2>&1 | tee build.log
 
       - name: Run focused Metal smoke tests
         run: |
@@ -102,6 +102,7 @@ jobs:
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-ast-reference-builtins.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-builtin-object-aliases.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-ast-reference-attrs.metal
+          run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-generated-prelude-table.metal
 
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-color-validation.metal
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-builtin-input-validation.metal
@@ -126,7 +127,7 @@ jobs:
             echo
             echo "- Ref: `${{ inputs.ref }}`"
             echo "- Build type: `${{ inputs.build_type }}`"
-            echo "- Jobs: `${{ inputs.jobs }}`"
+            echo "- Ninja jobs: `${{ inputs.ninja_jobs }}`"
             echo
             echo "## Error / warning highlights"
             echo '```'
