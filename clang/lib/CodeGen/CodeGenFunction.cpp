@@ -621,12 +621,17 @@ CodeGenFunction::getUBSanFunctionTypeHash(QualType Ty) const {
 
 void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
                                          llvm::Function *Fn) {
-  if (!FD->hasAttr<DeviceKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
+  bool IsMetalKernel = FD->hasAttr<DeviceKernelAttr>();
+  bool IsMetalVertex = FD->hasAttr<MetalVertexAttr>();
+  bool IsMetalFragment = FD->hasAttr<MetalFragmentAttr>();
+  bool IsMetalStage = IsMetalKernel || IsMetalVertex || IsMetalFragment;
+
+  if (!IsMetalStage && !FD->hasAttr<CUDAGlobalAttr>())
     return;
 
   llvm::LLVMContext &Context = getLLVMContext();
 
-  if (getLangOpts().Metal && FD->hasAttr<DeviceKernelAttr>()) {
+  if (getLangOpts().Metal && IsMetalStage) {
     auto Int32MD = [&](uint32_t Value) -> llvm::Metadata * {
       return llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
           llvm::Type::getInt32Ty(Context), Value));
@@ -767,6 +772,13 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
         Ops.push_back(Int32MD(1));
         Ops.push_back(MDStr("air.read_write"));
         AddArgTypeInfo(Ops, Param);
+      } else if (Param->hasAttr<MetalStageInAttr>()) {
+        Ops.push_back(MDStr(IsMetalFragment ? "air.fragment_input"
+                                            : "air.vertex_input"));
+        Ops.push_back(MDStr("air.location_index"));
+        Ops.push_back(Int32MD(I));
+        Ops.push_back(Int32MD(1));
+        AddArgTypeInfo(Ops, Param);
       } else if (Param->hasAttr<MetalThreadPositionInGridAttr>()) {
         Ops.push_back(MDStr("air.thread_position_in_grid"));
         Ops.push_back(MDStr("air.arg_type_name"));
@@ -808,12 +820,15 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
       ArgMetadata.push_back(llvm::MDNode::get(Context, Ops));
     }
 
-    llvm::Metadata *KernelOps[] = {
+    llvm::Metadata *StageOps[] = {
         llvm::ValueAsMetadata::get(Fn), llvm::MDNode::get(Context, {}),
         llvm::MDNode::get(Context, ArgMetadata)};
+    StringRef AIRStageMDName = IsMetalKernel   ? "air.kernel"
+                                : IsMetalVertex ? "air.vertex"
+                                                : "air.fragment";
     CGM.getModule()
-        .getOrInsertNamedMetadata("air.kernel")
-        ->addOperand(llvm::MDNode::get(Context, KernelOps));
+        .getOrInsertNamedMetadata(AIRStageMDName)
+        ->addOperand(llvm::MDNode::get(Context, StageOps));
     return;
   }
 
