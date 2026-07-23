@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple air64_v22-apple-macosx10.15 -x metal -std=metal2.0 -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple air64_v22-apple-macosx10.15 -x metal -std=macos-metal2.0 -emit-llvm -o - %s | FileCheck %s
 
 constant bool fc_bool [[function_constant(0)]];
 constant int fc_int [[function_constant(1)]];

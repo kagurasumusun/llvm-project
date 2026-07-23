@@ -148,15 +148,15 @@ jobs:
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-color-validation.metal
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-builtin-input-validation.metal
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-resource-validation.metal
-          run_verify air64-apple-macosx10.14 metal1.1 clang/test/Sema/metal-availability.metal
+          run_verify air64-apple-macosx10.14 macos-metal1.1 clang/test/Sema/metal-availability.metal
 
-          run_codegen_grep air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-metadata.metal "!air.kernel" "!air.version" "!air.language_version"
-          run_codegen_grep air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-stage-metadata.metal "!air.vertex" "!air.fragment" "air.vertex_input" "air.fragment_input"
-          run_codegen_grep air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-io-metadata.metal "!air.vertex" "!air.fragment" "air.render_target" "air.depth"
-          run_codegen_grep air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-stage-in-struct.metal "air.vertex_input" "air.location_index"
-          run_codegen_grep air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-builtin-inputs.metal "air.vertex_id" "air.front_facing" "air.threadgroup_position_in_grid"
-          run_codegen_grep air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-buffer-reference.metal "air.buffer" "air.arg_type_size"
-          run_codegen_grep air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-function-constants.metal "!air.function_constants" "fc_bool" "fc_int"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-metadata.metal "!air.kernel" "!air.version" "!air.language_version"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-stage-metadata.metal "!air.vertex" "!air.fragment" "air.vertex_input" "air.fragment_input"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-io-metadata.metal "!air.vertex" "!air.fragment" "air.render_target" "air.depth"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-stage-in-struct.metal "air.vertex_input" "air.location_index"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-builtin-inputs.metal "air.vertex_id" "air.front_facing" "air.threadgroup_position_in_grid"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-buffer-reference.metal "air.buffer" "air.arg_type_size"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-function-constants.metal "!air.function_constants" "fc_bool" "fc_int"
           run_codegen_grep air64_v22-apple-macosx10.15 metal4.0 clang/test/CodeGen/metal-air-generated-type-table.metal "generated(5colorDv4_f)" "generated(6hcolorDv4_Dh)"
 
       - name: Collect failure hints

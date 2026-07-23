@@ -3649,6 +3649,49 @@ static bool IsInputCompatibleWithStandard(InputKind IK,
   llvm_unreachable("unexpected input language");
 }
 
+enum class MetalStandardPlatform {
+  Generic,
+  IOSFamily,
+  MacOS,
+};
+
+static MetalStandardPlatform getMetalStandardPlatform(LangStandard::Kind K) {
+  switch (K) {
+  case LangStandard::lang_iosmetal10:
+  case LangStandard::lang_iosmetal11:
+  case LangStandard::lang_iosmetal12:
+  case LangStandard::lang_iosmetal20:
+  case LangStandard::lang_iosmetal21:
+  case LangStandard::lang_iosmetal22:
+  case LangStandard::lang_iosmetal23:
+  case LangStandard::lang_iosmetal24:
+    return MetalStandardPlatform::IOSFamily;
+  case LangStandard::lang_macosmetal11:
+  case LangStandard::lang_macosmetal12:
+  case LangStandard::lang_macosmetal20:
+  case LangStandard::lang_macosmetal21:
+  case LangStandard::lang_macosmetal22:
+  case LangStandard::lang_macosmetal23:
+  case LangStandard::lang_macosmetal24:
+    return MetalStandardPlatform::MacOS;
+  default:
+    return MetalStandardPlatform::Generic;
+  }
+}
+
+static bool isMetalStandardCompatibleWithTarget(LangStandard::Kind K,
+                                                const llvm::Triple &T) {
+  switch (getMetalStandardPlatform(K)) {
+  case MetalStandardPlatform::Generic:
+    return true;
+  case MetalStandardPlatform::IOSFamily:
+    return T.isOSDarwin() && !T.isMacOSX();
+  case MetalStandardPlatform::MacOS:
+    return T.isMacOSX();
+  }
+  llvm_unreachable("unknown Metal standard platform");
+}
+
 /// Get language name for given input kind.
 static StringRef GetInputKindName(InputKind IK) {
   switch (IK.getLanguage()) {
@@ -4035,6 +4078,10 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
       if (!IsInputCompatibleWithStandard(IK, Std)) {
         Diags.Report(diag::err_drv_argument_not_allowed_with)
           << A->getAsString(Args) << GetInputKindName(IK);
+      } else if (Std.getLanguage() == Language::Metal &&
+                 !isMetalStandardCompatibleWithTarget(LangStd, T)) {
+        Diags.Report(diag::err_drv_argument_not_allowed_with)
+          << A->getAsString(Args) << T.str();
       }
     }
   }

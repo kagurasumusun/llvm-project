@@ -157,21 +157,28 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
     Opts.OpenCLCPlusPlusVersion = 100;
   else if (LangStd == LangStandard::lang_openclcpp2021)
     Opts.OpenCLCPlusPlusVersion = 202100;
-  else if (LangStd == LangStandard::lang_metal10)
+  else if (LangStd == LangStandard::lang_iosmetal10)
     Opts.MetalVersion = 100;
-  else if (LangStd == LangStandard::lang_metal11)
+  else if (LangStd == LangStandard::lang_iosmetal11 ||
+           LangStd == LangStandard::lang_macosmetal11)
     Opts.MetalVersion = 110;
-  else if (LangStd == LangStandard::lang_metal12)
+  else if (LangStd == LangStandard::lang_iosmetal12 ||
+           LangStd == LangStandard::lang_macosmetal12)
     Opts.MetalVersion = 120;
-  else if (LangStd == LangStandard::lang_metal20)
+  else if (LangStd == LangStandard::lang_iosmetal20 ||
+           LangStd == LangStandard::lang_macosmetal20)
     Opts.MetalVersion = 200;
-  else if (LangStd == LangStandard::lang_metal21)
+  else if (LangStd == LangStandard::lang_iosmetal21 ||
+           LangStd == LangStandard::lang_macosmetal21)
     Opts.MetalVersion = 210;
-  else if (LangStd == LangStandard::lang_metal22)
+  else if (LangStd == LangStandard::lang_iosmetal22 ||
+           LangStd == LangStandard::lang_macosmetal22)
     Opts.MetalVersion = 220;
-  else if (LangStd == LangStandard::lang_metal23)
+  else if (LangStd == LangStandard::lang_iosmetal23 ||
+           LangStd == LangStandard::lang_macosmetal23)
     Opts.MetalVersion = 230;
-  else if (LangStd == LangStandard::lang_metal24)
+  else if (LangStd == LangStandard::lang_iosmetal24 ||
+           LangStd == LangStandard::lang_macosmetal24)
     Opts.MetalVersion = 240;
   else if (LangStd == LangStandard::lang_metal30)
     Opts.MetalVersion = 300;

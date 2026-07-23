@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple air64-apple-macosx10.15 -x metal -std=metal2.0 -fsyntax-only %s
-// RUN: %clang_cc1 -triple air32-apple-ios10.3 -x metal -std=metal1.0 -fsyntax-only %s
+// RUN: %clang_cc1 -triple air64-apple-macosx10.15 -x metal -std=macos-metal2.0 -fsyntax-only %s
+// RUN: %clang_cc1 -triple air32-apple-ios10.3 -x metal -std=ios-metal1.0 -fsyntax-only %s
 // RUN: %clang_cc1 -triple air64-apple-macosx26.0 -x metal -std=metal4.0 -fsyntax-only %s
 // RUN: %clang_cc1 -triple air64-apple-macosx26.0 -x metal -std=metal4 -fsyntax-only %s
 

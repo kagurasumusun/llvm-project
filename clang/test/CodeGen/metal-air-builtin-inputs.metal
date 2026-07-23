@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple air64_v22-apple-macosx10.15 -x metal -std=metal2.0 -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple air64_v22-apple-macosx10.15 -x metal -std=macos-metal2.0 -emit-llvm -o - %s | FileCheck %s
 
 vertex void v(uint vid [[vertex_id]], uint iid [[instance_id]], uint basev [[base_vertex]], uint basei [[base_instance]]) {}
 fragment void f(bool front [[front_facing]], uint sid [[sample_id]], uint mask [[sample_mask]], uint pid [[primitive_id]]) {}

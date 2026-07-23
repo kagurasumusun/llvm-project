@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple air64-apple-macosx10.14 -x metal -std=metal1.1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple air64-apple-macosx10.14 -x metal -std=macos-metal1.1 -fsyntax-only -verify %s
 
 [[early_fragment_tests]] fragment void early_fragment_tests_needs_metal2() {} // expected-error {{'early_fragment_tests' attribute requires Metal 2.0 or later}}
 constant int fc [[function_constant(0)]];
