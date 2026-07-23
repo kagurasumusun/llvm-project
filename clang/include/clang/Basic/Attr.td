@@ -440,6 +440,7 @@ def ObjCNonFragileRuntime
     : LangOpt<"", "LangOpts.ObjCRuntime.allowsClassStubs()">;
 
 def HLSL : LangOpt<"HLSL">;
+def Metal : LangOpt<"Metal">;
 
 // Language option for CMSE extensions
 def Cmse : LangOpt<"Cmse">;
