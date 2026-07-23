@@ -1691,6 +1691,54 @@ def MetalFragment : InheritableAttr {
   let Documentation = [InternalOnly];
 }
 
+class MetalResourceBindingAttr<string Name> : InheritableParamAttr {
+  let Spellings = [CXX11<"", Name>];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalBuffer : MetalResourceBindingAttr<"buffer">;
+def MetalTexture : MetalResourceBindingAttr<"texture">;
+def MetalSampler : MetalResourceBindingAttr<"sampler">;
+def MetalThreadgroup : MetalResourceBindingAttr<"threadgroup">;
+
+def MetalThreadPositionInGrid : InheritableParamAttr {
+  let Spellings = [CXX11<"", "thread_position_in_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalThreadPositionInThreadgroup : InheritableParamAttr {
+  let Spellings = [CXX11<"", "thread_position_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalThreadIndexInThreadgroup : InheritableParamAttr {
+  let Spellings = [CXX11<"", "thread_index_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalThreadsPerThreadgroup : InheritableParamAttr {
+  let Spellings = [CXX11<"", "threads_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalStageIn : InheritableParamAttr {
+  let Spellings = [CXX11<"", "stage_in">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
 def SYCLKernelEntryPoint : InheritableAttr {
   let Spellings = [CXX11<"clang", "sycl_kernel_entry_point">];
   let Args = [
