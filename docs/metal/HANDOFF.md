@@ -183,15 +183,20 @@ Latest CI run dispatched after this update:
 Next agent should check run `30051384548`; if it fails, download job log/artifact and fix the first compile/configure/smoke-test error.
 
 
-## Update 2026-07-24 JST — Attr.td CXX11 spelling version fix
+## Update 2026-07-24 JST — Re-applied Attr.td standard-attribute version fix
 
-Latest cached CI run `30051384548` failed in clang-tblgen with:
+Latest cached workflow run `30051384548` failed in clang-tblgen with many errors like:
 
 ```text
-clang/include/clang/Basic/Attr.td:1709:20: error: Standard attributes must have valid version information.
+Attr.td:1709:20: error: Standard attributes must have valid version information.
   let Spellings = [CXX11<"", Name>];
 ```
 
-Cause: Metal attributes use global-scope `[[buffer]]` / `[[stage_in]]` style CXX11 spellings. In Attr.td an empty namespace `CXX11<"", ...>` is treated as a standard attribute spelling and must include a standards-version number. Fix: in the Metal attr block, change all `CXX11<"", ...>` to `CXX11<"", ..., 202600>`.
+The earlier `def Metal : LangOpt<"Metal">` fix was present, but the global namespace `CXX11<"", ...>` spellings in the Metal attribute block still lacked explicit C++ attribute version numbers after the platform-standard restoration. Re-applied the fix by changing all Metal global CXX11 spellings to include `202600`, e.g. `CXX11<"", "buffer", 202600>` and `CXX11<"", Name, 202600>`.
 
-Next agent should rerun cached workflow v5 after this commit and inspect the next error.
+Static review after patch:
+
+- no undefined `LangOpts` references in `Attr.td`
+- no version-less `CXX11<"", ...>` spellings in the Metal attribute block
+
+Next agent: rerun cached smoke workflow v5 and inspect the next compiler/test error.
