@@ -626,6 +626,197 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
 
   llvm::LLVMContext &Context = getLLVMContext();
 
+  if (getLangOpts().Metal && FD->hasAttr<DeviceKernelAttr>()) {
+    auto Int32MD = [&](uint32_t Value) -> llvm::Metadata * {
+      return llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+          llvm::Type::getInt32Ty(Context), Value));
+    };
+    auto MDStr = [&](StringRef Value) -> llvm::Metadata * {
+      return llvm::MDString::get(Context, Value);
+    };
+    auto AddNamedOperandOnce = [&](StringRef Name, llvm::MDNode *Node) {
+      llvm::NamedMDNode *NMD = CGM.getModule().getOrInsertNamedMetadata(Name);
+      if (NMD->getNumOperands() == 0)
+        NMD->addOperand(Node);
+    };
+
+    auto EmitAIRModuleMetadata = [&]() {
+      unsigned AIRMajor = 2;
+      unsigned AIRMinor = 7;
+      StringRef ArchName = CGM.getTriple().getArchName();
+      size_t VersionPos = ArchName.find("_v");
+      if (VersionPos != StringRef::npos) {
+        unsigned EncodedVersion = 0;
+        StringRef Version = ArchName.drop_front(VersionPos + 2);
+        while (!Version.empty() && Version.front() >= '0' &&
+               Version.front() <= '9') {
+          EncodedVersion = EncodedVersion * 10 + (Version.front() - '0');
+          Version = Version.drop_front();
+        }
+        if (EncodedVersion >= 100) {
+          AIRMajor = EncodedVersion / 100;
+          AIRMinor = EncodedVersion % 100;
+        } else if (EncodedVersion >= 10) {
+          AIRMajor = EncodedVersion / 10;
+          AIRMinor = EncodedVersion % 10;
+        }
+      }
+
+      AddNamedOperandOnce("air.version",
+                          llvm::MDNode::get(Context, {Int32MD(AIRMajor),
+                                                      Int32MD(AIRMinor),
+                                                      Int32MD(0)}));
+
+      unsigned MetalVersion = getLangOpts().MetalVersion;
+      AddNamedOperandOnce("air.language_version",
+                          llvm::MDNode::get(Context,
+                                            {MDStr("Metal"),
+                                             Int32MD(MetalVersion / 100),
+                                             Int32MD((MetalVersion % 100) / 10),
+                                             Int32MD(0)}));
+
+      AddNamedOperandOnce("air.source_file_name",
+                          llvm::MDNode::get(
+                              Context, {MDStr(CGM.getModule().getSourceFileName())}));
+
+      llvm::NamedMDNode *CompileOptions =
+          CGM.getModule().getOrInsertNamedMetadata("air.compile_options");
+      if (CompileOptions->getNumOperands() == 0) {
+        CompileOptions->addOperand(
+            llvm::MDNode::get(Context, {MDStr("air.compile.denorms_disable")}));
+        CompileOptions->addOperand(
+            llvm::MDNode::get(Context, {MDStr("air.compile.fast_math_enable")}));
+        CompileOptions->addOperand(llvm::MDNode::get(
+            Context, {MDStr("air.compile.framebuffer_fetch_disable")}));
+      }
+    };
+
+    auto GetTypeName = [&](QualType Ty) -> std::string {
+      std::string Name = Ty.getUnqualifiedType().getAsString(
+          getContext().getPrintingPolicy());
+      if (Name == "unsigned int")
+        return "uint";
+      if (Name == "unsigned short")
+        return "ushort";
+      if (Name == "unsigned char")
+        return "uchar";
+      return Name;
+    };
+
+    auto AddArgTypeInfo = [&](SmallVectorImpl<llvm::Metadata *> &Ops,
+                              const ParmVarDecl *Param) {
+      QualType ArgType = Param->getType();
+      QualType InfoType = ArgType->isPointerType() ? ArgType->getPointeeType()
+                                                   : ArgType;
+      InfoType = InfoType.getUnqualifiedType();
+      uint64_t TypeSize = 0;
+      uint64_t TypeAlign = 0;
+      if (!InfoType->isIncompleteType() && !InfoType->isVoidType()) {
+        TypeSize = getContext().getTypeSizeInChars(InfoType).getQuantity();
+        TypeAlign = getContext().getTypeAlignInChars(InfoType).getQuantity();
+      }
+      Ops.push_back(MDStr("air.arg_type_size"));
+      Ops.push_back(Int32MD(TypeSize));
+      Ops.push_back(MDStr("air.arg_type_align_size"));
+      Ops.push_back(Int32MD(TypeAlign));
+      Ops.push_back(MDStr("air.arg_type_name"));
+      Ops.push_back(MDStr(GetTypeName(InfoType)));
+      Ops.push_back(MDStr("air.arg_name"));
+      Ops.push_back(MDStr(Param->getName()));
+    };
+
+    EmitAIRModuleMetadata();
+
+    SmallVector<llvm::Metadata *, 8> ArgMetadata;
+    for (unsigned I = 0, E = FD->getNumParams(); I != E; ++I) {
+      const ParmVarDecl *Param = FD->getParamDecl(I);
+      SmallVector<llvm::Metadata *, 16> Ops;
+      Ops.push_back(Int32MD(I));
+
+      if (const auto *A = Param->getAttr<MetalBufferAttr>()) {
+        Ops.push_back(MDStr("air.buffer"));
+        Ops.push_back(MDStr("air.location_index"));
+        Ops.push_back(Int32MD(A->getIndex()));
+        Ops.push_back(Int32MD(1));
+        QualType PointeeType = Param->getType()->isPointerType()
+                                  ? Param->getType()->getPointeeType()
+                                  : QualType();
+        bool IsReadOnly = !PointeeType.isNull() &&
+                          (PointeeType.isConstQualified() ||
+                           PointeeType.getAddressSpace() ==
+                               LangAS::opencl_constant);
+        Ops.push_back(MDStr(IsReadOnly ? "air.read" : "air.read_write"));
+        AddArgTypeInfo(Ops, Param);
+      } else if (const auto *A = Param->getAttr<MetalTextureAttr>()) {
+        Ops.push_back(MDStr("air.texture"));
+        Ops.push_back(MDStr("air.location_index"));
+        Ops.push_back(Int32MD(A->getIndex()));
+        Ops.push_back(Int32MD(1));
+        Ops.push_back(MDStr("air.read"));
+        AddArgTypeInfo(Ops, Param);
+      } else if (const auto *A = Param->getAttr<MetalSamplerAttr>()) {
+        Ops.push_back(MDStr("air.sampler"));
+        Ops.push_back(MDStr("air.location_index"));
+        Ops.push_back(Int32MD(A->getIndex()));
+        Ops.push_back(Int32MD(1));
+        AddArgTypeInfo(Ops, Param);
+      } else if (const auto *A = Param->getAttr<MetalThreadgroupAttr>()) {
+        Ops.push_back(MDStr("air.buffer"));
+        Ops.push_back(MDStr("air.location_index"));
+        Ops.push_back(Int32MD(A->getIndex()));
+        Ops.push_back(Int32MD(1));
+        Ops.push_back(MDStr("air.read_write"));
+        AddArgTypeInfo(Ops, Param);
+      } else if (Param->hasAttr<MetalThreadPositionInGridAttr>()) {
+        Ops.push_back(MDStr("air.thread_position_in_grid"));
+        Ops.push_back(MDStr("air.arg_type_name"));
+        Ops.push_back(MDStr(GetTypeName(Param->getType())));
+        Ops.push_back(MDStr("air.arg_name"));
+        Ops.push_back(MDStr(Param->getName()));
+      } else if (Param->hasAttr<MetalThreadPositionInThreadgroupAttr>()) {
+        Ops.push_back(MDStr("air.thread_position_in_threadgroup"));
+        Ops.push_back(MDStr("air.arg_type_name"));
+        Ops.push_back(MDStr(GetTypeName(Param->getType())));
+        Ops.push_back(MDStr("air.arg_name"));
+        Ops.push_back(MDStr(Param->getName()));
+      } else if (Param->hasAttr<MetalThreadIndexInThreadgroupAttr>()) {
+        Ops.push_back(MDStr("air.thread_index_in_threadgroup"));
+        Ops.push_back(MDStr("air.arg_type_name"));
+        Ops.push_back(MDStr(GetTypeName(Param->getType())));
+        Ops.push_back(MDStr("air.arg_name"));
+        Ops.push_back(MDStr(Param->getName()));
+      } else if (Param->hasAttr<MetalThreadsPerThreadgroupAttr>()) {
+        Ops.push_back(MDStr("air.threads_per_threadgroup"));
+        Ops.push_back(MDStr("air.arg_type_name"));
+        Ops.push_back(MDStr(GetTypeName(Param->getType())));
+        Ops.push_back(MDStr("air.arg_name"));
+        Ops.push_back(MDStr(Param->getName()));
+      } else if (Param->getType()->isPointerType()) {
+        Ops.push_back(MDStr("air.buffer"));
+        Ops.push_back(MDStr("air.location_index"));
+        Ops.push_back(Int32MD(I));
+        Ops.push_back(Int32MD(1));
+        Ops.push_back(MDStr("air.read_write"));
+        AddArgTypeInfo(Ops, Param);
+      } else {
+        Ops.push_back(MDStr("air.arg_type_name"));
+        Ops.push_back(MDStr(GetTypeName(Param->getType())));
+        Ops.push_back(MDStr("air.arg_name"));
+        Ops.push_back(MDStr(Param->getName()));
+      }
+
+      ArgMetadata.push_back(llvm::MDNode::get(Context, Ops));
+    }
+
+    llvm::Metadata *KernelOps[] = {
+        llvm::ValueAsMetadata::get(Fn), llvm::MDNode::get(Context, {}),
+        llvm::MDNode::get(Context, ArgMetadata)};
+    CGM.getModule()
+        .getOrInsertNamedMetadata("air.kernel")
+        ->addOperand(llvm::MDNode::get(Context, KernelOps));
+    return;
+  }
+
   CGM.GenKernelArgMetadata(Fn, FD, this);
 
   if (!(getLangOpts().OpenCL ||
@@ -1022,7 +1213,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       Fn->addFnAttr(llvm::Attribute::FnRetThunkExtern);
   }
 
-  if (FD && (getLangOpts().OpenCL ||
+  if (FD && (getLangOpts().OpenCL || getLangOpts().Metal ||
              (getLangOpts().CUDA &&
               getContext().getTargetInfo().getTriple().isSPIRV()) ||
              ((getLangOpts().HIP || getLangOpts().OffloadViaLLVM) &&
