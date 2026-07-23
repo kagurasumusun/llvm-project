@@ -1676,6 +1676,21 @@ def SYCLExternal : InheritableAttr {
   let Documentation = [SYCLExternalDocs];
 }
 
+
+def MetalVertex : InheritableAttr {
+  let Spellings = [CustomKeyword<"vertex">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalFragment : InheritableAttr {
+  let Spellings = [CustomKeyword<"fragment">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
 def SYCLKernelEntryPoint : InheritableAttr {
   let Spellings = [CXX11<"clang", "sycl_kernel_entry_point">];
   let Args = [
@@ -1772,13 +1787,13 @@ def OpenCLAccess : Attr {
 
 def OpenCLPrivateAddressSpace : TypeAttr {
   let Spellings = [CustomKeyword<"__private">, CustomKeyword<"private">,
-                   Clang<"opencl_private">];
+                   CustomKeyword<"thread">, Clang<"opencl_private">];
   let Documentation = [OpenCLAddressSpacePrivateDocs];
 }
 
 def OpenCLGlobalAddressSpace : TypeAttr {
   let Spellings = [CustomKeyword<"__global">, CustomKeyword<"global">,
-                   Clang<"opencl_global">];
+                   CustomKeyword<"device">, Clang<"opencl_global">];
   let Documentation = [OpenCLAddressSpaceGlobalDocs];
 }
 
@@ -1794,7 +1809,7 @@ def OpenCLGlobalHostAddressSpace : TypeAttr {
 
 def OpenCLLocalAddressSpace : TypeAttr {
   let Spellings = [CustomKeyword<"__local">, CustomKeyword<"local">,
-                   Clang<"opencl_local">];
+                   CustomKeyword<"threadgroup">, Clang<"opencl_local">];
   let Documentation = [OpenCLAddressSpaceLocalDocs];
 }
 

@@ -1050,6 +1050,15 @@ void Parser::ParseOpenCLKernelAttributes(ParsedAttributes &attrs) {
   }
 }
 
+void Parser::ParseMetalFunctionAttributes(ParsedAttributes &Attrs) {
+  while (Tok.isOneOf(tok::kw_vertex, tok::kw_fragment)) {
+    IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+    tok::TokenKind Kind = Tok.getKind();
+    SourceLocation AttrNameLoc = ConsumeToken();
+    Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr, 0, Kind);
+  }
+}
+
 void Parser::ParseCUDAFunctionAttributes(ParsedAttributes &attrs) {
   while (Tok.is(tok::kw___noinline__)) {
     IdentifierInfo *AttrName = Tok.getIdentifierInfo();
@@ -4045,6 +4054,12 @@ void Parser::ParseDeclarationSpecifiers(
       ParseOpenCLKernelAttributes(DS.getAttributes());
       continue;
 
+    // Metal single token function stage adornments.
+    case tok::kw_vertex:
+    case tok::kw_fragment:
+      ParseMetalFunctionAttributes(DS.getAttributes());
+      continue;
+
     // CUDA/HIP single token adornments.
     case tok::kw___noinline__:
       ParseCUDAFunctionAttributes(DS.getAttributes());
@@ -5672,6 +5687,10 @@ bool Parser::isTypeSpecifierQualifier() {
 
   case tok::kw___kindof:
 
+  case tok::kw___kernel:
+  case tok::kw_vertex:
+  case tok::kw_fragment:
+
   case tok::kw___private:
   case tok::kw___local:
   case tok::kw___global:
@@ -5953,6 +5972,10 @@ bool Parser::isDeclarationSpecifier(
   case tok::kw__Null_unspecified:
 
   case tok::kw___kindof:
+
+  case tok::kw___kernel:
+  case tok::kw_vertex:
+  case tok::kw_fragment:
 
   case tok::kw___private:
   case tok::kw___local:

@@ -291,6 +291,7 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //   HALFSUPPORT - This is a keyword if 'half' is a built-in type
 //   WCHARSUPPORT - This is a keyword if 'wchar_t' is a built-in type
 //   CHAR8SUPPORT - This is a keyword if 'char8_t' is a built-in type
+//   KEYMETAL - This is a keyword in Metal Shading Language
 //   KEYFIXEDPOINT - This is a keyword according to the N1169 fixed point
 //                   extension.
 //   KEYDEFERTS - This is a keyword if the C '_Defer' TS is enabled
@@ -638,12 +639,17 @@ KEYWORD(__private                   , KEYOPENCLC | KEYOPENCLCXX)
 KEYWORD(__generic                   , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("global", __global            , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("local", __local              , KEYOPENCLC | KEYOPENCLCXX)
-ALIAS("constant", __constant        , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("constant", __constant        , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 ALIAS("private", __private          , KEYOPENCLC)
 ALIAS("generic", __generic          , KEYOPENCLC | KEYOPENCLCXX)
-// OpenCL function qualifiers
-KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX)
-ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX)
+ALIAS("device", __global            , KEYMETAL)
+ALIAS("threadgroup", __local        , KEYMETAL)
+ALIAS("thread", __private           , KEYMETAL)
+// OpenCL / Metal function qualifiers
+KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
+ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
+KEYWORD(vertex                      , KEYMETAL)
+KEYWORD(fragment                    , KEYMETAL)
 // OpenCL access qualifiers
 KEYWORD(__read_only                 , KEYOPENCLC | KEYOPENCLCXX)
 KEYWORD(__write_only                , KEYOPENCLC | KEYOPENCLCXX)
