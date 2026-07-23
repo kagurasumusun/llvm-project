@@ -402,17 +402,23 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                     Builder.append("typedef " CType " " #Name ";");
 #include "clang/Basic/MetalAIRTypes.def"
 #undef METAL_AIR_TYPE
-#define METAL_AST_BUILTIN_TYPE(Name)                                               Builder.append("struct " #Name ";");
+#define METAL_AST_BUILTIN_TYPE(Name)                                               Builder.append("struct " #Name " { char __opaque; };");
 #define METAL_AST_ATTR(Name)
 #define METAL_AST_ATTR_ALIAS(AppleName, ClangName)
 #include "clang/Basic/MetalASTReference.def"
 #undef METAL_AST_ATTR_ALIAS
 #undef METAL_AST_ATTR
 #undef METAL_AST_BUILTIN_TYPE
+#define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              Builder.append("typedef " #BuiltinName " " #Alias ";");
+#include "clang/Basic/MetalBuiltinObjects.def"
+#undef METAL_BUILTIN_OBJECT
     Builder.append("namespace metal {");
 #define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                     Builder.append("using ::" #Name ";");
 #include "clang/Basic/MetalAIRTypes.def"
 #undef METAL_AIR_TYPE
+#define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              Builder.append("using ::" #Alias ";");
+#include "clang/Basic/MetalBuiltinObjects.def"
+#undef METAL_BUILTIN_OBJECT
     Builder.append("}");
     Builder.append("#endif");
   }

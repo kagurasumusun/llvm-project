@@ -712,8 +712,11 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
     auto AddArgTypeInfo = [&](SmallVectorImpl<llvm::Metadata *> &Ops,
                               const ParmVarDecl *Param) {
       QualType ArgType = Param->getType();
-      QualType InfoType = ArgType->isPointerType() ? ArgType->getPointeeType()
-                                                   : ArgType;
+      QualType InfoType = ArgType;
+      if (ArgType->isPointerType())
+        InfoType = ArgType->getPointeeType();
+      else if (ArgType->isReferenceType())
+        InfoType = ArgType.getNonReferenceType();
       InfoType = InfoType.getUnqualifiedType();
       uint64_t TypeSize = 0;
       uint64_t TypeAlign = 0;
@@ -946,9 +949,12 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
         Ops.push_back(MDStr("air.location_index"));
         Ops.push_back(Int32MD(A->getIndex()));
         Ops.push_back(Int32MD(1));
-        QualType PointeeType = Param->getType()->isPointerType()
-                                  ? Param->getType()->getPointeeType()
-                                  : QualType();
+        QualType ResourceType = Param->getType();
+        QualType PointeeType;
+        if (ResourceType->isPointerType())
+          PointeeType = ResourceType->getPointeeType();
+        else if (ResourceType->isReferenceType())
+          PointeeType = ResourceType.getNonReferenceType();
         bool IsReadOnly = !PointeeType.isNull() &&
                           (PointeeType.isConstQualified() ||
                            PointeeType.getAddressSpace() ==

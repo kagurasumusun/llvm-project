@@ -1,0 +1,61 @@
+//===--- MetalBuiltinObjects.def - Metal builtin object aliases -*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Lightweight aliases derived from __metal_* builtin object names observed in
+// metal-info Apple-clang AST dumps.  These aliases are a bootstrap aid for
+// parsing/resource validation; the real Apple stdlib still provides the full C++
+// wrapper API.
+//
+// METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef METAL_BUILTIN_OBJECT
+#error "Define METAL_BUILTIN_OBJECT before including MetalBuiltinObjects.def"
+#endif
+
+METAL_BUILTIN_OBJECT(texture1d, __metal_texture_1d_t, texture)
+METAL_BUILTIN_OBJECT(texture1d_array, __metal_texture_1d_array_t, texture)
+METAL_BUILTIN_OBJECT(texture2d, __metal_texture_2d_t, texture)
+METAL_BUILTIN_OBJECT(texture2d_array, __metal_texture_2d_array_t, texture)
+METAL_BUILTIN_OBJECT(texture2d_ms, __metal_texture_2d_ms_t, texture)
+METAL_BUILTIN_OBJECT(texture2d_ms_array, __metal_texture_2d_ms_array_t, texture)
+METAL_BUILTIN_OBJECT(texture3d, __metal_texture_3d_t, texture)
+METAL_BUILTIN_OBJECT(texturecube, __metal_texture_cube_t, texture)
+METAL_BUILTIN_OBJECT(texturecube_array, __metal_texture_cube_array_t, texture)
+METAL_BUILTIN_OBJECT(texture_buffer, __metal_texture_buffer_1d_t, texture)
+
+METAL_BUILTIN_OBJECT(depth2d, __metal_depth_2d_t, texture)
+METAL_BUILTIN_OBJECT(depth2d_array, __metal_depth_2d_array_t, texture)
+METAL_BUILTIN_OBJECT(depth2d_ms, __metal_depth_2d_ms_t, texture)
+METAL_BUILTIN_OBJECT(depth2d_ms_array, __metal_depth_2d_ms_array_t, texture)
+METAL_BUILTIN_OBJECT(depthcube, __metal_depth_cube_t, texture)
+METAL_BUILTIN_OBJECT(depthcube_array, __metal_depth_cube_array_t, texture)
+
+METAL_BUILTIN_OBJECT(sampler, __metal_sampler_t, sampler)
+METAL_BUILTIN_OBJECT(threadgroup_event, __metal_threadgroup_event_t, event)
+METAL_BUILTIN_OBJECT(imageblock, __metal_imageblock_t, imageblock)
+METAL_BUILTIN_OBJECT(patch_control_point, __metal_patch_control_point_t, patch)
+
+METAL_BUILTIN_OBJECT(command_buffer, __metal_command_buffer_t, command)
+METAL_BUILTIN_OBJECT(render_pipeline_state, __metal_render_pipeline_state_t, pipeline)
+METAL_BUILTIN_OBJECT(compute_pipeline_state, __metal_compute_pipeline_state_t, pipeline)
+METAL_BUILTIN_OBJECT(interpolant, __metal_interpolant_t, interpolant)
+METAL_BUILTIN_OBJECT(vertex_value, __metal_vertex_value_t, vertex_value)
+METAL_BUILTIN_OBJECT(visible_function_table, __metal_visible_function_table_t, table)
+METAL_BUILTIN_OBJECT(intersection_function_table, __metal_intersection_function_table_t, table)
+METAL_BUILTIN_OBJECT(instance_acceleration_structure, __metal_instance_acceleration_structure_t, acceleration_structure)
+METAL_BUILTIN_OBJECT(primitive_acceleration_structure, __metal_primitive_acceleration_structure_t, acceleration_structure)
+METAL_BUILTIN_OBJECT(mesh, __metal_mesh_t, mesh)
+METAL_BUILTIN_OBJECT(mesh_grid_properties, __metal_mesh_grid_properties_t, mesh)
+METAL_BUILTIN_OBJECT(intersection_query, __metal_intersection_query_t, raytracing)
+METAL_BUILTIN_OBJECT(function_handle, __metal_function_handle_t, function_handle)
+METAL_BUILTIN_OBJECT(intersection_result, __metal_intersection_result_t, raytracing)
+METAL_BUILTIN_OBJECT(depth_stencil_state, __metal_depth_stencil_state_t, depth_stencil)
+METAL_BUILTIN_OBJECT(tensor, __metal_tensor_t, tensor)
+METAL_BUILTIN_OBJECT(tensor_thread, __metal_tensor_thread_t, tensor)

@@ -5455,6 +5455,89 @@ static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
   }
 }
 
+static QualType getMetalResourceBaseType(QualType T) {
+  if (T->isPointerType())
+    return T->getPointeeType();
+  if (T->isReferenceType())
+    return T.getNonReferenceType();
+  return T;
+}
+
+static std::string getMetalTypeSpelling(Sema &S, QualType T) {
+  return T.getUnqualifiedType().getAsString(S.Context.getPrintingPolicy());
+}
+
+static bool isMetalBufferResourceType(QualType T) {
+  return T->isPointerType() || T->isReferenceType();
+}
+
+static bool isMetalTextureResourceType(Sema &S, QualType T) {
+  std::string Name = getMetalTypeSpelling(S, getMetalResourceBaseType(T));
+  return StringRef(Name).contains("texture") || StringRef(Name).contains("depth");
+}
+
+static bool isMetalSamplerResourceType(Sema &S, QualType T) {
+  std::string Name = getMetalTypeSpelling(S, getMetalResourceBaseType(T));
+  return Name == "sampler" || Name == "__metal_sampler_t" ||
+         StringRef(Name).contains("sampler");
+}
+
+static bool isMetalFunctionConstantType(QualType T) {
+  T = T.getUnqualifiedType();
+  return T->isBooleanType() || T->isIntegerType() || T->isFloatingType() ||
+         T->isEnumeralType();
+}
+
+template <typename AttrTy, typename TypeCheck>
+static void handleMetalIndexedParamAttr(Sema &S, Decl *D, const ParsedAttr &AL,
+                                        unsigned MaxIndex, StringRef TypeName,
+                                        TypeCheck Check) {
+  uint32_t Index = 0;
+  if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+    return;
+  if (Index > MaxIndex) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_out_of_range)
+        << AL << 0 << MaxIndex;
+    AL.setInvalid();
+    return;
+  }
+
+  if (const auto *PVD = dyn_cast<ParmVarDecl>(D)) {
+    if (!Check(PVD->getType())) {
+      S.Diag(AL.getLoc(), diag::err_metal_attribute_wrong_param_type)
+          << AL << TypeName;
+      AL.setInvalid();
+      return;
+    }
+  }
+
+  D->addAttr(::new (S.Context) AttrTy(S.Context, AL, Index));
+}
+
+static void handleMetalFunctionConstantAttr(Sema &S, Decl *D,
+                                            const ParsedAttr &AL) {
+  uint32_t Index = 0;
+  if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+    return;
+  if (Index > 65535) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_out_of_range)
+        << AL << 0 << 65535;
+    AL.setInvalid();
+    return;
+  }
+
+  if (const auto *VD = dyn_cast<VarDecl>(D)) {
+    if (!VD->hasGlobalStorage() || !isMetalFunctionConstantType(VD->getType())) {
+      S.Diag(AL.getLoc(), diag::err_metal_attribute_wrong_param_type)
+          << AL << "a global scalar bool, integer, enum, or floating type";
+      AL.setInvalid();
+      return;
+    }
+  }
+
+  D->addAttr(::new (S.Context) MetalFunctionConstantAttr(S.Context, AL, Index));
+}
+
 static void handleMetalColorAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   uint32_t Index = 0;
   if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
@@ -7896,6 +7979,29 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_DeviceKernel:
     handleDeviceKernelAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalBuffer:
+    handleMetalIndexedParamAttr<MetalBufferAttr>(
+        S, D, AL, 31, "a pointer or reference resource",
+        [](QualType T) { return isMetalBufferResourceType(T); });
+    break;
+  case ParsedAttr::AT_MetalTexture:
+    handleMetalIndexedParamAttr<MetalTextureAttr>(
+        S, D, AL, 127, "a texture or depth texture object type",
+        [&](QualType T) { return isMetalTextureResourceType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalSampler:
+    handleMetalIndexedParamAttr<MetalSamplerAttr>(
+        S, D, AL, 15, "a sampler object type",
+        [&](QualType T) { return isMetalSamplerResourceType(S, T); });
+    break;
+  case ParsedAttr::AT_MetalThreadgroup:
+    handleMetalIndexedParamAttr<MetalThreadgroupAttr>(
+        S, D, AL, 31, "a pointer or reference threadgroup resource",
+        [](QualType T) { return isMetalBufferResourceType(T); });
+    break;
+  case ParsedAttr::AT_MetalFunctionConstant:
+    handleMetalFunctionConstantAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalColor:
     handleMetalColorAttr(S, D, AL);
