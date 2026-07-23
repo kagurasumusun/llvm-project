@@ -5371,6 +5371,90 @@ static constexpr unsigned MetalFragmentStage =
     static_cast<unsigned>(MetalFunctionStage::Fragment);
 static constexpr unsigned MetalVertexOrFragmentStage = MetalVertexStage | MetalFragmentStage;
 
+static unsigned getMetalFunctionStageMaskForFunction(const FunctionDecl *FD) {
+  if (!FD)
+    return static_cast<unsigned>(MetalFunctionStage::None);
+  if (FD->hasAttr<DeviceKernelAttr>())
+    return MetalKernelStage;
+  if (FD->hasAttr<MetalVertexAttr>())
+    return MetalVertexStage;
+  if (FD->hasAttr<MetalFragmentAttr>())
+    return MetalFragmentStage;
+  return static_cast<unsigned>(MetalFunctionStage::None);
+}
+
+static void validateMetalStageAttr(Sema &S, const ParmVarDecl *P,
+                                   const Attr *A, unsigned FunctionStage,
+                                   unsigned AllowedStages,
+                                   unsigned StageDiag) {
+  if (!A || FunctionStage == static_cast<unsigned>(MetalFunctionStage::None))
+    return;
+  if ((FunctionStage & AllowedStages) != 0)
+    return;
+  S.Diag(A->getLocation(), diag::err_metal_attribute_wrong_stage) << A
+                                                                  << StageDiag;
+  const_cast<ParmVarDecl *>(P)->setInvalidDecl();
+}
+
+static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
+  const auto *FD = dyn_cast<FunctionDecl>(D);
+  if (!FD || !S.getLangOpts().Metal)
+    return;
+
+  unsigned FunctionStage = getMetalFunctionStageMaskForFunction(FD);
+  if (FunctionStage == static_cast<unsigned>(MetalFunctionStage::None))
+    return;
+
+  for (const ParmVarDecl *P : FD->parameters()) {
+    validateMetalStageAttr(S, P, P->getAttr<MetalStageInAttr>(), FunctionStage,
+                           MetalVertexOrFragmentStage, 3);
+
+    validateMetalStageAttr(S, P, P->getAttr<MetalVertexIdAttr>(), FunctionStage,
+                           MetalVertexStage, 1);
+    validateMetalStageAttr(S, P, P->getAttr<MetalInstanceIdAttr>(), FunctionStage,
+                           MetalVertexStage, 1);
+    validateMetalStageAttr(S, P, P->getAttr<MetalAmplificationIdAttr>(),
+                           FunctionStage, MetalVertexStage, 1);
+    validateMetalStageAttr(S, P, P->getAttr<MetalBaseVertexAttr>(), FunctionStage,
+                           MetalVertexStage, 1);
+    validateMetalStageAttr(S, P, P->getAttr<MetalBaseInstanceAttr>(),
+                           FunctionStage, MetalVertexStage, 1);
+
+    validateMetalStageAttr(S, P, P->getAttr<MetalFrontFacingAttr>(), FunctionStage,
+                           MetalFragmentStage, 2);
+    validateMetalStageAttr(S, P, P->getAttr<MetalSampleIdAttr>(), FunctionStage,
+                           MetalFragmentStage, 2);
+    validateMetalStageAttr(S, P, P->getAttr<MetalSampleMaskAttr>(), FunctionStage,
+                           MetalFragmentStage, 2);
+    validateMetalStageAttr(S, P, P->getAttr<MetalPrimitiveIdAttr>(), FunctionStage,
+                           MetalFragmentStage, 2);
+    validateMetalStageAttr(S, P, P->getAttr<MetalBarycentricCoordAttr>(),
+                           FunctionStage, MetalFragmentStage, 2);
+    validateMetalStageAttr(S, P, P->getAttr<MetalPositionAttr>(), FunctionStage,
+                           MetalFragmentStage, 2);
+
+    validateMetalStageAttr(S, P, P->getAttr<MetalThreadPositionInGridAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P, P->getAttr<MetalThreadPositionInThreadgroupAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P, P->getAttr<MetalThreadIndexInThreadgroupAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P, P->getAttr<MetalThreadsPerThreadgroupAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P, P->getAttr<MetalThreadgroupPositionInGridAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P, P->getAttr<MetalThreadsPerGridAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P, P->getAttr<MetalThreadIndexInSIMDGroupAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P,
+                           P->getAttr<MetalSIMDGroupIndexInThreadgroupAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+    validateMetalStageAttr(S, P, P->getAttr<MetalSIMDGroupsPerThreadgroupAttr>(),
+                           FunctionStage, MetalKernelStage, 0);
+  }
+}
+
 static void handleMetalColorAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   uint32_t Index = 0;
   if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
@@ -8623,6 +8707,11 @@ void Sema::ProcessDeclAttributes(Scope *S, Decl *D, const Declarator &PD) {
 
   // Look for API notes that map to attributes.
   ProcessAPINotes(D);
+
+  // Metal parameter attributes are parsed before the enclosing function's stage
+  // attribute is necessarily attached.  Re-check stage constraints after all
+  // declaration attributes have been processed.
+  validateMetalFunctionParameterAttributes(*this, D);
 }
 
 /// Is the given declaration allowed to use a forbidden type?
