@@ -1739,6 +1739,100 @@ def MetalStageIn : InheritableParamAttr {
   let Documentation = [InternalOnly];
 }
 
+def MetalPosition : InheritableAttr {
+  let Spellings = [CXX11<"", "position">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalPointSize : InheritableAttr {
+  let Spellings = [CXX11<"", "point_size">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalUser : InheritableAttr {
+  let Spellings = [CXX11<"", "user">];
+  let Args = [IdentifierArgument<"Name">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalColor : InheritableAttr {
+  let Spellings = [CXX11<"", "color">];
+  let Args = [IntArgument<"Index">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalDepth : InheritableAttr {
+  let Spellings = [CXX11<"", "depth">];
+  let Args = [IdentifierArgument<"Qualifier">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalFlat : InheritableAttr {
+  let Spellings = [CXX11<"", "flat">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalCenterPerspective : InheritableAttr {
+  let Spellings = [CXX11<"", "center_perspective">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalCenterNoPerspective : InheritableAttr {
+  let Spellings = [CXX11<"", "center_no_perspective">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalCentroidPerspective : InheritableAttr {
+  let Spellings = [CXX11<"", "centroid_perspective">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalCentroidNoPerspective : InheritableAttr {
+  let Spellings = [CXX11<"", "centroid_no_perspective">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalSamplePerspective : InheritableAttr {
+  let Spellings = [CXX11<"", "sample_perspective">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalSampleNoPerspective : InheritableAttr {
+  let Spellings = [CXX11<"", "sample_no_perspective">];
+  let Subjects = SubjectList<[Field]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
+def MetalEarlyFragmentTests : InheritableAttr {
+  let Spellings = [CXX11<"", "early_fragment_tests">];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
 def SYCLKernelEntryPoint : InheritableAttr {
   let Spellings = [CXX11<"clang", "sycl_kernel_entry_point">];
   let Args = [

@@ -730,7 +730,113 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
       Ops.push_back(MDStr(Param->getName()));
     };
 
+    auto AddTypeAndNameInfo = [&](SmallVectorImpl<llvm::Metadata *> &Ops,
+                                  QualType Ty, StringRef Name) {
+      Ops.push_back(MDStr("air.arg_type_name"));
+      Ops.push_back(MDStr(GetTypeName(Ty)));
+      if (!Name.empty()) {
+        Ops.push_back(MDStr("air.arg_name"));
+        Ops.push_back(MDStr(Name));
+      }
+    };
+
+    auto AddInterpolationInfo = [&](SmallVectorImpl<llvm::Metadata *> &Ops,
+                                    const FieldDecl *Field) {
+      if (Field->hasAttr<MetalFlatAttr>())
+        Ops.push_back(MDStr("air.flat"));
+      if (Field->hasAttr<MetalCenterPerspectiveAttr>()) {
+        Ops.push_back(MDStr("air.center"));
+        Ops.push_back(MDStr("air.perspective"));
+      }
+      if (Field->hasAttr<MetalCenterNoPerspectiveAttr>()) {
+        Ops.push_back(MDStr("air.center"));
+        Ops.push_back(MDStr("air.no_perspective"));
+      }
+      if (Field->hasAttr<MetalCentroidPerspectiveAttr>()) {
+        Ops.push_back(MDStr("air.centroid"));
+        Ops.push_back(MDStr("air.perspective"));
+      }
+      if (Field->hasAttr<MetalCentroidNoPerspectiveAttr>()) {
+        Ops.push_back(MDStr("air.centroid"));
+        Ops.push_back(MDStr("air.no_perspective"));
+      }
+      if (Field->hasAttr<MetalSamplePerspectiveAttr>()) {
+        Ops.push_back(MDStr("air.sample"));
+        Ops.push_back(MDStr("air.perspective"));
+      }
+      if (Field->hasAttr<MetalSampleNoPerspectiveAttr>()) {
+        Ops.push_back(MDStr("air.sample"));
+        Ops.push_back(MDStr("air.no_perspective"));
+      }
+    };
+
+    auto BuildAIRStageOutputMetadata = [&]() {
+      SmallVector<llvm::Metadata *, 8> OutputMetadata;
+      QualType RetTy = FD->getReturnType();
+      if (RetTy->isVoidType())
+        return llvm::MDNode::get(Context, OutputMetadata);
+
+      const RecordType *RT = RetTy->getAs<RecordType>();
+      const RecordDecl *RD = RT ? RT->getDecl()->getDefinition() : nullptr;
+      if (!RD) {
+        if (IsMetalFragment) {
+          SmallVector<llvm::Metadata *, 8> Ops;
+          Ops.push_back(MDStr("air.render_target"));
+          Ops.push_back(Int32MD(0));
+          Ops.push_back(Int32MD(0));
+          AddTypeAndNameInfo(Ops, RetTy, "");
+          OutputMetadata.push_back(llvm::MDNode::get(Context, Ops));
+        }
+        return llvm::MDNode::get(Context, OutputMetadata);
+      }
+
+      for (const FieldDecl *Field : RD->fields()) {
+        SmallVector<llvm::Metadata *, 12> Ops;
+        StringRef FieldName = Field->getName();
+        QualType FieldTy = Field->getType();
+        if (IsMetalFragment) {
+          if (const auto *A = Field->getAttr<MetalColorAttr>()) {
+            Ops.push_back(MDStr("air.render_target"));
+            Ops.push_back(Int32MD(A->getIndex()));
+            Ops.push_back(Int32MD(0));
+          } else if (const auto *A = Field->getAttr<MetalDepthAttr>()) {
+            Ops.push_back(MDStr("air.depth"));
+            Ops.push_back(MDStr("air.depth_qualifier"));
+            StringRef Qualifier = A->getQualifier()
+                                      ? A->getQualifier()->getName()
+                                      : StringRef("any");
+            Ops.push_back(MDStr((Twine("air.") + Qualifier).str()));
+          } else {
+            continue;
+          }
+          AddTypeAndNameInfo(Ops, FieldTy, FieldName);
+          OutputMetadata.push_back(llvm::MDNode::get(Context, Ops));
+          continue;
+        }
+
+        if (Field->hasAttr<MetalPositionAttr>()) {
+          Ops.push_back(MDStr("air.position"));
+        } else if (Field->hasAttr<MetalPointSizeAttr>()) {
+          Ops.push_back(MDStr("air.point_size"));
+        } else if (const auto *A = Field->getAttr<MetalUserAttr>()) {
+          Ops.push_back(MDStr("air.vertex_output"));
+          StringRef UserName = A->getName() ? A->getName()->getName()
+                                            : FieldName;
+          Ops.push_back(MDStr((Twine("user(") + UserName + ")").str()));
+        } else {
+          Ops.push_back(MDStr("air.vertex_output"));
+          Ops.push_back(MDStr((Twine("generated(") + FieldName + ")").str()));
+        }
+        AddInterpolationInfo(Ops, Field);
+        AddTypeAndNameInfo(Ops, FieldTy, FieldName);
+        OutputMetadata.push_back(llvm::MDNode::get(Context, Ops));
+      }
+      return llvm::MDNode::get(Context, OutputMetadata);
+    };
+
     EmitAIRModuleMetadata();
+
+    llvm::MDNode *OutputMetadata = BuildAIRStageOutputMetadata();
 
     SmallVector<llvm::Metadata *, 8> ArgMetadata;
     for (unsigned I = 0, E = FD->getNumParams(); I != E; ++I) {
@@ -820,15 +926,23 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
       ArgMetadata.push_back(llvm::MDNode::get(Context, Ops));
     }
 
-    llvm::Metadata *StageOps[] = {
-        llvm::ValueAsMetadata::get(Fn), llvm::MDNode::get(Context, {}),
-        llvm::MDNode::get(Context, ArgMetadata)};
+    llvm::Metadata *StageOps[] = {llvm::ValueAsMetadata::get(Fn),
+                                  OutputMetadata,
+                                  llvm::MDNode::get(Context, ArgMetadata)};
     StringRef AIRStageMDName = IsMetalKernel   ? "air.kernel"
                                 : IsMetalVertex ? "air.vertex"
                                                 : "air.fragment";
+    llvm::MDNode *StageNode = nullptr;
+    if (IsMetalFragment && FD->hasAttr<MetalEarlyFragmentTestsAttr>()) {
+      llvm::Metadata *StageOpsWithOptions[] = {
+          StageOps[0], StageOps[1], StageOps[2], MDStr("early_fragment_tests")};
+      StageNode = llvm::MDNode::get(Context, StageOpsWithOptions);
+    } else {
+      StageNode = llvm::MDNode::get(Context, StageOps);
+    }
     CGM.getModule()
         .getOrInsertNamedMetadata(AIRStageMDName)
-        ->addOperand(llvm::MDNode::get(Context, StageOps));
+        ->addOperand(StageNode);
     return;
   }
 
