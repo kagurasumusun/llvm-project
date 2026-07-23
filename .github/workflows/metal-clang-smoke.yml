@@ -70,6 +70,7 @@ jobs:
 
       - name: Run focused Metal smoke tests
         run: |
+          exec > >(tee metal-smoke.log) 2>&1
           set -euxo pipefail
           CLANG="$PWD/build/bin/clang"
           FILECHECK="$PWD/build/bin/FileCheck"
@@ -117,7 +118,6 @@ jobs:
           run_codegen air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-buffer-reference.metal
           run_codegen air64_v22-apple-macosx10.15 metal2.0 clang/test/CodeGen/metal-air-function-constants.metal
           run_codegen air64_v22-apple-macosx10.15 metal4.0 clang/test/CodeGen/metal-air-generated-type-table.metal
-        2>&1 | tee metal-smoke.log
 
       - name: Collect failure hints
         if: always()
