@@ -418,7 +418,6 @@ typedef uint uint2 __attribute__((ext_vector_type(2)));
 typedef uint uint3 __attribute__((ext_vector_type(3)));
 typedef uint uint4 __attribute__((ext_vector_type(4)));
 typedef float float2x2 __attribute__((ext_vector_type(4)));
-typedef float float3x3 __attribute__((ext_vector_type(9)));
 typedef float float4x4 __attribute__((ext_vector_type(16)));
 namespace metal {
 using ::uchar; using ::ushort; using ::uint; using ::ulong; using ::half;
@@ -426,7 +425,7 @@ using ::float2; using ::float3; using ::float4;
 using ::half2; using ::half3; using ::half4;
 using ::int2; using ::int3; using ::int4;
 using ::uint2; using ::uint3; using ::uint4;
-using ::float2x2; using ::float3x3; using ::float4x4;
+using ::float2x2; using ::float4x4;
 }
 #endif
 )");

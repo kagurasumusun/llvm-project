@@ -740,6 +740,32 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
       }
     };
 
+    auto GetAIRTypeMangle = [&](QualType Ty) -> std::string {
+      std::string TypeName = GetTypeName(Ty);
+      return llvm::StringSwitch<std::string>(TypeName)
+          .Case("float", "f")
+          .Case("float2", "Dv2_f")
+          .Case("float3", "Dv3_f")
+          .Case("float4", "Dv4_f")
+          .Case("half", "Dh")
+          .Case("half2", "Dv2_Dh")
+          .Case("half3", "Dv3_Dh")
+          .Case("half4", "Dv4_Dh")
+          .Case("int", "i")
+          .Case("uint", "j")
+          .Default("");
+    };
+
+    auto GetAIRGeneratedName = [&](const FieldDecl *Field) -> std::string {
+      std::string FieldName = Field->getName().str();
+      std::string TypeMangle = GetAIRTypeMangle(Field->getType());
+      if (FieldName.empty() || TypeMangle.empty())
+        return (Twine("generated(") + Field->getName() + ")").str();
+      return (Twine("generated(") + Twine(FieldName.size()) + FieldName +
+              TypeMangle + ")")
+          .str();
+    };
+
     auto AddInterpolationInfo = [&](SmallVectorImpl<llvm::Metadata *> &Ops,
                                     const FieldDecl *Field) {
       if (Field->hasAttr<MetalFlatAttr>())
@@ -802,9 +828,18 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
           } else if (const auto *A = Field->getAttr<MetalDepthAttr>()) {
             Ops.push_back(MDStr("air.depth"));
             Ops.push_back(MDStr("air.depth_qualifier"));
-            StringRef Qualifier = A->getQualifier()
-                                      ? A->getQualifier()->getName()
-                                      : StringRef("any");
+            StringRef Qualifier = "any";
+            switch (A->getQualifier()) {
+            case MetalDepthAttr::Any:
+              Qualifier = "any";
+              break;
+            case MetalDepthAttr::Greater:
+              Qualifier = "greater";
+              break;
+            case MetalDepthAttr::Less:
+              Qualifier = "less";
+              break;
+            }
             Ops.push_back(MDStr((Twine("air.") + Qualifier).str()));
           } else {
             continue;
@@ -829,7 +864,7 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
           Ops.push_back(MDStr((Twine("user(") + UserName + ")").str()));
         } else {
           Ops.push_back(MDStr("air.vertex_output"));
-          Ops.push_back(MDStr((Twine("generated(") + FieldName + ")").str()));
+          Ops.push_back(MDStr(GetAIRGeneratedName(Field)));
         }
         AddInterpolationInfo(Ops, Field);
         AddTypeAndNameInfo(Ops, FieldTy, FieldName);
@@ -877,8 +912,7 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
                 FieldOps.push_back(Int32MD(Attribute->getIndex()));
                 FieldOps.push_back(Int32MD(1));
               } else {
-                FieldOps.push_back(MDStr((Twine("generated(") +
-                                          Field->getName() + ")").str()));
+                FieldOps.push_back(MDStr(GetAIRGeneratedName(Field)));
               }
             }
             AddInterpolationInfo(FieldOps, Field);

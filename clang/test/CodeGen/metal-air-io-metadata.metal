@@ -33,7 +33,7 @@ vertex VOut vertex_io(device int *out [[buffer(0)]]) {
 // CHECK-DAG: ![[VERTEX]] = !{ptr @{{.*}}vertex_io{{.*}}, ![[VOUTS:[0-9]+]], !{{[0-9]+}}}
 // CHECK-DAG: ![[VOUTS]] = !{![[POS:[0-9]+]], ![[FLAT:[0-9]+]], ![[USER:[0-9]+]], ![[PS:[0-9]+]]}
 // CHECK-DAG: ![[POS]] = !{!"air.position", !"air.arg_type_name", !"int", !"air.arg_name", !"pos"}
-// CHECK-DAG: ![[FLAT]] = !{!"air.vertex_output", !"generated(flatValue)", !"air.flat", !"air.arg_type_name", !"int", !"air.arg_name", !"flatValue"}
+// CHECK-DAG: ![[FLAT]] = !{!"air.vertex_output", !"generated(9flatValuei)", !"air.flat", !"air.arg_type_name", !"int", !"air.arg_name", !"flatValue"}
 // CHECK-DAG: ![[USER]] = !{!"air.vertex_output", !"user(uid)", !"air.arg_type_name", !"int", !"air.arg_name", !"userValue"}
 // CHECK-DAG: ![[PS]] = !{!"air.point_size", !"air.arg_type_name", !"int", !"air.arg_name", !"pointSize"}
 // CHECK-DAG: ![[FRAG]] = !{ptr @{{.*}}fragment_io{{.*}}, ![[FOUTS:[0-9]+]], !{{[0-9]+}}, !"early_fragment_tests"}

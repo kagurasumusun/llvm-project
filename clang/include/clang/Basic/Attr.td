@@ -1801,7 +1801,9 @@ def MetalColor : InheritableAttr {
 
 def MetalDepth : InheritableAttr {
   let Spellings = [CXX11<"", "depth">];
-  let Args = [IdentifierArgument<"Qualifier">];
+  let Args = [EnumArgument<"Qualifier", "DepthQualifier", /*is_string=*/false,
+                           ["any", "greater", "less"],
+                           ["Any", "Greater", "Less"]>];
   let Subjects = SubjectList<[Field]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
