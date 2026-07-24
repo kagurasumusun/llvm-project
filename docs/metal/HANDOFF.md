@@ -591,3 +591,22 @@ Next validation steps:
 3. Dispatch component-fast and full smoke v6.
 4. If passing, record commit IDs and run IDs below.
 
+## Update 2026-07-24 JST — Fix stdlib prelude type-name collisions
+
+After commit `c628f825ed7f848de099428868bb566a548a8ef7`, component-fast run `30067687702` completed `success`, but full smoke v6 run `30068094427` failed in `clang/test/Parser/metal-ast-reference-builtins.metal` before reaching the new stdlib smoke:
+
+```text
+clang/test/Parser/metal-ast-reference-builtins.metal:3:1: error: must use 'struct' tag to refer to type '__metal_texture_2d_t' in this scope
+<built-in>:1154:16: note: struct '__metal_texture_2d_t' is hidden by a non-type declaration of '__metal_texture_2d_t' here
+  extern "C" int __metal_texture_2d_t(...);
+```
+
+Root cause: `MetalStdlibBuiltins.def` currently contains some `__metal_*_t` names that are opaque builtin object type names, not callable stdlib entry points. Emitting generic extern declarations for every row hid the struct tags for types such as `__metal_texture_2d_t`, `__metal_sampler_t`, and `__metal_tensor_t`.
+
+Fix in this commit:
+
+- `clang/lib/Frontend/InitPreprocessor.cpp` now filters generic stdlib extern declarations through `IsMetalBuiltinTypeName`.
+- The filter recognizes builtin object/type names from `MetalASTReference.def` and `MetalBuiltinObjects.def` and skips those rows while still declaring callable `__metal_*` functions such as `__metal_abs` and `__metal_select`.
+
+Next validation steps: rerun component-fast, then full smoke v6.
+

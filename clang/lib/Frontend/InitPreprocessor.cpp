@@ -412,7 +412,26 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              Builder.append("typedef " #BuiltinName " " #Alias ";");
 #include "clang/Basic/MetalBuiltinObjects.def"
 #undef METAL_BUILTIN_OBJECT
-#define METAL_STDLIB_BUILTIN(Name)                                                   Builder.append("extern \"C\" int " #Name "(...);");
+    auto IsMetalBuiltinTypeName = [](StringRef BuiltinName) {
+#define METAL_AST_BUILTIN_TYPE(Name)                                                \
+      if (BuiltinName == #Name)                                                     \
+        return true;
+#define METAL_AST_ATTR(Name)
+#define METAL_AST_ATTR_ALIAS(AppleName, ClangName)
+#include "clang/Basic/MetalASTReference.def"
+#undef METAL_AST_ATTR_ALIAS
+#undef METAL_AST_ATTR
+#undef METAL_AST_BUILTIN_TYPE
+#define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              \
+      if (BuiltinName == #BuiltinName)                                              \
+        return true;
+#include "clang/Basic/MetalBuiltinObjects.def"
+#undef METAL_BUILTIN_OBJECT
+      return false;
+    };
+#define METAL_STDLIB_BUILTIN(Name)                                                  \
+    if (!IsMetalBuiltinTypeName(#Name))                                             \
+      Builder.append("extern \"C\" int " #Name "(...);");
 #include "clang/Basic/MetalStdlibBuiltins.def"
 #undef METAL_STDLIB_BUILTIN
     Builder.append("namespace metal {");
