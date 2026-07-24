@@ -775,3 +775,44 @@ Next recommended implementation work:
 2. Lower texture methods to exact AIR/Metal intrinsics or metadata patterns rather than external C++ method calls.
 3. Add stage-specific mesh/object/raytracing function modeling when the frontend has explicit object/mesh/intersection stage entry points.
 
+## Update 2026-07-24 JST — Continue implementation: broader prototypes, texture wrapper lowering, mesh-like stage attrs
+
+Starting point:
+
+- Known-good code before this batch: `c35fa55d0c448fe85304a289eda0877017edcdba`, full smoke v6 `30069713086` success.
+
+Implementation changes in this batch:
+
+1. Broader stdlib prototype bootstrap:
+   - Added exact one-lane float prototypes for more common `__metal_*` stdlib entries in `InitPreprocessor.cpp`: `acos`, `asin`, `atan`, `ceil`, `exp`, `exp2`, `log`, `log2`, `rsqrt`, `sqrt`, `trunc`, `pow`, `fmin`, `fmax`, and `clamp`, in addition to the earlier `abs`, `select`, `sin`, `cos`, and `floor` subset.
+   - `metal-stdlib-builtin-decls.metal` now checks additional function pointer assignments and calls.
+
+2. Texture method lowering path:
+   - Texture/depth opaque structs no longer leave `get_width()`/etc. as undefined C++ methods. The prelude now defines inline wrappers that call C-style helper entry points:
+     - `__metal_texture_get_width(this)`
+     - `__metal_texture_get_height(this)`
+     - `__metal_texture_get_depth(this)`
+     - `__metal_texture_get_array_size(this)`
+   - This moves CodeGen from an external C++ method symbol toward a stable Metal helper builtin call while still stopping short of true AIR intrinsic lowering.
+   - `metal-texture-methods.metal` now checks calls to `@__metal_texture_get_width` / `@__metal_texture_get_height` and `air.texture` metadata.
+
+3. Mesh/object/raytracing stage modeling:
+   - `Attr.td` changed `MetalObject`, `MetalMesh`, `MetalIntersection`, and `MetalVisible` from `InheritableParamAttr` to `InheritableAttr` and expanded their subjects to `[ParmVar, Function]`.
+   - `CodeGenFunction.cpp` now treats functions carrying those attrs as Metal stage-like functions and emits named metadata nodes:
+     - `!air.object`
+     - `!air.mesh`
+     - `!air.intersection`
+     - `!air.visible`
+   - Existing parameter metadata for `air.object`, `air.mesh`, `air.payload`, `air.intersection`, and `air.visible` remains.
+   - Sema/CodeGen tests now cover `[[object]]`, `[[mesh]]`, `[[intersection]]`, and `[[visible]]` functions.
+
+4. Workflow:
+   - Fast smoke greps texture CodeGen for `__metal_texture_get_width` and mesh/object/ray stage metadata. Push workflow update to default branch `metal`.
+
+Next validation steps:
+
+1. Push implementation to `metal-test`.
+2. Push workflow update to `metal`.
+3. Run component-fast and full smoke v6.
+4. Fix first CI error and update this handoff again.
+

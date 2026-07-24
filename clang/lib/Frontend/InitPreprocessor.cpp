@@ -402,14 +402,21 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                     Builder.append("typedef " CType " " #Name ";");
 #include "clang/Basic/MetalAIRTypes.def"
 #undef METAL_AIR_TYPE
+    Builder.append("extern \"C\" uint __metal_texture_get_width(...);");
+    Builder.append("extern \"C\" uint __metal_texture_get_height(...);");
+    Builder.append("extern \"C\" uint __metal_texture_get_depth(...);");
+    Builder.append("extern \"C\" uint __metal_texture_get_array_size(...);");
 #define METAL_AST_BUILTIN_TYPE(Name)                                               \
     if (StringRef(#Name).contains("texture") ||                                   \
         StringRef(#Name).contains("depth_2d") ||                                  \
         StringRef(#Name).contains("depth_cube"))                                  \
       Builder.append("struct " #Name                                             \
-                     " { char __opaque; uint get_width() const; "                 \
-                     "uint get_height() const; uint get_depth() const; "          \
-                     "uint get_array_size() const; };");                         \
+                     " { char __opaque; "                                         \
+                     "uint get_width() const { return __metal_texture_get_width(this); } " \
+                     "uint get_height() const { return __metal_texture_get_height(this); } " \
+                     "uint get_depth() const { return __metal_texture_get_depth(this); } " \
+                     "uint get_array_size() const { return __metal_texture_get_array_size(this); } " \
+                     "};");                                                       \
     else                                                                          \
       Builder.append("struct " #Name " { char __opaque; };");
 #define METAL_AST_ATTR(Name)
@@ -443,12 +450,42 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
         return "extern \"C\" int __metal_abs(int);";
       if (CandidateName == "__metal_select")
         return "extern \"C\" int __metal_select(int, int, bool);";
+      if (CandidateName == "__metal_acos")
+        return "extern \"C\" float __metal_acos(float);";
+      if (CandidateName == "__metal_asin")
+        return "extern \"C\" float __metal_asin(float);";
+      if (CandidateName == "__metal_atan")
+        return "extern \"C\" float __metal_atan(float);";
+      if (CandidateName == "__metal_ceil")
+        return "extern \"C\" float __metal_ceil(float);";
       if (CandidateName == "__metal_sin")
         return "extern \"C\" float __metal_sin(float);";
       if (CandidateName == "__metal_cos")
         return "extern \"C\" float __metal_cos(float);";
+      if (CandidateName == "__metal_exp")
+        return "extern \"C\" float __metal_exp(float);";
+      if (CandidateName == "__metal_exp2")
+        return "extern \"C\" float __metal_exp2(float);";
       if (CandidateName == "__metal_floor")
         return "extern \"C\" float __metal_floor(float);";
+      if (CandidateName == "__metal_log")
+        return "extern \"C\" float __metal_log(float);";
+      if (CandidateName == "__metal_log2")
+        return "extern \"C\" float __metal_log2(float);";
+      if (CandidateName == "__metal_rsqrt")
+        return "extern \"C\" float __metal_rsqrt(float);";
+      if (CandidateName == "__metal_sqrt")
+        return "extern \"C\" float __metal_sqrt(float);";
+      if (CandidateName == "__metal_trunc")
+        return "extern \"C\" float __metal_trunc(float);";
+      if (CandidateName == "__metal_pow")
+        return "extern \"C\" float __metal_pow(float, float);";
+      if (CandidateName == "__metal_fmin")
+        return "extern \"C\" float __metal_fmin(float, float);";
+      if (CandidateName == "__metal_fmax")
+        return "extern \"C\" float __metal_fmax(float, float);";
+      if (CandidateName == "__metal_clamp")
+        return "extern \"C\" float __metal_clamp(float, float, float);";
       return "";
     };
 #define METAL_STDLIB_BUILTIN(Name)                                                  \

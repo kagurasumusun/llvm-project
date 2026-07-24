@@ -23,3 +23,13 @@ kernel void mesh_ray_attrs(device int *out [[buffer(0)]],
 // CHECK-DAG: ![[PAYLOAD]] = !{i32 5, !"air.payload"
 // CHECK-DAG: ![[INTERSECTION]] = !{i32 6, !"air.intersection"
 // CHECK-DAG: ![[VISIBLE]] = !{i32 7, !"air.visible"
+
+[[object]] void object_entry() {}
+[[mesh]] void mesh_entry() {}
+[[intersection]] void intersection_entry() {}
+[[visible]] void visible_entry() {}
+
+// CHECK-DAG: !air.object = !{!{{[0-9]+}}
+// CHECK-DAG: !air.mesh = !{!{{[0-9]+}}
+// CHECK-DAG: !air.intersection = !{!{{[0-9]+}}
+// CHECK-DAG: !air.visible = !{!{{[0-9]+}}

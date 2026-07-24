@@ -17,3 +17,8 @@ kernel void bad_mesh(Payload data [[mesh]]) {} // expected-error {{'mesh' attrib
 kernel void bad_payload(uint data [[payload]]) {} // expected-error {{'payload' attribute requires parameter type a record type}}
 kernel void bad_intersection(uint data [[intersection]]) {} // expected-error {{'intersection' attribute requires parameter type a record type}}
 kernel void bad_visible(Payload data [[visible]]) {} // expected-error {{'visible' attribute requires parameter type a visible or intersection function table object type}}
+
+[[object]] void object_entry() {}
+[[mesh]] void mesh_entry() {}
+[[intersection]] void intersection_entry() {}
+[[visible]] void visible_entry() {}

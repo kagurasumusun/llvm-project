@@ -1843,16 +1843,16 @@ def MetalId : InheritableParamAttr {
   let Documentation = [InternalOnly];
 }
 
-def MetalObject : InheritableParamAttr {
+def MetalObject : InheritableAttr {
   let Spellings = [CXX11<"", "object", 202600>];
-  let Subjects = SubjectList<[ParmVar]>;
+  let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
-def MetalMesh : InheritableParamAttr {
+def MetalMesh : InheritableAttr {
   let Spellings = [CXX11<"", "mesh", 202600>];
-  let Subjects = SubjectList<[ParmVar]>;
+  let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
@@ -1864,16 +1864,16 @@ def MetalPayload : InheritableParamAttr {
   let Documentation = [InternalOnly];
 }
 
-def MetalIntersection : InheritableParamAttr {
+def MetalIntersection : InheritableAttr {
   let Spellings = [CXX11<"", "intersection", 202600>];
-  let Subjects = SubjectList<[ParmVar]>;
+  let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
-def MetalVisible : InheritableParamAttr {
+def MetalVisible : InheritableAttr {
   let Spellings = [CXX11<"", "visible", 202600>];
-  let Subjects = SubjectList<[ParmVar]>;
+  let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }

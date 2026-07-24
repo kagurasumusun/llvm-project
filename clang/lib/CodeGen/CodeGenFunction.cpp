@@ -626,7 +626,13 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
   bool IsMetalKernel = FD->hasAttr<DeviceKernelAttr>();
   bool IsMetalVertex = FD->hasAttr<MetalVertexAttr>();
   bool IsMetalFragment = FD->hasAttr<MetalFragmentAttr>();
-  bool IsMetalStage = IsMetalKernel || IsMetalVertex || IsMetalFragment;
+  bool IsMetalObjectStage = FD->hasAttr<MetalObjectAttr>();
+  bool IsMetalMeshStage = FD->hasAttr<MetalMeshAttr>();
+  bool IsMetalIntersectionStage = FD->hasAttr<MetalIntersectionAttr>();
+  bool IsMetalVisibleStage = FD->hasAttr<MetalVisibleAttr>();
+  bool IsMetalStage = IsMetalKernel || IsMetalVertex || IsMetalFragment ||
+                      IsMetalObjectStage || IsMetalMeshStage ||
+                      IsMetalIntersectionStage || IsMetalVisibleStage;
 
   if (!IsMetalStage && !FD->hasAttr<CUDAGlobalAttr>())
     return;
@@ -1121,9 +1127,14 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
     llvm::Metadata *StageOps[] = {llvm::ValueAsMetadata::get(Fn),
                                   OutputMetadata,
                                   llvm::MDNode::get(Context, ArgMetadata)};
-    StringRef AIRStageMDName = IsMetalKernel   ? "air.kernel"
-                                : IsMetalVertex ? "air.vertex"
-                                                : "air.fragment";
+    StringRef AIRStageMDName = IsMetalKernel       ? "air.kernel"
+                                : IsMetalVertex     ? "air.vertex"
+                                : IsMetalFragment   ? "air.fragment"
+                                : IsMetalObjectStage ? "air.object"
+                                : IsMetalMeshStage  ? "air.mesh"
+                                : IsMetalIntersectionStage
+                                      ? "air.intersection"
+                                      : "air.visible";
     llvm::MDNode *StageNode = nullptr;
     if (IsMetalFragment && FD->hasAttr<MetalEarlyFragmentTestsAttr>()) {
       llvm::Metadata *StageOpsWithOptions[] = {
