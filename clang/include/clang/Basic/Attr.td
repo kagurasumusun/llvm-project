@@ -1844,14 +1844,14 @@ def MetalId : InheritableParamAttr {
 }
 
 def MetalObject : InheritableAttr {
-  let Spellings = [CXX11<"", "object", 202600>];
+  let Spellings = [CXX11<"", "object", 202600>, CustomKeyword<"object">];
   let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
 }
 
 def MetalMesh : InheritableAttr {
-  let Spellings = [CXX11<"", "mesh", 202600>];
+  let Spellings = [CXX11<"", "mesh", 202600>, CustomKeyword<"mesh">];
   let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];
@@ -1865,7 +1865,7 @@ def MetalPayload : InheritableParamAttr {
 }
 
 def MetalIntersection : InheritableAttr {
-  let Spellings = [CXX11<"", "intersection", 202600>];
+  let Spellings = [CXX11<"", "intersection", 202600>, CustomKeyword<"intersection">];
   let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];

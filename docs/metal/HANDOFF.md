@@ -910,3 +910,39 @@ Next recommended implementation work:
 2. Generate stdlib prototypes from Apple header declarations rather than hard-coded subset + generic fallback.
 3. Compare object/mesh/intersection `!air.*` metadata against Apple IR dumps and adjust operand layout/options.
 
+## Update 2026-07-24 JST — Continue implementation: stdlib prototype table, texture LOD helpers, mesh keywords
+
+Starting point:
+
+- Known-good code before this batch: `d4385fb9f985f3a868c7616d1856ed449baadd36`, full smoke v6 `30076618550` success.
+
+Implementation changes in this batch:
+
+1. Stdlib prototype table:
+   - Added `clang/include/clang/Basic/MetalStdlibBuiltinPrototypes.def` as the central table for exact bootstrap prototypes.
+   - `InitPreprocessor.cpp` now uses the table instead of a hand-written chain in the lambda.
+   - Added additional smoke coverage for `__metal_log`, `__metal_sqrt`, and `__metal_fmax`.
+
+2. Texture method lowering expansion:
+   - Prelude texture/depth structs now expose and lower more dimension query methods:
+     - `get_width(uint level)` -> `air.texture.get_width.lod`
+     - `get_height(uint level)` -> `air.texture.get_height.lod`
+     - `get_depth(uint level)` -> `air.texture.get_depth.lod`
+     - `get_num_mip_levels()` -> `air.texture.get_num_mip_levels`
+     - `get_num_samples()` -> `air.texture.get_num_samples`
+   - Parser and CodeGen texture method tests updated; fast smoke greps the new AIR-named calls.
+
+3. Mesh/object/intersection function keywords:
+   - Added Metal-only keywords in `TokenKinds.def`: `object`, `mesh`, `intersection`.
+   - Added `CustomKeyword` spellings for `MetalObject`, `MetalMesh`, and `MetalIntersection` attrs.
+   - Parser/Sema/CodeGen tests now cover both C++ attribute spelling (`[[object]]`) and keyword spelling (`object void f()`).
+
+4. Workflow:
+   - Fast smoke now includes `clang/test/Parser/metal-mesh-keywords.metal` and expanded texture method grep checks. Push workflow update to branch `metal`.
+
+Next validation steps:
+
+1. Push to `metal-test` and workflow branch `metal`.
+2. Run component-fast and full smoke v6.
+3. Record commit IDs/run IDs after validation.
+

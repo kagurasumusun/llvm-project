@@ -4,8 +4,12 @@ kernel void texture_methods(texture2d tex [[texture(0)]],
                             device uint *out [[buffer(0)]]) {
   out[0] = tex.get_width();
   out[1] = tex.get_height();
+  out[2] = tex.get_width(1);
+  out[3] = tex.get_num_mip_levels();
 }
 
 // CHECK: call {{.*}}@air.texture.get_width
 // CHECK: call {{.*}}@air.texture.get_height
+// CHECK: call {{.*}}@air.texture.get_width.lod
+// CHECK: call {{.*}}@air.texture.get_num_mip_levels
 // CHECK: !"air.texture"

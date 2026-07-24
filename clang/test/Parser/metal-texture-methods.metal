@@ -5,4 +5,8 @@ kernel void texture_methods(texture2d tex [[texture(0)]],
   out[0] = tex.get_width();
   out[1] = tex.get_height();
   out[2] = tex.get_array_size();
+  out[3] = tex.get_width(1);
+  out[4] = tex.get_height(1);
+  out[5] = tex.get_num_mip_levels();
+  out[6] = tex.get_num_samples();
 }

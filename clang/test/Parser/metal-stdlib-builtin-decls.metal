@@ -10,6 +10,9 @@ float (*metal_acos_float)(float) = __metal_acos;
 float (*metal_exp_float)(float) = __metal_exp;
 float (*metal_pow_float)(float, float) = __metal_pow;
 float (*metal_clamp_float)(float, float, float) = __metal_clamp;
+float (*metal_log_float)(float) = __metal_log;
+float (*metal_sqrt_float)(float) = __metal_sqrt;
+float (*metal_fmax_float)(float, float) = __metal_fmax;
 
 // The lightweight Metal prelude declares __metal_* stdlib entry points gathered
 // in MetalStdlibBuiltins.def.  The declarations are intentionally generic for
@@ -20,5 +23,6 @@ kernel void use_stdlib_builtin_decls(device int *out [[buffer(0)]]) {
   float s = __metal_sin(1.0f) + __metal_cos(1.0f) + __metal_floor(1.5f);
   s += __metal_acos(0.5f) + __metal_exp(1.0f) + __metal_pow(2.0f, 3.0f);
   s += __metal_clamp(2.0f, 0.0f, 1.0f);
+  s += __metal_log(2.0f) + __metal_sqrt(4.0f) + __metal_fmax(1.0f, 2.0f);
   out[2] = int(s);
 }

@@ -6203,12 +6203,22 @@ static StringRef getMetalTextureHelperLoweringName(const FunctionDecl *FD) {
   StringRef Name = FD->getName();
   if (Name == "__metal_texture_get_width")
     return "air.texture.get_width";
+  if (Name == "__metal_texture_get_width_lod")
+    return "air.texture.get_width.lod";
   if (Name == "__metal_texture_get_height")
     return "air.texture.get_height";
+  if (Name == "__metal_texture_get_height_lod")
+    return "air.texture.get_height.lod";
   if (Name == "__metal_texture_get_depth")
     return "air.texture.get_depth";
+  if (Name == "__metal_texture_get_depth_lod")
+    return "air.texture.get_depth.lod";
   if (Name == "__metal_texture_get_array_size")
     return "air.texture.get_array_size";
+  if (Name == "__metal_texture_get_num_mip_levels")
+    return "air.texture.get_num_mip_levels";
+  if (Name == "__metal_texture_get_num_samples")
+    return "air.texture.get_num_samples";
   return "";
 }
 

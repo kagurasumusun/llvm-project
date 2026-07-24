@@ -33,3 +33,7 @@ kernel void mesh_ray_attrs(device int *out [[buffer(0)]],
 // CHECK-DAG: !air.mesh = !{!{{[0-9]+}}
 // CHECK-DAG: !air.intersection = !{!{{[0-9]+}}
 // CHECK-DAG: !air.visible = !{!{{[0-9]+}}
+
+object void object_keyword_entry() {}
+mesh void mesh_keyword_entry() {}
+intersection void intersection_keyword_entry() {}

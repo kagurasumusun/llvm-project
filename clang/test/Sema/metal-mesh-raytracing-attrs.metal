@@ -22,3 +22,7 @@ kernel void bad_visible(Payload data [[visible]]) {} // expected-error {{'visibl
 [[mesh]] void mesh_entry() {}
 [[intersection]] void intersection_entry() {}
 [[visible]] void visible_entry() {}
+
+object void object_keyword_entry() {}
+mesh void mesh_keyword_entry() {}
+intersection void intersection_keyword_entry() {}
