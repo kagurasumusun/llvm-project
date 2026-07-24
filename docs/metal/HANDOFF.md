@@ -816,3 +816,41 @@ Next validation steps:
 3. Run component-fast and full smoke v6.
 4. Fix first CI error and update this handoff again.
 
+## Update 2026-07-24 JST — broader stdlib prototypes, texture helper lowering, and mesh-like stage attrs validated
+
+Implementation commit on `metal-test`:
+
+- `e7bcc7c9ba6bab94a21ba8122b463c702155cde7` — `[Metal] Broaden stdlib prototypes and mesh-like stages`
+
+Default workflow branch update:
+
+- `6f713317c0cf354cbdee9ccb76d822f769fc5d52` — `[ci][Metal] Check texture helper and mesh-like stage metadata`
+
+Validation results:
+
+- Component-fast run `30070063106` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30070063106
+- Full smoke v6 run `30071361260` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30071361260
+
+What passed in this batch:
+
+1. Broader stdlib bootstrap prototypes:
+   - Added exact float/int prototypes for a larger common subset: `__metal_acos`, `__metal_asin`, `__metal_atan`, `__metal_ceil`, `__metal_exp`, `__metal_exp2`, `__metal_log`, `__metal_log2`, `__metal_rsqrt`, `__metal_sqrt`, `__metal_trunc`, `__metal_pow`, `__metal_fmin`, `__metal_fmax`, `__metal_clamp`, plus previous `abs`, `select`, `sin`, `cos`, `floor`.
+   - `metal-stdlib-builtin-decls.metal` checks exact function pointer assignments and calls for the expanded subset.
+
+2. Texture method lowering path:
+   - Texture/depth opaque structs now define inline wrappers for `get_width`, `get_height`, `get_depth`, `get_array_size` that call C-style helper builtins (`__metal_texture_get_width`, etc.).
+   - CodeGen smoke now checks helper calls such as `@__metal_texture_get_width`, rather than external C++ method symbols, plus `air.texture` metadata.
+
+3. Mesh/object/raytracing-like stage attrs:
+   - `MetalObject`, `MetalMesh`, `MetalIntersection`, and `MetalVisible` now allow both `ParmVar` and `Function` subjects.
+   - `EmitKernelMetadata` treats functions with those attrs as Metal stage-like functions and emits preliminary named metadata nodes `!air.object`, `!air.mesh`, `!air.intersection`, and `!air.visible`.
+   - Parameter metadata for object/mesh/payload/intersection/visible attrs remains covered.
+
+Current known-good implementation state before this docs-only update: `e7bcc7c9ba6bab94a21ba8122b463c702155cde7`. Any later docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation work:
+
+1. Generate the expanded stdlib prototypes from `metal-info` Apple headers instead of keeping the exact-prototype subset hand-authored.
+2. Replace texture helper external calls with actual AIR intrinsic/lowering once the target ABI mapping is clearer.
+3. Refine object/mesh/intersection function syntax and exact AIR metadata against Apple AST/IR examples.
+
