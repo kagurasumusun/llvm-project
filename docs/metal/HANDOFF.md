@@ -295,3 +295,33 @@ Next actions:
 2. If component build passes, dispatch `.github/workflows/metal-clang-smoke-v6.yml` with `ref=metal-test` to rerun the parser/CodeGen smoke tests.
 3. Inspect the first new CI error before making further broad changes.
 
+## Update 2026-07-24 JST — Metal function constants may be uninitialized
+
+Commit `ede4c79b88517c2f8a3c70d625a3bd133aeb200f` fixed the previous smoke blocker by implementing:
+
+- `vertex` / `fragment` custom-keyword function attrs in `SemaDeclAttr.cpp`.
+- Metal `thread` / `opencl_private` automatic local variables in `SemaDecl.cpp`.
+- `clang/test/Sema/metal-address-spaces.metal`.
+
+Validation after that commit:
+
+- Component-only workflow run `30062376523` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30062376523
+- Full smoke workflow run `30062542551` built clang and passed the previous `metal-basic-keywords.metal` smoke step, then failed at `metal-prelude-types.metal` with:
+
+```text
+clang/test/Parser/metal-prelude-types.metal:20:15: error: variable in constant address space must be initialized
+  constant bool fc_bool [[function_constant(0)]];
+clang/test/Parser/metal-prelude-types.metal:21:14: error: variable in constant address space must be initialized
+  constant int fc_int [[function_constant(1)]];
+```
+
+Implementation update in this commit:
+
+- `clang/lib/Sema/SemaDecl.cpp`: keep Clang's OpenCL-derived rule that ordinary non-extern `constant` globals need initializers, but exempt Metal globals carrying `MetalFunctionConstantAttr` because MSL function constants are supplied by specialization data and can be declared without an initializer.
+- `clang/test/Sema/metal-function-constants.metal`: added focused coverage for uninitialized `constant ... [[function_constant(n)]]` declarations and a negative ordinary `constant int` declaration.
+
+Next actions:
+
+1. Dispatch component-fast workflow again for `metal-test`.
+2. If it succeeds, dispatch full smoke v6 again and inspect the next failure.
+

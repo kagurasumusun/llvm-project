@@ -14411,10 +14411,13 @@ void Sema::ActOnUninitializedDecl(Decl *RealDecl) {
     }
 
     // OpenCL v1.1 s6.5.3: variables declared in the constant address space must
-    // be initialized.
+    // be initialized. Metal function constants are specialized externally and
+    // may be declared without an initializer, e.g.
+    //   constant bool enabled [[function_constant(0)]];
     if (!Var->isInvalidDecl() &&
         Var->getType().getAddressSpace() == LangAS::opencl_constant &&
-        Var->getStorageClass() != SC_Extern && !Var->getInit()) {
+        Var->getStorageClass() != SC_Extern && !Var->getInit() &&
+        !(getLangOpts().Metal && Var->hasAttr<MetalFunctionConstantAttr>())) {
       bool HasConstExprDefaultConstructor = false;
       if (CXXRecordDecl *RD = Var->getType()->getAsCXXRecordDecl()) {
         for (auto *Ctor : RD->ctors()) {
