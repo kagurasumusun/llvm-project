@@ -6,4 +6,4 @@ kernel void texture_methods(texture2d tex [[texture(0)]],
 }
 
 // CHECK: call {{.*}}get_width
-// CHECK: !air.texture
+// CHECK: !"air.texture"

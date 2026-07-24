@@ -725,3 +725,21 @@ Next validation steps:
 3. Run component-fast.
 4. Run full smoke v6 and fix the first new failure.
 
+## Update 2026-07-24 JST — Fix texture method smoke grep
+
+Commit `5341a47f81fad89904255681dad014296e0ab888` passed component-fast run `30069379992`, but full smoke run `30069514270` failed in the new texture method CodeGen smoke. The `get_width` grep succeeded, then the workflow looked for `!air.texture` and failed:
+
+```text
++ grep -F get_width /tmp/metal-texture-methods.metal.ll
++ grep -F '!air.texture' /tmp/metal-texture-methods.metal.ll
+```
+
+Root cause: AIR metadata strings in LLVM IR are printed as `!"air.texture"`, so the literal substring `!air.texture` is not present. Existing smoke checks use the plain string name style.
+
+Fix in this commit:
+
+- `clang/test/CodeGen/metal-texture-methods.metal`: FileCheck now expects `!"air.texture"`.
+- `.github/workflows/metal-clang-smoke-v6.yml`: grep now checks `air.texture` instead of `!air.texture`.
+
+Next validation step: rerun full smoke v6. Component-fast already passed for the code changes.
+
