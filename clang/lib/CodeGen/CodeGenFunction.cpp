@@ -959,6 +959,10 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
                 FieldOps.push_back(MDStr("air.location_index"));
                 FieldOps.push_back(Int32MD(Attribute->getIndex()));
                 FieldOps.push_back(Int32MD(1));
+              } else if (const auto *User = Field->getAttr<MetalUserAttr>()) {
+                StringRef UserName = User->getName() ? User->getName()->getName()
+                                                     : Field->getName();
+                FieldOps.push_back(MDStr((Twine("user(") + UserName + ")").str()));
               } else {
                 FieldOps.push_back(MDStr(GetAIRGeneratedName(Field)));
               }

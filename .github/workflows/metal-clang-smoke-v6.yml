@@ -183,7 +183,7 @@ jobs:
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-metadata.metal "!air.kernel" "!air.version" "!air.language_version"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-stage-metadata.metal "!air.vertex" "!air.fragment" "air.vertex_input" "air.fragment_input"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-io-metadata.metal "!air.vertex" "!air.fragment" "air.render_target" "air.depth"
-          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-stage-in-struct.metal "air.vertex_input" "air.location_index"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-stage-in-struct.metal "air.vertex_input" "air.location_index" "user(shade_id)"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-builtin-inputs.metal "air.vertex_id" "air.front_facing" "air.threadgroup_position_in_grid"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-buffer-reference.metal "air.buffer" "air.arg_type_size"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-function-constants.metal "!air.function_constants" "fc_bool" "fc_int"

@@ -446,3 +446,27 @@ Next recommended implementation work:
 2. Use component-fast first for C++ compile feedback, then full smoke v6 after each functional change.
 3. Keep platform-qualified old standards (`ios-metal*`, `macos-metal*`, `osx-metal*`) and do not reintroduce unqualified `metal1.*`/`metal2.*`.
 
+## Update 2026-07-24 JST — Continue implementation: early_fragment_tests validation and stage_in user metadata
+
+Starting point for this implementation batch:
+
+- `metal-test` was at docs-only head `adca35ebbc8143070f993f083cbc770527049696`.
+- Previous implementation head `b5eabafc6f9e88de9612a6d59a43f72b432e6b67` had passing validation:
+  - component-fast `30065249380` success
+  - full smoke v6 `30065387233` success
+
+Implementation changes in this batch:
+
+- `clang/lib/Sema/SemaDeclAttr.cpp`: `[[early_fragment_tests]]` is now semantically restricted to fragment functions. A vertex/kernel function with the attr emits `err_metal_attribute_wrong_stage` instead of accepting the attr solely because the TableGen subject is any function.
+- `clang/test/Sema/metal-builtin-input-validation.metal`: added a negative vertex-function `[[early_fragment_tests]]` test. This file is part of the focused smoke workflow.
+- `clang/lib/CodeGen/CodeGenFunction.cpp`: `[[stage_in]]` record fields using `[[user(name)]]` now emit AIR input metadata with `user(name)` instead of falling back to a generated field name. This aligns stage input handling with existing vertex output `[[user(name)]]` metadata.
+- `clang/test/CodeGen/metal-air-stage-in-struct.metal`: updated expected metadata for a `[[user(shade_id), flat]]` stage input field.
+- `.github/workflows/metal-clang-smoke-v6.yml`: the focused smoke grep for `metal-air-stage-in-struct.metal` now also checks `user(shade_id)`. The workflow file must be pushed to both `metal-test` and default workflow branch `metal` so manual dispatch sees the new grep.
+
+Next validation steps:
+
+1. Push implementation to `metal-test`.
+2. Push the workflow-only update to branch `metal`.
+3. Dispatch component-fast (`metal-clang-components-v1.yml`) with `ref=metal-test`.
+4. Dispatch full smoke v6 (`metal-clang-smoke-v6.yml`) with `ref=metal-test`.
+

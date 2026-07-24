@@ -14,3 +14,4 @@ vertex void bad_vertex_kernel_attr(uint3 grid [[thread_position_in_grid]]) {} //
 fragment void bad_fragment_type(int front [[front_facing]]) {} // expected-error {{'front_facing' attribute requires parameter type bool}}
 fragment void bad_position_type(uint p [[position]]) {} // expected-error {{'position' attribute requires parameter type float4}}
 vertex void bad_stage_type(uint in [[stage_in]]) {} // expected-error {{'stage_in' attribute requires parameter type a record type}}
+[[early_fragment_tests]] vertex void bad_vertex_early_fragment_tests() {} // expected-error {{'early_fragment_tests' attribute is only valid on fragment functions}}

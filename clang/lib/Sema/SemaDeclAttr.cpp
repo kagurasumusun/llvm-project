@@ -5433,13 +5433,20 @@ static void validateMetalStageAttr(Sema &S, const ParmVarDecl *P,
 }
 
 static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
-  const auto *FD = dyn_cast<FunctionDecl>(D);
+  auto *FD = dyn_cast<FunctionDecl>(D);
   if (!FD || !S.getLangOpts().Metal)
     return;
 
   unsigned FunctionStage = getMetalFunctionStageMaskForFunction(FD);
   if (FunctionStage == static_cast<unsigned>(MetalFunctionStage::None))
     return;
+
+  if (const auto *A = FD->getAttr<MetalEarlyFragmentTestsAttr>()) {
+    if ((FunctionStage & MetalFragmentStage) == 0) {
+      S.Diag(A->getLocation(), diag::err_metal_attribute_wrong_stage) << A << 2;
+      FD->setInvalidDecl();
+    }
+  }
 
   for (const ParmVarDecl *P : FD->parameters()) {
     validateMetalStageAttr(S, P, P->getAttr<MetalStageInAttr>(), FunctionStage,
