@@ -6547,15 +6547,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   if (getLangOpts().HIPStdPar && getLangOpts().CUDAIsDevice)
     return EmitHipStdParUnsupportedBuiltin(this, FD);
 
-  // Handle __metal_* builtin functions in Metal language mode
-  if (getLangOpts().Metal) {
-    if (const FunctionDecl *FD = E->getDirectCallee()) {
-      if (FD->getIdentifier() && FD->getName().startswith("__metal_")) {
-        return EmitMetalBuiltinExpr(E, FD->getName());
-      }
-    }
-  }
-
   ErrorUnsupported(E, "builtin function");
 
   // Unknown builtin, for now just dump it out and return undef.
