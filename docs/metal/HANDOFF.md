@@ -325,3 +325,25 @@ Next actions:
 1. Dispatch component-fast workflow again for `metal-test`.
 2. If it succeeds, dispatch full smoke v6 again and inspect the next failure.
 
+## Update 2026-07-24 JST — AST-reference builtin smoke names avoid prelude aliases
+
+Commit `c12884d7eb4ea4df10a64a7b12e4b778bccb35c8` allowed uninitialized Metal function constants and added Sema coverage. Validation after that commit:
+
+- Component-only workflow run `30062728900` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30062728900
+- Full smoke workflow run `30062869752` built clang, passed `metal-basic-keywords.metal`, `metal-prelude-types.metal`, and `metal-generated-prelude-table.metal`, then failed at `clang/test/Parser/metal-ast-reference-builtins.metal` with:
+
+```text
+clang/test/Parser/metal-ast-reference-builtins.metal:4:20: error: redefinition of 'sampler' as different kind of symbol
+  __metal_sampler_t *sampler;
+<built-in>:489:27: note: previous definition is here
+  typedef __metal_sampler_t sampler;
+clang/test/Parser/metal-ast-reference-builtins.metal:7:19: error: redefinition of 'tensor' as different kind of symbol
+  __metal_tensor_t *tensor;
+<built-in>:508:26: note: previous definition is here
+  typedef __metal_tensor_t tensor;
+```
+
+This is a smoke-test issue exposed by the prelude object aliases: `sampler` and `tensor` are intentionally type aliases now, so the test should not use the same identifiers as global variable names. Updated the AST-reference builtin smoke declarations to use suffixed variable names (`texture_obj`, `sampler_obj`, `vft_obj`, `ias_obj`, `tensor_obj`) while preserving the checked `__metal_*` builtin object types.
+
+Next action: rerun full smoke v6 for `metal-test` and inspect the next failure.
+
