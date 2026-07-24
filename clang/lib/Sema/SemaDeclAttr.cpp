@@ -5383,7 +5383,8 @@ static unsigned getMetalAttributeMinVersion(const ParsedAttr &AL) {
   }
 }
 
-static bool checkMetalAttributeAvailability(Sema &S, const ParsedAttr &AL) {
+static bool checkMetalAttributeAvailability(Sema &S, Decl *D,
+                                            const ParsedAttr &AL) {
   if (!S.getLangOpts().Metal)
     return false;
   unsigned MinVersion = getMetalAttributeMinVersion(AL);
@@ -5395,6 +5396,14 @@ static bool checkMetalAttributeAvailability(Sema &S, const ParsedAttr &AL) {
   S.Diag(AL.getLoc(), diag::err_metal_attribute_requires_version)
       << AL << (MinVersion / 100) << ((MinVersion % 100) / 10);
   AL.setInvalid();
+  // Treat unavailable Metal attributes as invalid declarations, not just
+  // dropped attributes.  This avoids cascading diagnostics from later generic
+  // declaration checks; for example, an unavailable
+  // [[function_constant(n)]] on a constant-address-space variable should report
+  // the availability error, not an additional "constant must be initialized"
+  // error after the attribute was rejected.
+  if (D)
+    D->setInvalidDecl();
   return true;
 }
 
@@ -7498,7 +7507,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     return;
   }
 
-  if (checkMetalAttributeAvailability(S, AL))
+  if (checkMetalAttributeAvailability(S, D, AL))
     return;
 
   // Check if argument population must delayed to after template instantiation.

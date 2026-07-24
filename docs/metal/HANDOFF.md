@@ -400,3 +400,28 @@ Fix in this commit: when `handleMetalFunctionConstantAttr` diagnoses an out-of-r
 
 Next actions: rerun component-fast, then full smoke v6.
 
+## Update 2026-07-24 JST — Mark unavailable Metal attrs invalid to avoid cascades
+
+Commit `285020a4bef67de3dcf654f499242d6c71b94200` marked invalid `[[function_constant]]` declarations invalid after type/index diagnostics. Component-fast run `30063801527` then completed `success`. Full smoke run `30063917870` progressed further and failed in `clang/test/Sema/metal-availability.metal`:
+
+```text
+error: 'expected-error' diagnostics seen but not expected:
+  File clang/test/Sema/metal-availability.metal Line 4: variable in constant address space must be initialized
+```
+
+Line 4 is:
+
+```metal
+constant int fc [[function_constant(0)]];
+// expected-error@-1 {{'function_constant' attribute requires Metal 1.2 or later}}
+```
+
+Root cause: `checkMetalAttributeAvailability` diagnosed the unavailable `function_constant` attribute and returned before the attr was attached, but left the variable valid. Later `ActOnUninitializedDecl` saw an ordinary uninitialized `constant int` and emitted a cascading initializer diagnostic.
+
+Fix in this commit:
+
+- Change `checkMetalAttributeAvailability` to receive `Decl *D`.
+- After emitting `err_metal_attribute_requires_version`, call `D->setInvalidDecl()` when available. This treats unavailable Metal attrs as invalid declarations and suppresses later unrelated declaration checks.
+
+Next actions: rerun component-fast for C++ compile validation, then full smoke v6.
+
