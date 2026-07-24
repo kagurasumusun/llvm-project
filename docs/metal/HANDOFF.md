@@ -254,3 +254,21 @@ Purpose: reduce clang-only CI time. Changes include clang/clang++ host compiler,
 Previous latest completed error before this workflow tune was run `30054210146`: clang build succeeded, smoke failed due to `typedef __fp16 half;` prelude collision. Fixed by commit `2aa377e04581c50ccf216771531d5ace7289cbc5`.
 
 Next agent should prefer dispatching `metal-clang-smoke-v6.yml` from default branch `metal` with input `ref=metal-test`.
+
+
+## Update 2026-07-24 JST — component-only fast workflow
+
+Added a new component-only workflow for much faster iteration when the goal is to catch TableGen/C++ compile errors in touched Clang libraries without linking the `clang` executable or running smoke tests.
+
+Workflow files:
+
+- `.github/workflows/metal-clang-components-fast.yml`
+- `.github/workflows/metal-clang-components-v1.yml`
+
+Default component targets:
+
+```text
+clangBasic clangLex clangAST clangSerialization clangParse clangSema clangCodeGen clangFrontend clangDriver
+```
+
+This workflow uses sparse checkout, clang/clang++ host compiler, lld, ccache restore/save immediately after component build, X86-only LLVM target, tests/docs/examples/tools disabled, O1 Release flags, and no clang executable link. Use this workflow for rapid feedback; use `metal-clang-smoke-v6.yml` for full clang binary + smoke tests.
