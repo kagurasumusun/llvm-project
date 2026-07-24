@@ -181,6 +181,7 @@ jobs:
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-builtin-object-aliases.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-ast-reference-attrs.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-stdlib-builtin-decls.metal
+          run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-stdlib-namespace-wrappers.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-texture-methods.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-mesh-keywords.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-tile-keyword.metal
@@ -200,6 +201,7 @@ jobs:
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-function-constants.metal "!air.function_constants" "fc_bool" "fc_int"
           run_codegen_grep air64_v22-apple-macosx10.15 metal4.0 clang/test/CodeGen/metal-air-generated-type-table.metal "generated(5colorDv4_f)" "generated(6hcolorDv4_Dh)"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-stdlib-builtin-calls.metal "@__metal_abs"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-stdlib-namespace-wrappers.metal "@__metal_sin" "@__metal_pow" "@__metal_clamp"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-texture-methods.metal "air.texture.get_width" "air.texture.get_width.lod" "air.texture.get_num_mip_levels" "air.texture.read" "air.texture.sample" "air.texture.write" "air.texture"
           run_codegen_grep air64_v30-apple-macosx15.0 metal3.0 clang/test/CodeGen/metal-air-mesh-raytracing-attrs.metal "air.local_index" "air.mesh" "air.payload" "!air.object" "!air.visible"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-tile-metadata.metal "!air.tile"

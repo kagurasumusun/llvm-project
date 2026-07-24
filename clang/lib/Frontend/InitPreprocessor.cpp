@@ -415,6 +415,14 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("extern \"C\" float4 __metal_texture_sample(...);");
     Builder.append("extern \"C\" void __metal_texture_write(...);");
 #define METAL_AST_BUILTIN_TYPE(Name)                                               \
+    Builder.append("struct " #Name ";");
+#define METAL_AST_ATTR(Name)
+#define METAL_AST_ATTR_ALIAS(AppleName, ClangName)
+#include "clang/Basic/MetalASTReference.def"
+#undef METAL_AST_ATTR_ALIAS
+#undef METAL_AST_ATTR
+#undef METAL_AST_BUILTIN_TYPE
+#define METAL_AST_BUILTIN_TYPE(Name)                                               \
     if (StringRef(#Name).contains("texture") ||                                   \
         StringRef(#Name).contains("depth_2d") ||                                  \
         StringRef(#Name).contains("depth_cube"))                                  \
@@ -429,10 +437,18 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
                      "uint get_array_size() const { return __metal_texture_get_array_size(this); } " \
                      "uint get_num_mip_levels() const { return __metal_texture_get_num_mip_levels(this); } " \
                      "uint get_num_samples() const { return __metal_texture_get_num_samples(this); } " \
+                     "float4 read(uint coord) const { return __metal_texture_read(this, coord); } " \
+                     "float4 read(uint coord, uint level) const { return __metal_texture_read(this, coord, level); } " \
                      "float4 read(uint2 coord) const { return __metal_texture_read(this, coord); } " \
                      "float4 read(uint2 coord, uint level) const { return __metal_texture_read(this, coord, level); } " \
-                     "float4 sample(...) const { return __metal_texture_sample(this); } " \
+                     "float4 read(uint3 coord) const { return __metal_texture_read(this, coord); } " \
+                     "float4 read(uint3 coord, uint level) const { return __metal_texture_read(this, coord, level); } " \
+                     "float4 sample(const __metal_sampler_t &s, float coord) const { return __metal_texture_sample(this, &s, coord); } " \
+                     "float4 sample(const __metal_sampler_t &s, float2 coord) const { return __metal_texture_sample(this, &s, coord); } " \
+                     "float4 sample(const __metal_sampler_t &s, float3 coord) const { return __metal_texture_sample(this, &s, coord); } " \
+                     "void write(float4 value, uint coord) { __metal_texture_write(this, value, coord); } " \
                      "void write(float4 value, uint2 coord) { __metal_texture_write(this, value, coord); } " \
+                     "void write(float4 value, uint3 coord) { __metal_texture_write(this, value, coord); } " \
                      "};");                                                       \
     else                                                                          \
       Builder.append("struct " #Name " { char __opaque; };");
@@ -491,6 +507,22 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
       Builder.append("using ::" #Alias ";");
 #include "clang/Basic/MetalBuiltinObjects.def"
 #undef METAL_BUILTIN_OBJECT
+#define METAL_STDLIB_WRAPPER_UNARY_FLOAT(Name, Builtin)                            \
+    Builder.append("inline float " #Name "(float x) { return ::" #Builtin "(x); }");
+#define METAL_STDLIB_WRAPPER_BINARY_FLOAT(Name, Builtin)                           \
+    Builder.append("inline float " #Name "(float x, float y) { return ::" #Builtin "(x, y); }");
+#define METAL_STDLIB_WRAPPER_TERNARY_FLOAT(Name, Builtin)                          \
+    Builder.append("inline float " #Name "(float x, float y, float z) { return ::" #Builtin "(x, y, z); }");
+#define METAL_STDLIB_WRAPPER_UNARY_INT(Name, Builtin)                              \
+    Builder.append("inline int " #Name "(int x) { return ::" #Builtin "(x); }");
+#define METAL_STDLIB_WRAPPER_SELECT_INT(Name, Builtin)                             \
+    Builder.append("inline int " #Name "(int x, int y, bool c) { return ::" #Builtin "(x, y, c); }");
+#include "clang/Basic/MetalStdlibNamespaceWrappers.def"
+#undef METAL_STDLIB_WRAPPER_SELECT_INT
+#undef METAL_STDLIB_WRAPPER_UNARY_INT
+#undef METAL_STDLIB_WRAPPER_TERNARY_FLOAT
+#undef METAL_STDLIB_WRAPPER_BINARY_FLOAT
+#undef METAL_STDLIB_WRAPPER_UNARY_FLOAT
     Builder.append("}");
     Builder.append("#endif");
   }

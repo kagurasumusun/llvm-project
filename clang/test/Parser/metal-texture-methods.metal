@@ -14,3 +14,12 @@ kernel void texture_methods(texture2d tex [[texture(0)]],
   value += tex.sample(sampler(), float2(0.5f));
   tex.write(value, uint2(0));
 }
+
+
+kernel void texture1d_methods(texture1d tex [[texture(1)]],
+                              device uint *out [[buffer(1)]]) {
+  float4 value = tex.read(0);
+  value += tex.read(1, 0);
+  tex.write(value, 0);
+  out[0] = tex.get_width();
+}

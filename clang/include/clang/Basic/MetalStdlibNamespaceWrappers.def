@@ -1,0 +1,58 @@
+//===--- MetalStdlibNamespaceWrappers.def - Metal namespace wrappers -*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Bootstrap scalar wrappers for a small subset of the Metal stdlib namespace.
+// They bridge user-facing `metal::foo` calls to the currently modeled
+// `__metal_*` entry points.
+//
+// METAL_STDLIB_WRAPPER_UNARY_FLOAT(Name, Builtin)
+// METAL_STDLIB_WRAPPER_BINARY_FLOAT(Name, Builtin)
+// METAL_STDLIB_WRAPPER_TERNARY_FLOAT(Name, Builtin)
+// METAL_STDLIB_WRAPPER_UNARY_INT(Name, Builtin)
+// METAL_STDLIB_WRAPPER_SELECT_INT(Name, Builtin)
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef METAL_STDLIB_WRAPPER_UNARY_FLOAT
+#define METAL_STDLIB_WRAPPER_UNARY_FLOAT(Name, Builtin)
+#endif
+#ifndef METAL_STDLIB_WRAPPER_BINARY_FLOAT
+#define METAL_STDLIB_WRAPPER_BINARY_FLOAT(Name, Builtin)
+#endif
+#ifndef METAL_STDLIB_WRAPPER_TERNARY_FLOAT
+#define METAL_STDLIB_WRAPPER_TERNARY_FLOAT(Name, Builtin)
+#endif
+#ifndef METAL_STDLIB_WRAPPER_UNARY_INT
+#define METAL_STDLIB_WRAPPER_UNARY_INT(Name, Builtin)
+#endif
+#ifndef METAL_STDLIB_WRAPPER_SELECT_INT
+#define METAL_STDLIB_WRAPPER_SELECT_INT(Name, Builtin)
+#endif
+
+METAL_STDLIB_WRAPPER_UNARY_INT(abs, __metal_abs)
+METAL_STDLIB_WRAPPER_SELECT_INT(select, __metal_select)
+
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(acos, __metal_acos)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(asin, __metal_asin)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(atan, __metal_atan)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(ceil, __metal_ceil)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(cos, __metal_cos)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(exp, __metal_exp)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(exp2, __metal_exp2)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(floor, __metal_floor)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(log, __metal_log)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(log2, __metal_log2)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(rsqrt, __metal_rsqrt)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(sin, __metal_sin)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(sqrt, __metal_sqrt)
+METAL_STDLIB_WRAPPER_UNARY_FLOAT(trunc, __metal_trunc)
+
+METAL_STDLIB_WRAPPER_BINARY_FLOAT(fmax, __metal_fmax)
+METAL_STDLIB_WRAPPER_BINARY_FLOAT(fmin, __metal_fmin)
+METAL_STDLIB_WRAPPER_BINARY_FLOAT(pow, __metal_pow)
+METAL_STDLIB_WRAPPER_TERNARY_FLOAT(clamp, __metal_clamp)

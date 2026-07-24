@@ -1274,3 +1274,16 @@ What passed in this batch:
 
 Current known-good implementation state before this docs-only update: `a3f51294df39c9d71a67919499aa8749a01707cb`. Any later docs-only handoff commit should be treated as equivalent for code.
 
+## Update 2026-07-24 JST — Continue implementation: metal:: stdlib wrappers and texture overloads
+
+Implementation changes in this batch:
+
+- Added `clang/include/clang/Basic/MetalStdlibNamespaceWrappers.def`, a bootstrap table for user-facing `metal::` scalar stdlib wrappers.
+- `InitPreprocessor.cpp` now emits inline `metal::sin`, `metal::sqrt`, `metal::pow`, `metal::clamp`, `metal::abs`, `metal::select`, etc. wrappers that forward to the modeled `__metal_*` entry points.
+- Added parser and CodeGen smoke tests for `metal::` stdlib wrapper calls.
+- Expanded texture methods with dimension-appropriate overloads for `read`/`write` using scalar, `uint2`, and `uint3` coordinates and `sample` overloads taking `__metal_sampler_t` plus float/float2/float3 coordinates.
+- Added parser coverage for `texture1d` scalar-coordinate `read`/`write`.
+- Fast smoke workflow now includes the new namespace-wrapper parser/CodeGen tests.
+
+Next validation steps: push to `metal-test` and workflow branch `metal`, then run component-fast and full smoke v6.
+
