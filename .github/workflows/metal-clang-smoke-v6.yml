@@ -97,6 +97,8 @@ jobs:
 
       - name: Fetch Apple Metal stdlib headers from metal-info
         run: |
+        env:
+          GITHUB_TOKEN: ${{ secrets.METAL_INFO_TOKEN }}
           set -euxo pipefail
           # Fetch only headers (no runtime library needed - Xcode will link Metal.framework automatically)
           python3 clang/utils/metal/fetch-metal-info-resource.py \
