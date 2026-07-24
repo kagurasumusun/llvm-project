@@ -1218,3 +1218,31 @@ Implementation changes in this batch:
 
 Next validation steps: rerun component-fast and full smoke v6 after pushing.
 
+## Update 2026-07-24 JST — texture read/sample/write and warning cleanup validated
+
+Implementation commits on `metal-test`:
+
+- `2000b68f9d1c13efa8dafdaf6b99c8a397915905` — `[Metal] Add texture read/sample/write helpers and warning cleanup`
+- `f45559653984543b951354f0f6fcb0cdbb2b2997` — `[test][Metal] Use scalar vector construction in texture tests`
+- `a3f51294df39c9d71a67919499aa8749a01707cb` — `[Metal] Add texture read/write lowering and stage conflict checks`
+
+Default workflow branch updates:
+
+- `d174a4f1a40aded6111bbfd74e68b209f403d6ba` — `[ci][Metal] Check texture read sample write lowering`
+
+Validation results:
+
+- Component-fast run `30090884422` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30090884422
+- Full smoke v6 run `30090236695` initially failed because the lightweight vector typedefs reject multi-argument vector construction (`uint2(0, 0)`, `float2(0.5f, 0.5f)`). The tests were updated to scalar-style construction (`uint2(0)`, `float2(0.5f)`).
+- Full smoke v6 run `30091078281` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30091078281
+
+What passed in this batch:
+
+- Texture/depth bootstrap methods now include `read`, `sample`, and `write` methods.
+- CodeGen lowers the helper calls to AIR-named calls `air.texture.read`, `air.texture.sample`, and `air.texture.write`.
+- Fast smoke greps read/sample/write lowering in `metal-texture-methods.metal`.
+- Sema now rejects conflicting Metal function-stage attrs such as `vertex fragment` and `object mesh`.
+- Warning cleanup patches were added for `air32`/`air64` target datalayout switch coverage and `Language::Metal` handling in frontend/extract-api switches.
+
+Current known-good implementation state before this docs-only update: `a3f51294df39c9d71a67919499aa8749a01707cb`. Any later docs-only handoff commit should be treated as equivalent for code.
+
