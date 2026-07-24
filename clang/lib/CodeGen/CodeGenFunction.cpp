@@ -925,6 +925,13 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
       Ops.push_back(MDStr(Param->getName()));
     };
 
+    auto AddTaggedParamRecord = [&](SmallVectorImpl<llvm::Metadata *> &Ops,
+                                    StringRef AIRName,
+                                    const ParmVarDecl *Param) {
+      Ops.push_back(MDStr(AIRName));
+      AddArgTypeInfo(Ops, Param);
+    };
+
     SmallVector<llvm::Metadata *, 8> ArgMetadata;
     for (unsigned I = 0, E = FD->getNumParams(); I != E; ++I) {
       const ParmVarDecl *Param = FD->getParamDecl(I);
@@ -1017,6 +1024,20 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
         Ops.push_back(Int32MD(1));
         Ops.push_back(MDStr("air.read_write"));
         AddArgTypeInfo(Ops, Param);
+      } else if (Param->hasAttr<MetalObjectAttr>()) {
+        AddTaggedParamRecord(Ops, "air.object", Param);
+      } else if (Param->hasAttr<MetalMeshAttr>()) {
+        AddTaggedParamRecord(Ops, "air.mesh", Param);
+      } else if (Param->hasAttr<MetalPayloadAttr>()) {
+        AddTaggedParamRecord(Ops, "air.payload", Param);
+      } else if (Param->hasAttr<MetalIntersectionAttr>()) {
+        AddTaggedParamRecord(Ops, "air.intersection", Param);
+      } else if (Param->hasAttr<MetalVisibleAttr>()) {
+        AddTaggedParamRecord(Ops, "air.visible", Param);
+      } else if (Param->hasAttr<MetalLocalIndexAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.local_index", Param);
+      } else if (Param->hasAttr<MetalIdAttr>()) {
+        AddBuiltinInputRecord(Ops, "air.id", Param);
       } else if (Param->hasAttr<MetalStageInAttr>()) {
         Ops.push_back(MDStr(IsMetalFragment ? "air.fragment_input"
                                             : "air.vertex_input"));

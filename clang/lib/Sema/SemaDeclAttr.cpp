@@ -5784,6 +5784,22 @@ static void handleMetalIndexedParamAttr(Sema &S, Decl *D, const ParsedAttr &AL,
   D->addAttr(::new (S.Context) AttrTy(S.Context, AL, Index));
 }
 
+template <typename AttrTy, typename TypeCheck>
+static void handleMetalParamTypeAttr(Sema &S, Decl *D, const ParsedAttr &AL,
+                                     StringRef TypeName, TypeCheck Check) {
+  if (const auto *PVD = dyn_cast<ParmVarDecl>(D)) {
+    if (!Check(PVD->getType())) {
+      S.Diag(AL.getLoc(), diag::err_metal_attribute_wrong_param_type)
+          << AL << TypeName;
+      AL.setInvalid();
+      const_cast<ParmVarDecl *>(PVD)->setInvalidDecl();
+      return;
+    }
+  }
+
+  handleSimpleAttribute<AttrTy>(S, D, AL);
+}
+
 static void handleMetalFunctionConstantAttr(Sema &S, Decl *D,
                                             const ParsedAttr &AL) {
   uint32_t Index = 0;
@@ -8338,25 +8354,40 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     handleMetalFunctionConstantAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalLocalIndex:
-    handleSimpleAttribute<MetalLocalIndexAttr>(S, D, AL);
+    handleMetalParamTypeAttr<MetalLocalIndexAttr>(
+        S, D, AL, "uint", [&](QualType T) { return isMetalUnsignedIntType(S, T); });
     break;
   case ParsedAttr::AT_MetalId:
-    handleSimpleAttribute<MetalIdAttr>(S, D, AL);
+    handleMetalParamTypeAttr<MetalIdAttr>(
+        S, D, AL, "uint", [&](QualType T) { return isMetalUnsignedIntType(S, T); });
     break;
   case ParsedAttr::AT_MetalObject:
-    handleSimpleAttribute<MetalObjectAttr>(S, D, AL);
+    handleMetalParamTypeAttr<MetalObjectAttr>(
+        S, D, AL, "a record type", [](QualType T) { return isMetalRecordType(T); });
     break;
   case ParsedAttr::AT_MetalMesh:
-    handleSimpleAttribute<MetalMeshAttr>(S, D, AL);
+    handleMetalParamTypeAttr<MetalMeshAttr>(
+        S, D, AL, "a mesh object type", [&](QualType T) {
+          std::string Name = getMetalTypeSpelling(S, T);
+          return StringRef(Name).contains("mesh");
+        });
     break;
   case ParsedAttr::AT_MetalPayload:
-    handleSimpleAttribute<MetalPayloadAttr>(S, D, AL);
+    handleMetalParamTypeAttr<MetalPayloadAttr>(
+        S, D, AL, "a record type", [](QualType T) { return isMetalRecordType(T); });
     break;
   case ParsedAttr::AT_MetalIntersection:
-    handleSimpleAttribute<MetalIntersectionAttr>(S, D, AL);
+    handleMetalParamTypeAttr<MetalIntersectionAttr>(
+        S, D, AL, "a record type", [](QualType T) { return isMetalRecordType(T); });
     break;
   case ParsedAttr::AT_MetalVisible:
-    handleSimpleAttribute<MetalVisibleAttr>(S, D, AL);
+    handleMetalParamTypeAttr<MetalVisibleAttr>(
+        S, D, AL, "a visible or intersection function table object type",
+        [&](QualType T) {
+          std::string Name = getMetalTypeSpelling(S, T);
+          return StringRef(Name).contains("visible_function_table") ||
+                 StringRef(Name).contains("intersection_function_table");
+        });
     break;
   case ParsedAttr::AT_MetalAttribute:
     handleMetalAttributeAttr(S, D, AL);

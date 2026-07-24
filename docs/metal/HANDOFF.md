@@ -678,3 +678,50 @@ Next recommended implementation work:
 2. Expand exact AIR ABI metadata for object/mesh/raytracing resources and texture/sampler access methods.
 3. Add more stage/context validation for less common IO attrs (`payload`, `intersection`, mesh/object attrs, raytracing attrs).
 
+## Update 2026-07-24 JST — Continue implementation: typed stdlib prototypes, texture methods, mesh/ray metadata
+
+Starting point:
+
+- Known-good code before this batch: `0a9505a034a6e11d6bf3866cd75647a73c7aad3c`, full smoke v6 `30069031637` success.
+
+Implementation changes in this batch:
+
+1. Stdlib builtin declarations:
+   - `InitPreprocessor.cpp` now emits exact bootstrap prototypes for selected common stdlib entry points instead of the generic `int (...)` fallback:
+     - `extern "C" int __metal_abs(int);`
+     - `extern "C" int __metal_select(int, int, bool);`
+     - `extern "C" float __metal_sin(float);`
+     - `extern "C" float __metal_cos(float);`
+     - `extern "C" float __metal_floor(float);`
+   - Remaining callable rows in `MetalStdlibBuiltins.def` still use the generic fallback.
+   - `metal-stdlib-builtin-decls.metal` now checks function-pointer assignment for these exact prototypes.
+
+2. Texture/sampler method path:
+   - Opaque Metal texture/depth builtin object structs emitted by the prelude now include bootstrap method declarations:
+     - `uint get_width() const;`
+     - `uint get_height() const;`
+     - `uint get_depth() const;`
+     - `uint get_array_size() const;`
+   - Added parser and CodeGen smoke tests for `texture2d::get_width()` / related methods.
+   - This is still external-call lowering rather than exact AIR texture intrinsic lowering, but it creates a frontend/IR path for method syntax.
+
+3. Mesh/object/raytracing attrs:
+   - `SemaDeclAttr.cpp` now type-checks placeholder attrs:
+     - `[[local_index]]` / `[[id]]` require `uint`
+     - `[[object]]`, `[[payload]]`, `[[intersection]]` require record types
+     - `[[mesh]]` requires a mesh object type spelling
+     - `[[visible]]` requires visible/intersection function table object type spelling
+   - `CodeGenFunction.cpp` now emits preliminary AIR metadata tags for these attrs:
+     - `air.local_index`, `air.id`, `air.object`, `air.mesh`, `air.payload`, `air.intersection`, `air.visible`
+   - Added Sema and CodeGen tests: `metal-mesh-raytracing-attrs.metal`, `metal-air-mesh-raytracing-attrs.metal`.
+
+4. Workflow:
+   - `.github/workflows/metal-clang-smoke-v6.yml` now includes the new stdlib prototype checks, texture method checks, and mesh/raytracing metadata grep smoke. Push workflow changes to branch `metal` too.
+
+Next validation steps:
+
+1. Push implementation to `metal-test`.
+2. Push workflow update to `metal`.
+3. Run component-fast.
+4. Run full smoke v6 and fix the first new failure.
+

@@ -175,11 +175,13 @@ jobs:
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-builtin-object-aliases.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-ast-reference-attrs.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-stdlib-builtin-decls.metal
+          run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-texture-methods.metal
 
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-color-validation.metal
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-builtin-input-validation.metal
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-resource-validation.metal
           run_verify air64-apple-macosx10.14 macos-metal1.1 clang/test/Sema/metal-availability.metal
+          run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-mesh-raytracing-attrs.metal
 
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-metadata.metal "!air.kernel" "!air.version" "!air.language_version"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-stage-metadata.metal "!air.vertex" "!air.fragment" "air.vertex_input" "air.fragment_input"
@@ -190,6 +192,8 @@ jobs:
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-function-constants.metal "!air.function_constants" "fc_bool" "fc_int"
           run_codegen_grep air64_v22-apple-macosx10.15 metal4.0 clang/test/CodeGen/metal-air-generated-type-table.metal "generated(5colorDv4_f)" "generated(6hcolorDv4_Dh)"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-stdlib-builtin-calls.metal "@__metal_abs"
+          run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-texture-methods.metal "get_width" "!air.texture"
+          run_codegen_grep air64_v30-apple-macosx15.0 metal3.0 clang/test/CodeGen/metal-air-mesh-raytracing-attrs.metal "air.local_index" "air.mesh" "air.payload" "air.visible"
 
       - name: Collect failure hints
         if: always()

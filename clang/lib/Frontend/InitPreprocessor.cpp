@@ -402,7 +402,16 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                     Builder.append("typedef " CType " " #Name ";");
 #include "clang/Basic/MetalAIRTypes.def"
 #undef METAL_AIR_TYPE
-#define METAL_AST_BUILTIN_TYPE(Name)                                               Builder.append("struct " #Name " { char __opaque; };");
+#define METAL_AST_BUILTIN_TYPE(Name)                                               \
+    if (StringRef(#Name).contains("texture") ||                                   \
+        StringRef(#Name).contains("depth_2d") ||                                  \
+        StringRef(#Name).contains("depth_cube"))                                  \
+      Builder.append("struct " #Name                                             \
+                     " { char __opaque; uint get_width() const; "                 \
+                     "uint get_height() const; uint get_depth() const; "          \
+                     "uint get_array_size() const; };");                         \
+    else                                                                          \
+      Builder.append("struct " #Name " { char __opaque; };");
 #define METAL_AST_ATTR(Name)
 #define METAL_AST_ATTR_ALIAS(AppleName, ClangName)
 #include "clang/Basic/MetalASTReference.def"
@@ -429,9 +438,27 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #undef METAL_BUILTIN_OBJECT
       return false;
     };
+    auto GetMetalStdlibBuiltinPrototype = [](StringRef CandidateName) -> StringRef {
+      if (CandidateName == "__metal_abs")
+        return "extern \"C\" int __metal_abs(int);";
+      if (CandidateName == "__metal_select")
+        return "extern \"C\" int __metal_select(int, int, bool);";
+      if (CandidateName == "__metal_sin")
+        return "extern \"C\" float __metal_sin(float);";
+      if (CandidateName == "__metal_cos")
+        return "extern \"C\" float __metal_cos(float);";
+      if (CandidateName == "__metal_floor")
+        return "extern \"C\" float __metal_floor(float);";
+      return "";
+    };
 #define METAL_STDLIB_BUILTIN(Name)                                                  \
-    if (!IsMetalBuiltinTypeName(#Name))                                             \
-      Builder.append("extern \"C\" int " #Name "(...);");
+    if (!IsMetalBuiltinTypeName(#Name)) {                                           \
+      StringRef Prototype = GetMetalStdlibBuiltinPrototype(#Name);                  \
+      if (!Prototype.empty())                                                       \
+        Builder.append(Prototype);                                                  \
+      else                                                                          \
+        Builder.append("extern \"C\" int " #Name "(...);");                    \
+    }
 #include "clang/Basic/MetalStdlibBuiltins.def"
 #undef METAL_STDLIB_BUILTIN
     Builder.append("namespace metal {");
