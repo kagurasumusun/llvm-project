@@ -1006,3 +1006,56 @@ Fix in this commit:
 
 Next validation steps: rerun component-fast and full smoke v6.
 
+## Update 2026-07-24 JST — stdlib table / texture LOD / mesh keyword batch validated
+
+Implementation commits on `metal-test`:
+
+- `93f51cf26dd6bbc848175e025b6fd4298c227646` — `[Metal] Add stdlib prototype table and mesh keywords`
+- `84f45861666b053e5e8f9beee56e006366e35bf7` — `[fix][Metal] Avoid mesh keyword alias in prelude`
+- `dd5f95a98af5b22c73d22dfa59e9382c052862c5` — `[fix][Metal] Use StringRef operator for mesh alias check`
+- `591cbe2dab888d0a3b9f7d25c53bd008233c4101` — `[fix][Metal] Parse mesh-like stage keywords`
+
+Default workflow branch update:
+
+- `41147dec3959c5fac6d5c556ab8bb1f5436c81e4` — `[ci][Metal] Add mesh keyword and texture LOD smoke checks`
+
+Validation / failure loop:
+
+- Component-fast `30077459991` completed `success` for the initial batch.
+- Full smoke v6 `30079060413` failed because `mesh` became a keyword while the prelude still emitted `typedef __metal_mesh_t mesh;` and `using ::mesh;`.
+- Component-fast `30080885475` failed because the first alias-skip fix used unavailable `StringRef::equals`.
+- Component-fast `30081138426` completed `success` after switching to `StringRef(#Alias) != "mesh"`.
+- Full smoke v6 `30081316130` failed because `ParseDecl.cpp` only consumed `vertex` and `fragment` as Metal single-token stage adornments.
+- Component-fast `30081620542` completed `success` after adding `object`, `mesh`, and `intersection` to `ParseMetalFunctionAttributes` and decl-specifier token cases: https://github.com/kagurasumusun/llvm-project/actions/runs/30081620542
+- Full smoke v6 `30081815099` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30081815099
+
+What passed in this batch:
+
+1. Stdlib prototype table:
+   - `MetalStdlibBuiltinPrototypes.def` centralizes exact bootstrap prototypes for the currently modeled subset.
+   - `InitPreprocessor.cpp` includes the table to choose exact prototypes before falling back to generic `int (...)` declarations.
+   - Additional prototype smoke covers `__metal_log`, `__metal_sqrt`, and `__metal_fmax`.
+
+2. Texture LOD / query helper expansion:
+   - Prelude texture/depth structs now expose and lower:
+     - `get_width(uint level)` -> `air.texture.get_width.lod`
+     - `get_height(uint level)` -> `air.texture.get_height.lod`
+     - `get_depth(uint level)` -> `air.texture.get_depth.lod`
+     - `get_num_mip_levels()` -> `air.texture.get_num_mip_levels`
+     - `get_num_samples()` -> `air.texture.get_num_samples`
+   - Fast smoke greps `air.texture.get_width`, `air.texture.get_width.lod`, `air.texture.get_num_mip_levels`, and `air.texture`.
+
+3. Mesh/object/intersection keyword parsing:
+   - `TokenKinds.def` has Metal-only `object`, `mesh`, `intersection` keywords.
+   - `Attr.td` has `CustomKeyword` spellings for `MetalObject`, `MetalMesh`, and `MetalIntersection`.
+   - `ParseDecl.cpp` now consumes those keywords as Metal function-stage adornments.
+   - The prelude skips only the conflicting `mesh` alias while keeping other object aliases.
+
+Current known-good implementation state before this docs-only update: `591cbe2dab888d0a3b9f7d25c53bd008233c4101`. Any later docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation work:
+
+1. Replace more texture helper AIR-named calls with true AIR intrinsic/libAIR ABI forms if discovered in `metal-info` IR.
+2. Expand parser/Sema handling for `tile` or other Metal stage-like qualifiers if observed in Apple AST dumps/spec PDFs.
+3. Continue moving stdlib exact prototypes from manual subset toward generated data from Apple headers.
+
