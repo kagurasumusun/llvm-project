@@ -1390,3 +1390,22 @@ Full smoke after enabling Apple stdlib resource fetching failed before the Apple
 
 Fix in this commit: remove those namespace-qualified bootstrap checks and leave the global compiler bootstrap aliases in place.
 
+## Update 2026-07-25 JST — workflow fetches Apple Metal stdlib/runtime from metal-info
+
+User clarified that tests should use Apple’s genuine Metal stdlib, not a hand-written replacement. This batch prepares the CI environment accordingly.
+
+Implementation changes:
+
+- Added `clang/utils/metal/fetch-metal-info-resource.py`.
+  - Downloads Apple clang Metal resource files from `kagurasumusun/metal-info` via GitHub tree API + raw file URLs.
+  - Does not clone `metal-info`.
+  - Fetches `reference-apple/clang/32023.883/include/metal/**` and, with `--include-runtime`, `reference-apple/clang/32023.883/lib/darwin/**`.
+- Updated `.github/workflows/metal-clang-smoke-v6.yml` to fetch these Apple stdlib/runtime files into `metal-info-resource/clang/32023.883` before building/testing.
+- Added `clang/test/Parser/metal-apple-stdlib-preprocess.metal`.
+  - Fast smoke now preprocesses `#include <metal_stdlib>` using the fetched Apple include path.
+  - This verifies that the workflow can locate and use Apple’s real stdlib headers at test time.
+  - Full semantic compilation of the Apple stdlib is not enabled yet; it is expected to expose more frontend compatibility gaps and should be turned on incrementally.
+- Updated `docs/metal/StdlibPolicy.md` with the CI environment rule.
+
+Next validation steps: push to `metal-test` and workflow branch `metal`, then run full smoke v6.
+

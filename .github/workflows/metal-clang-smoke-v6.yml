@@ -85,6 +85,13 @@ jobs:
             ${{ runner.os }}-metal-fast-ccache-
             ${{ runner.os }}-metal-clang-ccache-
 
+      - name: Fetch Apple Metal stdlib/runtime from metal-info
+        run: |
+          set -euxo pipefail
+          python3 clang/utils/metal/fetch-metal-info-resource.py             --output "$PWD/metal-info-resource"             --include-runtime
+          test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
+          test -f "$PWD/metal-info-resource/clang/32023.883/lib/darwin/libmetal_rt_osx.a"
+
       - name: Configure minimal clang-only LLVM build
         run: |
           set -euxo pipefail
@@ -158,6 +165,12 @@ jobs:
           exec > >(tee metal-smoke.log) 2>&1
           set -euxo pipefail
           CLANG="$PWD/build/bin/clang"
+          APPLE_METAL_RESOURCE="$PWD/metal-info-resource/clang/32023.883"
+          APPLE_METAL_INCLUDE="$APPLE_METAL_RESOURCE/include/metal"
+          APPLE_METAL_INCLUDE_PARENT="$APPLE_METAL_RESOURCE/include"
+          APPLE_METAL_RUNTIME="$APPLE_METAL_RESOURCE/lib/darwin"
+          test -f "$APPLE_METAL_INCLUDE/metal_stdlib"
+          test -f "$APPLE_METAL_RUNTIME/libmetal_rt_osx.a"
 
           python3 -m py_compile clang/utils/metal/gen-metal-stdlib-prototypes.py
           python3 clang/utils/metal/gen-metal-stdlib-prototypes.py \
@@ -194,6 +207,15 @@ jobs:
             done
           }
 
+          run_apple_stdlib_preprocess() {
+            local triple="$1"; shift
+            local std="$1"; shift
+            local file="$1"; shift
+            local out="/tmp/$(basename "$file").apple-stdlib.pp"
+            "$CLANG" -cc1 -triple "$triple" -x metal -std="$std"               -I"$APPLE_METAL_INCLUDE" -I"$APPLE_METAL_INCLUDE_PARENT"               -E -P "$file" | tee "$out" >/dev/null
+            grep -F "apple_stdlib_preprocess_probe" "$out" >/dev/null
+          }
+
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Frontend/metal-input-kind.c
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-basic-keywords.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-prelude-types.metal
@@ -202,6 +224,7 @@ jobs:
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-builtin-object-aliases.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-ast-reference-attrs.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-stdlib-builtin-decls.metal
+          run_apple_stdlib_preprocess air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-apple-stdlib-preprocess.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-texture-methods.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-mesh-keywords.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-tile-keyword.metal

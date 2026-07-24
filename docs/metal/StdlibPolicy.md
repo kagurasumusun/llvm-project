@@ -23,3 +23,10 @@ The current lightweight prelude still contains minimal scalar/vector aliases, op
 ## CI Apple stdlib setup
 
 The fast Metal smoke workflow now fetches Apple Metal headers and Darwin runtime artifacts from `kagurasumusun/metal-info` into `third-party/metal-info-apple` at test time. Tests that need the real Apple stdlib should pass `-I third-party/metal-info-apple/reference-apple/clang/32023.883/include/metal` and include `<metal_stdlib>`. Runtime artifacts are placed under `reference-apple/clang/32023.883/lib/darwin` for later link/runtime experiments.
+
+
+## CI environment
+
+The fast Metal smoke workflow downloads Apple Metal stdlib headers and Darwin runtime libraries from `kagurasumusun/metal-info` into `metal-info-resource/clang/32023.883` at test time. The workflow does this via GitHub API/raw file downloads, not by cloning `metal-info`.
+
+Current blocking smoke verifies that `<metal_stdlib>` can be found and preprocessed through this fetched include path. Full semantic compilation of Apple stdlib is expected to expose additional Clang compatibility gaps and should be enabled incrementally as those gaps are fixed.
