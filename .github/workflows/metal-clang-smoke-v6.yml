@@ -142,6 +142,17 @@ jobs:
         run: |
           ccache --show-stats || true
 
+      - name: Fetch Apple Metal stdlib and runtime from metal-info
+        run: |
+          set -euxo pipefail
+          python3 clang/utils/metal/fetch-metal-info-resource.py \
+            --output third-party/metal-info-apple \
+            --include-metal \
+            --lib-darwin
+          test -f third-party/metal-info-apple/reference-apple/clang/32023.883/include/metal/metal_stdlib
+          test -f third-party/metal-info-apple/reference-apple/clang/32023.883/lib/darwin/libmetal_rt_osx.a
+          test -f third-party/metal-info-apple/reference-apple/clang/32023.883/lib/darwin/libair_rt_osx.rtlib
+
       - name: Run focused Metal smoke tests
         run: |
           exec > >(tee metal-smoke.log) 2>&1
@@ -154,8 +165,18 @@ jobs:
             --output /tmp/MetalStdlibBuiltinPrototypes.def
           cmp /tmp/MetalStdlibBuiltinPrototypes.def clang/include/clang/Basic/MetalStdlibBuiltinPrototypes.def
 
+          APPLE_METAL_ROOT="$PWD/third-party/metal-info-apple/reference-apple/clang/32023.883"
+          APPLE_METAL_INCLUDE="$APPLE_METAL_ROOT/include/metal"
+          APPLE_METAL_DARWIN_LIB="$APPLE_METAL_ROOT/lib/darwin"
+          test -f "$APPLE_METAL_INCLUDE/metal_stdlib"
+          test -f "$APPLE_METAL_DARWIN_LIB/libmetal_rt_osx.a"
+
           run_syntax() {
             "$CLANG" -cc1 -triple "$1" -x metal -std="$2" -fsyntax-only "$3"
+          }
+
+          run_apple_stdlib_syntax() {
+            "$CLANG" -cc1 -triple "$1" -x metal -std="$2" -I "$APPLE_METAL_INCLUDE" -fsyntax-only "$3"
           }
 
           run_verify() {
@@ -184,6 +205,7 @@ jobs:
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-texture-methods.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-mesh-keywords.metal
           run_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-tile-keyword.metal
+          run_apple_stdlib_syntax air64-apple-macosx26.0 metal4.0 clang/test/Parser/metal-apple-stdlib-include.metal
 
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-color-validation.metal
           run_verify air64-apple-macosx26.0 metal4.0 clang/test/Sema/metal-builtin-input-validation.metal

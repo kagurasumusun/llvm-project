@@ -498,16 +498,6 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     }
 #include "clang/Basic/MetalStdlibBuiltins.def"
 #undef METAL_STDLIB_BUILTIN
-    Builder.append("namespace metal {");
-#define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                     Builder.append("using ::" #Name ";");
-#include "clang/Basic/MetalAIRTypes.def"
-#undef METAL_AIR_TYPE
-#define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              \
-    if (StringRef(#Alias) != "mesh")                                          \
-      Builder.append("using ::" #Alias ";");
-#include "clang/Basic/MetalBuiltinObjects.def"
-#undef METAL_BUILTIN_OBJECT
-    Builder.append("}");
     Builder.append("#endif");
   }
 

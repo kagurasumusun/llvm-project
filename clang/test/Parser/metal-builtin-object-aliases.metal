@@ -9,8 +9,5 @@ primitive_acceleration_structure pas;
 intersection_query iq;
 tensor t;
 
-namespace use_metal_namespace {
-  metal::texture2d tex;
-  metal::sampler samp;
-  metal::tensor ten;
-}
+// User-facing namespace-qualified object wrappers are provided by Apple
+// metal_stdlib, not by Clang's lightweight bootstrap prelude.

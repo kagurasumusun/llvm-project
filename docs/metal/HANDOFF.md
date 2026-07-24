@@ -1360,3 +1360,27 @@ Policy now recorded in `docs/metal/StdlibPolicy.md`:
 
 Current known-good implementation state before this docs-only update: `712672be4b0a98afe8f66f2623c70e898564e458`. Any later docs-only handoff commit should be treated as equivalent for code.
 
+## Update 2026-07-25 JST — Configure CI to fetch Apple Metal stdlib/runtime from metal-info
+
+User clarified that Apple’s genuine Metal stdlib should be used for user-facing `metal::` APIs.
+
+Implementation changes in this commit:
+
+- Added `clang/utils/metal/fetch-metal-info-resource.py`, a no-clone GitHub API/raw downloader for `kagurasumusun/metal-info` Apple clang resources.
+- `metal-clang-smoke-v6.yml` now fetches at test time:
+  - `reference-apple/clang/32023.883/include/metal/**`
+  - `reference-apple/clang/32023.883/lib/darwin/**`
+  into `third-party/metal-info-apple`.
+- The workflow verifies presence of:
+  - `include/metal/metal_stdlib`
+  - `lib/darwin/libmetal_rt_osx.a`
+  - `lib/darwin/libair_rt_osx.rtlib`
+- Added `run_apple_stdlib_syntax` smoke helper that passes `-I $APPLE_METAL_INCLUDE`.
+- Added `clang/test/Parser/metal-apple-stdlib-include.metal`, which includes the real `<metal_stdlib>` from fetched Apple headers.
+- Removed Clang-owned `metal::` namespace aliases from the lightweight prelude and updated old bootstrap tests to avoid relying on them. User-facing `metal::` names should now come from Apple headers.
+- Updated `docs/metal/StdlibPolicy.md` with the CI Apple stdlib setup.
+
+Expected next validation:
+
+- The first full smoke run may expose missing compiler hooks required by Apple headers. Fix those in Clang rather than adding a hand-written replacement `metal::` stdlib.
+
