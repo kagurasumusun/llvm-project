@@ -235,3 +235,22 @@ Workflow run `30054210146` built clang successfully and then failed in the first
 Cause: `LangOpts.Half` is enabled for Metal, so `half` is already a language/builtin type spelling. The lightweight prelude must not typedef or `using` it. Fix: remove the `half` row from `MetalAIRTypes.def` and the generator table; define `half2/half3/half4` directly from `__fp16`; keep CodeGen mangle cases for `half`/`__fp16` as `Dh`.
 
 Next agent should rerun cached workflow v5 and inspect the next smoke/build error.
+
+
+## Update 2026-07-24 JST — faster cached workflow v6
+
+Added workflow commits:
+
+- default branch `metal`: `75d0099166c364074a0ea6adb85e11d0302bd4e5`
+- working branch `metal-test`: `0ae5b132bf0b81a7805ce8894b5ee92efd552852`
+
+New workflow files:
+
+- `.github/workflows/metal-clang-smoke-fast.yml`
+- `.github/workflows/metal-clang-smoke-v6.yml`
+
+Purpose: reduce clang-only CI time. Changes include clang/clang++ host compiler, lld, ccache restore/save, O2 Release flags, assertions off, tests/docs/examples/benchmarks/static analyzer/ARCMT disabled, X86-only LLVM target (LLVM target group includes x86_64), and grep-based CodeGen smoke checks.
+
+Previous latest completed error before this workflow tune was run `30054210146`: clang build succeeded, smoke failed due to `typedef __fp16 half;` prelude collision. Fixed by commit `2aa377e04581c50ccf216771531d5ace7289cbc5`.
+
+Next agent should prefer dispatching `metal-clang-smoke-v6.yml` from default branch `metal` with input `ref=metal-test`.
