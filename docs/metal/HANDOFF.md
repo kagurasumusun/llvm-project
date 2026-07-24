@@ -743,3 +743,35 @@ Fix in this commit:
 
 Next validation step: rerun full smoke v6. Component-fast already passed for the code changes.
 
+## Update 2026-07-24 JST — typed stdlib/texture methods/mesh metadata validated
+
+Implementation commits on `metal-test`:
+
+- `5341a47f81fad89904255681dad014296e0ab888` — `[Metal] Add typed stdlib prototypes and mesh AIR metadata`
+- `c35fa55d0c448fe85304a289eda0877017edcdba` — `[test][Metal] Fix texture metadata smoke grep`
+
+Default workflow branch updates:
+
+- `7fc41720a68cf1d928e77bc1d1553aaa1dbfb7f9` — `[ci][Metal] Add texture and mesh/ray smoke coverage`
+- `89d418899f57541bf5cf235e0498e1885a4238a0` — `[ci][Metal] Fix texture metadata smoke grep`
+
+Validation results:
+
+- Component-fast `30069379992` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30069379992
+- Full smoke v6 `30069514270` failed only because the new texture method smoke grepped for literal `!air.texture`; the IR contains `!"air.texture"`, so the grep was changed to `air.texture`.
+- Full smoke v6 `30069713086` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30069713086
+
+What passed in this batch:
+
+- Selected typed stdlib prototypes now replace generic `int (...)` fallback for `__metal_abs`, `__metal_select`, `__metal_sin`, `__metal_cos`, and `__metal_floor`.
+- Texture/depth opaque builtin structs expose bootstrap method declarations (`get_width`, `get_height`, `get_depth`, `get_array_size`) and texture method syntax/CodeGen smoke passes.
+- Mesh/object/raytracing-style parameter attrs now have Sema type checks and preliminary AIR metadata tags for `air.local_index`, `air.id`, `air.object`, `air.mesh`, `air.payload`, `air.intersection`, and `air.visible`.
+
+Current known-good implementation state before this docs-only update: `c35fa55d0c448fe85304a289eda0877017edcdba`. Any later docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation work:
+
+1. Generate broader stdlib overload/signature declarations from Apple headers instead of the current small hand-written exact-prototype subset plus generic fallback.
+2. Lower texture methods to exact AIR/Metal intrinsics or metadata patterns rather than external C++ method calls.
+3. Add stage-specific mesh/object/raytracing function modeling when the frontend has explicit object/mesh/intersection stage entry points.
+
