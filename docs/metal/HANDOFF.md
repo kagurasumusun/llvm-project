@@ -498,3 +498,33 @@ Next recommended implementation directions:
 2. Continue expanding AIR metadata parity for resource/object/mesh/raytracing attrs.
 3. Start connecting `MetalStdlibBuiltins.def` to a real builtin declaration/lowering path rather than leaving it as data only.
 
+## Update 2026-07-24 JST — Continue implementation: duplicate Metal resource/IO index validation
+
+Starting point:
+
+- Code implementation head before this batch: `b7543c0cd3ebd875444b5d48342df2973db5e4d8`, full smoke v6 `30065841031` success.
+- Current `metal-test` may have a later docs-only handoff commit; preserve the implementation tree.
+
+Implementation changes in this batch:
+
+- Added Metal-specific duplicate diagnostics in `clang/include/clang/Basic/DiagnosticSemaKinds.td`:
+  - duplicate indexed attrs across parameters/stage input fields/stage output fields/function constants
+  - duplicate non-indexed stage IO attrs such as `[[depth]]`, `[[position]]`, `[[point_size]]`
+- `clang/lib/Sema/SemaDeclAttr.cpp` now validates:
+  - duplicate resource binding indices within a stage function for each resource kind (`buffer`, `texture`, `sampler`, `threadgroup`)
+  - duplicate `[[function_constant(n)]]` global indices across the translation unit
+  - duplicate `[[attribute(n)]]` fields in a `[[stage_in]]` record
+  - duplicate fragment output `[[color(n)]]` / `[[depth(... )]]` fields
+  - duplicate vertex output singleton attrs (`position`, `point_size`, `render_target_array_index`, `viewport_array_index`)
+- Focused smoke-covered tests updated:
+  - `clang/test/Sema/metal-resource-validation.metal` covers duplicate function constants and duplicate resource bindings.
+  - `clang/test/Sema/metal-builtin-input-validation.metal` covers duplicate stage input attributes.
+  - `clang/test/Sema/metal-color-validation.metal` covers duplicate fragment color/depth outputs.
+
+Next validation steps:
+
+1. Push to `metal-test`.
+2. Dispatch component-fast (`metal-clang-components-v1.yml`) with `ref=metal-test`.
+3. Dispatch full smoke v6 (`metal-clang-smoke-v6.yml`) with `ref=metal-test`.
+4. If passing, record commit IDs and run IDs below.
+

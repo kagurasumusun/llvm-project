@@ -2,6 +2,11 @@
 
 struct In { int x [[attribute(0)]]; };
 
+struct DupStageIn {
+  int a [[attribute(0)]];
+  int b [[attribute(0)]]; // expected-error {{'attribute' attribute index 0 is already used by another stage input field}}
+};
+
 kernel void good_kernel(uint3 grid [[thread_position_in_grid]],
                         uint tid [[thread_index_in_threadgroup]]) {}
 vertex void good_vertex(In in [[stage_in]], uint vid [[vertex_id]]) {}
@@ -15,3 +20,4 @@ fragment void bad_fragment_type(int front [[front_facing]]) {} // expected-error
 fragment void bad_position_type(uint p [[position]]) {} // expected-error {{'position' attribute requires parameter type float4}}
 vertex void bad_stage_type(uint in [[stage_in]]) {} // expected-error {{'stage_in' attribute requires parameter type a record type}}
 [[early_fragment_tests]] vertex void bad_vertex_early_fragment_tests() {} // expected-error {{'early_fragment_tests' attribute is only valid on fragment functions}}
+vertex void bad_duplicate_stage_in_attribute(DupStageIn in [[stage_in]]) {}

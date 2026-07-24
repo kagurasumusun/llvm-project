@@ -5432,6 +5432,114 @@ static void validateMetalStageAttr(Sema &S, const ParmVarDecl *P,
   const_cast<ParmVarDecl *>(P)->setInvalidDecl();
 }
 
+static bool diagnoseMetalDuplicateIndexedAttr(
+    Sema &S, const Attr *A, unsigned Index,
+    SmallVectorImpl<std::pair<unsigned, const Attr *>> &Seen, unsigned Context) {
+  if (!A)
+    return false;
+  for (const auto &Entry : Seen) {
+    if (Entry.first != Index)
+      continue;
+    S.Diag(A->getLocation(), diag::err_metal_duplicate_attribute_index)
+        << A << Index << Context;
+    return true;
+  }
+  Seen.emplace_back(Index, A);
+  return false;
+}
+
+static bool diagnoseMetalDuplicateAttr(Sema &S, const Attr *A, const Attr *&Seen,
+                                       unsigned Context) {
+  if (!A)
+    return false;
+  if (Seen) {
+    S.Diag(A->getLocation(), diag::err_metal_duplicate_attribute)
+        << A << Context;
+    return true;
+  }
+  Seen = A;
+  return false;
+}
+
+static const RecordDecl *getMetalRecordDefinition(QualType T) {
+  const RecordType *RT = T->getAs<RecordType>();
+  return RT ? RT->getDecl()->getDefinition() : nullptr;
+}
+
+static void validateMetalStageInRecordAttributes(Sema &S, FunctionDecl *FD,
+                                                 const ParmVarDecl *P) {
+  if (!P->hasAttr<MetalStageInAttr>())
+    return;
+
+  const RecordDecl *RD = getMetalRecordDefinition(P->getType());
+  if (!RD)
+    return;
+
+  SmallVector<std::pair<unsigned, const Attr *>, 8> AttributeIndices;
+  const Attr *Position = nullptr;
+  for (const FieldDecl *Field : RD->fields()) {
+    if (Field->isInvalidDecl())
+      continue;
+    bool Invalid = false;
+    if (const auto *A = Field->getAttr<MetalAttributeAttr>())
+      Invalid |= diagnoseMetalDuplicateIndexedAttr(S, A, A->getIndex(),
+                                                   AttributeIndices, 1);
+    Invalid |= diagnoseMetalDuplicateAttr(
+        S, Field->getAttr<MetalPositionAttr>(), Position, 0);
+    if (Invalid) {
+      const_cast<FieldDecl *>(Field)->setInvalidDecl();
+      const_cast<ParmVarDecl *>(P)->setInvalidDecl();
+      FD->setInvalidDecl();
+    }
+  }
+}
+
+static void validateMetalStageOutputRecordAttributes(Sema &S, FunctionDecl *FD,
+                                                     unsigned FunctionStage) {
+  if ((FunctionStage & (MetalVertexStage | MetalFragmentStage)) == 0)
+    return;
+
+  const RecordDecl *RD = getMetalRecordDefinition(FD->getReturnType());
+  if (!RD)
+    return;
+
+  SmallVector<std::pair<unsigned, const Attr *>, 8> ColorIndices;
+  const Attr *Depth = nullptr;
+  const Attr *Position = nullptr;
+  const Attr *PointSize = nullptr;
+  const Attr *RenderTargetArrayIndex = nullptr;
+  const Attr *ViewportArrayIndex = nullptr;
+
+  for (const FieldDecl *Field : RD->fields()) {
+    if (Field->isInvalidDecl())
+      continue;
+    bool Invalid = false;
+    if (FunctionStage & MetalFragmentStage) {
+      if (const auto *A = Field->getAttr<MetalColorAttr>())
+        Invalid |= diagnoseMetalDuplicateIndexedAttr(S, A, A->getIndex(),
+                                                     ColorIndices, 2);
+      Invalid |= diagnoseMetalDuplicateAttr(
+          S, Field->getAttr<MetalDepthAttr>(), Depth, 1);
+    }
+    if (FunctionStage & MetalVertexStage) {
+      Invalid |= diagnoseMetalDuplicateAttr(
+          S, Field->getAttr<MetalPositionAttr>(), Position, 1);
+      Invalid |= diagnoseMetalDuplicateAttr(
+          S, Field->getAttr<MetalPointSizeAttr>(), PointSize, 1);
+      Invalid |= diagnoseMetalDuplicateAttr(
+          S, Field->getAttr<MetalRenderTargetArrayIndexAttr>(),
+          RenderTargetArrayIndex, 1);
+      Invalid |= diagnoseMetalDuplicateAttr(
+          S, Field->getAttr<MetalViewportArrayIndexAttr>(), ViewportArrayIndex,
+          1);
+    }
+    if (Invalid) {
+      const_cast<FieldDecl *>(Field)->setInvalidDecl();
+      FD->setInvalidDecl();
+    }
+  }
+}
+
 static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
   auto *FD = dyn_cast<FunctionDecl>(D);
   if (!FD || !S.getLangOpts().Metal)
@@ -5447,6 +5555,11 @@ static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
       FD->setInvalidDecl();
     }
   }
+
+  SmallVector<std::pair<unsigned, const Attr *>, 8> BufferIndices;
+  SmallVector<std::pair<unsigned, const Attr *>, 8> TextureIndices;
+  SmallVector<std::pair<unsigned, const Attr *>, 8> SamplerIndices;
+  SmallVector<std::pair<unsigned, const Attr *>, 8> ThreadgroupIndices;
 
   for (const ParmVarDecl *P : FD->parameters()) {
     validateMetalStageAttr(S, P, P->getAttr<MetalStageInAttr>(), FunctionStage,
@@ -5495,7 +5608,29 @@ static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
                            FunctionStage, MetalKernelStage, 0);
     validateMetalStageAttr(S, P, P->getAttr<MetalSIMDGroupsPerThreadgroupAttr>(),
                            FunctionStage, MetalKernelStage, 0);
+
+    bool Invalid = false;
+    if (const auto *A = P->getAttr<MetalBufferAttr>())
+      Invalid |= diagnoseMetalDuplicateIndexedAttr(S, A, A->getIndex(),
+                                                   BufferIndices, 0);
+    if (const auto *A = P->getAttr<MetalTextureAttr>())
+      Invalid |= diagnoseMetalDuplicateIndexedAttr(S, A, A->getIndex(),
+                                                   TextureIndices, 0);
+    if (const auto *A = P->getAttr<MetalSamplerAttr>())
+      Invalid |= diagnoseMetalDuplicateIndexedAttr(S, A, A->getIndex(),
+                                                   SamplerIndices, 0);
+    if (const auto *A = P->getAttr<MetalThreadgroupAttr>())
+      Invalid |= diagnoseMetalDuplicateIndexedAttr(S, A, A->getIndex(),
+                                                   ThreadgroupIndices, 0);
+    if (Invalid) {
+      const_cast<ParmVarDecl *>(P)->setInvalidDecl();
+      FD->setInvalidDecl();
+    }
+
+    validateMetalStageInRecordAttributes(S, FD, P);
   }
+
+  validateMetalStageOutputRecordAttributes(S, FD, FunctionStage);
 }
 
 static QualType getMetalResourceBaseType(QualType T) {
@@ -5574,6 +5709,21 @@ static void handleMetalFunctionConstantAttr(Sema &S, Decl *D,
     if (!VD->hasGlobalStorage() || !isMetalFunctionConstantType(VD->getType())) {
       S.Diag(AL.getLoc(), diag::err_metal_attribute_wrong_param_type)
           << AL << "a global scalar bool, integer, enum, or floating type";
+      AL.setInvalid();
+      D->setInvalidDecl();
+      return;
+    }
+
+    for (const Decl *PrevD : S.Context.getTranslationUnitDecl()->decls()) {
+      const auto *PrevVD = dyn_cast<VarDecl>(PrevD);
+      if (!PrevVD || PrevVD->isInvalidDecl() || PrevVD == VD ||
+          PrevVD->getCanonicalDecl() == VD->getCanonicalDecl())
+        continue;
+      const auto *PrevAttr = PrevVD->getAttr<MetalFunctionConstantAttr>();
+      if (!PrevAttr || PrevAttr->getIndex() != Index)
+        continue;
+      S.Diag(AL.getLoc(), diag::err_metal_duplicate_attribute_index)
+          << AL << Index << 3;
       AL.setInvalid();
       D->setInvalidDecl();
       return;

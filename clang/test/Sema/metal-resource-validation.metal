@@ -13,3 +13,8 @@ kernel void bad_texture(device int *out [[texture(0)]]) {} // expected-error {{'
 kernel void bad_sampler(texture2d tex [[sampler(0)]]) {} // expected-error {{'sampler' attribute requires parameter type a sampler object type}}
 kernel void bad_buffer(texture2d tex [[buffer(0)]]) {} // expected-error {{'buffer' attribute requires parameter type a pointer or reference resource}}
 kernel void bad_sampler_index(sampler samp [[sampler(16)]]) {} // expected-error {{'sampler' attribute requires integer constant between 0 and 15 inclusive}}
+constant int fc_dup [[function_constant(1)]]; // expected-error {{'function_constant' attribute index 1 is already used by another function constant}}
+
+kernel void bad_duplicate_buffers(device int *a [[buffer(2)]], device int *b [[buffer(2)]]) {} // expected-error {{'buffer' attribute index 2 is already used by another parameter}}
+kernel void bad_duplicate_textures(texture2d a [[texture(3)]], texture2d b [[texture(3)]]) {} // expected-error {{'texture' attribute index 3 is already used by another parameter}}
+kernel void bad_duplicate_samplers(sampler a [[sampler(4)]], sampler b [[sampler(4)]]) {} // expected-error {{'sampler' attribute index 4 is already used by another parameter}}

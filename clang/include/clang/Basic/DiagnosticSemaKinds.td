@@ -3448,6 +3448,12 @@ def err_metal_attribute_wrong_param_type : Error<
   "%0 attribute requires parameter type %1">;
 def err_metal_attribute_requires_version : Error<
   "%0 attribute requires Metal %1.%2 or later">;
+def err_metal_duplicate_attribute_index : Error<
+  "%0 attribute index %1 is already used by another "
+  "%select{parameter|stage input field|stage output field|function constant}2">;
+def err_metal_duplicate_attribute : Error<
+  "%0 attribute is already used by another "
+  "%select{stage input field|stage output field}1">;
 def err_attribute_only_once_per_parameter : Error<
   "%0 attribute can only be applied once per parameter">;
 def err_mismatched_uuid : Error<"uuid does not match previous declaration">;
