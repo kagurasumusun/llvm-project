@@ -3,7 +3,7 @@
 
 This intentionally does not clone metal-info. It uses GitHub's tree API plus
 raw file downloads and writes a local clang resource-style directory containing
-Apple Metal stdlib headers and Darwin Metal runtime libraries.
+Apple Metal stdlib headers.
 """
 from __future__ import annotations
 
@@ -49,7 +49,8 @@ def main() -> None:
     ap.add_argument("--ref", default="main")
     ap.add_argument("--apple-clang-version", default="32023.883")
     ap.add_argument("--output", type=Path, required=True)
-    ap.add_argument("--include-runtime", action="store_true")
+    ap.add_argument("--include-runtime", action="store_true",
+                    help="Include runtime libraries (not needed when using Xcode)")
     args = ap.parse_args()
 
     owner, repo = args.repo.split("/", 1)
