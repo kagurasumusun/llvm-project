@@ -95,15 +95,14 @@ jobs:
             ${{ runner.os }}-metal-metallib-${{ inputs.build_type }}-
             ${{ runner.os }}-metal-metallib-
 
-      - name: Fetch Apple Metal stdlib/runtime from metal-info
+      - name: Fetch Apple Metal stdlib headers from metal-info
         run: |
           set -euxo pipefail
+          # Fetch only headers (no runtime library needed - Xcode will link Metal.framework automatically)
           python3 clang/utils/metal/fetch-metal-info-resource.py \
-            --output "$PWD/metal-info-resource" \
-            --include-runtime
+            --output "$PWD/metal-info-resource"
           test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
-          test -f "$PWD/metal-info-resource/clang/32023.883/lib/darwin/libmetal_rt_osx.a"
-          test -f "$PWD/metal-info-resource/clang/32023.883/lib/darwin/libair_rt_osx.rtlib"
+          echo "✓ Apple Metal stdlib headers fetched (no runtime library needed)"
 
       - name: Configure minimal clang-only LLVM build
         run: |
@@ -187,13 +186,13 @@ jobs:
           
           "$METAL_AS" /tmp/AAPLShaders.bc -o /tmp/AAPLShaders.air --triple air64-apple-ios${{ inputs.ios_target }}
           
-          # Link into metallib
+          # Link into metallib (no runtime library needed - Xcode will link Metal.framework automatically)
           echo "Linking metallib..."
           "$METAL_LD" /tmp/add.air /tmp/AAPLShaders.air \
             -o metallib-output/Shaders.metallib \
             --name MetalSamples
           
-          echo "✓ metallib created successfully (no runtime library needed for metallib generation)"
+          echo "✓ metallib created successfully (no libmetal_rt_ios.a included - Xcode will link Metal.framework)"
           ls -lh metallib-output/
 
       - name: Upload metallib artifact
@@ -241,7 +240,7 @@ jobs:
           echo "Verifying metallib files..."
           ls -lh metallib-input/
           file metallib-input/Shaders.metallib || true
-          echo "✓ metallib downloaded (no libmetal_rt_ios.a needed - Xcode links Metal.framework automatically)"
+          echo "✓ metallib downloaded (Xcode will link Metal.framework automatically, which includes libmetal_rt_ios.a)"
 
       - name: Create iOS app with metallib
         run: |
@@ -251,7 +250,7 @@ jobs:
           mkdir -p MetalTestApp
           cd MetalTestApp
           
-          # Copy metallib (no need to copy libmetal_rt_ios.a - Xcode links Metal.framework automatically)
+          # Copy metallib only (no libmetal_rt_ios.a needed - Xcode links Metal.framework automatically)
           cp ../metallib-input/Shaders.metallib .
           
           # Create basic iOS app structure
