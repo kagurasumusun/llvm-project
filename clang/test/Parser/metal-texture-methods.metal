@@ -9,4 +9,8 @@ kernel void texture_methods(texture2d tex [[texture(0)]],
   out[4] = tex.get_height(1);
   out[5] = tex.get_num_mip_levels();
   out[6] = tex.get_num_samples();
+  float4 value = tex.read(uint2(0, 0));
+  value += tex.read(uint2(1, 1), 0);
+  value += tex.sample(sampler(), float2(0.5f, 0.5f));
+  tex.write(value, uint2(0, 0));
 }

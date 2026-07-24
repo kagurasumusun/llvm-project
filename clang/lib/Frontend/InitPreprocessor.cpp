@@ -411,6 +411,9 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("extern \"C\" uint __metal_texture_get_array_size(...);");
     Builder.append("extern \"C\" uint __metal_texture_get_num_mip_levels(...);");
     Builder.append("extern \"C\" uint __metal_texture_get_num_samples(...);");
+    Builder.append("extern \"C\" float4 __metal_texture_read(...);");
+    Builder.append("extern \"C\" float4 __metal_texture_sample(...);");
+    Builder.append("extern \"C\" void __metal_texture_write(...);");
 #define METAL_AST_BUILTIN_TYPE(Name)                                               \
     if (StringRef(#Name).contains("texture") ||                                   \
         StringRef(#Name).contains("depth_2d") ||                                  \
@@ -426,6 +429,10 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
                      "uint get_array_size() const { return __metal_texture_get_array_size(this); } " \
                      "uint get_num_mip_levels() const { return __metal_texture_get_num_mip_levels(this); } " \
                      "uint get_num_samples() const { return __metal_texture_get_num_samples(this); } " \
+                     "float4 read(uint2 coord) const { return __metal_texture_read(this, coord); } " \
+                     "float4 read(uint2 coord, uint level) const { return __metal_texture_read(this, coord, level); } " \
+                     "float4 sample(...) const { return __metal_texture_sample(this); } " \
+                     "void write(float4 value, uint2 coord) { __metal_texture_write(this, value, coord); } " \
                      "};");                                                       \
     else                                                                          \
       Builder.append("struct " #Name " { char __opaque; };");

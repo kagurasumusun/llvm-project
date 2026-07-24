@@ -6219,6 +6219,12 @@ static StringRef getMetalTextureHelperLoweringName(const FunctionDecl *FD) {
     return "air.texture.get_num_mip_levels";
   if (Name == "__metal_texture_get_num_samples")
     return "air.texture.get_num_samples";
+  if (Name == "__metal_texture_read")
+    return "air.texture.read";
+  if (Name == "__metal_texture_sample")
+    return "air.texture.sample";
+  if (Name == "__metal_texture_write")
+    return "air.texture.write";
   return "";
 }
 
@@ -6255,6 +6261,8 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
           CGM.getModule().getOrInsertFunction(AIRName, FnTy);
       llvm::CallInst *Call = Builder.CreateCall(Callee, Args);
       *CallOrInvoke = Call;
+      if (E->getType()->isVoidType())
+        return RValue::get(nullptr);
       return RValue::get(Call);
     }
   }

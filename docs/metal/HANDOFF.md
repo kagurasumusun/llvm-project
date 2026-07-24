@@ -1162,3 +1162,35 @@ What passed in this mini-batch:
 
 Current known-good implementation state before this docs-only update: `d9c806a77bf8f693689b3b6737540ceb8ec02678`. Any later docs-only handoff commit should be treated as equivalent for code.
 
+## Update 2026-07-24 JST — Continue implementation: texture read/sample/write lowering and warning cleanup
+
+Starting point:
+
+- Known-good code before this batch: `d9c806a77bf8f693689b3b6737540ceb8ec02678`, full smoke v6 `30088150892` success.
+
+Implementation changes in this batch:
+
+1. Texture read/sample/write bootstrap lowering:
+   - Prelude texture/depth structs now provide bootstrap methods:
+     - `float4 read(uint2 coord) const`
+     - `float4 read(uint2 coord, uint level) const`
+     - `float4 sample(...) const`
+     - `void write(float4 value, uint2 coord)`
+   - The methods call helper entry points (`__metal_texture_read`, `__metal_texture_sample`, `__metal_texture_write`).
+   - `CGExpr.cpp` lowers these helpers to AIR-named calls:
+     - `air.texture.read`
+     - `air.texture.sample`
+     - `air.texture.write`
+   - Parser and CodeGen texture tests and fast-smoke greps now cover read/sample/write.
+
+2. Warning cleanup:
+   - `llvm/lib/TargetParser/TargetDataLayout.cpp` handles `air32`/`air64` in `Triple::computeDataLayout` to avoid switch warnings.
+   - `clang/lib/Frontend/FrontendActions.cpp` handles `Language::Metal` in `PrintPreambleAction`.
+   - `clang/lib/ExtractAPI/Serialization/SymbolGraphSerializer.cpp` maps `Language::Metal` to `"metal"`.
+
+Next validation steps:
+
+1. Push to `metal-test` and workflow branch `metal`.
+2. Run component-fast and full smoke v6.
+3. Fix first CI error and update this handoff again.
+
