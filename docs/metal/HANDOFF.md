@@ -632,3 +632,49 @@ Fix in this commit: rename the lambda variable to `CandidateName` and the macro 
 
 Next validation steps: rerun component-fast, then full smoke v6.
 
+## Update 2026-07-24 JST — IO type/context validation and stdlib builtin bootstrap passed
+
+Implementation commits on `metal-test`:
+
+- `c628f825ed7f848de099428868bb566a548a8ef7` — `[Metal] Validate IO field types and declare stdlib builtins`
+- `ad1a33e1e7676718f6b386d9b2f3499988f0e5d6` — `[fix][Metal] Filter stdlib declarations for builtin type names`
+- `0a9505a034a6e11d6bf3866cd75647a73c7aad3c` — `[fix][Metal] Correct stdlib type filter macro comparison`
+
+Default workflow branch update:
+
+- `c08565abd6ec59cbd26561900284515a1746bf74` — `[ci][Metal] Add stdlib builtin smoke coverage`
+
+Validation results:
+
+- Component-fast `30067687702` passed for the initial implementation but full smoke `30068094427` failed because generic stdlib declarations hid builtin type names such as `__metal_texture_2d_t`.
+- Component-fast `30068682537` failed because the first filter fix had a macro parameter collision in `METAL_BUILTIN_OBJECT`.
+- Component-fast `30068880975` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30068880975
+- Full smoke v6 `30069031637` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30069031637
+
+What passed in this batch:
+
+- IO field type validation:
+  - `[[position]]` field -> `float4`
+  - `[[point_size]]` field -> `float`
+  - fragment `[[depth(... )]]` field -> `float`
+  - `[[render_target_array_index]]` / `[[viewport_array_index]]` fields -> `uint`
+  - fragment `[[color(n)]]` field -> arithmetic scalar/vector
+- IO field stage/context validation:
+  - rejects `[[color]]` / `[[depth]]` on vertex outputs
+  - rejects vertex-output-only attrs on fragment outputs
+  - rejects output-only attrs on `[[stage_in]]` record fields
+- `MetalStdlibBuiltins.def` is now used by the Metal prelude to emit bootstrap generic declarations for callable `__metal_*` stdlib builtins.
+  - The declaration path filters out builtin object/type names from `MetalASTReference.def` and `MetalBuiltinObjects.def` so opaque types are not hidden by function declarations.
+  - Calls such as `__metal_abs(-7)` now parse and CodeGen as external calls; exact overload signatures/lowering remain future work.
+- Fast smoke workflow now checks:
+  - `clang/test/Parser/metal-stdlib-builtin-decls.metal`
+  - `clang/test/CodeGen/metal-stdlib-builtin-calls.metal` with grep for `@__metal_abs`
+
+Current known-good implementation state before this docs-only update: `0a9505a034a6e11d6bf3866cd75647a73c7aad3c`. Any later docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation work:
+
+1. Refine stdlib builtin declarations from generic `int (...)` toward generated signatures/overload sets using Apple headers from `metal-info`.
+2. Expand exact AIR ABI metadata for object/mesh/raytracing resources and texture/sampler access methods.
+3. Add more stage/context validation for less common IO attrs (`payload`, `intersection`, mesh/object attrs, raytracing attrs).
+
