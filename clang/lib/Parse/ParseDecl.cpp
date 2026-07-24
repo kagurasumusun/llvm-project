@@ -1051,7 +1051,8 @@ void Parser::ParseOpenCLKernelAttributes(ParsedAttributes &attrs) {
 }
 
 void Parser::ParseMetalFunctionAttributes(ParsedAttributes &Attrs) {
-  while (Tok.isOneOf(tok::kw_vertex, tok::kw_fragment)) {
+  while (Tok.isOneOf(tok::kw_vertex, tok::kw_fragment, tok::kw_object,
+                     tok::kw_mesh, tok::kw_intersection)) {
     IdentifierInfo *AttrName = Tok.getIdentifierInfo();
     tok::TokenKind Kind = Tok.getKind();
     SourceLocation AttrNameLoc = ConsumeToken();
@@ -4057,6 +4058,9 @@ void Parser::ParseDeclarationSpecifiers(
     // Metal single token function stage adornments.
     case tok::kw_vertex:
     case tok::kw_fragment:
+    case tok::kw_object:
+    case tok::kw_mesh:
+    case tok::kw_intersection:
       ParseMetalFunctionAttributes(DS.getAttributes());
       continue;
 
@@ -5690,6 +5694,9 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___kernel:
   case tok::kw_vertex:
   case tok::kw_fragment:
+  case tok::kw_object:
+  case tok::kw_mesh:
+  case tok::kw_intersection:
 
   case tok::kw___private:
   case tok::kw___local:
@@ -5976,6 +5983,9 @@ bool Parser::isDeclarationSpecifier(
   case tok::kw___kernel:
   case tok::kw_vertex:
   case tok::kw_fragment:
+  case tok::kw_object:
+  case tok::kw_mesh:
+  case tok::kw_intersection:
 
   case tok::kw___private:
   case tok::kw___local:

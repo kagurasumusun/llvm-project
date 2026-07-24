@@ -981,3 +981,28 @@ Fix in this commit: use `StringRef(#Alias) != "mesh"` instead of the unavailable
 
 Next validation steps: rerun component-fast and full smoke v6.
 
+## Update 2026-07-24 JST — Parse mesh/object/intersection keywords in decl-specifiers
+
+Full smoke v6 run `30081316130` after `dd5f95a98af5b22c73d22dfa59e9382c052862c5` progressed past the mesh alias fix and failed in `clang/test/Parser/metal-mesh-keywords.metal`:
+
+```text
+clang/test/Parser/metal-mesh-keywords.metal:3:1: error: expected unqualified-id
+object void object_keyword_entry() {}
+^
+clang/test/Parser/metal-mesh-keywords.metal:4:1: error: expected unqualified-id
+mesh void mesh_keyword_entry() {}
+^
+clang/test/Parser/metal-mesh-keywords.metal:5:1: error: expected unqualified-id
+intersection void intersection_keyword_entry() {}
+^
+```
+
+Root cause: `TokenKinds.def` and `Attr.td` had the new keyword spellings, but `ParseDecl.cpp` only treated `vertex` and `fragment` as Metal single-token function-stage adornments in declaration specifiers.
+
+Fix in this commit:
+
+- `ParseMetalFunctionAttributes` now consumes `object`, `mesh`, and `intersection` in addition to `vertex`/`fragment`.
+- The decl-specifier switch and token classification cases now include `tok::kw_object`, `tok::kw_mesh`, and `tok::kw_intersection`.
+
+Next validation steps: rerun component-fast and full smoke v6.
+
