@@ -256,19 +256,18 @@ Previous latest completed error before this workflow tune was run `30054210146`:
 Next agent should prefer dispatching `metal-clang-smoke-v6.yml` from default branch `metal` with input `ref=metal-test`.
 
 
-## Update 2026-07-24 JST — component-only fast workflow
+## Update 2026-07-24 JST — component-fast workflow dispatched
 
-Added a new component-only workflow for much faster iteration when the goal is to catch TableGen/C++ compile errors in touched Clang libraries without linking the `clang` executable or running smoke tests.
+Added component-only fast workflow commits:
+
+- default branch `metal`: `541b8f4738240f7ae3778c61eb480538c33826a5`
+- working branch `metal-test`: `ce3080002e6b0c16ff3244f38f12a279f19c8ce9`
 
 Workflow files:
 
 - `.github/workflows/metal-clang-components-fast.yml`
 - `.github/workflows/metal-clang-components-v1.yml`
 
-Default component targets:
+This workflow compiles selected Clang component libraries instead of linking the `clang` executable, intended for faster TableGen/C++ compile-error feedback. It was dispatched as run `30059551713`: https://github.com/kagurasumusun/llvm-project/actions/runs/30059551713 . Existing full smoke workflow runs were not stopped.
 
-```text
-clangBasic clangLex clangAST clangSerialization clangParse clangSema clangCodeGen clangFrontend clangDriver
-```
-
-This workflow uses sparse checkout, clang/clang++ host compiler, lld, ccache restore/save immediately after component build, X86-only LLVM target, tests/docs/examples/tools disabled, O1 Release flags, and no clang executable link. Use this workflow for rapid feedback; use `metal-clang-smoke-v6.yml` for full clang binary + smoke tests.
+Use full `metal-clang-smoke-v6.yml` only when a clang binary and smoke tests are needed; use component workflow for fast implementation iteration.
