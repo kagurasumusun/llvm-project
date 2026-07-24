@@ -236,6 +236,46 @@ jobs:
           run_codegen_grep air64_v30-apple-macosx15.0 metal3.0 clang/test/CodeGen/metal-air-mesh-raytracing-attrs.metal "air.local_index" "air.mesh" "air.payload" "!air.object" "!air.visible"
           run_codegen_grep air64_v22-apple-macosx10.15 macos-metal2.0 clang/test/CodeGen/metal-air-tile-metadata.metal "!air.tile"
 
+
+      - name: Test metal-as and metal-ld tools
+        run: |
+          set -euxo pipefail
+          CLANG="$PWD/build/bin/clang"
+          APPLE_METAL_RESOURCE="$PWD/metal-info-resource/clang/32023.883"
+          
+          # Create a simple Metal shader for testing
+          cat > /tmp/test_shader.metal << 'METAL_EOF'
+          #include <metal_stdlib>
+          using namespace metal;
+          
+          kernel void test_kernel(device uint* out [[buffer(0)]], uint id [[thread_position_in_grid]]) {
+              out[id] = id * 2u;
+          }
+          METAL_EOF
+          
+          # Compile to LLVM bitcode
+          "$CLANG" -cc1 -triple air64-apple-macosx10.15.0 -x metal -std=metal3.0 \
+              -I "$APPLE_METAL_RESOURCE/include/metal" \
+              -emit-llvm-bc -o /tmp/test_shader.bc /tmp/test_shader.metal
+          
+          # Test metal-as: convert .bc to .air
+          python3 clang/tools/metal-as/metal-as.py /tmp/test_shader.bc \
+              -o /tmp/test_shader.air --triple air64-apple-macosx10.15.0
+          
+          # Verify .air file was created
+          test -f /tmp/test_shader.air
+          echo "✓ metal-as created .air file"
+          
+          # Test metal-ld: link .air to .metallib
+          python3 clang/tools/metal-ld/metal-ld.py /tmp/test_shader.air \
+              -o /tmp/test_shader.metallib --name test_library
+          
+          # Verify .metallib file was created
+          test -f /tmp/test_shader.metallib
+          echo "✓ metal-ld created .metallib file"
+          
+          echo "✓ metal-as and metal-ld tools work correctly"
+
       - name: Collect failure hints
         if: always()
         run: |
