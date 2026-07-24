@@ -6196,6 +6196,22 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 //                             Expression Emission
 //===--------------------------------------------------------------------===//
 
+static StringRef getMetalTextureHelperLoweringName(const FunctionDecl *FD) {
+  if (!FD || !FD->getIdentifier())
+    return "";
+
+  StringRef Name = FD->getName();
+  if (Name == "__metal_texture_get_width")
+    return "air.texture.get_width";
+  if (Name == "__metal_texture_get_height")
+    return "air.texture.get_height";
+  if (Name == "__metal_texture_get_depth")
+    return "air.texture.get_depth";
+  if (Name == "__metal_texture_get_array_size")
+    return "air.texture.get_array_size";
+  return "";
+}
+
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue,
                                      llvm::CallBase **CallOrInvoke) {
@@ -6211,6 +6227,27 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
         I->addFnAttr(llvm::Attribute::CoroElideSafe);
     }
   });
+
+  if (getLangOpts().Metal) {
+    if (StringRef AIRName = getMetalTextureHelperLoweringName(E->getDirectCallee());
+        !AIRName.empty()) {
+      SmallVector<llvm::Value *, 4> Args;
+      SmallVector<llvm::Type *, 4> ArgTys;
+      for (const Expr *Arg : E->arguments()) {
+        llvm::Value *ArgValue = EmitScalarExpr(Arg);
+        Args.push_back(ArgValue);
+        ArgTys.push_back(ArgValue->getType());
+      }
+
+      llvm::FunctionType *FnTy = llvm::FunctionType::get(
+          ConvertType(E->getType()), ArgTys, /*isVarArg=*/false);
+      llvm::FunctionCallee Callee =
+          CGM.getModule().getOrInsertFunction(AIRName, FnTy);
+      llvm::CallInst *Call = Builder.CreateCall(Callee, Args);
+      *CallOrInvoke = Call;
+      return RValue::get(Call);
+    }
+  }
 
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())

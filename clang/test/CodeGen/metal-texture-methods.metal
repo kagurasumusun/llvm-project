@@ -6,6 +6,6 @@ kernel void texture_methods(texture2d tex [[texture(0)]],
   out[1] = tex.get_height();
 }
 
-// CHECK: call {{.*}}@__metal_texture_get_width
-// CHECK: call {{.*}}@__metal_texture_get_height
+// CHECK: call {{.*}}@air.texture.get_width
+// CHECK: call {{.*}}@air.texture.get_height
 // CHECK: !"air.texture"

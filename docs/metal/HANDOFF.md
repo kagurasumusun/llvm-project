@@ -854,3 +854,30 @@ Next recommended implementation work:
 2. Replace texture helper external calls with actual AIR intrinsic/lowering once the target ABI mapping is clearer.
 3. Refine object/mesh/intersection function syntax and exact AIR metadata against Apple AST/IR examples.
 
+## Update 2026-07-24 JST — Continue implementation: lower texture helpers to AIR-named calls
+
+Starting point:
+
+- Known-good code before this batch: `e7bcc7c9ba6bab94a21ba8122b463c702155cde7`, full smoke v6 `30071361260` success.
+
+Implementation changes in this batch:
+
+- `clang/lib/CodeGen/CGExpr.cpp`: `EmitCallExpr` now recognizes Metal texture helper calls emitted by the prelude:
+  - `__metal_texture_get_width`
+  - `__metal_texture_get_height`
+  - `__metal_texture_get_depth`
+  - `__metal_texture_get_array_size`
+- These are lowered directly to AIR-named helper calls instead of ordinary external `__metal_texture_*` calls:
+  - `air.texture.get_width`
+  - `air.texture.get_height`
+  - `air.texture.get_depth`
+  - `air.texture.get_array_size`
+- This is still a bootstrap lowering (not a registered LLVM intrinsic), but the IR now uses stable AIR-style operation names instead of C++ method symbols or the prelude helper names.
+- `clang/test/CodeGen/metal-texture-methods.metal` and fast smoke workflow greps now check `air.texture.get_width`.
+
+Next validation steps:
+
+1. Push to `metal-test` and update workflow branch `metal`.
+2. Run component-fast and full smoke v6.
+3. If passing, record commit IDs and run IDs below.
+
