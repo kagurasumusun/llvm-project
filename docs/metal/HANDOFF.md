@@ -1088,3 +1088,41 @@ Next validation steps:
 2. Run component-fast and full smoke v6.
 3. Fix first CI error and update this handoff again.
 
+## Update 2026-07-24 JST — tile stage and stdlib prototype generator validated
+
+Implementation commit on `metal-test`:
+
+- `8732c7ec83be01728704d95058eb67b866a3cbe6` — `[Metal] Add tile stage and stdlib prototype generator`
+
+Default workflow branch update:
+
+- `9ed1a2dbf14d6ee0d205bce1caf0e11536b00dd1` — `[ci][Metal] Add tile stage smoke coverage`
+
+Validation results:
+
+- Component-fast run `30082569761` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30082569761
+- Full smoke v6 run `30084370665` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30084370665
+
+What passed in this batch:
+
+1. Tile stage support:
+   - `TokenKinds.def` now has a Metal-only `tile` keyword.
+   - `Attr.td` defines `MetalTile` with keyword and `[[tile]]` spellings.
+   - `ParseDecl.cpp` consumes `tile` as a Metal single-token function-stage adornment.
+   - `SemaDeclAttr.cpp` handles `MetalTileAttr`, includes tile in stage masks, and `MetalAttrAvailability.def` models it as Metal 2.0+.
+   - `CodeGenFunction.cpp` emits preliminary `!air.tile` metadata for tile functions.
+   - Tests added: `metal-tile-keyword.metal`, `metal-air-tile-metadata.metal`; `metal-availability.metal` covers old-standard rejection.
+
+2. Stdlib prototype generator:
+   - Added `clang/utils/metal/gen-metal-stdlib-prototypes.py`.
+   - The script filters a curated exact-prototype map through observed names in `MetalStdlibBuiltins.def` and writes `MetalStdlibBuiltinPrototypes.def`.
+   - This makes the current exact prototype subset reproducible and provides the next hook for replacing the curated map with parsed Apple header signatures from `metal-info`.
+
+Current known-good implementation state before this docs-only update: `8732c7ec83be01728704d95058eb67b866a3cbe6`. Any later docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation work:
+
+1. Expand tile function semantics/AIR operand layout against Apple IR examples.
+2. Use the new prototype generator as the place to consume parsed Apple header signatures from `metal-info` raw files.
+3. Continue replacing AIR-named helper calls (`air.texture.*`) with exact AIR/libAIR ABI forms when evidence is available.
+
