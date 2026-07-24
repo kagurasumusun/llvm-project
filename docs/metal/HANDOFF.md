@@ -271,3 +271,27 @@ Workflow files:
 This workflow compiles selected Clang component libraries instead of linking the `clang` executable, intended for faster TableGen/C++ compile-error feedback. It was dispatched as run `30059551713`: https://github.com/kagurasumusun/llvm-project/actions/runs/30059551713 . Existing full smoke workflow runs were not stopped.
 
 Use full `metal-clang-smoke-v6.yml` only when a clang binary and smoke tests are needed; use component workflow for fast implementation iteration.
+
+## Update 2026-07-24 JST — Metal stage function attrs and thread-local address-space Sema
+
+Current `metal-test` head before this update was `c7d66e7eebbea5ee8445843f88a30909b37b2bf2`. Latest full smoke run `30054210146` had already built clang, then failed syntax-only Metal smoke with:
+
+```text
+clang/test/Parser/metal-basic-keywords.metal:5:14: error: automatic variable qualified with an address space
+clang/test/Parser/metal-basic-keywords.metal:10:1: error: 'vertex' attribute cannot be applied to a declaration
+clang/test/Parser/metal-basic-keywords.metal:11:1: error: 'fragment' attribute cannot be applied to a declaration
+```
+
+Implementation update in this commit:
+
+- `clang/lib/Sema/SemaDeclAttr.cpp`: attach `MetalVertexAttr` and `MetalFragmentAttr` with `handleSimpleAttribute<>`, so custom-keyword function qualifiers `vertex` and `fragment` are real function stage attrs instead of parsed-but-dropped attrs.
+- `clang/lib/Sema/SemaDecl.cpp`: allow Metal automatic variables explicitly qualified with the `thread`/`opencl_private` address space. This preserves the existing diagnostic for non-private automatic address-space objects, so the implementation does not simply silence the check globally.
+- `clang/test/Sema/metal-address-spaces.metal`: added focused coverage for accepted `thread int local` and rejected `device int invalid`.
+- Existing `clang/test/Parser/metal-basic-keywords.metal` intentionally keeps `thread int local`, `vertex void v() {}`, and `fragment void f() {}` as smoke coverage for this implementation.
+
+Next actions:
+
+1. Dispatch `.github/workflows/metal-clang-components-v1.yml` with `ref=metal-test` for fast compile feedback.
+2. If component build passes, dispatch `.github/workflows/metal-clang-smoke-v6.yml` with `ref=metal-test` to rerun the parser/CodeGen smoke tests.
+3. Inspect the first new CI error before making further broad changes.
+

@@ -8010,6 +8010,12 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_DeviceKernel:
     handleDeviceKernelAttr(S, D, AL);
     break;
+  case ParsedAttr::AT_MetalVertex:
+    handleSimpleAttribute<MetalVertexAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalFragment:
+    handleSimpleAttribute<MetalFragmentAttr>(S, D, AL);
+    break;
   case ParsedAttr::AT_MetalBuffer:
     handleMetalIndexedParamAttr<MetalBufferAttr>(
         S, D, AL, 31, "a pointer or reference resource",
