@@ -75,12 +75,12 @@ def main() -> None:
     seen = observed_names(args.stdlib_builtins)
     lines = [HEADER]
     for name in sorted(PROTOTYPES):
-        if name in seen:
-            prototype = PROTOTYPES[name].replace('"', r'"')
-            lines.append(
-                f'METAL_STDLIB_BUILTIN_PROTO({name}, "{prototype}")
-'
-            )
+        if name not in seen:
+            continue
+        prototype = PROTOTYPES[name].replace('"', r'\"')
+        lines.append(
+            f'METAL_STDLIB_BUILTIN_PROTO({name}, "{prototype}")\n'
+        )
     args.output.write_text("".join(lines))
 
 

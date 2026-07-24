@@ -1126,3 +1126,17 @@ Next recommended implementation work:
 2. Use the new prototype generator as the place to consume parsed Apple header signatures from `metal-info` raw files.
 3. Continue replacing AIR-named helper calls (`air.texture.*`) with exact AIR/libAIR ABI forms when evidence is available.
 
+## Update 2026-07-24 JST — Fix and smoke-check stdlib prototype generator
+
+During follow-up review, `clang/utils/metal/gen-metal-stdlib-prototypes.py` had an accidental unterminated f-string in the committed generator body even though the generated `.def` table was valid. This was not caught by previous component/smoke builds because the script was not executed.
+
+Fix in this commit:
+
+- Rewrote the generator output loop to emit `METAL_STDLIB_BUILTIN_PROTO(..., "...")` lines correctly.
+- Extended `.github/workflows/metal-clang-smoke-v6.yml` so the focused smoke step now:
+  - runs `python3 -m py_compile clang/utils/metal/gen-metal-stdlib-prototypes.py`
+  - regenerates `/tmp/MetalStdlibBuiltinPrototypes.def` from `MetalStdlibBuiltins.def`
+  - compares it with the checked-in `clang/include/clang/Basic/MetalStdlibBuiltinPrototypes.def`
+
+Next validation steps: push to `metal-test` and workflow branch `metal`, then rerun full smoke v6.
+

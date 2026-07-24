@@ -148,6 +148,12 @@ jobs:
           set -euxo pipefail
           CLANG="$PWD/build/bin/clang"
 
+          python3 -m py_compile clang/utils/metal/gen-metal-stdlib-prototypes.py
+          python3 clang/utils/metal/gen-metal-stdlib-prototypes.py \
+            --stdlib-builtins clang/include/clang/Basic/MetalStdlibBuiltins.def \
+            --output /tmp/MetalStdlibBuiltinPrototypes.def
+          cmp /tmp/MetalStdlibBuiltinPrototypes.def clang/include/clang/Basic/MetalStdlibBuiltinPrototypes.def
+
           run_syntax() {
             "$CLANG" -cc1 -triple "$1" -x metal -std="$2" -fsyntax-only "$3"
           }
