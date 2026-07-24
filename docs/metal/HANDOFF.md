@@ -385,3 +385,18 @@ Fix in this commit: use the public `IdentifierLoc::getLoc()` accessor in `handle
 
 Next actions: rerun component-fast workflow; if it succeeds, rerun full smoke v6.
 
+## Update 2026-07-24 JST — Suppress cascading constant-init diag for invalid function constants
+
+Commit `a921fde5cff30bac9cc31272b07c1c171a883978` fixed the component compile error; component-fast workflow run `30063475275` completed `success`. Full smoke workflow run `30063626208` then progressed through builtin input validation and failed in `clang/test/Sema/metal-resource-validation.metal`:
+
+```text
+error: 'expected-error' diagnostics seen but not expected:
+  File clang/test/Sema/metal-resource-validation.metal Line 5: variable in constant address space must be initialized
+```
+
+Line 5 intentionally tests an invalid `constant uint4 [[function_constant(2)]]` because Metal function constants must be scalar. The desired diagnostic is the Metal function-constant type error; the ordinary constant-address-space initializer diagnostic was a cascade because `handleMetalFunctionConstantAttr` rejected the attr without marking the declaration invalid.
+
+Fix in this commit: when `handleMetalFunctionConstantAttr` diagnoses an out-of-range index or invalid variable type, mark the declaration invalid (`D->setInvalidDecl()`) so later uninitialized-constant checks do not emit a second unrelated diagnostic.
+
+Next actions: rerun component-fast, then full smoke v6.
+

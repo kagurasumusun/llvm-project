@@ -5550,6 +5550,7 @@ static void handleMetalFunctionConstantAttr(Sema &S, Decl *D,
     S.Diag(AL.getLoc(), diag::err_attribute_argument_out_of_range)
         << AL << 0 << 65535;
     AL.setInvalid();
+    D->setInvalidDecl();
     return;
   }
 
@@ -5558,6 +5559,7 @@ static void handleMetalFunctionConstantAttr(Sema &S, Decl *D,
       S.Diag(AL.getLoc(), diag::err_metal_attribute_wrong_param_type)
           << AL << "a global scalar bool, integer, enum, or floating type";
       AL.setInvalid();
+      D->setInvalidDecl();
       return;
     }
   }
