@@ -528,3 +528,31 @@ Next validation steps:
 3. Dispatch full smoke v6 (`metal-clang-smoke-v6.yml`) with `ref=metal-test`.
 4. If passing, record commit IDs and run IDs below.
 
+## Update 2026-07-24 JST — duplicate resource/IO validation passed
+
+Implementation commit on `metal-test`:
+
+- `37a592b55b83f8e0ca54faa1aacfc13b0a006878` — `[Metal] Validate duplicate resource and IO indices`
+
+Validation results:
+
+- Component-fast workflow run `30066128180` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30066128180
+- Full smoke v6 workflow run `30066697140` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30066697140
+
+What passed in this batch:
+
+- Duplicate `[[function_constant(n)]]` indices are diagnosed across global Metal function constants.
+- Duplicate resource binding indices are diagnosed within a Metal stage function for `buffer`, `texture`, `sampler`, and `threadgroup` namespaces.
+- Duplicate `[[attribute(n)]]` fields in a `[[stage_in]]` struct are diagnosed when the struct is used as a stage input parameter.
+- Duplicate fragment output `[[color(n)]]` and `[[depth(... )]]` fields are diagnosed.
+- Duplicate vertex output singleton attrs (`[[position]]`, `[[point_size]]`, `[[render_target_array_index]]`, `[[viewport_array_index]]`) are now checked.
+- Smoke-covered tests updated: `metal-resource-validation.metal`, `metal-builtin-input-validation.metal`, and `metal-color-validation.metal`.
+
+Current known-good implementation state before this docs-only update: `37a592b55b83f8e0ca54faa1aacfc13b0a006878`. Any later docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation work:
+
+1. Add type validation for Metal IO fields (`position` float4, `point_size` float, fragment depth float, render target/viewport indices uint, etc.) and update CodeGen tests away from intentionally loose `int` field types.
+2. Add stage-compatibility validation for IO field attrs (e.g. fragment-only `color/depth`, vertex-output-only `point_size`, stage-input-only `attribute`).
+3. Continue AIR metadata parity or wire `MetalStdlibBuiltins.def` into actual builtin declaration/lowering.
+
