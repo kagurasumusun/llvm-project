@@ -5565,6 +5565,27 @@ static void handleMetalFunctionConstantAttr(Sema &S, Decl *D,
   D->addAttr(::new (S.Context) MetalFunctionConstantAttr(S.Context, AL, Index));
 }
 
+static void handleMetalAttributeAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  uint32_t Index = 0;
+  if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
+    return;
+  if (Index > 31) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_out_of_range)
+        << AL << 0 << 31;
+    AL.setInvalid();
+    return;
+  }
+  D->addAttr(::new (S.Context) MetalAttributeAttr(S.Context, AL, Index));
+}
+
+static void handleMetalUserAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  IdentifierLoc *Name = AL.getArgAsIdent(0);
+  if (!Name)
+    return;
+  D->addAttr(
+      ::new (S.Context) MetalUserAttr(S.Context, AL, Name->getIdentifierInfo()));
+}
+
 static void handleMetalColorAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   uint32_t Index = 0;
   if (!S.checkUInt32Argument(AL, AL.getArgAsExpr(0), Index))
@@ -5576,6 +5597,23 @@ static void handleMetalColorAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
     return;
   }
   D->addAttr(::new (S.Context) MetalColorAttr(S.Context, AL, Index));
+}
+
+static void handleMetalDepthAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  IdentifierLoc *Depth = AL.getArgAsIdent(0);
+  if (!Depth)
+    return;
+
+  MetalDepthAttr::DepthQualifier Qualifier;
+  if (!MetalDepthAttr::ConvertStrToDepthQualifier(
+          Depth->getIdentifierInfo()->getName(), Qualifier)) {
+    S.Diag(Depth->Loc, diag::warn_attribute_type_not_supported)
+        << AL << Depth->getIdentifierInfo()->getName();
+    AL.setInvalid();
+    return;
+  }
+
+  D->addAttr(::new (S.Context) MetalDepthAttr(S.Context, AL, Qualifier));
 }
 
 static void handleDeviceKernelAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
@@ -8039,8 +8077,71 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_MetalFunctionConstant:
     handleMetalFunctionConstantAttr(S, D, AL);
     break;
+  case ParsedAttr::AT_MetalLocalIndex:
+    handleSimpleAttribute<MetalLocalIndexAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalId:
+    handleSimpleAttribute<MetalIdAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalObject:
+    handleSimpleAttribute<MetalObjectAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalMesh:
+    handleSimpleAttribute<MetalMeshAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalPayload:
+    handleSimpleAttribute<MetalPayloadAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalIntersection:
+    handleSimpleAttribute<MetalIntersectionAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalVisible:
+    handleSimpleAttribute<MetalVisibleAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalAttribute:
+    handleMetalAttributeAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalPointSize:
+    handleSimpleAttribute<MetalPointSizeAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalRenderTargetArrayIndex:
+    handleSimpleAttribute<MetalRenderTargetArrayIndexAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalViewportArrayIndex:
+    handleSimpleAttribute<MetalViewportArrayIndexAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalUser:
+    handleMetalUserAttr(S, D, AL);
+    break;
   case ParsedAttr::AT_MetalColor:
     handleMetalColorAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalDepth:
+    handleMetalDepthAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalFlat:
+    handleSimpleAttribute<MetalFlatAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalCenterPerspective:
+    handleSimpleAttribute<MetalCenterPerspectiveAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalCenterNoPerspective:
+    handleSimpleAttribute<MetalCenterNoPerspectiveAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalCentroidPerspective:
+    handleSimpleAttribute<MetalCentroidPerspectiveAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalCentroidNoPerspective:
+    handleSimpleAttribute<MetalCentroidNoPerspectiveAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalSamplePerspective:
+    handleSimpleAttribute<MetalSamplePerspectiveAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalSampleNoPerspective:
+    handleSimpleAttribute<MetalSampleNoPerspectiveAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalEarlyFragmentTests:
+    handleSimpleAttribute<MetalEarlyFragmentTestsAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalStageIn:
     handleMetalBuiltinInputAttr<MetalStageInAttr>(

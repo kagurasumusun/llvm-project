@@ -347,3 +347,27 @@ This is a smoke-test issue exposed by the prelude object aliases: `sampler` and 
 
 Next action: rerun full smoke v6 for `metal-test` and inspect the next failure.
 
+## Update 2026-07-24 JST — Metal IO attrs now have Sema handlers
+
+Commit `79fb78875a1aa39a4b9927a5e4b3a1fc422e2fda` renamed variables in `metal-ast-reference-builtins.metal` to avoid colliding with intentional prelude aliases. Full smoke run `30063035302` then progressed further and failed in `clang/test/Sema/metal-builtin-input-validation.metal`:
+
+```text
+error: 'expected-error' diagnostics seen but not expected:
+  File clang/test/Sema/metal-builtin-input-validation.metal Line 3: 'attribute' attribute cannot be applied to a declaration
+```
+
+Root cause: many Metal IO/builtin attributes existed in `Attr.td` but did not have `SemaDeclAttr.cpp` cases, so `[[attribute(0)]]` on a vertex input field was parsed but not attached.
+
+Implementation update in this commit:
+
+- Added handlers for missing Metal param/field/function attrs:
+  - parameter attrs: `MetalLocalIndex`, `MetalId`, `MetalObject`, `MetalMesh`, `MetalPayload`, `MetalIntersection`, `MetalVisible`
+  - IO attrs: `MetalAttribute`, `MetalPointSize`, `MetalRenderTargetArrayIndex`, `MetalViewportArrayIndex`, `MetalUser`, `MetalDepth`, `MetalFlat`, `MetalCenterPerspective`, `MetalCenterNoPerspective`, `MetalCentroidPerspective`, `MetalCentroidNoPerspective`, `MetalSamplePerspective`, `MetalSampleNoPerspective`, `MetalEarlyFragmentTests`
+- Added `handleMetalAttributeAttr`, `handleMetalUserAttr`, and `handleMetalDepthAttr` for attrs with arguments.
+- Added `clang/test/Sema/metal-io-attrs.metal` as focused coverage for vertex input attributes, vertex/fragment output IO attrs, interpolation attrs, depth/color attrs, and `early_fragment_tests`.
+
+Next actions:
+
+1. Dispatch component-fast workflow because this commit changes C++ Sema code.
+2. If it succeeds, dispatch full smoke v6 and inspect the next failure.
+
