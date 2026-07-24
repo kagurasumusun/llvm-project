@@ -610,3 +610,25 @@ Fix in this commit:
 
 Next validation steps: rerun component-fast, then full smoke v6.
 
+## Update 2026-07-24 JST — Fix MetalBuiltinObjects macro parameter collision
+
+The first stdlib type-name filter fix (`ad1a33e1e7676718f6b386d9b2f3499988f0e5d6`) failed component-fast run `30068682537` while compiling `InitPreprocessor.cpp`:
+
+```text
+../clang/include/clang/Basic/MetalBuiltinObjects.def:22:33: error: use of undeclared identifier '__metal_texture_1d_t'
+METAL_BUILTIN_OBJECT(texture1d, __metal_texture_1d_t, texture)
+```
+
+Root cause: the local macro definition used `BuiltinName` as both the lambda parameter name and the macro parameter name:
+
+```cpp
+#define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind) \
+  if (BuiltinName == #BuiltinName) return true;
+```
+
+The unstringized `BuiltinName` token was macro-expanded to `__metal_texture_1d_t`, causing a C++ identifier lookup instead of comparing the lambda argument.
+
+Fix in this commit: rename the lambda variable to `CandidateName` and the macro parameter to `TypeName`, comparing `CandidateName == #TypeName`.
+
+Next validation steps: rerun component-fast, then full smoke v6.
+

@@ -412,9 +412,9 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              Builder.append("typedef " #BuiltinName " " #Alias ";");
 #include "clang/Basic/MetalBuiltinObjects.def"
 #undef METAL_BUILTIN_OBJECT
-    auto IsMetalBuiltinTypeName = [](StringRef BuiltinName) {
+    auto IsMetalBuiltinTypeName = [](StringRef CandidateName) {
 #define METAL_AST_BUILTIN_TYPE(Name)                                                \
-      if (BuiltinName == #Name)                                                     \
+      if (CandidateName == #Name)                                                     \
         return true;
 #define METAL_AST_ATTR(Name)
 #define METAL_AST_ATTR_ALIAS(AppleName, ClangName)
@@ -422,8 +422,8 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #undef METAL_AST_ATTR_ALIAS
 #undef METAL_AST_ATTR
 #undef METAL_AST_BUILTIN_TYPE
-#define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              \
-      if (BuiltinName == #BuiltinName)                                              \
+#define METAL_BUILTIN_OBJECT(Alias, TypeName, Kind)                                 \
+      if (CandidateName == #TypeName)                                              \
         return true;
 #include "clang/Basic/MetalBuiltinObjects.def"
 #undef METAL_BUILTIN_OBJECT
