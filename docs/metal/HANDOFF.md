@@ -1318,3 +1318,21 @@ What passed in this batch:
 
 Current known-good implementation state before this docs-only update: `02877ed6180c6112bf706b8d8c4277992035106c`. Any later docs-only handoff commit should be treated as equivalent for code.
 
+## Update 2026-07-25 JST — stdlib policy correction: remove hand-written metal:: wrappers
+
+User clarified that the plan is to use Apple’s genuine Metal stdlib for the foreseeable future, not to implement or ship a hand-written replacement stdlib in Clang. The previous `MetalStdlibNamespaceWrappers.def` direction was therefore wrong for user-facing `metal::` APIs.
+
+Correction in this commit:
+
+- Removed the `metal::` stdlib wrapper emission block from `InitPreprocessor.cpp`.
+- Removed fast-smoke workflow references to `metal-stdlib-namespace-wrappers.metal`.
+- Added `docs/metal/StdlibPolicy.md` documenting the corrected policy:
+  - no hand-written replacement `metal::` stdlib,
+  - Apple headers are the source of truth,
+  - compiler-internal `__metal_*` builtin hooks are allowed only as support for those headers / lowering.
+
+Important distinction for next agents:
+
+- `MetalStdlibBuiltins.def` / `MetalStdlibBuiltinPrototypes.def` should be treated as compiler builtin hook data and a temporary bridge toward Apple-header compatibility.
+- Do not continue expanding `metal::` wrappers by hand. Instead, fetch Apple stdlib headers from `metal-info` raw/API and make tests include/use them.
+

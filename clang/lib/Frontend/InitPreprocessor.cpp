@@ -507,22 +507,6 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
       Builder.append("using ::" #Alias ";");
 #include "clang/Basic/MetalBuiltinObjects.def"
 #undef METAL_BUILTIN_OBJECT
-#define METAL_STDLIB_WRAPPER_UNARY_FLOAT(Name, Builtin)                            \
-    Builder.append("inline float " #Name "(float x) { return ::" #Builtin "(x); }");
-#define METAL_STDLIB_WRAPPER_BINARY_FLOAT(Name, Builtin)                           \
-    Builder.append("inline float " #Name "(float x, float y) { return ::" #Builtin "(x, y); }");
-#define METAL_STDLIB_WRAPPER_TERNARY_FLOAT(Name, Builtin)                          \
-    Builder.append("inline float " #Name "(float x, float y, float z) { return ::" #Builtin "(x, y, z); }");
-#define METAL_STDLIB_WRAPPER_UNARY_INT(Name, Builtin)                              \
-    Builder.append("inline int " #Name "(int x) { return ::" #Builtin "(x); }");
-#define METAL_STDLIB_WRAPPER_SELECT_INT(Name, Builtin)                             \
-    Builder.append("inline int " #Name "(int x, int y, bool c) { return ::" #Builtin "(x, y, c); }");
-#include "clang/Basic/MetalStdlibNamespaceWrappers.def"
-#undef METAL_STDLIB_WRAPPER_SELECT_INT
-#undef METAL_STDLIB_WRAPPER_UNARY_INT
-#undef METAL_STDLIB_WRAPPER_TERNARY_FLOAT
-#undef METAL_STDLIB_WRAPPER_BINARY_FLOAT
-#undef METAL_STDLIB_WRAPPER_UNARY_FLOAT
     Builder.append("}");
     Builder.append("#endif");
   }
