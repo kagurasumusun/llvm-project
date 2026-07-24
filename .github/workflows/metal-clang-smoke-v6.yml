@@ -171,12 +171,6 @@ jobs:
             --output /tmp/MetalStdlibBuiltinPrototypes.def
           cmp /tmp/MetalStdlibBuiltinPrototypes.def clang/include/clang/Basic/MetalStdlibBuiltinPrototypes.def
 
-          APPLE_METAL_ROOT="$PWD/third-party/metal-info-apple/reference-apple/clang/32023.883"
-          APPLE_METAL_INCLUDE="$APPLE_METAL_ROOT/include/metal"
-          APPLE_METAL_DARWIN_LIB="$APPLE_METAL_ROOT/lib/darwin"
-          test -f "$APPLE_METAL_INCLUDE/metal_stdlib"
-          test -f "$APPLE_METAL_DARWIN_LIB/libmetal_rt_osx.a"
-
           run_syntax() {
             "$CLANG" -cc1 -triple "$1" -x metal -std="$2" -fsyntax-only "$3"
           }

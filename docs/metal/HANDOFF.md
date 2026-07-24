@@ -1426,3 +1426,17 @@ Fix in this commit:
 
 Next validation step: rerun full smoke v6.
 
+## Update 2026-07-25 JST — Fix stale Apple stdlib path checks in smoke step
+
+Full smoke run `30121112578` failed after the fetch step succeeded because the smoke step still contained an older variable block pointing to `third-party/metal-info-apple/reference-apple/...`:
+
+```text
+APPLE_METAL_ROOT=$PWD/third-party/metal-info-apple/reference-apple/clang/32023.883
+APPLE_METAL_INCLUDE=$APPLE_METAL_ROOT/include/metal
+test -f $APPLE_METAL_INCLUDE/metal_stdlib
+```
+
+The current fetcher writes to `metal-info-resource/clang/32023.883`, and the smoke step had already set the correct `APPLE_METAL_RESOURCE`/`APPLE_METAL_INCLUDE` variables above. Fix in this commit: remove the stale duplicate variable/path checks.
+
+Next validation step: rerun full smoke v6.
+
