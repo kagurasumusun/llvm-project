@@ -1692,6 +1692,13 @@ def MetalFragment : InheritableAttr {
   let Documentation = [InternalOnly];
 }
 
+def MetalTile : InheritableAttr {
+  let Spellings = [CustomKeyword<"tile">, CXX11<"", "tile", 202600>];
+  let Subjects = SubjectList<[Function]>;
+  let LangOpts = [Metal];
+  let Documentation = [InternalOnly];
+}
+
 def MetalBuffer : InheritableParamAttr {
   let Spellings = [CXX11<"", "buffer", 202600>];
   let Args = [IntArgument<"Index">];

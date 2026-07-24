@@ -6,3 +6,5 @@ constant int fc [[function_constant(0)]];
 
 // Mesh/object-family attributes are modeled as Metal 3.0+ entry points.
 kernel void mesh_attr(uint x [[mesh]]) {} // expected-error {{'mesh' attribute requires Metal 3.0 or later}}
+
+tile void tile_needs_metal2() {} // expected-error {{'tile' attribute requires Metal 2.0 or later}}

@@ -5276,6 +5276,7 @@ enum class MetalFunctionStage : unsigned {
   Kernel = 1 << 0,
   Vertex = 1 << 1,
   Fragment = 1 << 2,
+  Tile = 1 << 3,
 };
 
 static unsigned getMetalFunctionStageMask(const Decl *D) {
@@ -5291,6 +5292,8 @@ static unsigned getMetalFunctionStageMask(const Decl *D) {
     return static_cast<unsigned>(MetalFunctionStage::Vertex);
   if (FD->hasAttr<MetalFragmentAttr>())
     return static_cast<unsigned>(MetalFunctionStage::Fragment);
+  if (FD->hasAttr<MetalTileAttr>())
+    return static_cast<unsigned>(MetalFunctionStage::Tile);
   return static_cast<unsigned>(MetalFunctionStage::None);
 }
 
@@ -5369,6 +5372,8 @@ static constexpr unsigned MetalVertexStage =
     static_cast<unsigned>(MetalFunctionStage::Vertex);
 static constexpr unsigned MetalFragmentStage =
     static_cast<unsigned>(MetalFunctionStage::Fragment);
+static constexpr unsigned MetalTileStage =
+    static_cast<unsigned>(MetalFunctionStage::Tile);
 static constexpr unsigned MetalVertexOrFragmentStage = MetalVertexStage | MetalFragmentStage;
 
 static unsigned getMetalAttributeMinVersion(const ParsedAttr &AL) {
@@ -5416,6 +5421,8 @@ static unsigned getMetalFunctionStageMaskForFunction(const FunctionDecl *FD) {
     return MetalVertexStage;
   if (FD->hasAttr<MetalFragmentAttr>())
     return MetalFragmentStage;
+  if (FD->hasAttr<MetalTileAttr>())
+    return MetalTileStage;
   return static_cast<unsigned>(MetalFunctionStage::None);
 }
 
@@ -8329,6 +8336,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalFragment:
     handleSimpleAttribute<MetalFragmentAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalTile:
+    handleSimpleAttribute<MetalTileAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalBuffer:
     handleMetalIndexedParamAttr<MetalBufferAttr>(

@@ -653,6 +653,7 @@ KEYWORD(fragment                    , KEYMETAL)
 KEYWORD(object                      , KEYMETAL)
 KEYWORD(mesh                        , KEYMETAL)
 KEYWORD(intersection                , KEYMETAL)
+KEYWORD(tile                        , KEYMETAL)
 // OpenCL access qualifiers
 KEYWORD(__read_only                 , KEYOPENCLC | KEYOPENCLCXX)
 KEYWORD(__write_only                , KEYOPENCLC | KEYOPENCLCXX)

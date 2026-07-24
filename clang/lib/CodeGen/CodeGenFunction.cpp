@@ -626,12 +626,13 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
   bool IsMetalKernel = FD->hasAttr<DeviceKernelAttr>();
   bool IsMetalVertex = FD->hasAttr<MetalVertexAttr>();
   bool IsMetalFragment = FD->hasAttr<MetalFragmentAttr>();
+  bool IsMetalTile = FD->hasAttr<MetalTileAttr>();
   bool IsMetalObjectStage = FD->hasAttr<MetalObjectAttr>();
   bool IsMetalMeshStage = FD->hasAttr<MetalMeshAttr>();
   bool IsMetalIntersectionStage = FD->hasAttr<MetalIntersectionAttr>();
   bool IsMetalVisibleStage = FD->hasAttr<MetalVisibleAttr>();
   bool IsMetalStage = IsMetalKernel || IsMetalVertex || IsMetalFragment ||
-                      IsMetalObjectStage || IsMetalMeshStage ||
+                      IsMetalTile || IsMetalObjectStage || IsMetalMeshStage ||
                       IsMetalIntersectionStage || IsMetalVisibleStage;
 
   if (!IsMetalStage && !FD->hasAttr<CUDAGlobalAttr>())
@@ -1130,6 +1131,7 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
     StringRef AIRStageMDName = IsMetalKernel       ? "air.kernel"
                                 : IsMetalVertex     ? "air.vertex"
                                 : IsMetalFragment   ? "air.fragment"
+                                : IsMetalTile       ? "air.tile"
                                 : IsMetalObjectStage ? "air.object"
                                 : IsMetalMeshStage  ? "air.mesh"
                                 : IsMetalIntersectionStage

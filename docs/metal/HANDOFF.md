@@ -1059,3 +1059,32 @@ Next recommended implementation work:
 2. Expand parser/Sema handling for `tile` or other Metal stage-like qualifiers if observed in Apple AST dumps/spec PDFs.
 3. Continue moving stdlib exact prototypes from manual subset toward generated data from Apple headers.
 
+## Update 2026-07-24 JST — Continue implementation: tile stage and stdlib prototype generator
+
+Starting point:
+
+- Known-good code before this batch: `591cbe2dab888d0a3b9f7d25c53bd008233c4101`, full smoke v6 `30081815099` success.
+
+Implementation changes in this batch:
+
+1. Tile stage support:
+   - Added Metal-only `tile` keyword in `TokenKinds.def`.
+   - Added `MetalTile` attr in `Attr.td` with keyword and `[[tile]]` spellings.
+   - `ParseDecl.cpp` consumes `tile` as a Metal single-token function-stage adornment.
+   - `SemaDeclAttr.cpp` handles `MetalTileAttr`, includes it in stage masks, and gives it conservative Metal 2.0 availability.
+   - `CodeGenFunction.cpp` treats tile functions as Metal stage-like functions and emits `!air.tile` metadata.
+   - Added parser and CodeGen tests: `metal-tile-keyword.metal`, `metal-air-tile-metadata.metal`; availability test now checks `tile` under `macos-metal1.1`.
+
+2. Stdlib prototype generation path:
+   - Added `clang/utils/metal/gen-metal-stdlib-prototypes.py`, a conservative generator for `MetalStdlibBuiltinPrototypes.def`.
+   - The generator filters a curated common-prototype map through observed names in `MetalStdlibBuiltins.def`. This keeps the current exact prototype subset reproducible and gives a path to replace the map with parsed Apple header signatures later.
+
+3. Workflow:
+   - Fast smoke now includes tile parser and CodeGen checks. Push workflow update to branch `metal`.
+
+Next validation steps:
+
+1. Push to `metal-test` and workflow branch `metal`.
+2. Run component-fast and full smoke v6.
+3. Fix first CI error and update this handoff again.
+
