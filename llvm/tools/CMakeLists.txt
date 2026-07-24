@@ -9,6 +9,11 @@
 # traversing each directory.
 create_llvm_tool_options()
 
+
+# Metal tools
+add_subdirectory(metal-as)
+add_subdirectory(metal-ld)
+
 if(NOT LLVM_COMPILER_IS_GCC_COMPATIBLE OR NOT LLVM_LIBC_GPU_BUILD)
   set(LLVM_TOOL_LLVM_GPU_LOADER_BUILD OFF)
 endif()
@@ -28,8 +33,6 @@ endif()
 
 
 # Metal tools
-add_subdirectory(metal-as)
-add_subdirectory(metal-ld)
 
 if (LLVM_TOOL_LLVM_DRIVER_BUILD)
   add_llvm_tool(llvm-driver)
