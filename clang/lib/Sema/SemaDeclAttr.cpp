@@ -5466,6 +5466,45 @@ static const RecordDecl *getMetalRecordDefinition(QualType T) {
   return RT ? RT->getDecl()->getDefinition() : nullptr;
 }
 
+static bool isMetalFloatOrFloatVector(Sema &S, QualType T, unsigned MinElements,
+                                      unsigned MaxElements) {
+  return isMetalFloatType(S, T) ||
+         isMetalFloatVector(S, T, MinElements, MaxElements);
+}
+
+static bool isMetalArithmeticOrArithmeticVector(QualType T) {
+  T = T.getUnqualifiedType();
+  if (T->isArithmeticType())
+    return true;
+  if (const auto *VT = T->getAs<ExtVectorType>())
+    return VT->getElementType()->isArithmeticType();
+  return false;
+}
+
+template <typename TypeCheck>
+static bool validateMetalFieldType(Sema &S, const FieldDecl *Field,
+                                   const Attr *A, StringRef TypeName,
+                                   TypeCheck Check) {
+  if (!A)
+    return false;
+  if (Check(Field->getType()))
+    return false;
+  S.Diag(A->getLocation(), diag::err_metal_attribute_wrong_field_type)
+      << A << TypeName;
+  const_cast<FieldDecl *>(Field)->setInvalidDecl();
+  return true;
+}
+
+static bool validateMetalFieldContext(Sema &S, const FieldDecl *Field,
+                                      const Attr *A, unsigned Context) {
+  if (!A)
+    return false;
+  S.Diag(A->getLocation(), diag::err_metal_attribute_wrong_field_context)
+      << A << Context;
+  const_cast<FieldDecl *>(Field)->setInvalidDecl();
+  return true;
+}
+
 static void validateMetalStageInRecordAttributes(Sema &S, FunctionDecl *FD,
                                                  const ParmVarDecl *P) {
   if (!P->hasAttr<MetalStageInAttr>())
@@ -5486,6 +5525,22 @@ static void validateMetalStageInRecordAttributes(Sema &S, FunctionDecl *FD,
                                                    AttributeIndices, 1);
     Invalid |= diagnoseMetalDuplicateAttr(
         S, Field->getAttr<MetalPositionAttr>(), Position, 0);
+    Invalid |= validateMetalFieldType(
+        S, Field, Field->getAttr<MetalPositionAttr>(), "float4",
+        [&](QualType T) { return isMetalFloatVector(S, T, 4, 4); });
+
+    // Resource-output attributes are not stage-input field attributes.  Stage
+    // input records model vertex inputs and fragment interpolants.
+    Invalid |= validateMetalFieldContext(
+        S, Field, Field->getAttr<MetalColorAttr>(), 0);
+    Invalid |= validateMetalFieldContext(
+        S, Field, Field->getAttr<MetalDepthAttr>(), 0);
+    Invalid |= validateMetalFieldContext(
+        S, Field, Field->getAttr<MetalPointSizeAttr>(), 0);
+    Invalid |= validateMetalFieldContext(
+        S, Field, Field->getAttr<MetalRenderTargetArrayIndexAttr>(), 0);
+    Invalid |= validateMetalFieldContext(
+        S, Field, Field->getAttr<MetalViewportArrayIndexAttr>(), 0);
     if (Invalid) {
       const_cast<FieldDecl *>(Field)->setInvalidDecl();
       const_cast<ParmVarDecl *>(P)->setInvalidDecl();
@@ -5514,24 +5569,61 @@ static void validateMetalStageOutputRecordAttributes(Sema &S, FunctionDecl *FD,
     if (Field->isInvalidDecl())
       continue;
     bool Invalid = false;
+    // [[attribute(n)]] is a stage-input field attribute, not a stage-output
+    // field attribute.
+    Invalid |= validateMetalFieldContext(
+        S, Field, Field->getAttr<MetalAttributeAttr>(),
+        (FunctionStage & MetalFragmentStage) ? 2 : 1);
+
     if (FunctionStage & MetalFragmentStage) {
-      if (const auto *A = Field->getAttr<MetalColorAttr>())
+      if (const auto *A = Field->getAttr<MetalColorAttr>()) {
         Invalid |= diagnoseMetalDuplicateIndexedAttr(S, A, A->getIndex(),
                                                      ColorIndices, 2);
+        Invalid |= validateMetalFieldType(
+            S, Field, A, "an arithmetic scalar or vector",
+            [](QualType T) { return isMetalArithmeticOrArithmeticVector(T); });
+      }
       Invalid |= diagnoseMetalDuplicateAttr(
           S, Field->getAttr<MetalDepthAttr>(), Depth, 1);
+      Invalid |= validateMetalFieldType(
+          S, Field, Field->getAttr<MetalDepthAttr>(), "float",
+          [&](QualType T) { return isMetalFloatType(S, T); });
+      Invalid |= validateMetalFieldContext(
+          S, Field, Field->getAttr<MetalPositionAttr>(), 2);
+      Invalid |= validateMetalFieldContext(
+          S, Field, Field->getAttr<MetalPointSizeAttr>(), 2);
+      Invalid |= validateMetalFieldContext(
+          S, Field, Field->getAttr<MetalRenderTargetArrayIndexAttr>(), 2);
+      Invalid |= validateMetalFieldContext(
+          S, Field, Field->getAttr<MetalViewportArrayIndexAttr>(), 2);
     }
     if (FunctionStage & MetalVertexStage) {
       Invalid |= diagnoseMetalDuplicateAttr(
           S, Field->getAttr<MetalPositionAttr>(), Position, 1);
+      Invalid |= validateMetalFieldType(
+          S, Field, Field->getAttr<MetalPositionAttr>(), "float4",
+          [&](QualType T) { return isMetalFloatVector(S, T, 4, 4); });
       Invalid |= diagnoseMetalDuplicateAttr(
           S, Field->getAttr<MetalPointSizeAttr>(), PointSize, 1);
+      Invalid |= validateMetalFieldType(
+          S, Field, Field->getAttr<MetalPointSizeAttr>(), "float",
+          [&](QualType T) { return isMetalFloatType(S, T); });
       Invalid |= diagnoseMetalDuplicateAttr(
           S, Field->getAttr<MetalRenderTargetArrayIndexAttr>(),
           RenderTargetArrayIndex, 1);
+      Invalid |= validateMetalFieldType(
+          S, Field, Field->getAttr<MetalRenderTargetArrayIndexAttr>(), "uint",
+          [&](QualType T) { return isMetalUnsignedIntType(S, T); });
       Invalid |= diagnoseMetalDuplicateAttr(
           S, Field->getAttr<MetalViewportArrayIndexAttr>(), ViewportArrayIndex,
           1);
+      Invalid |= validateMetalFieldType(
+          S, Field, Field->getAttr<MetalViewportArrayIndexAttr>(), "uint",
+          [&](QualType T) { return isMetalUnsignedIntType(S, T); });
+      Invalid |= validateMetalFieldContext(
+          S, Field, Field->getAttr<MetalColorAttr>(), 1);
+      Invalid |= validateMetalFieldContext(
+          S, Field, Field->getAttr<MetalDepthAttr>(), 1);
     }
     if (Invalid) {
       const_cast<FieldDecl *>(Field)->setInvalidDecl();

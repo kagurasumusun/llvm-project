@@ -2,6 +2,13 @@
 
 struct In { int x [[attribute(0)]]; };
 
+
+struct BadStageInFields {
+  int pos [[position]]; // expected-error {{'position' attribute requires field type float4}}
+  float4 color [[color(0)]]; // expected-error {{'color' attribute cannot be used on stage input fields}}
+  float depth [[depth(any)]]; // expected-error {{'depth' attribute cannot be used on stage input fields}}
+};
+
 struct DupStageIn {
   int a [[attribute(0)]];
   int b [[attribute(0)]]; // expected-error {{'attribute' attribute index 0 is already used by another stage input field}}
@@ -21,3 +28,4 @@ fragment void bad_position_type(uint p [[position]]) {} // expected-error {{'pos
 vertex void bad_stage_type(uint in [[stage_in]]) {} // expected-error {{'stage_in' attribute requires parameter type a record type}}
 [[early_fragment_tests]] vertex void bad_vertex_early_fragment_tests() {} // expected-error {{'early_fragment_tests' attribute is only valid on fragment functions}}
 vertex void bad_duplicate_stage_in_attribute(DupStageIn in [[stage_in]]) {}
+fragment void bad_stage_in_fields(BadStageInFields in [[stage_in]]) {}

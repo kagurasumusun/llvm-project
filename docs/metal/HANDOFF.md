@@ -556,3 +556,38 @@ Next recommended implementation work:
 2. Add stage-compatibility validation for IO field attrs (e.g. fragment-only `color/depth`, vertex-output-only `point_size`, stage-input-only `attribute`).
 3. Continue AIR metadata parity or wire `MetalStdlibBuiltins.def` into actual builtin declaration/lowering.
 
+## Update 2026-07-24 JST — Continue implementation: IO field type/context validation and stdlib builtin declarations
+
+Starting point:
+
+- Code implementation head before this batch: `37a592b55b83f8e0ca54faa1aacfc13b0a006878`, full smoke v6 `30066697140` success.
+- `metal-test` may have a later docs-only handoff commit.
+
+Implementation changes in this batch:
+
+- `clang/lib/Sema/SemaDeclAttr.cpp` / `DiagnosticSemaKinds.td`:
+  - added field-specific Metal diagnostics for wrong IO field type and wrong field context.
+  - validates `[[position]]` fields as `float4` for vertex outputs and stage-input records.
+  - validates `[[point_size]]` and fragment `[[depth(... )]]` fields as `float`.
+  - validates `[[render_target_array_index]]` and `[[viewport_array_index]]` fields as `uint`.
+  - validates fragment color output fields as arithmetic scalar/vector values.
+  - rejects fragment-output-only `[[color]]`/`[[depth]]` on vertex outputs.
+  - rejects vertex-output-only attrs (`position`, `point_size`, render target/viewport array index) on fragment outputs as appropriate.
+  - rejects output-only attrs (`color`, `depth`, `point_size`, render target/viewport array index) on `[[stage_in]]` record fields.
+- `clang/lib/Frontend/InitPreprocessor.cpp`:
+  - connects `MetalStdlibBuiltins.def` to the lightweight Metal prelude by emitting generic `extern "C" int __metal_*(...);` declarations for all collected Apple stdlib builtin entry-point names.
+  - This is a bootstrap declaration/lowering path: calls now parse and CodeGen as external calls; precise overload signatures/lowering remain future work.
+- Tests:
+  - updated `metal-air-io-metadata.metal` to use valid IO field types.
+  - expanded `metal-color-validation.metal` and `metal-builtin-input-validation.metal` for type/context failures.
+  - added `clang/test/Parser/metal-stdlib-builtin-decls.metal`.
+  - added `clang/test/CodeGen/metal-stdlib-builtin-calls.metal`.
+- `.github/workflows/metal-clang-smoke-v6.yml` now runs the new stdlib syntax smoke and greps CodeGen for `@__metal_abs`; push this workflow to default branch `metal` as well as `metal-test`.
+
+Next validation steps:
+
+1. Push implementation to `metal-test`.
+2. Push workflow update to branch `metal`.
+3. Dispatch component-fast and full smoke v6.
+4. If passing, record commit IDs and run IDs below.
+
