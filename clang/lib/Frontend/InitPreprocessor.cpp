@@ -436,7 +436,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #undef METAL_AST_ATTR
 #undef METAL_AST_BUILTIN_TYPE
 #define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              \
-    if (!StringRef(#Alias).equals("mesh"))                                          \
+    if (StringRef(#Alias) != "mesh")                                          \
       Builder.append("typedef " #BuiltinName " " #Alias ";");
 #include "clang/Basic/MetalBuiltinObjects.def"
 #undef METAL_BUILTIN_OBJECT
@@ -480,7 +480,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #include "clang/Basic/MetalAIRTypes.def"
 #undef METAL_AIR_TYPE
 #define METAL_BUILTIN_OBJECT(Alias, BuiltinName, Kind)                              \
-    if (!StringRef(#Alias).equals("mesh"))                                          \
+    if (StringRef(#Alias) != "mesh")                                          \
       Builder.append("using ::" #Alias ";");
 #include "clang/Basic/MetalBuiltinObjects.def"
 #undef METAL_BUILTIN_OBJECT

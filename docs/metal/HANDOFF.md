@@ -968,3 +968,16 @@ Fix in this commit:
 
 Next validation steps: rerun component-fast and full smoke v6.
 
+## Update 2026-07-24 JST — Fix StringRef mesh-alias check
+
+The mesh keyword/prelude alias collision fix commit `84f45861666b053e5e8f9beee56e006366e35bf7` failed component-fast run `30080885475` in `InitPreprocessor.cpp`:
+
+```text
+error: no member named 'equals' in 'llvm::StringRef'
+if (!StringRef(#Alias).equals("mesh"))
+```
+
+Fix in this commit: use `StringRef(#Alias) != "mesh"` instead of the unavailable `StringRef::equals` member in this LLVM branch.
+
+Next validation steps: rerun component-fast and full smoke v6.
+
