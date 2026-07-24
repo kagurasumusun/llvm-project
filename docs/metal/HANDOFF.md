@@ -881,3 +881,32 @@ Next validation steps:
 2. Run component-fast and full smoke v6.
 3. If passing, record commit IDs and run IDs below.
 
+## Update 2026-07-24 JST — AIR-named texture helper lowering validated
+
+Implementation commit on `metal-test`:
+
+- `d4385fb9f985f3a868c7616d1856ed449baadd36` — `[Metal] Lower texture helpers to AIR-named calls`
+
+Default workflow branch update:
+
+- `1f4ea2082924f8c6ac92897dee7581f85d25f8b2` — `[ci][Metal] Check AIR texture helper lowering`
+
+Validation results:
+
+- Component-fast run `30076224690` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30076224690
+- Full smoke v6 run `30076618550` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30076618550
+
+What passed in this batch:
+
+- `CGExpr.cpp` recognizes calls to Metal texture prelude helpers (`__metal_texture_get_width`, `__metal_texture_get_height`, `__metal_texture_get_depth`, `__metal_texture_get_array_size`).
+- CodeGen lowers those calls to AIR-named helper calls (`air.texture.get_width`, `air.texture.get_height`, `air.texture.get_depth`, `air.texture.get_array_size`) instead of leaving ordinary `__metal_texture_*` external calls.
+- The texture CodeGen smoke now checks `@air.texture.get_width` / `@air.texture.get_height` plus `!"air.texture"` metadata.
+
+Current known-good implementation state before this docs-only update: `d4385fb9f985f3a868c7616d1856ed449baadd36`. Any later docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation work:
+
+1. Continue replacing AIR-named helper calls with real target intrinsics once AIR intrinsic IDs or exact libAIR ABI names are known from `metal-info` IR samples.
+2. Generate stdlib prototypes from Apple header declarations rather than hard-coded subset + generic fallback.
+3. Compare object/mesh/intersection `!air.*` metadata against Apple IR dumps and adjust operand layout/options.
+
