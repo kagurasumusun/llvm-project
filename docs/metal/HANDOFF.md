@@ -1287,3 +1287,34 @@ Implementation changes in this batch:
 
 Next validation steps: push to `metal-test` and workflow branch `metal`, then run component-fast and full smoke v6.
 
+## Update 2026-07-25 JST — metal namespace stdlib wrappers and texture overloads validated
+
+Implementation commit on `metal-test`:
+
+- `02877ed6180c6112bf706b8d8c4277992035106c` — `[Metal] Add metal namespace stdlib wrappers and texture overloads`
+
+Default workflow branch update:
+
+- `db52066526393f9d784c7871e33551639afb465f` — `[ci][Metal] Check metal namespace stdlib wrappers`
+
+Validation results:
+
+- Component-fast run `30117135087` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30117135087
+- Full smoke v6 run `30117340938` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30117340938
+
+What passed in this batch:
+
+- Added `clang/include/clang/Basic/MetalStdlibNamespaceWrappers.def` with bootstrap scalar `metal::` wrappers for the currently modeled stdlib subset (`sin`, `sqrt`, `pow`, `clamp`, `abs`, `select`, etc.).
+- `InitPreprocessor.cpp` emits inline `metal::foo(...)` wrappers that forward to the modeled `__metal_*` entry points.
+- Added parser and CodeGen smoke tests for `metal::` wrapper calls:
+  - `clang/test/Parser/metal-stdlib-namespace-wrappers.metal`
+  - `clang/test/CodeGen/metal-stdlib-namespace-wrappers.metal`
+- Expanded texture read/write overload coverage:
+  - scalar `uint` coordinates for `texture1d`
+  - `uint2` / `uint3` coordinate overloads remain in the prelude
+  - `sample` overloads now take `const __metal_sampler_t &` with float/float2/float3 coordinates and lower through existing helpers
+- Added parser coverage for `texture1d` scalar-coordinate `read`/`write`.
+- Fast smoke workflow now runs namespace wrapper syntax/CodeGen checks.
+
+Current known-good implementation state before this docs-only update: `02877ed6180c6112bf706b8d8c4277992035106c`. Any later docs-only handoff commit should be treated as equivalent for code.
+
