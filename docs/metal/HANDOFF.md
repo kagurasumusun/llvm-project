@@ -1384,3 +1384,9 @@ Expected next validation:
 
 - The first full smoke run may expose missing compiler hooks required by Apple headers. Fix those in Clang rather than adding a hand-written replacement `metal::` stdlib.
 
+## Update 2026-07-25 JST — Remove stale metal:: bootstrap expectations from generated prelude smoke
+
+Full smoke after enabling Apple stdlib resource fetching failed before the Apple stdlib include smoke because `clang/test/Parser/metal-generated-prelude-table.metal` still expected Clang's lightweight prelude to provide `metal::float4` and `metal::uint4`. That expectation conflicts with the corrected policy: user-facing `metal::` names come from Apple `metal_stdlib`.
+
+Fix in this commit: remove those namespace-qualified bootstrap checks and leave the global compiler bootstrap aliases in place.
+

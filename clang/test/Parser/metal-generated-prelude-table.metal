@@ -8,6 +8,5 @@ half e;
 float4 f;
 half4 h;
 uint4 u;
-metal::float4 mf;
-metal::uint4 mu;
+// User-facing metal:: vector aliases are provided by Apple metal_stdlib.
 float4x4 matrix;
