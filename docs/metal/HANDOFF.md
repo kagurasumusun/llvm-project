@@ -219,3 +219,19 @@ Static review after patch:
 - no version-less global-scope `CXX11<"", ...>` spelling remains in the Metal block
 
 Next agent should rerun cached workflow v5 and inspect the next compiler/test error.
+
+
+## Update 2026-07-24 JST — half prelude collision fix
+
+Workflow run `30054210146` built clang successfully and then failed in the first Metal smoke test:
+
+```text
+<built-in>:422:16: error: cannot combine with previous 'half' declaration specifier
+  typedef __fp16 half;
+<built-in>:516:9: error: expected unqualified-id
+  using ::half;
+```
+
+Cause: `LangOpts.Half` is enabled for Metal, so `half` is already a language/builtin type spelling. The lightweight prelude must not typedef or `using` it. Fix: remove the `half` row from `MetalAIRTypes.def` and the generator table; define `half2/half3/half4` directly from `__fp16`; keep CodeGen mangle cases for `half`/`__fp16` as `Dh`.
+
+Next agent should rerun cached workflow v5 and inspect the next smoke/build error.

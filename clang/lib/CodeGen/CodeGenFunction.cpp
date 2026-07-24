@@ -785,6 +785,8 @@ void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
           .Case("long", "l")
           .Case("unsigned long", "m")
           .Case("float", "f")
+          .Case("half", "Dh")
+          .Case("__fp16", "Dh")
 #define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                           .Case(AIRName, AIRItaniumMangle)
 #include "clang/Basic/MetalAIRTypes.def"
 #undef METAL_AIR_TYPE
