@@ -425,3 +425,24 @@ Fix in this commit:
 
 Next actions: rerun component-fast for C++ compile validation, then full smoke v6.
 
+## Update 2026-07-24 JST — Availability-cascade fix validated
+
+Commit `b5eabafc6f9e88de9612a6d59a43f72b432e6b67` implemented the latest error fix:
+
+- `checkMetalAttributeAvailability` now receives `Decl *D`.
+- When a Metal attr is unavailable for the selected Metal language version, the decl is marked invalid after emitting `err_metal_attribute_requires_version`.
+- This suppresses the unrelated follow-on `variable in constant address space must be initialized` diagnostic for the `macos-metal1.1` `[[function_constant]]` availability test.
+
+Validation:
+
+- Component-fast workflow run `30065249380` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30065249380
+- Full smoke v6 workflow run `30065387233` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30065387233
+
+Result: the latest reported CI blocker (`metal-availability.metal` line 4 cascading constant-address-space initializer diagnostic) is fixed. The current Metal smoke workflow passes at commit `b5eabafc6f9e88de9612a6d59a43f72b432e6b67`; any later docs-only handoff commit should be treated as equivalent for implementation state.
+
+Next recommended implementation work:
+
+1. Continue beyond smoke coverage: connect `MetalStdlibBuiltins.def` to builtin registration/lowering or expand AIR metadata parity.
+2. Use component-fast first for C++ compile feedback, then full smoke v6 after each functional change.
+3. Keep platform-qualified old standards (`ios-metal*`, `macos-metal*`, `osx-metal*`) and do not reintroduce unqualified `metal1.*`/`metal2.*`.
+
