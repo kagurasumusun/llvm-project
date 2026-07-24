@@ -4732,6 +4732,9 @@ public:
   RValue EmitAMDGPUDevicePrintfCallExpr(const CallExpr *E);
 
   RValue EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
+
+  /// Emit code for a __metal_* builtin function call.
+  RValue EmitMetalBuiltinExpr(const CallExpr *E, StringRef BuiltinName);
                          const CallExpr *E, ReturnValueSlot ReturnValue);
 
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
