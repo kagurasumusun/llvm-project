@@ -6,9 +6,9 @@ kernel void texture_methods(texture2d tex [[texture(0)]],
   out[1] = tex.get_height();
   out[2] = tex.get_width(1);
   out[3] = tex.get_num_mip_levels();
-  float4 value = tex.read(uint2(0, 0));
-  value += tex.sample(sampler(), float2(0.5f, 0.5f));
-  tex.write(value, uint2(0, 0));
+  float4 value = tex.read(uint2(0));
+  value += tex.sample(sampler(), float2(0.5f));
+  tex.write(value, uint2(0));
 }
 
 // CHECK: call {{.*}}@air.texture.get_width

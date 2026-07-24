@@ -1194,3 +1194,17 @@ Next validation steps:
 2. Run component-fast and full smoke v6.
 3. Fix first CI error and update this handoff again.
 
+## Update 2026-07-24 JST — Fix vector constructor syntax in texture method tests
+
+Full smoke v6 run `30090236695` after texture read/sample/write lowering failed in `clang/test/Parser/metal-texture-methods.metal`:
+
+```text
+error: excess elements in scalar initializer
+  float4 value = tex.read(uint2(0, 0));
+                           ^      ~~~
+```
+
+The lightweight vector typedefs currently accept scalar-style construction in these smoke tests, not multi-argument C++ constructors. Fix in this commit: update parser and CodeGen texture tests to use `uint2(0)`, `uint2(1)`, and `float2(0.5f)`.
+
+Next validation step: rerun full smoke v6. Component-fast had already passed for the code changes.
+
