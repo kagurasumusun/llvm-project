@@ -72,9 +72,9 @@ if (LLVM_TOOL_LLVM_DRIVER_BUILD)
   # scrape up tools from other projects into itself.
   add_subdirectory(llvm-driver)
   # This must be here otherwise CMake complains in add_llvm_tool_symlink that
-add_llvm_tool(metal-as)
-add_llvm_tool(metal-ld)
   # it can't add_custom_command that happens after llvm-driver is built because
   # llvm-driver was not created in that directory.
   generate_driver_tool_targets()
+add_subdirectory(metal-as)
+add_subdirectory(metal-ld)
 endif()
