@@ -946,3 +946,25 @@ Next validation steps:
 2. Run component-fast and full smoke v6.
 3. Record commit IDs/run IDs after validation.
 
+## Update 2026-07-24 JST — Fix mesh keyword/prelude alias collision
+
+After commit `93f51cf26dd6bbc848175e025b6fd4298c227646`, component-fast run `30077459991` completed `success`, but full smoke v6 run `30079060413` failed immediately in the first syntax smoke:
+
+```text
+<built-in>:511:24: error: expected unqualified-id
+  typedef __metal_mesh_t mesh;
+                       ^
+<built-in>:1217:9: error: expected unqualified-id
+  using ::mesh;
+        ^
+```
+
+Root cause: this batch added `mesh` as a Metal-only custom keyword / stage qualifier. The lightweight prelude still emitted `typedef __metal_mesh_t mesh;` and `namespace metal { using ::mesh; }` from `MetalBuiltinObjects.def`, which is no longer legal once `mesh` is tokenized as a keyword.
+
+Fix in this commit:
+
+- `InitPreprocessor.cpp` skips emitting the `mesh` alias and `metal::mesh` using declaration from `MetalBuiltinObjects.def` when building the lightweight prelude.
+- Other object aliases such as `mesh_grid_properties`, `texture2d`, `sampler`, `tensor`, etc. remain.
+
+Next validation steps: rerun component-fast and full smoke v6.
+
