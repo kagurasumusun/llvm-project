@@ -25,6 +25,9 @@ if(CYGWIN OR NOT LLVM_ENABLE_PIC)
   set(LLVM_TOOL_LTO_BUILD Off)
 endif()
 
+
+
+# Metal tools
 add_subdirectory(metal-as)
 add_subdirectory(metal-ld)
 
@@ -78,6 +81,4 @@ if (LLVM_TOOL_LLVM_DRIVER_BUILD)
   # it can't add_custom_command that happens after llvm-driver is built because
   # llvm-driver was not created in that directory.
   generate_driver_tool_targets()
-add_subdirectory(metal-as)
-add_subdirectory(metal-ld)
 endif()
