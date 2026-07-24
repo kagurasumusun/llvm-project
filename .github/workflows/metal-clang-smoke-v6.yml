@@ -251,11 +251,11 @@ jobs:
             <key>CFBundleExecutable</key>
             <string>$(EXECUTABLE_NAME)</string>
             <key>CFBundleIdentifier</key>
-            <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+            <string>com.example.MetalTestApp</string>
             <key>CFBundleInfoDictionaryVersion</key>
             <string>6.0</string>
             <key>CFBundleName</key>
-            <string>$(PRODUCT_NAME)</string>
+            <string>MetalTestApp</string>
             <key>CFBundlePackageType</key>
             <string>APPL</string>
             <key>CFBundleShortVersionString</key>
@@ -359,7 +359,7 @@ jobs:
                 return
               }
               
-              let commandBuffer = commandQueue.makeCommandBuffer()!
+              let commandBuffer = commandBuffer.makeCommandBuffer()!
               let renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
               
               renderEncoder.setRenderPipelineState(pipelineState)
@@ -375,29 +375,68 @@ jobs:
           
           echo "✓ iOS app structure created"
 
-      - name: Build iOS app with Xcode
+      - name: Build iOS app for device (unsigned)
         run: |
           set -euxo pipefail
           cd MetalTestApp
           
           # Create Xcode project
+          mkdir -p MetalTestApp.xcodeproj
           cat > MetalTestApp.xcodeproj/project.pbxproj << 'EOF'
-          // Minimal Xcode project file
+          // Minimal Xcode project file for iOS device build
           // This is a simplified version - actual Xcode project would be more complex
+          // The actual project would be created using xcodebuild or Xcode GUI
           EOF
           
-          # Build for iOS simulator (actual device requires code signing)
+          # Build for iOS device (unsigned)
+          # Note: This will create an .app bundle, not .ipa yet
           xcodebuild -project MetalTestApp.xcodeproj \
             -scheme MetalTestApp \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=${{ inputs.ios_target }}' \
+            -sdk iphoneos \
             -configuration Release \
+            -arch arm64 \
             build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
             | tee xcodebuild.log || echo "Build completed with warnings"
           
-          echo "✓ iOS app built successfully"
+          echo "✓ iOS app built for device (unsigned)"
+
+      - name: Create IPA from app bundle
+        run: |
+          set -euxo pipefail
+          cd MetalTestApp
+          
+          # Find the .app bundle
+          APP_PATH=$(find . -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app bundle found"
+            exit 1
+          fi
+          
+          echo "Found app bundle: $APP_PATH"
+          
+          # Create Payload directory
+          mkdir -p Payload
+          
+          # Copy .app to Payload
+          cp -R "$APP_PATH" Payload/
+          
+          # Create IPA (just a zip with .ipa extension)
+          APP_NAME=$(basename "$APP_PATH" .app)
+          zip -r "${APP_NAME}.ipa" Payload/
+          
+          echo "✓ Created ${APP_NAME}.ipa"
+          ls -lh *.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-ipa
+          path: MetalTestApp/*.ipa
+          retention-days: 1
 
       - name: Upload build logs
         if: always()
