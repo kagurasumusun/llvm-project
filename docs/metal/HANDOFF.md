@@ -470,3 +470,31 @@ Next validation steps:
 3. Dispatch component-fast (`metal-clang-components-v1.yml`) with `ref=metal-test`.
 4. Dispatch full smoke v6 (`metal-clang-smoke-v6.yml`) with `ref=metal-test`.
 
+## Update 2026-07-24 JST — early_fragment_tests/stage_in user metadata validated
+
+Implementation commit on `metal-test`:
+
+- `b7543c0cd3ebd875444b5d48342df2973db5e4d8` — `[Metal] Validate early fragment tests and user stage-in metadata`
+
+Default workflow branch update:
+
+- `96b7f42e2f255809cf1f7a156b70cf08b0f4ba73` — `[ci][Metal] Check user stage-in metadata in fast smoke`
+
+Validation results:
+
+- Component-fast workflow run `30065730546` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30065730546
+- Full smoke v6 workflow run `30065841031` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30065841031
+
+What passed in this batch:
+
+- `[[early_fragment_tests]]` is now rejected on non-fragment Metal stage functions and covered by `clang/test/Sema/metal-builtin-input-validation.metal`.
+- `[[stage_in]]` record fields with `[[user(name)]]` now produce `user(name)` AIR input metadata. `clang/test/CodeGen/metal-air-stage-in-struct.metal` and the fast smoke workflow grep now check `user(shade_id)`.
+
+Current known-good implementation state before this docs-only update: `b7543c0cd3ebd875444b5d48342df2973db5e4d8`. Any subsequent docs-only handoff commit should be treated as equivalent for code.
+
+Next recommended implementation directions:
+
+1. Add more Sema validation for Metal IO attrs (duplicate locations/colors, output-only/input-only stage constraints, point_size/position/depth/color type checks).
+2. Continue expanding AIR metadata parity for resource/object/mesh/raytracing attrs.
+3. Start connecting `MetalStdlibBuiltins.def` to a real builtin declaration/lowering path rather than leaving it as data only.
+
