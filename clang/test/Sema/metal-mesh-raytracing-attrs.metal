@@ -26,3 +26,6 @@ kernel void bad_visible(Payload data [[visible]]) {} // expected-error {{'visibl
 object void object_keyword_entry() {}
 mesh void mesh_keyword_entry() {}
 intersection void intersection_keyword_entry() {}
+
+vertex fragment void bad_vertex_fragment_conflict() {} // expected-error {{'fragment' and 'vertex' attributes are not compatible}} expected-note {{conflicting attribute is here}}
+object mesh void bad_object_mesh_conflict() {} // expected-error {{'mesh' and 'object' attributes are not compatible}} expected-note {{conflicting attribute is here}}

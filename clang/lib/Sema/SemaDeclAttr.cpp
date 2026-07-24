@@ -5412,6 +5412,36 @@ static bool checkMetalAttributeAvailability(Sema &S, Decl *D,
   return true;
 }
 
+static bool validateMetalExclusiveFunctionStageAttrs(Sema &S, FunctionDecl *FD) {
+  const Attr *First = nullptr;
+  bool Invalid = false;
+  auto Check = [&](const Attr *A) {
+    if (!A)
+      return;
+    if (!First) {
+      First = A;
+      return;
+    }
+    S.Diag(A->getLocation(), diag::err_attributes_are_not_compatible)
+        << A << First
+        << (A->isRegularKeywordAttribute() || First->isRegularKeywordAttribute());
+    S.Diag(First->getLocation(), diag::note_conflicting_attribute);
+    Invalid = true;
+  };
+
+  Check(FD->getAttr<DeviceKernelAttr>());
+  Check(FD->getAttr<MetalVertexAttr>());
+  Check(FD->getAttr<MetalFragmentAttr>());
+  Check(FD->getAttr<MetalTileAttr>());
+  Check(FD->getAttr<MetalObjectAttr>());
+  Check(FD->getAttr<MetalMeshAttr>());
+  Check(FD->getAttr<MetalIntersectionAttr>());
+  Check(FD->getAttr<MetalVisibleAttr>());
+  if (Invalid)
+    FD->setInvalidDecl();
+  return Invalid;
+}
+
 static unsigned getMetalFunctionStageMaskForFunction(const FunctionDecl *FD) {
   if (!FD)
     return static_cast<unsigned>(MetalFunctionStage::None);
@@ -5643,6 +5673,8 @@ static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
   auto *FD = dyn_cast<FunctionDecl>(D);
   if (!FD || !S.getLangOpts().Metal)
     return;
+
+  validateMetalExclusiveFunctionStageAttrs(S, FD);
 
   unsigned FunctionStage = getMetalFunctionStageMaskForFunction(FD);
   if (FunctionStage == static_cast<unsigned>(MetalFunctionStage::None))

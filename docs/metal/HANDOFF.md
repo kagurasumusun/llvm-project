@@ -1208,3 +1208,13 @@ The lightweight vector typedefs currently accept scalar-style construction in th
 
 Next validation step: rerun full smoke v6. Component-fast had already passed for the code changes.
 
+## Update 2026-07-24 JST — Continue implementation: exclusive Metal function stage attrs
+
+Implementation changes in this batch:
+
+- `SemaDeclAttr.cpp` now validates that a Metal function has at most one stage-like function attribute among `kernel`, `vertex`, `fragment`, `tile`, `object`, `mesh`, `intersection`, and `visible`.
+- Conflicts use Clang's existing incompatible-attribute diagnostic plus a note on the first stage attribute.
+- `metal-mesh-raytracing-attrs.metal` now covers `vertex fragment` and `object mesh` conflicts.
+
+Next validation steps: rerun component-fast and full smoke v6 after pushing.
+
