@@ -1336,3 +1336,27 @@ Important distinction for next agents:
 - `MetalStdlibBuiltins.def` / `MetalStdlibBuiltinPrototypes.def` should be treated as compiler builtin hook data and a temporary bridge toward Apple-header compatibility.
 - Do not continue expanding `metal::` wrappers by hand. Instead, fetch Apple stdlib headers from `metal-info` raw/API and make tests include/use them.
 
+## Update 2026-07-25 JST — stdlib policy correction validated
+
+Implementation/policy correction commit on `metal-test`:
+
+- `712672be4b0a98afe8f66f2623c70e898564e458` — `[Metal] Remove hand-written metal namespace stdlib wrappers`
+
+Default workflow branch update:
+
+- `d50f178a1e43bd718fc12f387369a0fa46989c38` — `[ci][Metal] Remove namespace wrapper smoke`
+
+Validation results:
+
+- Component-fast run `30118307591` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30118307591
+- Full smoke v6 run `30118529267` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30118529267
+
+Policy now recorded in `docs/metal/StdlibPolicy.md`:
+
+- Do not grow a hand-written replacement `metal::` stdlib in Clang.
+- Apple Metal stdlib headers are the user-facing source of truth.
+- Compiler-internal hooks such as opaque builtin object declarations and `__metal_*` builtin entry declarations/lowering are allowed only as support for Apple headers and AIR lowering.
+- The removed `MetalStdlibNamespaceWrappers.def` / `metal-stdlib-namespace-wrappers` tests should not be restored unless explicitly requested.
+
+Current known-good implementation state before this docs-only update: `712672be4b0a98afe8f66f2623c70e898564e458`. Any later docs-only handoff commit should be treated as equivalent for code.
+
