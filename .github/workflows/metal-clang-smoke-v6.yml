@@ -88,9 +88,12 @@ jobs:
       - name: Fetch Apple Metal stdlib/runtime from metal-info
         run: |
           set -euxo pipefail
-          python3 clang/utils/metal/fetch-metal-info-resource.py             --output "$PWD/metal-info-resource"             --include-runtime
+          python3 clang/utils/metal/fetch-metal-info-resource.py \
+            --output "$PWD/metal-info-resource" \
+            --include-runtime
           test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
           test -f "$PWD/metal-info-resource/clang/32023.883/lib/darwin/libmetal_rt_osx.a"
+          test -f "$PWD/metal-info-resource/clang/32023.883/lib/darwin/libair_rt_osx.rtlib"
 
       - name: Configure minimal clang-only LLVM build
         run: |
@@ -149,16 +152,6 @@ jobs:
         run: |
           ccache --show-stats || true
 
-      - name: Fetch Apple Metal stdlib and runtime from metal-info
-        run: |
-          set -euxo pipefail
-          python3 clang/utils/metal/fetch-metal-info-resource.py \
-            --output third-party/metal-info-apple \
-            --include-metal \
-            --lib-darwin
-          test -f third-party/metal-info-apple/reference-apple/clang/32023.883/include/metal/metal_stdlib
-          test -f third-party/metal-info-apple/reference-apple/clang/32023.883/lib/darwin/libmetal_rt_osx.a
-          test -f third-party/metal-info-apple/reference-apple/clang/32023.883/lib/darwin/libair_rt_osx.rtlib
 
       - name: Run focused Metal smoke tests
         run: |

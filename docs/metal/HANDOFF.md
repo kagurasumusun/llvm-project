@@ -1409,3 +1409,20 @@ Implementation changes:
 
 Next validation steps: push to `metal-test` and workflow branch `metal`, then run full smoke v6.
 
+## Update 2026-07-25 JST — Fix duplicate Apple stdlib fetch workflow step
+
+Full smoke run `30120843533` failed before building because `metal-clang-smoke-v6.yml` had two Apple stdlib fetch steps. The old duplicate step invoked stale arguments:
+
+```text
+python3 clang/utils/metal/fetch-metal-info-resource.py --output third-party/metal-info-apple --include-metal --lib-darwin
+fetch-metal-info-resource.py: error: unrecognized arguments: --include-metal --lib-darwin
+```
+
+Fix in this commit:
+
+- Removed the stale duplicate fetch step.
+- Kept the current fetch step using `--include-runtime` and `metal-info-resource/clang/32023.883`.
+- Added a runtime existence check for `libair_rt_osx.rtlib` next to `libmetal_rt_osx.a`.
+
+Next validation step: rerun full smoke v6.
+
