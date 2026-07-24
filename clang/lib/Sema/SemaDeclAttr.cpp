@@ -5607,7 +5607,7 @@ static void handleMetalDepthAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   MetalDepthAttr::DepthQualifier Qualifier;
   if (!MetalDepthAttr::ConvertStrToDepthQualifier(
           Depth->getIdentifierInfo()->getName(), Qualifier)) {
-    S.Diag(Depth->Loc, diag::warn_attribute_type_not_supported)
+    S.Diag(Depth->getLoc(), diag::warn_attribute_type_not_supported)
         << AL << Depth->getIdentifierInfo()->getName();
     AL.setInvalid();
     return;

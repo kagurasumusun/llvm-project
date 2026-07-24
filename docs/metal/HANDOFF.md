@@ -371,3 +371,17 @@ Next actions:
 1. Dispatch component-fast workflow because this commit changes C++ Sema code.
 2. If it succeeds, dispatch full smoke v6 and inspect the next failure.
 
+## Update 2026-07-24 JST — Fix IdentifierLoc access in Metal depth handler
+
+Commit `20e4b45a111810bddc4e8f60d7ab8b81757f34d7` added the remaining Metal IO attr handlers, but component-fast workflow run `30063311103` failed to compile `SemaDeclAttr.cpp`:
+
+```text
+../clang/lib/Sema/SemaDeclAttr.cpp:5610:19: error: 'Loc' is a private member of 'clang::IdentifierLoc'
+    S.Diag(Depth->Loc, diag::warn_attribute_type_not_supported)
+                  ^
+```
+
+Fix in this commit: use the public `IdentifierLoc::getLoc()` accessor in `handleMetalDepthAttr` instead of accessing `Depth->Loc` directly.
+
+Next actions: rerun component-fast workflow; if it succeeds, rerun full smoke v6.
+
