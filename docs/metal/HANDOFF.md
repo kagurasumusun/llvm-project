@@ -1140,3 +1140,25 @@ Fix in this commit:
 
 Next validation steps: push to `metal-test` and workflow branch `metal`, then rerun full smoke v6.
 
+## Update 2026-07-24 JST — stdlib prototype generator smoke check validated
+
+Implementation/docs commit on `metal-test`:
+
+- `d9c806a77bf8f693689b3b6737540ceb8ec02678` — `[fix][Metal] Smoke-check stdlib prototype generator`
+
+Default workflow branch update:
+
+- `585a5264b2aa1636b715b1f9868f9e08a06f189c` — `[ci][Metal] Check stdlib prototype generator`
+
+Validation result:
+
+- Full smoke v6 run `30088150892` completed `success`: https://github.com/kagurasumusun/llvm-project/actions/runs/30088150892
+
+What passed in this mini-batch:
+
+- `clang/utils/metal/gen-metal-stdlib-prototypes.py` syntax is now valid.
+- `MetalStdlibBuiltinPrototypes.def` was regenerated from the fixed script, so the checked-in table is reproducible.
+- Fast smoke now compiles the generator and checks that regenerated output matches the checked-in `.def` file before running Metal parser/Sema/CodeGen smoke tests.
+
+Current known-good implementation state before this docs-only update: `d9c806a77bf8f693689b3b6737540ceb8ec02678`. Any later docs-only handoff commit should be treated as equivalent for code.
+
