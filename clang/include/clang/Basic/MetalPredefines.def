@@ -266,57 +266,17 @@ METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_TYPE_ROUND__, 2)
 METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_TYPE_ALL__,   3)
 
 // -----------------------------------------------------------------------------
-// C standard-library constants.  Metal has no libc, but metal_stdlib's
 // <metal_limits> expects the ISO C spelling to be visible to the
 // preprocessor with the standard values from ISO/IEC 9899:2018.
 // -----------------------------------------------------------------------------
-METAL_PREDEFINE_STR(CHAR_BIT,   "8")
-METAL_PREDEFINE_STR(CHAR_MAX,   "127")
-METAL_PREDEFINE_STR(CHAR_MIN,   "(-128)")
-METAL_PREDEFINE_STR(SCHAR_MAX,  "127")
-METAL_PREDEFINE_STR(SCHAR_MIN,  "(-128)")
-METAL_PREDEFINE_STR(UCHAR_MAX,  "255")
-METAL_PREDEFINE_STR(SHRT_MAX,   "32767")
-METAL_PREDEFINE_STR(SHRT_MIN,   "(-32768)")
-METAL_PREDEFINE_STR(USHRT_MAX,  "65535")
-METAL_PREDEFINE_STR(INT_MAX,    "2147483647")
-METAL_PREDEFINE_STR(INT_MIN,    "(-2147483647-1)")
-METAL_PREDEFINE_STR(UINT_MAX,   "4294967295U")
-METAL_PREDEFINE_STR(LONG_MAX,   "9223372036854775807L")
-METAL_PREDEFINE_STR(LONG_MIN,   "(-9223372036854775807L-1L)")
-METAL_PREDEFINE_STR(ULONG_MAX,  "18446744073709551615UL")
 
 // -----------------------------------------------------------------------------
-// IEEE-754 float32 constants (visible on the shader side).
 // -----------------------------------------------------------------------------
-METAL_PREDEFINE_STR(FLT_RADIX,       "2")
-METAL_PREDEFINE_STR(FLT_MANT_DIG,    "24")
-METAL_PREDEFINE_STR(FLT_DIG,         "6")
-METAL_PREDEFINE_STR(FLT_DECIMAL_DIG, "9")
-METAL_PREDEFINE_STR(FLT_MIN_EXP,     "(-125)")
-METAL_PREDEFINE_STR(FLT_MIN_10_EXP,  "(-37)")
-METAL_PREDEFINE_STR(FLT_MAX_EXP,     "128")
-METAL_PREDEFINE_STR(FLT_MAX_10_EXP,  "38")
-METAL_PREDEFINE_STR(FLT_MIN,         "1.17549435e-38F")
-METAL_PREDEFINE_STR(FLT_MAX,         "3.40282347e+38F")
-METAL_PREDEFINE_STR(FLT_EPSILON,     "1.19209290e-07F")
 
 // -----------------------------------------------------------------------------
-// IEEE-754 float16 (half) constants.  Both bare and double-underscore
 // spellings are emitted because Apple's <metal_limits> queries the
 // __HALF_*__ family while <metal_math> uses the bare spelling.
 // -----------------------------------------------------------------------------
-METAL_PREDEFINE_STR(HALF_RADIX,        "2")
-METAL_PREDEFINE_STR(HALF_MANT_DIG,     "11")
-METAL_PREDEFINE_STR(HALF_DIG,          "3")
-METAL_PREDEFINE_STR(HALF_DECIMAL_DIG,  "5")
-METAL_PREDEFINE_STR(HALF_MIN_EXP,      "(-13)")
-METAL_PREDEFINE_STR(HALF_MIN_10_EXP,   "(-4)")
-METAL_PREDEFINE_STR(HALF_MAX_EXP,      "16")
-METAL_PREDEFINE_STR(HALF_MAX_10_EXP,   "4")
-METAL_PREDEFINE_STR(HALF_MIN,          "6.103515625e-05H")
-METAL_PREDEFINE_STR(HALF_MAX,          "6.5504e+04H")
-METAL_PREDEFINE_STR(HALF_EPSILON,      "9.765625e-04H")
 
 METAL_PREDEFINE_STR(__HALF_RADIX__,        "2")
 METAL_PREDEFINE_STR(__HALF_MANT_DIG__,     "11")
@@ -335,8 +295,6 @@ METAL_PREDEFINE_STR(__HALF_EPSILON__,      "9.765625e-04H")
 // M_LN{2,10}_F spelling and the __FLT_M_LN{2,10}__ compiler-namespaced
 // spelling.
 // -----------------------------------------------------------------------------
-METAL_PREDEFINE_STR(M_LN2_F,        "0.693147180559945309417F")
-METAL_PREDEFINE_STR(M_LN10_F,       "2.302585092994045684018F")
 METAL_PREDEFINE_STR(__FLT_M_LN2__,  "0.693147180559945309417F")
 METAL_PREDEFINE_STR(__FLT_M_LN10__, "2.302585092994045684018F")
 
