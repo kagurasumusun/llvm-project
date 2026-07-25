@@ -397,9 +397,8 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     else if (TI.getTriple().isOSDarwin())
       Builder.defineMacro("__METAL_IOS__");
 
-    // Metal function and internal macros
-    Builder.defineMacro("METAL_FUNC", "");
-    Builder.defineMacro("METAL_INTERNAL", "");
+    // METAL_FUNC and METAL_INTERNAL are defined by Apple's metal_types header.
+    // Defining empty versions here suppresses its address-space annotations.
 
     // Sampler address modes
     Builder.defineMacro("__METAL_ADDRESS_CLAMP_TO_EDGE__", "0");
