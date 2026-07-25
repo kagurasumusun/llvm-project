@@ -5,6 +5,6 @@ set(LLVM_LINK_COMPONENTS
   Support
   )
 
-add_clang_tool(metal-as
+add_llvm_tool(metal-as
   metal-as.cpp
   )
