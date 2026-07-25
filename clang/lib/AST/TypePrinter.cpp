@@ -653,7 +653,13 @@ void TypePrinter::printDependentSizedExtVectorAfter(
       T->getSizeExpr()->printPretty(OS, nullptr, Policy);
     OS << ">";
   } else {
-    OS << " __attribute__((ext_vector_type(";
+    // Emit ``packed_vector_type(N)`` for Metal's tightly-packed dependent
+    // variant so diagnostics distinguish the two flavours (and so that
+    // Sema's error text for partial-specialisation redefinitions is
+    // actually accurate).
+    const char *AttrName =
+        T->isMetalPacked() ? "packed_vector_type" : "ext_vector_type";
+    OS << " __attribute__((" << AttrName << "(";
     if (T->getSizeExpr())
       T->getSizeExpr()->printPretty(OS, nullptr, Policy);
     OS << ")))";
