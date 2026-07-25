@@ -4674,12 +4674,12 @@ QualType ASTContext::getExtVectorType(QualType vecType, unsigned NumElts,
 }
 
 QualType
-ASTContext::getDependentSizedExtVectorType(QualType vecType,
-                                           Expr *SizeExpr,
-                                           SourceLocation AttrLoc) const {
+ASTContext::getDependentSizedExtVectorType(QualType vecType, Expr *SizeExpr,
+                                           SourceLocation AttrLoc,
+                                           bool IsMetalPacked) const {
   llvm::FoldingSetNodeID ID;
   DependentSizedExtVectorType::Profile(ID, *this, getCanonicalType(vecType),
-                                       SizeExpr);
+                                       SizeExpr, IsMetalPacked);
 
   void *InsertPos = nullptr;
   DependentSizedExtVectorType *Canon
@@ -4690,12 +4690,13 @@ ASTContext::getDependentSizedExtVectorType(QualType vecType,
     // the canonical type for a newly-built type.
     New = new (*this, alignof(DependentSizedExtVectorType))
         DependentSizedExtVectorType(vecType, QualType(Canon, 0), SizeExpr,
-                                    AttrLoc);
+                                    AttrLoc, IsMetalPacked);
   } else {
     QualType CanonVecTy = getCanonicalType(vecType);
     if (CanonVecTy == vecType) {
       New = new (*this, alignof(DependentSizedExtVectorType))
-          DependentSizedExtVectorType(vecType, QualType(), SizeExpr, AttrLoc);
+          DependentSizedExtVectorType(vecType, QualType(), SizeExpr, AttrLoc,
+                                      IsMetalPacked);
 
       DependentSizedExtVectorType *CanonCheck
         = DependentSizedExtVectorTypes.FindNodeOrInsertPos(ID, InsertPos);
@@ -4703,10 +4704,11 @@ ASTContext::getDependentSizedExtVectorType(QualType vecType,
       (void)CanonCheck;
       DependentSizedExtVectorTypes.InsertNode(New, InsertPos);
     } else {
-      QualType CanonExtTy = getDependentSizedExtVectorType(CanonVecTy, SizeExpr,
-                                                           SourceLocation());
+      QualType CanonExtTy = getDependentSizedExtVectorType(
+          CanonVecTy, SizeExpr, SourceLocation(), IsMetalPacked);
       New = new (*this, alignof(DependentSizedExtVectorType))
-          DependentSizedExtVectorType(vecType, CanonExtTy, SizeExpr, AttrLoc);
+          DependentSizedExtVectorType(vecType, CanonExtTy, SizeExpr, AttrLoc,
+                                      IsMetalPacked);
     }
   }
 
@@ -14260,9 +14262,11 @@ static QualType getCommonNonSugarTypeNode(const ASTContext &Ctx, const Type *X,
   case Type::DependentSizedExtVector: {
     const auto *VX = cast<DependentSizedExtVectorType>(X),
                *VY = cast<DependentSizedExtVectorType>(Y);
-    return Ctx.getDependentSizedExtVectorType(getCommonElementType(Ctx, VX, VY),
-                                              getCommonSizeExpr(Ctx, VX, VY),
-                                              getCommonAttrLoc(VX, VY));
+    assert(VX->isMetalPacked() == VY->isMetalPacked() &&
+           "cannot form common type from Metal packed and unpacked vectors");
+    return Ctx.getDependentSizedExtVectorType(
+        getCommonElementType(Ctx, VX, VY), getCommonSizeExpr(Ctx, VX, VY),
+        getCommonAttrLoc(VX, VY), VX->isMetalPacked());
   }
   case Type::DependentVector: {
     const auto *VX = cast<DependentVectorType>(X),
