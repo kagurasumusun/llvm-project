@@ -645,6 +645,11 @@ ALIAS("generic", __generic          , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("device", __global            , KEYMETAL)
 ALIAS("threadgroup", __local        , KEYMETAL)
 ALIAS("thread", __private           , KEYMETAL)
+// Metal 3 stdlib qualifiers.  These are parsed through the existing OpenCL
+// address-space path until their distinct AIR address-space lowering is added.
+ALIAS("threadgroup_imageblock", __local, KEYMETAL)
+ALIAS("ray_data", __global           , KEYMETAL)
+ALIAS("object_data", __global        , KEYMETAL)
 // OpenCL / Metal function qualifiers
 KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
