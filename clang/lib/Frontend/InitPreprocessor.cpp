@@ -516,6 +516,10 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 
     // Type traits in metal namespace
     Builder.append("namespace metal {");
+    Builder.append("typedef unsigned char uchar;");
+    Builder.append("typedef unsigned short ushort;");
+    Builder.append("typedef unsigned int uint;");
+    Builder.append("typedef unsigned long ulong;");
     Builder.append("template<typename T, typename U> struct is_same { static const constant bool value = false; };");
     Builder.append("template<typename T> struct is_same<T, T> { static const constant bool value = true; };");
     Builder.append("template<typename T, typename U> struct is_convertible { static const constant bool value = false; };");
@@ -565,10 +569,6 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("enum class memory_order { relaxed, acquire, release, acq_rel, seq_cst };");
     Builder.append("template<typename T, int N> struct vec { T data[N]; };");
     // Basic type aliases
-    Builder.append("typedef unsigned char uchar;");
-    Builder.append("typedef unsigned short ushort;");
-    Builder.append("typedef unsigned int uint;");
-    Builder.append("typedef unsigned long ulong;");
 
     Builder.append("} // namespace metal");
     Builder.append("using metal::is_same;");
