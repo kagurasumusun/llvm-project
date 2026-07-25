@@ -506,6 +506,9 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("extern \"C\" half __builtin_nansh(const char*);");
     Builder.append("extern \"C\" uint __metal_pack_unorm_rgb10a2(...);");
     Builder.append("extern \"C\" ushort __metal_pack_unorm_rgb565(...);");
+    Builder.append("extern \"C\" uint __metal_pack_unorm4x8_srgb(...);");
+    Builder.append("extern \"C\" uint __metal_pack_unorm2x16(...);");
+    Builder.append("extern \"C\" uint __metal_pack_snorm2x16(...);");
 
     // Memory coherence builtins
     Builder.defineMacro("__memory_coherence", "0");
@@ -561,6 +564,12 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("enum class access { read, write, read_write, sample };");
     Builder.append("enum class memory_order { relaxed, acquire, release, acq_rel, seq_cst };");
     Builder.append("template<typename T, int N> struct vec { T data[N]; };");
+    // Basic type aliases
+    Builder.append("typedef unsigned char uchar;");
+    Builder.append("typedef unsigned short ushort;");
+    Builder.append("typedef unsigned int uint;");
+    Builder.append("typedef unsigned long ulong;");
+
     Builder.append("} // namespace metal");
     Builder.append("using metal::is_same;");
     Builder.append("using metal::is_convertible;");
@@ -582,13 +591,12 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("using metal::as_type;");
     Builder.append("using metal::access;");
     Builder.append("using metal::memory_order;");
-    Builder.append("using metal::vec;");
+    Builder.append("using metal::vec;
+using metal::uchar;
+using metal::ushort;
+using metal::uint;
+using metal::ulong;");
 
-    // Basic type aliases
-    Builder.append("typedef unsigned char uchar;");
-    Builder.append("typedef unsigned short ushort;");
-    Builder.append("typedef unsigned int uint;");
-    Builder.append("typedef unsigned long ulong;");
 
     // Vector types
     Builder.append("typedef bool bool2 __attribute__((ext_vector_type(2)));");
