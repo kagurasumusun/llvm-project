@@ -89,34 +89,34 @@ static void writeFatHeader(raw_ostream &OS, unsigned NumArchs,
   //   - 4 bytes: alignment
   
   // Magic (big-endian)
-  uint32_t Magic = llvm::support::endian::byte_swap<uint32_t, llvm::support::big>(FAT_MAGIC);
+  uint32_t Magic = llvm::support::endian::byte_swap<uint32_t, llvm::endianness::big>(FAT_MAGIC);
   OS.write(reinterpret_cast<const char *>(&Magic), 4);
   
   // Number of architectures (big-endian)
-  uint32_t NumArchsBE = llvm::support::endian::byte_swap<uint32_t, llvm::support::big>(NumArchs);
+  uint32_t NumArchsBE = llvm::support::endian::byte_swap<uint32_t, llvm::endianness::big>(NumArchs);
   OS.write(reinterpret_cast<const char *>(&NumArchsBE), 4);
   
   // Architecture descriptors
   uint32_t Offset = 8 + (NumArchs * 20); // Start after header + descriptors
   for (unsigned i = 0; i < NumArchs; ++i) {
     // CPU type (example: 0x01000007 for x86_64)
-    uint32_t CPUType = llvm::support::endian::byte_swap<uint32_t, llvm::support::big>(0x01000007);
+    uint32_t CPUType = llvm::support::endian::byte_swap<uint32_t, llvm::endianness::big>(0x01000007);
     OS.write(reinterpret_cast<const char *>(&CPUType), 4);
     
     // CPU subtype
-    uint32_t CPUSubtype = llvm::support::endian::byte_swap<uint32_t, llvm::support::big>(0x00000003);
+    uint32_t CPUSubtype = llvm::support::endian::byte_swap<uint32_t, llvm::endianness::big>(0x00000003);
     OS.write(reinterpret_cast<const char *>(&CPUSubtype), 4);
     
     // Offset (big-endian)
-    uint32_t OffsetBE = llvm::support::endian::byte_swap<uint32_t, llvm::support::big>(Offset);
+    uint32_t OffsetBE = llvm::support::endian::byte_swap<uint32_t, llvm::endianness::big>(Offset);
     OS.write(reinterpret_cast<const char *>(&OffsetBE), 4);
     
     // Size (big-endian)
-    uint32_t SizeBE = llvm::support::endian::byte_swap<uint32_t, llvm::support::big>(ArchSizes[i]);
+    uint32_t SizeBE = llvm::support::endian::byte_swap<uint32_t, llvm::endianness::big>(ArchSizes[i]);
     OS.write(reinterpret_cast<const char *>(&SizeBE), 4);
     
     // Alignment (2^4 = 16 bytes)
-    uint32_t Align = llvm::support::endian::byte_swap<uint32_t, llvm::support::big>(4);
+    uint32_t Align = llvm::support::endian::byte_swap<uint32_t, llvm::endianness::big>(4);
     OS.write(reinterpret_cast<const char *>(&Align), 4);
     
     // Align offset to 16 bytes
