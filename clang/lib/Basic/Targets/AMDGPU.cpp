@@ -55,9 +55,13 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsGenMap = {
     llvm::AMDGPUAS::PRIVATE_ADDRESS, // hlsl_input
     llvm::AMDGPUAS::GLOBAL_ADDRESS,  // hlsl_push_constant
     llvm::AMDGPUAS::GLOBAL_ADDRESS,  // wasm_funcref
-    llvm::AMDGPUAS::GLOBAL_ADDRESS,  // metal_ray_data
-    llvm::AMDGPUAS::GLOBAL_ADDRESS,  // metal_object_data
-    llvm::AMDGPUAS::LOCAL_ADDRESS,   // metal_threadgroup_imageblock
+    // Metal address spaces are not reachable on AMDGPU; fall back to
+    // PRIVATE_ADDRESS so a stray Metal-qualified type on this target
+    // does not silently alias GLOBAL/LOCAL memory (matches how the
+    // upstream table treats hlsl_input / hlsl_private for AMDGPU).
+    llvm::AMDGPUAS::PRIVATE_ADDRESS, // metal_ray_data
+    llvm::AMDGPUAS::PRIVATE_ADDRESS, // metal_object_data
+    llvm::AMDGPUAS::PRIVATE_ADDRESS, // metal_threadgroup_imageblock
 };
 
 const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
@@ -89,9 +93,13 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
     llvm::AMDGPUAS::GLOBAL_ADDRESS,   // hlsl_push_constant
 
     llvm::AMDGPUAS::GLOBAL_ADDRESS,  // wasm_funcref
-    llvm::AMDGPUAS::GLOBAL_ADDRESS,  // metal_ray_data
-    llvm::AMDGPUAS::GLOBAL_ADDRESS,  // metal_object_data
-    llvm::AMDGPUAS::LOCAL_ADDRESS,   // metal_threadgroup_imageblock
+    // Metal address spaces are not reachable on AMDGPU; fall back to
+    // PRIVATE_ADDRESS so a stray Metal-qualified type on this target
+    // does not silently alias GLOBAL/LOCAL memory (matches how the
+    // upstream table treats hlsl_input / hlsl_private for AMDGPU).
+    llvm::AMDGPUAS::PRIVATE_ADDRESS, // metal_ray_data
+    llvm::AMDGPUAS::PRIVATE_ADDRESS, // metal_object_data
+    llvm::AMDGPUAS::PRIVATE_ADDRESS, // metal_threadgroup_imageblock
 };
 } // namespace targets
 } // namespace clang
