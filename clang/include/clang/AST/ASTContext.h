@@ -1781,7 +1781,8 @@ public:
   /// point.
   QualType getDependentSizedExtVectorType(QualType VectorType,
                                           Expr *SizeExpr,
-                                          SourceLocation AttrLoc) const;
+                                          SourceLocation AttrLoc,
+                                          bool IsMetalPacked = false) const;
 
   /// Return the unique reference to the matrix type of the specified element
   /// type and size
