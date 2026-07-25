@@ -104,7 +104,11 @@ jobs:
           python3 clang/utils/metal/fetch-metal-info-resource.py \
             --output "$PWD/metal-info-resource"
           test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
-          echo "✓ Apple Metal stdlib headers fetched (no runtime library needed)"
+          python3 clang/utils/metal/gen-metal-observed-manifest.py \
+            --headers "$PWD/metal-info-resource/clang/32023.883/include/metal" \
+            --output "$PWD/metal-observed-manifest.json" \
+            --apple-clang-version 32023.883
+          echo "✓ Apple Metal stdlib headers and compatibility manifest fetched"
 
       - name: Configure minimal clang-only LLVM build
         run: |
@@ -214,6 +218,7 @@ jobs:
             build/bin/metal-ld
             build.log
             test-results/
+            metal-observed-manifest.json
             metallib-output/
           if-no-files-found: warn
           retention-days: 7
