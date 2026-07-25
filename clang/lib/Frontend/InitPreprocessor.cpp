@@ -664,10 +664,24 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     //   __is_metal_patch_control_point_struct(T)
     // Until they are wired up in Sema (with proper Sema::CheckTypeTraitArity
     // + TypeTrait enum entries), define them as function-like preprocessor
-    // macros that fold to ``false``.  This is safe because every use inside
-    // the stdlib is of the shape ``bool_constant<__is_metal_x(T)>`` where a
-    // conservative ``false`` merely disables an optional overload / SFINAE
-    // branch and does not affect correctness of the primary code path.
+    // macros with the sharpest useful fallback value:
+    //
+    //   * __is_metal_buffer / __is_metal_buffer_pointee -> false.
+    //     These gate optional SFINAE overloads in metal_type_traits; a
+    //     conservative false just disables the specialisation and keeps
+    //     the primary trait definition parsable.
+    //
+    //   * __is_metal_patch_control_point_struct -> true.
+    //     Different: this one gates the ONLY definition of
+    //     ``patch_control_point<T, enable_if<...>::type>`` (a partial
+    //     specialisation of a forward-declared class template) in
+    //     metal_tessellation.  Returning false would leave every
+    //     ``patch_control_point<T>`` instantiation as an incomplete type
+    //     ('no type named type in enable_if<false>') and the header would
+    //     fail to parse.  Returning true unconditionally matches Apple's
+    //     documented behaviour: any user-defined struct is a valid
+    //     patch-control-point type -- the real validation happens later
+    //     during pipeline linking, not during shader compilation.
     Builder.append("#ifndef __is_metal_buffer");
     Builder.append("#define __is_metal_buffer(...)                       (false)");
     Builder.append("#endif");
@@ -675,7 +689,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("#define __is_metal_buffer_pointee(...)               (false)");
     Builder.append("#endif");
     Builder.append("#ifndef __is_metal_patch_control_point_struct");
-    Builder.append("#define __is_metal_patch_control_point_struct(...)   (false)");
+    Builder.append("#define __is_metal_patch_control_point_struct(...)   (true)");
     Builder.append("#endif");
 
     // Compiler builtins for half precision
