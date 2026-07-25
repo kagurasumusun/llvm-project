@@ -502,9 +502,10 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 
     // Compiler builtins for half precision
 
-    // Memory coherence builtins
-    Builder.defineMacro("__memory_coherence", "0");
-    Builder.defineMacro("__memory_coherence_threadgroup", "1");
+    // __memory_coherence is a Metal stdlib enum/type, not a preprocessor
+    // constant.  Defining it here expands the type name in metal_types and
+    // makes every template using it ill-formed.  The Apple header declares
+    // the enum and its enumerators after feature-macro selection.
 
     // Type traits in metal namespace
     Builder.append("namespace metal {");
@@ -562,11 +563,9 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("template<typename T, int N> struct vec { T data[N]; };");
     // Basic type aliases
 
-    Builder.append("extern \"C\" uint __metal_pack_unorm_rgb10a2(...);");
-    Builder.append("extern \"C\" ushort __metal_pack_unorm_rgb565(...);");
-    Builder.append("extern \"C\" uint __metal_pack_unorm4x8_srgb(...);");
-    Builder.append("extern \"C\" uint __metal_pack_unorm2x16(...);");
-    Builder.append("extern \"C\" uint __metal_pack_snorm2x16(...);");
+    // Do not declare pack builtins here.  MetalStdlibBuiltinPrototypes.def
+    // owns their declarations; duplicate variadic declarations conflict with
+    // the generated builtin table before user headers are parsed.
     Builder.append("} // namespace metal");
     Builder.append("using metal::is_same;");
     Builder.append("using metal::is_convertible;");
