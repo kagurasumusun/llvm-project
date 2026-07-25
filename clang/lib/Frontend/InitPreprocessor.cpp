@@ -408,6 +408,12 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__METAL_ADDRESS_MIRRORED_REPEAT__", "3");
     Builder.defineMacro("__METAL_ADDRESS_CLAMP_TO_BORDER__", "4");
 
+    // Border colors
+    Builder.defineMacro("__METAL_BORDER_COLOR_TRANSPARENT_BLACK__", "0");
+
+    // Reduction modes
+    Builder.defineMacro("__METAL_REDUCTION_WEIGHTED_AVERAGE__", "0");
+
     // Sampler filter modes
     Builder.defineMacro("__METAL_FILTER_NEAREST__", "0");
     Builder.defineMacro("__METAL_FILTER_LINEAR__", "1");
@@ -498,6 +504,8 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("extern \"C\" half __builtin_infh(void);");
     Builder.append("extern \"C\" half __builtin_nanh(const char*);");
     Builder.append("extern \"C\" half __builtin_nansh(const char*);");
+    Builder.append("extern \"C\" uint __metal_pack_unorm_rgb10a2(...);");
+    Builder.append("extern \"C\" ushort __metal_pack_unorm_rgb565(...);");
 
     // Memory coherence builtins
     Builder.defineMacro("__memory_coherence", "0");
@@ -543,10 +551,13 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("template<typename...> struct _conjunction : bool_constant<true> {};");
     Builder.append("template<typename B1> struct _conjunction<B1> : B1 {};");
     Builder.append("template<typename B1, typename... Bn> struct _conjunction<B1, Bn...> : conditional_t<bool(B1::value), _conjunction<Bn...>, B1> {};");
+    Builder.append("template<typename...> struct _disjunction : bool_constant<false> {};");
+    Builder.append("template<typename B1> struct _disjunction<B1> : B1 {};");
+    Builder.append("template<typename B1, typename... Bn> struct _disjunction<B1, Bn...> : conditional_t<bool(B1::value), B1, _disjunction<Bn...>> {};");
     Builder.append("template<typename T> struct make_scalar { typedef T type; };");
     Builder.append("template<typename T> using make_scalar_t = typename make_scalar<T>::type;");
     Builder.append("typedef ulong size_t;");
-    Builder.append("template<typename T> T as_type(typename make_scalar<T>::type x) { return reinterpret_cast<T>(x); }");
+    Builder.append("template<typename T, typename U> T as_type(U x) { union { U u; T t; } conv; conv.u = x; return conv.t; }");
     Builder.append("enum class access { read, write, read_write, sample };");
     Builder.append("enum class memory_order { relaxed, acquire, release, acq_rel, seq_cst };");
     Builder.append("template<typename T, int N> struct vec { T data[N]; };");
@@ -573,6 +584,12 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("using metal::memory_order;");
     Builder.append("using metal::vec;");
 
+    // Basic type aliases
+    Builder.append("typedef unsigned char uchar;");
+    Builder.append("typedef unsigned short ushort;");
+    Builder.append("typedef unsigned int uint;");
+    Builder.append("typedef unsigned long ulong;");
+
     // Vector types
     Builder.append("typedef bool bool2 __attribute__((ext_vector_type(2)));");
     Builder.append("typedef bool bool3 __attribute__((ext_vector_type(3)));");
@@ -583,6 +600,30 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("typedef half half2 __attribute__((ext_vector_type(2)));");
     Builder.append("typedef half half3 __attribute__((ext_vector_type(3)));");
     Builder.append("typedef half half4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef char char2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef char char3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef char char4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef uchar uchar2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef uchar uchar3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef uchar uchar4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef short short2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef short short3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef short short4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef ushort ushort2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef ushort ushort3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef ushort ushort4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef int int2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef int int3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef int int4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef uint uint2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef uint uint3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef uint uint4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef long long2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef long long3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef long long4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef ulong ulong2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef ulong ulong3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef ulong ulong4 __attribute__((ext_vector_type(4)));");
 
     Builder.append("#ifndef __CLANG_METAL_PRELUDE_TYPES");
     Builder.append("#define __CLANG_METAL_PRELUDE_TYPES 1");
