@@ -2029,6 +2029,27 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
   case Type::Vector: {
     const auto *VT = cast<VectorType>(T);
     TypeInfo EltInfo = getTypeInfo(VT->getElementType());
+
+    // Metal packed_vector_type(N): storage size is exactly N * sizeof(T)
+    // with NO padding (a 3-element packed vector is NOT rounded up to 4
+    // slots), and alignment is alignof(T).  This mirrors Apple's
+    // documented ABI:
+    //   sizeof(packed_float3)  == 12   (three floats, no pad)
+    //   alignof(packed_float3) == 4    (== alignof(float))
+    //   sizeof(packed_uchar4)  == 4
+    //   alignof(packed_uchar4) == 1
+    //
+    // Take this path early so we do not fall through to the generic
+    // Vector layout that rounds Width up to a power of 2.
+    if (VT->getVectorKind() == VectorKind::MetalPacked) {
+      Width = EltInfo.Width * VT->getNumElements();
+      Align = EltInfo.Align;
+      // Enforce at least byte size / alignment.
+      Width = std::max<unsigned>(8, Width);
+      Align = std::max<unsigned>(8, Align);
+      break;
+    }
+
     Width = VT->isPackedVectorBoolType(*this)
                 ? VT->getNumElements()
                 : EltInfo.Width * VT->getNumElements();

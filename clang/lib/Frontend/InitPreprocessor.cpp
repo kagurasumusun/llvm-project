@@ -654,43 +654,11 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__FLT_M_LN2__",  "0.693147180559945309417F");
     Builder.defineMacro("__FLT_M_LN10__", "2.302585092994045684018F");
 
-    // Metal-specific type-trait builtins.
-    //
-    // Apple's <metal_type_traits> and <metal_tessellation> reference three
-    // compiler-intrinsic type traits that do not exist in the upstream
-    // Clang built-in set:
-    //   __is_metal_buffer(T)
-    //   __is_metal_buffer_pointee(T)
-    //   __is_metal_patch_control_point_struct(T)
-    // Until they are wired up in Sema (with proper Sema::CheckTypeTraitArity
-    // + TypeTrait enum entries), define them as function-like preprocessor
-    // macros with the sharpest useful fallback value:
-    //
-    //   * __is_metal_buffer / __is_metal_buffer_pointee -> false.
-    //     These gate optional SFINAE overloads in metal_type_traits; a
-    //     conservative false just disables the specialisation and keeps
-    //     the primary trait definition parsable.
-    //
-    //   * __is_metal_patch_control_point_struct -> true.
-    //     Different: this one gates the ONLY definition of
-    //     ``patch_control_point<T, enable_if<...>::type>`` (a partial
-    //     specialisation of a forward-declared class template) in
-    //     metal_tessellation.  Returning false would leave every
-    //     ``patch_control_point<T>`` instantiation as an incomplete type
-    //     ('no type named type in enable_if<false>') and the header would
-    //     fail to parse.  Returning true unconditionally matches Apple's
-    //     documented behaviour: any user-defined struct is a valid
-    //     patch-control-point type -- the real validation happens later
-    //     during pipeline linking, not during shader compilation.
-    Builder.append("#ifndef __is_metal_buffer");
-    Builder.append("#define __is_metal_buffer(...)                       (false)");
-    Builder.append("#endif");
-    Builder.append("#ifndef __is_metal_buffer_pointee");
-    Builder.append("#define __is_metal_buffer_pointee(...)               (false)");
-    Builder.append("#endif");
-    Builder.append("#ifndef __is_metal_patch_control_point_struct");
-    Builder.append("#define __is_metal_patch_control_point_struct(...)   (true)");
-    Builder.append("#endif");
+    // Note: __is_metal_buffer / __is_metal_buffer_pointee /
+    // __is_metal_patch_control_point_struct are compiler-intrinsic type
+    // traits, wired in TokenKinds.def (KEYMETAL) and evaluated in
+    // Sema::EvaluateUnaryTypeTrait.  They do NOT need a preprocessor
+    // macro definition here.
 
     // Compiler builtins for half precision
 

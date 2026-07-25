@@ -601,6 +601,36 @@ TYPE_TRAIT_1(__is_volatile, IsVolatile, KEYCXX)
 TYPE_TRAIT_1(__is_signed, IsSigned, KEYCXX)
 TYPE_TRAIT_1(__is_unsigned, IsUnsigned, KEYCXX)
 
+// Metal Shading Language Type Traits.
+//
+// Apple's <metal_type_traits> and <metal_tessellation> reference these three
+// compiler-intrinsic traits.  They are only visible in Metal mode; nothing
+// in the upstream C++ front-end can trigger them.
+//
+//   __is_metal_buffer(T)
+//     True when T is an "argument-buffer-able" record type: a POD struct
+//     or template class whose members are all either scalar/vector, other
+//     buffer-able records, or pointers/handles into device / constant
+//     address space.  In practice, matches metal_stdlib's own
+//     ``argument_buffer`` template argument constraint.
+//
+//   __is_metal_buffer_pointee(T)
+//     True when T is a valid pointee for ``device T*`` /
+//     ``constant T*``: a POD, standard-layout, address-space-agnostic
+//     record.  This is a strictly weaker constraint than
+//     __is_metal_buffer (every buffer type is a valid pointee, but not
+//     vice-versa; e.g. scalars are pointees but not buffers).
+//
+//   __is_metal_patch_control_point_struct(T)
+//     True for any user-defined struct/class type -- Metal accepts any
+//     record type as a patch control point (the real validation happens
+//     at pipeline linkage time, not shader compile time), so this trait
+//     is effectively ``__is_class(T) && !__is_union(T)``.
+TYPE_TRAIT_1(__is_metal_buffer, IsMetalBuffer, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_buffer_pointee, IsMetalBufferPointee, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_patch_control_point_struct,
+             IsMetalPatchControlPointStruct, KEYMETAL)
+
 // Embarcadero Binary Type Traits
 TYPE_TRAIT_2(__is_same, IsSame, KEYCXX)
 TYPE_TRAIT_2(__is_convertible, IsConvertible, KEYCXX)

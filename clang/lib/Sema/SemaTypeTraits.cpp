@@ -384,6 +384,19 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
   case UTT_IsInterfaceClass:
     return true;
 
+    // Metal Shading Language: these traits are used inside
+    //   template <class T> struct X<T __attribute__((ext_vector_type(N)))>
+    // -like partial specialisations and also inside SFINAE guards that
+    // *forward-declare* the argument type.  Requiring completeness here
+    // would break every use in <metal_tessellation> / <metal_type_traits>
+    // where the argument is an incomplete user struct.  Treat them like
+    // the other "shape" traits (IsPointer, IsArray, ...) which never
+    // require the type to be complete.
+  case UTT_IsMetalBuffer:
+  case UTT_IsMetalBufferPointee:
+  case UTT_IsMetalPatchControlPointStruct:
+    return true;
+
     // We diagnose incomplete class types later.
   case UTT_StructuredBindingSize:
     return true;
@@ -756,6 +769,58 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, TypeTrait UTT,
   case UTT_IsUnsigned:
     // Enum types should always return false.
     return T->isUnsignedIntegerType() && !T->isEnumeralType();
+
+    // Metal-specific type traits.  All three are only reachable in
+    // Metal mode (KEYMETAL guard in TokenKinds.def); their concrete
+    // semantics are:
+    //
+    //   __is_metal_buffer(T)
+    //     A "Metal argument-buffer type" is a POD standard-layout record
+    //     whose canonical form has no C++ features that would prevent
+    //     memcpy-based marshalling into the argument buffer: no virtual
+    //     bases, no user-provided copy/move ctor, no reference members,
+    //     no non-trivial destructor.  This is exactly clang's own
+    //     ``isTriviallyCopyable() && isStandardLayoutType()``.
+    //
+    //   __is_metal_buffer_pointee(T)
+    //     Any complete object type that has a known size can be pointed
+    //     to by ``device T*`` / ``constant T*``.  This is strictly
+    //     weaker than __is_metal_buffer (e.g. scalars are valid
+    //     pointees but not buffer members).  We approximate with
+    //     "not void, not function type, not reference".
+    //
+    //   __is_metal_patch_control_point_struct(T)
+    //     Metal accepts any record (class/struct) type as a patch
+    //     control point.  Reject unions and non-record types for
+    //     safety; the real "is this a valid vertex-stage output" check
+    //     happens at pipeline linking, not shader compilation.
+  case UTT_IsMetalBuffer: {
+    // Dependent types answer conservatively "yes" so SFINAE inside a
+    // template does not prune valid specialisations.
+    if (T->isDependentType())
+      return true;
+    if (!T->isRecordType())
+      return false;
+    return T.isTriviallyCopyableType(Self.Context) &&
+           T->isStandardLayoutType();
+  }
+  case UTT_IsMetalBufferPointee: {
+    if (T->isDependentType())
+      return true;
+    if (T->isVoidType() || T->isFunctionType() || T->isReferenceType())
+      return false;
+    return true;
+  }
+  case UTT_IsMetalPatchControlPointStruct: {
+    if (T->isDependentType())
+      return true;
+    const auto *RD = T->getAsCXXRecordDecl();
+    if (!RD)
+      return false;
+    if (RD->isUnion())
+      return false;
+    return true;
+  }
 
     // Type trait expressions which query classes regarding their construction,
     // destruction, and copying. Rather than being based directly on the
