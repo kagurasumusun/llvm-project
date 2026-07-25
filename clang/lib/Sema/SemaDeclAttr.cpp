@@ -5680,6 +5680,15 @@ static void validateMetalFunctionParameterAttributes(Sema &S, Decl *D) {
   if (FunctionStage == static_cast<unsigned>(MetalFunctionStage::None))
     return;
 
+  // MSL 3 s5.1.1: a kernel function must return 'void'.  Apple's metalfe
+  // rejects any non-void return type with
+  //   error: kernel function must return 'void'
+  if ((FunctionStage & MetalKernelStage) &&
+      !FD->getReturnType()->isVoidType()) {
+    S.Diag(FD->getLocation(), diag::err_metal_kernel_must_return_void);
+    FD->setInvalidDecl();
+  }
+
   if (const auto *A = FD->getAttr<MetalEarlyFragmentTestsAttr>()) {
     if ((FunctionStage & MetalFragmentStage) == 0) {
       S.Diag(A->getLocation(), diag::err_metal_attribute_wrong_stage) << A << 2;

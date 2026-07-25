@@ -3459,6 +3459,19 @@ def err_metal_attribute_wrong_field_type : Error<
 def err_metal_attribute_wrong_field_context : Error<
   "%0 attribute cannot be used on "
   "%select{stage input|vertex output|fragment output}1 fields">;
+
+// Metal Shading Language kernel-shape diagnostic.
+// Sourced from metal-info research/spec/METAL_SEMA_IMPL_MAP.md rule
+// SEMA-KER-001 (real diagnostic captured from Apple's metalfe compiler).
+//
+// Note: Metal address-space mutual exclusion (SEMA-AS-001) is already
+// handled by the existing generic err_attribute_address_multiple_qualifiers
+// path, so we do not need a Metal-specific diagnostic for that.
+// The stdlib-side atomic constraint (SEMA-ATM-001) is enforced by
+// deleted-copy-ctor tricks inside metal_atomic itself, so Sema does
+// not need to duplicate that check either.
+def err_metal_kernel_must_return_void : Error<
+  "kernel function must return 'void'">;
 def err_attribute_only_once_per_parameter : Error<
   "%0 attribute can only be applied once per parameter">;
 def err_mismatched_uuid : Error<"uuid does not match previous declaration">;
