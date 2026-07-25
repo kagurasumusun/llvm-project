@@ -5369,24 +5369,49 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
                      DeclaratorContext::LambdaExpr;
         };
 
-        if (state.getSema().getLangOpts().OpenCLCPlusPlus && IsClassMember()) {
+        if ((state.getSema().getLangOpts().OpenCLCPlusPlus ||
+             state.getSema().getLangOpts().Metal) &&
+            IsClassMember()) {
           LangAS ASIdx = LangAS::Default;
           // Take address space attr if any and mark as invalid to avoid adding
           // them later while creating QualType.
+          //
+          // Metal address-space keywords (``device`` / ``threadgroup`` /
+          // ``thread`` / ``constant`` / ``ray_data`` / ``object_data`` /
+          // ``threadgroup_imageblock``) reach us as either an OpenCL-flavoured
+          // attribute (device/threadgroup/thread/constant alias onto the
+          // OpenCL keywords in TokenKinds.def) or a Metal-flavoured one
+          // (ray_data / object_data / threadgroup_imageblock have their own
+          // LangAS values).  Consult both mappings so the resulting method
+          // type actually carries the qualifier -- otherwise
+          //   T& front() thread
+          //   T& front() device
+          // canonicalise to the same signature and Sema rejects the second
+          // one as a redeclaration.
           if (FTI.MethodQualifiers)
             for (ParsedAttr &attr : FTI.MethodQualifiers->getAttributes()) {
               LangAS ASIdxNew = attr.asOpenCLLangAS();
+              if (ASIdxNew == LangAS::Default &&
+                  state.getSema().getLangOpts().Metal)
+                ASIdxNew = attr.asMetalLangAS();
               if (DiagnoseMultipleAddrSpaceAttributes(S, ASIdx, ASIdxNew,
                                                       attr.getLoc()))
                 D.setInvalidType(true);
               else
                 ASIdx = ASIdxNew;
             }
-          // If a class member function's address space is not set, set it to
-          // __generic.
-          LangAS AS =
-              (ASIdx == LangAS::Default ? S.getDefaultCXXMethodAddrSpace()
-                                        : ASIdx);
+          // If a class member function's address space is not set, fall back
+          // to the language default.  Under OpenCL C++ this is ``__generic``;
+          // under Metal it is the implicit ``thread`` (LangAS::opencl_private)
+          // that Apple's metal_stdlib assumes when a method omits the
+          // qualifier.
+          LangAS AS;
+          if (ASIdx != LangAS::Default)
+            AS = ASIdx;
+          else if (state.getSema().getLangOpts().OpenCLCPlusPlus)
+            AS = S.getDefaultCXXMethodAddrSpace();
+          else
+            AS = LangAS::opencl_private; // Metal's implicit 'thread'
           EPI.TypeQuals.addAddressSpace(AS);
         }
         T = Context.getFunctionType(T, ParamTys, EPI);
