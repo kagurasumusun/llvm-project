@@ -412,9 +412,13 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 
     // Border colors
     Builder.defineMacro("__METAL_BORDER_COLOR_TRANSPARENT_BLACK__", "0");
+    Builder.defineMacro("__METAL_BORDER_COLOR_OPAQUE_BLACK__",      "1");
+    Builder.defineMacro("__METAL_BORDER_COLOR_OPAQUE_WHITE__",      "2");
 
     // Reduction modes
     Builder.defineMacro("__METAL_REDUCTION_WEIGHTED_AVERAGE__", "0");
+    Builder.defineMacro("__METAL_REDUCTION_MINIMUM__",          "1");
+    Builder.defineMacro("__METAL_REDUCTION_MAXIMUM__",          "2");
 
     // Sampler filter modes
     Builder.defineMacro("__METAL_FILTER_NEAREST__", "0");
@@ -445,11 +449,140 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__METAL_COMPARE_FUNC_ALWAYS__", "7");
     Builder.defineMacro("__METAL_COMPARE_FUNC_NONE__", "0");
 
-    // Memory flags and scopes
-    Builder.defineMacro("__METAL_MEMORY_FLAGS_NONE__", "0");
-    Builder.defineMacro("__METAL_MEMORY_FLAGS_DEVICE__", "1");
-    Builder.defineMacro("__METAL_MEMORY_FLAGS_THREADGROUP__", "2");
-    Builder.defineMacro("__METAL_MEMORY_SCOPE_THREADGROUP__", "0");
+    // Memory flags (bitmask over resource classes -- OR-able)
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_NONE__",                    "0");
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_DEVICE__",                  "1");
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_THREADGROUP__",             "2");
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_TEXTURE__",                 "4");
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_THREADGROUP_IMAGEBLOCK__",  "8");
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_OBJECT_DATA__",            "16");
+
+    // Metal memory-scope enumerators consumed by metal_types::thread_scope
+    // (and by every ``__metal_atomic_*_explicit`` builtin as its scope
+    // argument).  Order matches the ``enum metal::thread_scope`` layout in
+    // Apple's metal_types header (thread / simdgroup / threadgroup / device).
+    Builder.defineMacro("__METAL_MEMORY_SCOPE_THREAD__",      "0");
+    Builder.defineMacro("__METAL_MEMORY_SCOPE_SIMDGROUP__",   "1");
+    Builder.defineMacro("__METAL_MEMORY_SCOPE_THREADGROUP__", "2");
+    Builder.defineMacro("__METAL_MEMORY_SCOPE_DEVICE__",      "3");
+
+    // Metal texture access qualifiers consumed by ``enum class metal::access``
+    // (metal_types.h ~line 181).  Order matches the Apple header:
+    // sample / read / write / read_write.
+    Builder.defineMacro("__METAL_ACCESS_SAMPLE__",     "0");
+    Builder.defineMacro("__METAL_ACCESS_READ__",       "1");
+    Builder.defineMacro("__METAL_ACCESS_WRITE__",      "2");
+    Builder.defineMacro("__METAL_ACCESS_READ_WRITE__", "3");
+
+    // Metal memory-order enumerators consumed by ``enum metal::memory_order``.
+    // Values chosen to remain interoperable with C++11
+    // ``std::memory_order`` (relaxed = 0, seq_cst = 5) since Apple's
+    // ``__metal_atomic_*_explicit`` builtins forward the same integer to
+    // the AIR runtime.
+    Builder.defineMacro("__METAL_MEMORY_ORDER_RELAXED__", "0");
+    Builder.defineMacro("__METAL_MEMORY_ORDER_SEQ_CST__", "5");
+
+    // Metal coherence-mode enumerators consumed by
+    // ``enum metal::memory_coherence`` (metal_types.h ~line 225) and by
+    // its private companion ``__memory_coherence``.  Only two levels
+    // exist in the public Metal 3 API (threadgroup, device).
+    Builder.defineMacro("__METAL_COHERENCE_THREADGROUP__", "0");
+    Builder.defineMacro("__METAL_COHERENCE_DEVICE__",      "1");
+
+    // Graphics pipeline enumerators referenced by metal_graphics /
+    // metal_mesh headers.  Values chosen to match Apple's Metal 3
+    // MTLCullMode / MTLWinding / MTLPrimitiveType / MTLTriangleFillMode /
+    // MTLDepthClipMode public API on the host side (visible in Apple's
+    // <Metal/Metal.h>), which is what Xcode's metalfe injects on the
+    // shader side too so the two sides can be marshalled without
+    // renumbering.
+    Builder.defineMacro("__METAL_CULL_MODE_NONE__",           "0");
+    Builder.defineMacro("__METAL_CULL_MODE_FRONT__",          "1");
+    Builder.defineMacro("__METAL_CULL_MODE_BACK__",           "2");
+    Builder.defineMacro("__METAL_WINDING_CLOCKWISE__",        "0");
+    Builder.defineMacro("__METAL_WINDING_COUNTERCLOCKWISE__", "1");
+    Builder.defineMacro("__METAL_PRIMITIVE_TYPE_POINT__",         "0");
+    Builder.defineMacro("__METAL_PRIMITIVE_TYPE_LINE__",          "1");
+    Builder.defineMacro("__METAL_PRIMITIVE_TYPE_LINE_STRIP__",    "2");
+    Builder.defineMacro("__METAL_PRIMITIVE_TYPE_TRIANGLE__",      "3");
+    Builder.defineMacro("__METAL_PRIMITIVE_TYPE_TRIANGLE_STRIP__","4");
+    Builder.defineMacro("__METAL_TOPOLOGY_POINT__",    "0");
+    Builder.defineMacro("__METAL_TOPOLOGY_LINE__",     "1");
+    Builder.defineMacro("__METAL_TOPOLOGY_TRIANGLE__", "2");
+    Builder.defineMacro("__METAL_TRIANGLE_FILL_MODE_FILL__",  "0");
+    Builder.defineMacro("__METAL_TRIANGLE_FILL_MODE_LINES__", "1");
+    Builder.defineMacro("__METAL_DEPTH_CLIP_MODE_CLIP__",     "0");
+    Builder.defineMacro("__METAL_DEPTH_CLIP_MODE_CLAMP__",    "1");
+    Builder.defineMacro("__METAL_VERTEX_INDEX_FIRST__",  "0");
+    Builder.defineMacro("__METAL_VERTEX_INDEX_SECOND__", "1");
+    Builder.defineMacro("__METAL_VERTEX_INDEX_THIRD__",  "2");
+
+    // Underlying integer type of vote_t / simdgroup ballot operations.
+    // metal_simdgroup expects this to be a plain unsigned integer that
+    // it can bit-manipulate.  ``uint`` is defined by the AIR types
+    // prelude below.
+    Builder.defineMacro("__METAL_VOTE_T__", "uint");
+
+    // Fast/precise math opt-in used by metal_common and metal_math.
+    // ``__METAL_MATH_FP32_FUNCTIONS_FAST__`` is set to 0 by default;
+    // ``-cl-fast-relaxed-math`` or ``-ffast-math`` on the driver side
+    // could flip it in a follow-up.
+    Builder.defineMacro("__METAL_MATH_FP32_FUNCTIONS_FAST__", "0");
+    Builder.defineMacro("__METAL_MAYBE_FAST_MATH__",          "0");
+
+    // simdgroup / imageblock helpers.  The bounds-check enum only has a
+    // single ``none`` level in Apple's public headers today.
+    Builder.defineMacro("__METAL_SIMDGROUP_LOAD_STORE_BOUNDS_CHECK_NONE__", "0");
+
+    // Ray-tracing enumerators consumed by <metal_raytracing>.  Every
+    // enum is emitted here even when the corresponding
+    // ``__HAVE_RAYTRACING_*__`` guard would strip the enumerator out
+    // of Apple's header, so that later toggling the feature macro does
+    // not leave dangling identifier references.
+    Builder.defineMacro("__METAL_RAYTRACING_TRIANGLE_CULL_MODE_NONE__",  "0");
+    Builder.defineMacro("__METAL_RAYTRACING_TRIANGLE_CULL_MODE_FRONT__", "1");
+    Builder.defineMacro("__METAL_RAYTRACING_TRIANGLE_CULL_MODE_BACK__",  "2");
+    Builder.defineMacro("__METAL_RAYTRACING_OPACITY_CULL_MODE_NONE__",       "0");
+    Builder.defineMacro("__METAL_RAYTRACING_OPACITY_CULL_MODE_OPAQUE__",     "1");
+    Builder.defineMacro("__METAL_RAYTRACING_OPACITY_CULL_MODE_NON_OPAQUE__", "2");
+    Builder.defineMacro("__METAL_RAYTRACING_FORCED_OPACITY_NONE__",       "0");
+    Builder.defineMacro("__METAL_RAYTRACING_FORCED_OPACITY_OPAQUE__",     "1");
+    Builder.defineMacro("__METAL_RAYTRACING_FORCED_OPACITY_NON_OPAQUE__", "2");
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_CULL_MODE_NONE__",         "0");
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_CULL_MODE_TRIANGLE__",     "1");
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_CULL_MODE_CURVE__",        "2");
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_CULL_MODE_BOUNDING_BOX__", "4");
+    // Geometry type: bitmask so 'all' can be a bitwise OR of the leaves.
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_TYPE_NONE__",         "0");
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_TYPE_TRIANGLE__",     "1");
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_TYPE_BOUNDING_BOX__", "2");
+    Builder.defineMacro("__METAL_RAYTRACING_GEOMETRY_TYPE_CURVE__",        "4");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TYPE_NONE__",         "0");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TYPE_TRIANGLE__",     "1");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TYPE_BOUNDING_BOX__", "2");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TYPE_CURVE__",        "3");
+    // Intersection tag bitmask -- one bit per capability.  Apple's
+    // reference implementation uses them as flags OR-ed together to
+    // form the intersector template argument.
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_TRIANGLE_DATA__",   "0x001");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_WORLD_SPACE_DATA__","0x002");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_INSTANCING__",      "0x004");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_PRIMITIVE_MOTION__","0x008");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_INSTANCE_MOTION__", "0x010");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_EXTENDED_LIMITS__", "0x020");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_MAX_LEVELS__",      "0x040");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_USER_DATA__",       "0x080");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_CURVE_DATA__",      "0x100");
+    Builder.defineMacro("__METAL_RAYTRACING_INTERSECTION_TAG_INTERSECTION_FUNCTION_BUFFER__", "0x200");
+    // Curve basis / type -- also bitmask so 'all' works.
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_BASIS_LINEAR__",      "1");
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_BASIS_BEZIER__",      "2");
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_BASIS_BSPLINE__",     "4");
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_BASIS_CATMULL_ROM__", "8");
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_BASIS_ALL__",         "15");
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_TYPE_FLAT__",  "1");
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_TYPE_ROUND__", "2");
+    Builder.defineMacro("__METAL_RAYTRACING_CURVE_TYPE_ALL__",   "3");
 
     // Math modes
     Builder.defineMacro("__METAL_FAST_MATH__", "0");
@@ -498,9 +631,52 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("HALF_MAX", "6.5504e+04H");
     Builder.defineMacro("HALF_EPSILON", "9.765625e-04H");
 
+    // Apple's <metal_limits> reads the same half-precision constants
+    // through the double-underscore spelling.  Mirror every HALF_* alias
+    // as its __HALF_*__ compiler-namespaced twin so both spellings
+    // resolve to the same numeric literal.
+    Builder.defineMacro("__HALF_RADIX__",       "2");
+    Builder.defineMacro("__HALF_MANT_DIG__",    "11");
+    Builder.defineMacro("__HALF_DIG__",         "3");
+    Builder.defineMacro("__HALF_DECIMAL_DIG__", "5");
+    Builder.defineMacro("__HALF_MIN_EXP__",     "(-13)");
+    Builder.defineMacro("__HALF_MIN_10_EXP__",  "(-4)");
+    Builder.defineMacro("__HALF_MAX_EXP__",     "16");
+    Builder.defineMacro("__HALF_MAX_10_EXP__",  "4");
+    Builder.defineMacro("__HALF_MIN__",         "6.103515625e-05H");
+    Builder.defineMacro("__HALF_MAX__",         "6.5504e+04H");
+    Builder.defineMacro("__HALF_EPSILON__",     "9.765625e-04H");
+
     // Math constants
     Builder.defineMacro("M_LN2_F", "0.693147180559945309417F");
     Builder.defineMacro("M_LN10_F", "2.302585092994045684018F");
+    // Compiler-namespaced twins expected by <metal_math>.
+    Builder.defineMacro("__FLT_M_LN2__",  "0.693147180559945309417F");
+    Builder.defineMacro("__FLT_M_LN10__", "2.302585092994045684018F");
+
+    // Metal-specific type-trait builtins.
+    //
+    // Apple's <metal_type_traits> and <metal_tessellation> reference three
+    // compiler-intrinsic type traits that do not exist in the upstream
+    // Clang built-in set:
+    //   __is_metal_buffer(T)
+    //   __is_metal_buffer_pointee(T)
+    //   __is_metal_patch_control_point_struct(T)
+    // Until they are wired up in Sema (with proper Sema::CheckTypeTraitArity
+    // + TypeTrait enum entries), define them as function-like preprocessor
+    // macros that fold to ``false``.  This is safe because every use inside
+    // the stdlib is of the shape ``bool_constant<__is_metal_x(T)>`` where a
+    // conservative ``false`` merely disables an optional overload / SFINAE
+    // branch and does not affect correctness of the primary code path.
+    Builder.append("#ifndef __is_metal_buffer");
+    Builder.append("#define __is_metal_buffer(...)                       (false)");
+    Builder.append("#endif");
+    Builder.append("#ifndef __is_metal_buffer_pointee");
+    Builder.append("#define __is_metal_buffer_pointee(...)               (false)");
+    Builder.append("#endif");
+    Builder.append("#ifndef __is_metal_patch_control_point_struct");
+    Builder.append("#define __is_metal_patch_control_point_struct(...)   (false)");
+    Builder.append("#endif");
 
     // Compiler builtins for half precision
 
