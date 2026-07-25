@@ -4633,17 +4633,24 @@ QualType ASTContext::getDependentVectorType(QualType VecType, Expr *SizeExpr,
 
 /// getExtVectorType - Return the unique reference to an extended vector type of
 /// the specified element type and size. VectorType must be a built-in type.
-QualType ASTContext::getExtVectorType(QualType vecType,
-                                      unsigned NumElts) const {
+///
+/// When \p IsMetalPacked is true the vector is created with
+/// ``VectorKind::MetalPacked`` so it uniques separately from the ordinary
+/// ext_vector_type version.  The two flavours are otherwise identical
+/// (element access, arithmetic, etc.).
+QualType ASTContext::getExtVectorType(QualType vecType, unsigned NumElts,
+                                      bool IsMetalPacked) const {
   assert(vecType->isBuiltinType() || vecType->isDependentType() ||
          (vecType->isBitIntType() &&
           // Only support _BitInt elements with byte-sized power of 2 NumBits.
           llvm::isPowerOf2_32(vecType->castAs<BitIntType>()->getNumBits())));
 
+  VectorKind VecKind =
+      IsMetalPacked ? VectorKind::MetalPacked : VectorKind::Generic;
+
   // Check if we've already instantiated a vector of this type.
   llvm::FoldingSetNodeID ID;
-  VectorType::Profile(ID, vecType, NumElts, Type::ExtVector,
-                      VectorKind::Generic);
+  VectorType::Profile(ID, vecType, NumElts, Type::ExtVector, VecKind);
   void *InsertPos = nullptr;
   if (VectorType *VTP = VectorTypes.FindNodeOrInsertPos(ID, InsertPos))
     return QualType(VTP, 0);
@@ -4652,14 +4659,15 @@ QualType ASTContext::getExtVectorType(QualType vecType,
   // so fill in the canonical type field.
   QualType Canonical;
   if (!vecType.isCanonical()) {
-    Canonical = getExtVectorType(getCanonicalType(vecType), NumElts);
+    Canonical =
+        getExtVectorType(getCanonicalType(vecType), NumElts, IsMetalPacked);
 
     // Get the new insert position for the node we care about.
     VectorType *NewIP = VectorTypes.FindNodeOrInsertPos(ID, InsertPos);
     assert(!NewIP && "Shouldn't be in the map!"); (void)NewIP;
   }
   auto *New = new (*this, alignof(ExtVectorType))
-      ExtVectorType(vecType, NumElts, Canonical);
+      ExtVectorType(vecType, NumElts, Canonical, VecKind);
   VectorTypes.InsertNode(New, InsertPos);
   Types.push_back(New);
   return QualType(New, 0);
