@@ -337,20 +337,30 @@ void DependentVectorType::Profile(llvm::FoldingSetNodeID &ID,
 DependentSizedExtVectorType::DependentSizedExtVectorType(QualType ElementType,
                                                          QualType can,
                                                          Expr *SizeExpr,
-                                                         SourceLocation loc)
+                                                         SourceLocation loc,
+                                                         bool IsMetalPacked)
     : Type(DependentSizedExtVector, can,
            TypeDependence::DependentInstantiation |
                ElementType->getDependence() |
                (SizeExpr ? toTypeDependence(SizeExpr->getDependence())
                          : TypeDependence::None)),
-      SizeExpr(SizeExpr), ElementType(ElementType), loc(loc) {}
+      SizeExpr(SizeExpr), ElementType(ElementType), loc(loc),
+      IsMetalPacked(IsMetalPacked) {}
 
 void DependentSizedExtVectorType::Profile(llvm::FoldingSetNodeID &ID,
                                           const ASTContext &Context,
                                           QualType ElementType,
-                                          Expr *SizeExpr) {
+                                          Expr *SizeExpr,
+                                          bool IsMetalPacked) {
   ID.AddPointer(ElementType.getAsOpaquePtr());
   SizeExpr->Profile(ID, Context, true);
+  // Fold the packed-ness into the FoldingSet key so that
+  // ``T __attribute__((ext_vector_type(N)))`` and
+  // ``T __attribute__((packed_vector_type(N)))`` never collapse onto the
+  // same canonical DependentSizedExtVectorType.  Apple's
+  // ``metal_type_traits`` header partial-specialises the same trait on
+  // both variants and would trip a redefinition diagnostic otherwise.
+  ID.AddBoolean(IsMetalPacked);
 }
 
 DependentAddressSpaceType::DependentAddressSpaceType(QualType PointeeType,
