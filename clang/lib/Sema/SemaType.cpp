@@ -2461,11 +2461,15 @@ QualType Sema::BuildExtVectorType(QualType T, Expr *SizeExpr,
     return Context.getExtVectorType(T, VectorSize, IsMetalPacked);
   }
 
-  // A dependent-sized ext_vector_type never survives to template
-  // instantiation with different packing, so we always create the ordinary
-  // dependent-sized form; the packed vs. unpacked discrimination will happen
-  // when the type is later substituted.
-  return Context.getDependentSizedExtVectorType(T, SizeExpr, AttrLoc);
+  // The dependent-sized form MUST carry IsMetalPacked through as part of
+  // its FoldingSet key -- otherwise partial specialisations such as
+  //   template<class T,int N> struct X<T __attribute__((ext_vector_type(N)))>
+  //   template<class T,int N> struct X<T __attribute__((packed_vector_type(N)))>
+  // collapse onto the same primary-template argument and the second one
+  // is diagnosed as a redefinition of the first (regression seen when
+  // parsing Apple's metal_type_traits).
+  return Context.getDependentSizedExtVectorType(T, SizeExpr, AttrLoc,
+                                                IsMetalPacked);
 }
 
 QualType Sema::BuildMatrixType(QualType ElementTy, Expr *NumRows, Expr *NumCols,
