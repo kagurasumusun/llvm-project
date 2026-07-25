@@ -1,0 +1,363 @@
+//===--- MetalPredefines.def - Metal Shading Language predefines ----------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// X-macro table of compiler-supplied preprocessor macros that must be visible
+// to Apple's metal_stdlib.  Each identifier documented here has been observed
+// in the metal-info research corpus (Apple Xcode 16 / metalfe 32023.883,
+// captured 2026-07 in kagurasumusun/metal-info).
+//
+// The file has two macro entry points so the same table can drive both
+// integer-valued enum constants and free-form string-valued constants without
+// duplicating the list.  Consumers define one or both:
+//
+//   METAL_PREDEFINE_ENUM(Name, Value)
+//     "Value" must expand to a signed integer literal.  These become
+//     compiler-supplied enum-initializer constants used by metal_types /
+//     metal_graphics / metal_raytracing / metal_atomic to seed public
+//     enum classes (memory_order, access, memory_scope, ...).
+//
+//   METAL_PREDEFINE_STR(Name, Str)
+//     "Str" is a C string literal.  These become free-form numeric or
+//     floating literals used by <metal_limits> and <metal_math>.
+//
+// Values that are marked (SPEC) are dictated by Apple's Metal Shading
+// Language Specification (public PDF, chapters cited).  Values marked
+// (WIRE) are chosen to be wire-compatible with a public C++ standard
+// (std::memory_order, MTLPrimitiveType, MTLCullMode, ...) that Apple
+// exposes on the host side of the API, so shader-side and host-side use
+// the same numeric encoding.  Values marked (BITMASK) are assigned as
+// single bits so 'foo_all' style sums can be OR-combined.
+//
+// If a caller only cares about ENUM values, the default expansion of
+// METAL_PREDEFINE_STR is a no-op, and vice versa.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef METAL_PREDEFINE_ENUM
+#define METAL_PREDEFINE_ENUM(Name, Value)
+#define METAL_PREDEFINE_ENUM_DEFAULTED
+#endif
+
+#ifndef METAL_PREDEFINE_STR
+#define METAL_PREDEFINE_STR(Name, Str)
+#define METAL_PREDEFINE_STR_DEFAULTED
+#endif
+
+// -----------------------------------------------------------------------------
+// Sampler address modes.
+// (SPEC) Metal Shading Language 3.0 s2.10 Table 2.9.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_ADDRESS_CLAMP_TO_EDGE__,      0)
+METAL_PREDEFINE_ENUM(__METAL_ADDRESS_CLAMP_TO_ZERO__,      1)
+METAL_PREDEFINE_ENUM(__METAL_ADDRESS_REPEAT__,             2)
+METAL_PREDEFINE_ENUM(__METAL_ADDRESS_MIRRORED_REPEAT__,    3)
+METAL_PREDEFINE_ENUM(__METAL_ADDRESS_CLAMP_TO_BORDER__,    4)
+
+// -----------------------------------------------------------------------------
+// Sampler border colors.
+// (SPEC) Metal 3.0 s2.10, cross-checked with MTLSamplerBorderColor.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_BORDER_COLOR_TRANSPARENT_BLACK__, 0)
+METAL_PREDEFINE_ENUM(__METAL_BORDER_COLOR_OPAQUE_BLACK__,      1)
+METAL_PREDEFINE_ENUM(__METAL_BORDER_COLOR_OPAQUE_WHITE__,      2)
+
+// -----------------------------------------------------------------------------
+// Reduction modes (Metal 3 imageblock reductions).
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_REDUCTION_WEIGHTED_AVERAGE__, 0)
+METAL_PREDEFINE_ENUM(__METAL_REDUCTION_MINIMUM__,          1)
+METAL_PREDEFINE_ENUM(__METAL_REDUCTION_MAXIMUM__,          2)
+
+// -----------------------------------------------------------------------------
+// Sampler filter modes.
+// (SPEC) Metal 3.0 s2.10 Table 2.11.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_FILTER_NEAREST__,        0)
+METAL_PREDEFINE_ENUM(__METAL_FILTER_LINEAR__,         1)
+METAL_PREDEFINE_ENUM(__METAL_FILTER_BICUBIC__,        2)
+METAL_PREDEFINE_ENUM(__METAL_MAG_FILTER_NEAREST__,    0)
+METAL_PREDEFINE_ENUM(__METAL_MAG_FILTER_LINEAR__,     1)
+METAL_PREDEFINE_ENUM(__METAL_MAG_FILTER_BICUBIC__,    2)
+METAL_PREDEFINE_ENUM(__METAL_MIN_FILTER_NEAREST__,    0)
+METAL_PREDEFINE_ENUM(__METAL_MIN_FILTER_LINEAR__,     1)
+METAL_PREDEFINE_ENUM(__METAL_MIN_FILTER_BICUBIC__,    2)
+METAL_PREDEFINE_ENUM(__METAL_MIP_FILTER_NONE__,       0)
+METAL_PREDEFINE_ENUM(__METAL_MIP_FILTER_NEAREST__,    1)
+METAL_PREDEFINE_ENUM(__METAL_MIP_FILTER_LINEAR__,     2)
+
+// -----------------------------------------------------------------------------
+// Sampler coordinate modes.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_COORD_NORMALIZED__, 0)
+METAL_PREDEFINE_ENUM(__METAL_COORD_PIXEL__,      1)
+
+// -----------------------------------------------------------------------------
+// Sampler compare functions.
+// (SPEC) Cross-checked with MTLCompareFunction.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_NEVER__,         0)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_LESS__,          1)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_EQUAL__,         2)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_LESS_EQUAL__,    3)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_GREATER__,       4)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_NOT_EQUAL__,     5)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_GREATER_EQUAL__, 6)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_ALWAYS__,        7)
+METAL_PREDEFINE_ENUM(__METAL_COMPARE_FUNC_NONE__,          0)
+
+// -----------------------------------------------------------------------------
+// Memory-flag bitmask over resource classes.
+// Assignments are pure bit positions so callers can OR them.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_FLAGS_NONE__,                    0)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_FLAGS_DEVICE__,                  1)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_FLAGS_THREADGROUP__,             2)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_FLAGS_TEXTURE__,                 4)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_FLAGS_THREADGROUP_IMAGEBLOCK__,  8)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_FLAGS_OBJECT_DATA__,            16)
+
+// -----------------------------------------------------------------------------
+// Memory-scope enumerators (thread / simdgroup / threadgroup / device).
+// (SPEC) Metal 3.0 s5.13 Table 5.4, order matches enum metal::thread_scope.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_SCOPE_THREAD__,      0)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_SCOPE_SIMDGROUP__,   1)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_SCOPE_THREADGROUP__, 2)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_SCOPE_DEVICE__,      3)
+
+// -----------------------------------------------------------------------------
+// Texture access qualifiers.  Order matches enum class metal::access
+// as declared in Apple's metal_types (sample / read / write / read_write).
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_ACCESS_SAMPLE__,     0)
+METAL_PREDEFINE_ENUM(__METAL_ACCESS_READ__,       1)
+METAL_PREDEFINE_ENUM(__METAL_ACCESS_WRITE__,      2)
+METAL_PREDEFINE_ENUM(__METAL_ACCESS_READ_WRITE__, 3)
+
+// -----------------------------------------------------------------------------
+// Memory-order enumerators for atomic operations.
+// (WIRE) Values chosen to match C++11 std::memory_order (relaxed=0, seq_cst=5)
+// so metal_atomic can forward the same integer to the AIR runtime without a
+// translation table.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_ORDER_RELAXED__, 0)
+METAL_PREDEFINE_ENUM(__METAL_MEMORY_ORDER_SEQ_CST__, 5)
+
+// -----------------------------------------------------------------------------
+// Coherence-mode enumerators.  Only two public levels exist in Metal 3
+// (threadgroup / device), matching enum metal::memory_coherence and its
+// private companion __memory_coherence.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_COHERENCE_THREADGROUP__, 0)
+METAL_PREDEFINE_ENUM(__METAL_COHERENCE_DEVICE__,      1)
+
+// -----------------------------------------------------------------------------
+// Graphics pipeline enumerators consumed by metal_graphics / metal_mesh.
+// (WIRE) Values chosen to match Apple's host-side MTLCullMode, MTLWinding,
+// MTLPrimitiveType, MTLTriangleFillMode, MTLDepthClipMode so shader-side
+// and host-side values agree without translation.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_CULL_MODE_NONE__,           0)
+METAL_PREDEFINE_ENUM(__METAL_CULL_MODE_FRONT__,          1)
+METAL_PREDEFINE_ENUM(__METAL_CULL_MODE_BACK__,           2)
+METAL_PREDEFINE_ENUM(__METAL_WINDING_CLOCKWISE__,        0)
+METAL_PREDEFINE_ENUM(__METAL_WINDING_COUNTERCLOCKWISE__, 1)
+METAL_PREDEFINE_ENUM(__METAL_PRIMITIVE_TYPE_POINT__,          0)
+METAL_PREDEFINE_ENUM(__METAL_PRIMITIVE_TYPE_LINE__,           1)
+METAL_PREDEFINE_ENUM(__METAL_PRIMITIVE_TYPE_LINE_STRIP__,     2)
+METAL_PREDEFINE_ENUM(__METAL_PRIMITIVE_TYPE_TRIANGLE__,       3)
+METAL_PREDEFINE_ENUM(__METAL_PRIMITIVE_TYPE_TRIANGLE_STRIP__, 4)
+METAL_PREDEFINE_ENUM(__METAL_TOPOLOGY_POINT__,    0)
+METAL_PREDEFINE_ENUM(__METAL_TOPOLOGY_LINE__,     1)
+METAL_PREDEFINE_ENUM(__METAL_TOPOLOGY_TRIANGLE__, 2)
+METAL_PREDEFINE_ENUM(__METAL_TRIANGLE_FILL_MODE_FILL__,  0)
+METAL_PREDEFINE_ENUM(__METAL_TRIANGLE_FILL_MODE_LINES__, 1)
+METAL_PREDEFINE_ENUM(__METAL_DEPTH_CLIP_MODE_CLIP__,     0)
+METAL_PREDEFINE_ENUM(__METAL_DEPTH_CLIP_MODE_CLAMP__,    1)
+METAL_PREDEFINE_ENUM(__METAL_VERTEX_INDEX_FIRST__,  0)
+METAL_PREDEFINE_ENUM(__METAL_VERTEX_INDEX_SECOND__, 1)
+METAL_PREDEFINE_ENUM(__METAL_VERTEX_INDEX_THIRD__,  2)
+
+// -----------------------------------------------------------------------------
+// Fast/precise math opt-in.
+// Default OFF; a future driver flag can flip these to 1.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_FAST_MATH__,                 0)
+METAL_PREDEFINE_ENUM(__METAL_PRECISE_MATH__,              1)
+METAL_PREDEFINE_ENUM(__METAL_MATH_FP32_FUNCTIONS_FAST__,  0)
+METAL_PREDEFINE_ENUM(__METAL_MAYBE_FAST_MATH__,           0)
+
+// -----------------------------------------------------------------------------
+// simdgroup helpers.
+// __METAL_SIMDGROUP_LOAD_STORE_BOUNDS_CHECK_NONE__ is the only value that
+// currently exists in Apple's public metal_simdgroup header.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_ENUM(__METAL_SIMDGROUP_LOAD_STORE_BOUNDS_CHECK_NONE__, 0)
+
+// -----------------------------------------------------------------------------
+// Ray-tracing enumerators consumed by <metal_raytracing>.
+// (SPEC) Metal 3.0 Chapter 6.6-6.8.
+// Enum values are emitted unconditionally, even when the corresponding
+// __HAVE_RAYTRACING_*__ guard would strip an enumerator out of Apple's
+// public headers, so that toggling a feature-macro cannot leave a
+// dangling identifier reference.
+// -----------------------------------------------------------------------------
+
+// triangle_cull_mode
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_TRIANGLE_CULL_MODE_NONE__,  0)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_TRIANGLE_CULL_MODE_FRONT__, 1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_TRIANGLE_CULL_MODE_BACK__,  2)
+
+// opacity_cull_mode
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_OPACITY_CULL_MODE_NONE__,       0)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_OPACITY_CULL_MODE_OPAQUE__,     1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_OPACITY_CULL_MODE_NON_OPAQUE__, 2)
+
+// forced_opacity
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_FORCED_OPACITY_NONE__,       0)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_FORCED_OPACITY_OPAQUE__,     1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_FORCED_OPACITY_NON_OPAQUE__, 2)
+
+// geometry_cull_mode (BITMASK): triangle/curve/bounding_box combine
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_CULL_MODE_NONE__,         0)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_CULL_MODE_TRIANGLE__,     1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_CULL_MODE_CURVE__,        2)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_CULL_MODE_BOUNDING_BOX__, 4)
+
+// geometry_type (BITMASK): 'all' is OR of leaves
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_TYPE_NONE__,         0)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_TYPE_TRIANGLE__,     1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_TYPE_BOUNDING_BOX__, 2)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_GEOMETRY_TYPE_CURVE__,        4)
+
+// intersection_type
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TYPE_NONE__,         0)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TYPE_TRIANGLE__,     1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TYPE_BOUNDING_BOX__, 2)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TYPE_CURVE__,        3)
+
+// intersection_tag (BITMASK): one bit per capability, OR-combined by users
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_TRIANGLE_DATA__,                0x001)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_WORLD_SPACE_DATA__,             0x002)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_INSTANCING__,                   0x004)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_PRIMITIVE_MOTION__,             0x008)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_INSTANCE_MOTION__,              0x010)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_EXTENDED_LIMITS__,              0x020)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_MAX_LEVELS__,                   0x040)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_USER_DATA__,                    0x080)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_CURVE_DATA__,                   0x100)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_INTERSECTION_FUNCTION_BUFFER__, 0x200)
+
+// curve_basis (BITMASK): 'all' is OR of leaves
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_BASIS_LINEAR__,      1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_BASIS_BEZIER__,      2)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_BASIS_BSPLINE__,     4)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_BASIS_CATMULL_ROM__, 8)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_BASIS_ALL__,        15)
+
+// curve_type (BITMASK)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_TYPE_FLAT__,  1)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_TYPE_ROUND__, 2)
+METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_CURVE_TYPE_ALL__,   3)
+
+// -----------------------------------------------------------------------------
+// C standard-library constants.  Metal has no libc, but metal_stdlib's
+// <metal_limits> expects the ISO C spelling to be visible to the
+// preprocessor with the standard values from ISO/IEC 9899:2018.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_STR(CHAR_BIT,   "8")
+METAL_PREDEFINE_STR(CHAR_MAX,   "127")
+METAL_PREDEFINE_STR(CHAR_MIN,   "(-128)")
+METAL_PREDEFINE_STR(SCHAR_MAX,  "127")
+METAL_PREDEFINE_STR(SCHAR_MIN,  "(-128)")
+METAL_PREDEFINE_STR(UCHAR_MAX,  "255")
+METAL_PREDEFINE_STR(SHRT_MAX,   "32767")
+METAL_PREDEFINE_STR(SHRT_MIN,   "(-32768)")
+METAL_PREDEFINE_STR(USHRT_MAX,  "65535")
+METAL_PREDEFINE_STR(INT_MAX,    "2147483647")
+METAL_PREDEFINE_STR(INT_MIN,    "(-2147483647-1)")
+METAL_PREDEFINE_STR(UINT_MAX,   "4294967295U")
+METAL_PREDEFINE_STR(LONG_MAX,   "9223372036854775807L")
+METAL_PREDEFINE_STR(LONG_MIN,   "(-9223372036854775807L-1L)")
+METAL_PREDEFINE_STR(ULONG_MAX,  "18446744073709551615UL")
+
+// -----------------------------------------------------------------------------
+// IEEE-754 float32 constants (visible on the shader side).
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_STR(FLT_RADIX,       "2")
+METAL_PREDEFINE_STR(FLT_MANT_DIG,    "24")
+METAL_PREDEFINE_STR(FLT_DIG,         "6")
+METAL_PREDEFINE_STR(FLT_DECIMAL_DIG, "9")
+METAL_PREDEFINE_STR(FLT_MIN_EXP,     "(-125)")
+METAL_PREDEFINE_STR(FLT_MIN_10_EXP,  "(-37)")
+METAL_PREDEFINE_STR(FLT_MAX_EXP,     "128")
+METAL_PREDEFINE_STR(FLT_MAX_10_EXP,  "38")
+METAL_PREDEFINE_STR(FLT_MIN,         "1.17549435e-38F")
+METAL_PREDEFINE_STR(FLT_MAX,         "3.40282347e+38F")
+METAL_PREDEFINE_STR(FLT_EPSILON,     "1.19209290e-07F")
+
+// -----------------------------------------------------------------------------
+// IEEE-754 float16 (half) constants.  Both bare and double-underscore
+// spellings are emitted because Apple's <metal_limits> queries the
+// __HALF_*__ family while <metal_math> uses the bare spelling.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_STR(HALF_RADIX,        "2")
+METAL_PREDEFINE_STR(HALF_MANT_DIG,     "11")
+METAL_PREDEFINE_STR(HALF_DIG,          "3")
+METAL_PREDEFINE_STR(HALF_DECIMAL_DIG,  "5")
+METAL_PREDEFINE_STR(HALF_MIN_EXP,      "(-13)")
+METAL_PREDEFINE_STR(HALF_MIN_10_EXP,   "(-4)")
+METAL_PREDEFINE_STR(HALF_MAX_EXP,      "16")
+METAL_PREDEFINE_STR(HALF_MAX_10_EXP,   "4")
+METAL_PREDEFINE_STR(HALF_MIN,          "6.103515625e-05H")
+METAL_PREDEFINE_STR(HALF_MAX,          "6.5504e+04H")
+METAL_PREDEFINE_STR(HALF_EPSILON,      "9.765625e-04H")
+
+METAL_PREDEFINE_STR(__HALF_RADIX__,        "2")
+METAL_PREDEFINE_STR(__HALF_MANT_DIG__,     "11")
+METAL_PREDEFINE_STR(__HALF_DIG__,          "3")
+METAL_PREDEFINE_STR(__HALF_DECIMAL_DIG__,  "5")
+METAL_PREDEFINE_STR(__HALF_MIN_EXP__,      "(-13)")
+METAL_PREDEFINE_STR(__HALF_MIN_10_EXP__,   "(-4)")
+METAL_PREDEFINE_STR(__HALF_MAX_EXP__,      "16")
+METAL_PREDEFINE_STR(__HALF_MAX_10_EXP__,   "4")
+METAL_PREDEFINE_STR(__HALF_MIN__,          "6.103515625e-05H")
+METAL_PREDEFINE_STR(__HALF_MAX__,          "6.5504e+04H")
+METAL_PREDEFINE_STR(__HALF_EPSILON__,      "9.765625e-04H")
+
+// -----------------------------------------------------------------------------
+// Math-constant helpers used by <metal_math>.  Provide both the bare
+// M_LN{2,10}_F spelling and the __FLT_M_LN{2,10}__ compiler-namespaced
+// spelling.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_STR(M_LN2_F,        "0.693147180559945309417F")
+METAL_PREDEFINE_STR(M_LN10_F,       "2.302585092994045684018F")
+METAL_PREDEFINE_STR(__FLT_M_LN2__,  "0.693147180559945309417F")
+METAL_PREDEFINE_STR(__FLT_M_LN10__, "2.302585092994045684018F")
+
+// -----------------------------------------------------------------------------
+// Simdgroup vote intrinsic underlying integer type.  metal_simdgroup
+// bit-manipulates this as an unsigned integer; ``uint`` is defined in
+// the AIR types prelude that InitPreprocessor emits right after
+// including this file.
+// -----------------------------------------------------------------------------
+METAL_PREDEFINE_STR(__METAL_VOTE_T__, "uint")
+
+// -----------------------------------------------------------------------------
+// End of table -- clean up caller-facing macros.
+// -----------------------------------------------------------------------------
+
+#ifdef METAL_PREDEFINE_ENUM_DEFAULTED
+#undef METAL_PREDEFINE_ENUM_DEFAULTED
+#undef METAL_PREDEFINE_ENUM
+#endif
+
+#ifdef METAL_PREDEFINE_STR_DEFAULTED
+#undef METAL_PREDEFINE_STR_DEFAULTED
+#undef METAL_PREDEFINE_STR
+#endif
