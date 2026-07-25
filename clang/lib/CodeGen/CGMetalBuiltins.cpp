@@ -106,9 +106,14 @@ RValue CodeGenFunction::EmitMetalBuiltinExpr(const CallExpr *E,
     Args.push_back(EmitScalarExpr(Arg));
   }
 
+  SmallVector<Type *, 8> ArgTypes;
+  for (Value *Arg : Args) {
+    ArgTypes.push_back(Arg->getType());
+  }
+
   llvm::FunctionType *FnTy = llvm::FunctionType::get(
       ConvertType(E->getType()),
-      {Args.begin(), Args.end()},
+      ArgTypes,
       /*isVarArg=*/false);
   
   FunctionCallee Callee = CGM.getModule().getOrInsertFunction(
