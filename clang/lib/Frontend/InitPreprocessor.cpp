@@ -560,6 +560,9 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("template<typename T, typename U> T as_type(U x) { union { U u; T t; } conv; conv.u = x; return conv.t; }");
     Builder.append("enum class access { read, write, read_write, sample };");
     Builder.append("enum class memory_order { relaxed, acquire, release, acq_rel, seq_cst };");
+    // metal_stdlib uses this as a non-type template parameter before it
+    // includes metal_types.  It must be a type (not a preprocessor macro).
+    Builder.append("enum __memory_coherence { __memory_coherence_threadgroup = 0, __memory_coherence_device = 1 };");
     Builder.append("template<typename T, int N> struct vec { T data[N]; };");
     // Basic type aliases
 
