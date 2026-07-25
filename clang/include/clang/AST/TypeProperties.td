@@ -211,11 +211,18 @@ let Class = DependentVectorType in {
 
 let Class = ExtVectorType in {
   def : Override {
+    // The base VectorType 'vectorKind' property is derivable from the
+    // dedicated Metal-packed bit below (VectorKind::Generic vs
+    // VectorKind::MetalPacked), so we drop the base emission.
     let IgnoredProperties = [ "vectorKind" ];
   }
 
+  def : Property<"isMetalPacked", Bool> {
+    let Read = [{ node->isMetalPacked() }];
+  }
+
   def : Creator<[{
-    return ctx.getExtVectorType(elementType, numElements);
+    return ctx.getExtVectorType(elementType, numElements, isMetalPacked);
   }]>;
 }
 
@@ -229,9 +236,13 @@ let Class = DependentSizedExtVectorType in {
   def : Property<"attributeLoc", SourceLocation> {
     let Read = [{ node->getAttributeLoc() }];
   }
+  def : Property<"isMetalPacked", Bool> {
+    let Read = [{ node->isMetalPacked() }];
+  }
 
   def : Creator<[{
-    return ctx.getDependentSizedExtVectorType(elementType, size, attributeLoc);
+    return ctx.getDependentSizedExtVectorType(elementType, size, attributeLoc,
+                                              isMetalPacked);
   }]>;
 }
 
