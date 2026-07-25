@@ -397,8 +397,11 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     else if (TI.getTriple().isOSDarwin())
       Builder.defineMacro("__METAL_IOS__");
 
-    // METAL_FUNC and METAL_INTERNAL are defined by Apple's metal_types header.
-    // Defining empty versions here suppresses its address-space annotations.
+    // The smoke build explicitly includes metal_stdlib rather than Apple's
+    // implicit default header.  Supply the same non-empty spelling used by
+    // metal_types so headers parsed before metal_types remain valid.
+    Builder.defineMacro("METAL_FUNC", "inline __attribute__((__always_inline__))");
+    Builder.defineMacro("METAL_INTERNAL", "");
 
     // Sampler address modes
     Builder.defineMacro("__METAL_ADDRESS_CLAMP_TO_EDGE__", "0");
