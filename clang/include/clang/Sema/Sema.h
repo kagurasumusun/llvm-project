@@ -15129,9 +15129,13 @@ public:
 
   /// Build an ext-vector type.
   ///
-  /// Run the required checks for the extended vector type.
+  /// Run the required checks for the extended vector type.  When
+  /// \p IsMetalPacked is true the type is built with
+  /// ``VectorKind::MetalPacked`` so it uniques separately from the
+  /// ordinary ext_vector_type of the same element type and size.
   QualType BuildExtVectorType(QualType T, Expr *ArraySize,
-                              SourceLocation AttrLoc);
+                              SourceLocation AttrLoc,
+                              bool IsMetalPacked = false);
   QualType BuildMatrixType(QualType T, Expr *NumRows, Expr *NumColumns,
                            SourceLocation AttrLoc);
 
