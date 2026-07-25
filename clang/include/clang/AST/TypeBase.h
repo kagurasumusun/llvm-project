@@ -4109,13 +4109,22 @@ class DependentSizedExtVectorType : public Type, public llvm::FoldingSetNode {
 
   SourceLocation loc;
 
+  /// True if this was declared via Metal's ``packed_vector_type(N)``
+  /// rather than ``ext_vector_type(N)``.  Threaded through the FoldingSet
+  /// key so that dependent-sized packed and unpacked variants remain
+  /// distinct types before template instantiation (required by
+  /// ``metal_type_traits`` partial specialisations).
+  bool IsMetalPacked;
+
   DependentSizedExtVectorType(QualType ElementType, QualType can,
-                              Expr *SizeExpr, SourceLocation loc);
+                              Expr *SizeExpr, SourceLocation loc,
+                              bool IsMetalPacked = false);
 
 public:
   Expr *getSizeExpr() const { return SizeExpr; }
   QualType getElementType() const { return ElementType; }
   SourceLocation getAttributeLoc() const { return loc; }
+  bool isMetalPacked() const { return IsMetalPacked; }
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
@@ -4125,11 +4134,12 @@ public:
   }
 
   void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context) {
-    Profile(ID, Context, getElementType(), getSizeExpr());
+    Profile(ID, Context, getElementType(), getSizeExpr(), isMetalPacked());
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
-                      QualType ElementType, Expr *SizeExpr);
+                      QualType ElementType, Expr *SizeExpr,
+                      bool IsMetalPacked = false);
 };
 
 enum class VectorKind {
