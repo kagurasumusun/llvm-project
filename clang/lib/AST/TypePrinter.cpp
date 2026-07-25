@@ -731,6 +731,11 @@ void TypePrinter::printVectorBefore(const VectorType *T, raw_ostream &OS) {
     OS << ") * 8))) ";
     printBefore(T->getElementType(), OS);
     break;
+  case VectorKind::MetalPacked:
+    OS << "__attribute__((packed_vector_type(" << T->getNumElements()
+       << "))) ";
+    printBefore(T->getElementType(), OS);
+    break;
   }
 }
 
@@ -815,6 +820,14 @@ void TypePrinter::printDependentVectorBefore(
     OS << "))) ";
     printBefore(T->getElementType(), OS);
     break;
+  case VectorKind::MetalPacked:
+    OS << "__attribute__((packed_vector_type(";
+    if (T->getSizeExpr()) {
+      T->getSizeExpr()->printPretty(OS, nullptr, Policy);
+    }
+    OS << "))) ";
+    printBefore(T->getElementType(), OS);
+    break;
   }
 }
 
@@ -838,7 +851,11 @@ void TypePrinter::printExtVectorAfter(const ExtVectorType *T, raw_ostream &OS) {
     OS << T->getNumElements();
     OS << ">";
   } else {
-    OS << " __attribute__((ext_vector_type(";
+    // Emit ``packed_vector_type(N)`` for Metal's tightly-packed variant so
+    // template argument diagnostics distinguish it from ``ext_vector_type``.
+    const char *AttrName =
+        T->isMetalPacked() ? "packed_vector_type" : "ext_vector_type";
+    OS << " __attribute__((" << AttrName << "(";
     OS << T->getNumElements();
     OS << ")))";
   }
