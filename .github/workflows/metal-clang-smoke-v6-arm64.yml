@@ -1,0 +1,213 @@
+name: Metal Two-Stage Build (arm64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to checkout and build"
+        required: true
+        default: "metal-test"
+      build_type:
+        description: "CMake build type"
+        required: true
+        default: "Release"
+        type: choice
+        options:
+          - Release
+          - RelWithDebInfo
+          - Debug
+      ninja_jobs:
+        description: "Parallel ninja jobs; 0 means nproc"
+        required: true
+        default: "0"
+permissions:
+  contents: read
+
+env:
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_COMPRESS: "true"
+  CCACHE_COMPRESSLEVEL: "6"
+  CCACHE_MAXSIZE: "4G"
+  CCACHE_NOHASHDIR: "true"
+  CCACHE_SLOPPINESS: "pch_defines,time_macros,include_file_mtime,include_file_ctime"
+
+concurrency:
+  group: metal-two-stage-arm64-${{ inputs.ref }}-${{ inputs.build_type }}
+  cancel-in-progress: false
+
+jobs:
+  # Stage 1: Build metallib on Linux
+  build-metallib:
+    name: Build metallib (Linux)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout selected ref sparse
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: true
+          sparse-checkout: |
+            clang
+            llvm
+            cmake
+            third-party
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3 ccache lld
+          if ! command -v clang >/dev/null 2>&1 || ! command -v clang++ >/dev/null 2>&1; then
+            sudo apt-get install -y clang
+          fi
+          cmake --version
+          ninja --version
+          ccache --version
+          clang --version
+          clang++ --version
+          ld.lld --version
+          python3 --version
+
+      - name: Restore ccache
+        id: restore-ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: .ccache
+          key: ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-${{ inputs.ref }}-${{ hashFiles('llvm/CMakeLists.txt', 'clang/CMakeLists.txt', 'clang/include/clang/Basic/Attr.td', 'clang/include/clang/Basic/Metal*.def', 'clang/lib/Sema/SemaDeclAttr.cpp', 'clang/lib/CodeGen/CodeGenFunction.cpp', 'clang/lib/Frontend/InitPreprocessor.cpp', 'llvm/tools/metal-as/metal-as.cpp', 'llvm/tools/metal-ld/metal-ld.cpp') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-${{ inputs.ref }}-${{ hashFiles('llvm/CMakeLists.txt', 'clang/CMakeLists.txt', 'clang/include/clang/Basic/Attr.td', 'clang/include/clang/Basic/Metal*.def', 'clang/lib/Sema/SemaDeclAttr.cpp', 'clang/lib/CodeGen/CodeGenFunction.cpp', 'clang/lib/Frontend/InitPreprocessor.cpp', 'llvm/tools/metal-as/metal-as.cpp', 'llvm/tools/metal-ld/metal-ld.cpp') }}-
+            ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-${{ inputs.ref }}-
+            ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-
+            ${{ runner.os }}-arm64-metal-metallib-
+
+      - name: Fetch Apple Metal stdlib headers from metal-info
+        env:
+          GITHUB_TOKEN: ${{ secrets.METAL_INFO_TOKEN }}
+        run: |
+          set -euxo pipefail
+          # Fetch only headers (no runtime library needed - Xcode will link Metal.framework automatically)
+          python3 clang/utils/metal/fetch-metal-info-resource.py \
+            --output "$PWD/metal-info-resource"
+          test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
+          python3 clang/utils/metal/gen-metal-observed-manifest.py \
+            --headers "$PWD/metal-info-resource/clang/32023.883/include/metal" \
+            --output "$PWD/metal-observed-manifest.json" \
+            --apple-clang-version 32023.883
+          echo "✓ Apple Metal stdlib headers and compatibility manifest fetched"
+
+      - name: Configure minimal clang-only LLVM build
+        run: |
+          set -euxo pipefail
+          ccache --set-config=max_size="$CCACHE_MAXSIZE" || true
+          cmake -S llvm -B build -G Ninja \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DLLVM_ENABLE_PROJECTS=clang \
+            -DLLVM_TARGETS_TO_BUILD="X86" \
+            -DCMAKE_BUILD_TYPE="${{ inputs.build_type }}" \
+            -DLLVM_USE_LINKER=lld \
+            -DLLVM_PARALLEL_LINK_JOBS=1 \
+            -DLLVM_ENABLE_ASSERTIONS=OFF \
+            -DLLVM_INCLUDE_TESTS=OFF \
+            -DCLANG_INCLUDE_TESTS=OFF \
+            -DLLVM_BUILD_TESTS=OFF \
+            -DLLVM_INCLUDE_BENCHMARKS=OFF \
+            -DLLVM_BUILD_BENCHMARKS=OFF \
+            -DLLVM_INCLUDE_EXAMPLES=OFF \
+            -DLLVM_BUILD_EXAMPLES=OFF \
+            -DLLVM_INCLUDE_DOCS=OFF \
+            -DCLANG_INCLUDE_DOCS=OFF \
+            -DLLVM_ENABLE_BINDINGS=OFF \
+            -DLLVM_BUILD_TOOLS=ON \
+            -DLLVM_OPTIMIZED_TABLEGEN=ON \
+            -DLLVM_ENABLE_ZLIB=OFF \
+            -DLLVM_ENABLE_ZSTD=OFF \
+            -DLLVM_ENABLE_TERMINFO=OFF \
+            -DLLVM_ENABLE_LIBXML2=OFF \
+            -DCLANG_ENABLE_ARCMT=OFF \
+            -DCLANG_ENABLE_STATIC_ANALYZER=OFF
+
+      - name: Build clang with Metal support
+        run: |
+          set -o pipefail
+          ccache --zero-stats || true
+          JOBS="${{ inputs.ninja_jobs }}"
+          if [ "$JOBS" = "0" ] || [ -z "$JOBS" ]; then JOBS="$(nproc)"; fi
+          echo "Using ninja jobs: $JOBS"
+          ninja -C build -j"$JOBS" clang metal-as metal-ld 2>&1 | tee build.log
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ${{ steps.restore-ccache.outputs.cache-primary-key }}
+
+      - name: Compile Apple Metal samples to metallib
+        run: |
+          # Keep every frontend invocation and diagnostic as a CI artifact.
+          # Do not hide a compiler failure: its exit status remains the step result.
+          set -euxo pipefail
+          mkdir -p test-results
+          exec > >(tee test-results/metallib-smoke.log) 2>&1
+          CLANG="$PWD/build/bin/clang"
+          METAL_AS="$PWD/build/bin/metal-as"
+          METAL_LD="$PWD/build/bin/metal-ld"
+          APPLE_METAL_RESOURCE="$PWD/metal-info-resource/clang/32023.883"
+          APPLE_METAL_INCLUDE="$APPLE_METAL_RESOURCE/include/metal"
+          
+          mkdir -p metallib-output
+          
+          # Compile add.metal (compute shader from Apple official sample)
+          echo "Compiling add.metal..."
+          "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
+            -I "$APPLE_METAL_INCLUDE" \
+            -include "$APPLE_METAL_INCLUDE/metal_types" \
+            -emit-llvm-bc -o /tmp/add.bc \
+            clang/test/AppleMetalSamples/PerformingCalculationsOnAGPU/add.metal
+          
+          "$METAL_AS" /tmp/add.bc -o /tmp/add.air --triple air64-apple-ios${{ inputs.ios_target }}
+          
+          # Compile AAPLShaders.metal (render pipeline from Apple official sample)
+          echo "Compiling AAPLShaders.metal..."
+          "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
+            -I "$APPLE_METAL_INCLUDE" \
+            -include "$APPLE_METAL_INCLUDE/metal_types" \
+            -I clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives \
+            -emit-llvm-bc -o /tmp/AAPLShaders.bc \
+            clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaders.metal
+          
+          "$METAL_AS" /tmp/AAPLShaders.bc -o /tmp/AAPLShaders.air --triple air64-apple-ios${{ inputs.ios_target }}
+          
+          # Link into metallib (no runtime library needed - Xcode will link Metal.framework automatically)
+          echo "Linking metallib..."
+          "$METAL_LD" /tmp/add.air /tmp/AAPLShaders.air \
+            -o metallib-output/Shaders.metallib \
+            --name MetalSamples
+          
+          echo "✓ metallib created successfully (no libmetal_rt_ios.a included - Xcode will link Metal.framework)"
+          ls -lh metallib-output/
+
+      - name: Upload compiler, metallib, and diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metal-linux-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/bin/clang
+            build/bin/metal-as
+            build/bin/metal-ld
+            build.log
+            test-results/
+            metal-observed-manifest.json
+            metallib-output/
+          if-no-files-found: warn
+          retention-days: 7
