@@ -2034,6 +2034,9 @@ void TextNodeDumper::VisitVectorType(const VectorType *T) {
   case VectorKind::RVVFixedLengthMask_4:
     OS << " fixed-length rvv mask vector";
     break;
+  case VectorKind::MetalPacked:
+    OS << " metal packed vector";
+    break;
   }
   OS << " " << T->getNumElements();
 }
