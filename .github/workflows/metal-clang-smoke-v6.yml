@@ -160,7 +160,11 @@ jobs:
 
       - name: Compile Apple Metal samples to metallib
         run: |
+          # Keep every frontend invocation and diagnostic as a CI artifact.
+          # Do not hide a compiler failure: its exit status remains the step result.
           set -euxo pipefail
+          mkdir -p test-results
+          exec > >(tee test-results/metallib-smoke.log) 2>&1
           CLANG="$PWD/build/bin/clang"
           METAL_AS="$PWD/build/bin/metal-as"
           METAL_LD="$PWD/build/bin/metal-ld"
@@ -197,12 +201,20 @@ jobs:
           echo "✓ metallib created successfully (no libmetal_rt_ios.a included - Xcode will link Metal.framework)"
           ls -lh metallib-output/
 
-      - name: Upload metallib artifact
+      - name: Upload compiler, metallib, and diagnostic artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: metallib-output
-          path: metallib-output/
-          retention-days: 1
+          name: metal-linux-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/bin/clang
+            build/bin/metal-as
+            build/bin/metal-ld
+            build.log
+            test-results/
+            metallib-output/
+          if-no-files-found: warn
+          retention-days: 7
 
   # Stage 2: Build iOS app on macOS
   build-ios-app:
