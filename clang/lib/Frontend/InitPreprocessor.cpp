@@ -591,11 +591,11 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("using metal::as_type;");
     Builder.append("using metal::access;");
     Builder.append("using metal::memory_order;");
-    Builder.append("using metal::vec;
-using metal::uchar;
-using metal::ushort;
-using metal::uint;
-using metal::ulong;");
+    Builder.append("using metal::vec;");
+    Builder.append("using metal::uchar;");
+    Builder.append("using metal::ushort;");
+    Builder.append("using metal::uint;");
+    Builder.append("using metal::ulong;");
 
 
     // Vector types
