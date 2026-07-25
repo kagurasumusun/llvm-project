@@ -177,6 +177,7 @@ jobs:
           echo "Compiling add.metal..."
           "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
             -I "$APPLE_METAL_INCLUDE" \
+            -include "$APPLE_METAL_INCLUDE/metal_types" \
             -emit-llvm-bc -o /tmp/add.bc \
             clang/test/AppleMetalSamples/PerformingCalculationsOnAGPU/add.metal
           
@@ -186,6 +187,7 @@ jobs:
           echo "Compiling AAPLShaders.metal..."
           "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
             -I "$APPLE_METAL_INCLUDE" \
+            -include "$APPLE_METAL_INCLUDE/metal_types" \
             -I clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives \
             -emit-llvm-bc -o /tmp/AAPLShaders.bc \
             clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaders.metal
