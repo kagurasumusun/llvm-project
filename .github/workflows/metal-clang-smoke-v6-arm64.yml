@@ -39,7 +39,7 @@ env:
   CCACHE_BASEDIR: ${{ github.workspace }}
   CCACHE_COMPRESS: "true"
   CCACHE_COMPRESSLEVEL: "6"
-  CCACHE_MAXSIZE: "4G"
+  CCACHE_MAXSIZE: "8G"
   CCACHE_NOHASHDIR: "true"
   CCACHE_SLOPPINESS: "pch_defines,time_macros,include_file_mtime,include_file_ctime"
 
@@ -122,7 +122,7 @@ jobs:
             -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
             -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG" \
             -DLLVM_ENABLE_PROJECTS=clang \
-            -DLLVM_TARGETS_TO_BUILD="X86" \
+            -DLLVM_TARGETS_TO_BUILD="AArch64" \
             -DCMAKE_BUILD_TYPE="${{ inputs.build_type }}" \
             -DLLVM_USE_LINKER=lld \
             -DLLVM_PARALLEL_LINK_JOBS=1 \
@@ -144,7 +144,11 @@ jobs:
             -DLLVM_ENABLE_TERMINFO=OFF \
             -DLLVM_ENABLE_LIBXML2=OFF \
             -DCLANG_ENABLE_ARCMT=OFF \
-            -DCLANG_ENABLE_STATIC_ANALYZER=OFF
+            -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
+            -DCLANG_ENABLE_HLSL=OFF \
+            -DLLVM_INCLUDE_UTILS=OFF \
+            -DLLVM_APPEND_VC_REV=OFF \
+            -DLLVM_BUILD_32_BITS=OFF
 
       - name: Build clang with Metal support
         run: |
