@@ -1035,7 +1035,8 @@ public:
   /// Subclasses may override this routine to provide different behavior.
   QualType RebuildDependentSizedExtVectorType(QualType ElementType,
                                               Expr *SizeExpr,
-                                              SourceLocation AttributeLoc);
+                                              SourceLocation AttributeLoc,
+                                              bool IsMetalPacked = false);
 
   /// Build a new matrix type given the element type and dimensions.
   QualType RebuildConstantMatrixType(QualType ElementType, unsigned NumRows,
@@ -6102,9 +6103,8 @@ QualType TreeTransform<Derived>::TransformDependentSizedExtVectorType(
   if (getDerived().AlwaysRebuild() ||
       ElementType != T->getElementType() ||
       Size.get() != T->getSizeExpr()) {
-    Result = getDerived().RebuildDependentSizedExtVectorType(ElementType,
-                                                             Size.get(),
-                                                         T->getAttributeLoc());
+    Result = getDerived().RebuildDependentSizedExtVectorType(
+        ElementType, Size.get(), T->getAttributeLoc(), T->isMetalPacked());
     if (Result.isNull())
       return QualType();
   }
@@ -17513,10 +17513,11 @@ QualType TreeTransform<Derived>::RebuildExtVectorType(QualType ElementType,
 
 template<typename Derived>
 QualType
-TreeTransform<Derived>::RebuildDependentSizedExtVectorType(QualType ElementType,
-                                                           Expr *SizeExpr,
-                                                  SourceLocation AttributeLoc) {
-  return SemaRef.BuildExtVectorType(ElementType, SizeExpr, AttributeLoc);
+TreeTransform<Derived>::RebuildDependentSizedExtVectorType(
+    QualType ElementType, Expr *SizeExpr, SourceLocation AttributeLoc,
+    bool IsMetalPacked) {
+  return SemaRef.BuildExtVectorType(ElementType, SizeExpr, AttributeLoc,
+                                    IsMetalPacked);
 }
 
 template <typename Derived>
