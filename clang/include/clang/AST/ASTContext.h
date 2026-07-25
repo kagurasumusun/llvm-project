@@ -1771,7 +1771,8 @@ public:
   /// of the specified element type and size.
   ///
   /// \pre \p VectorType must be a built-in type.
-  QualType getExtVectorType(QualType VectorType, unsigned NumElts) const;
+  QualType getExtVectorType(QualType VectorType, unsigned NumElts,
+                            bool IsMetalPacked = false) const;
 
   /// \pre Return a non-unique reference to the type for a dependently-sized
   /// vector of the specified element type.
