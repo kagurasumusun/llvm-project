@@ -207,6 +207,14 @@ jobs:
           echo "✓ metallib created successfully (no libmetal_rt_ios.a included - Xcode will link Metal.framework)"
           ls -lh metallib-output/
 
+      - name: Upload metallib as a dedicated artifact for the macOS stage
+        uses: actions/upload-artifact@v4
+        with:
+          name: metallib-output
+          path: metallib-output/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload compiler, metallib, and diagnostic artifacts
         if: always()
         uses: actions/upload-artifact@v4
