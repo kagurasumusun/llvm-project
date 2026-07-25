@@ -1240,6 +1240,15 @@ Parser::isCXXDeclarationSpecifier(ImplicitTypenameContext AllowImplicitTypename,
   case tok::kw_inout:
   case tok::kw_out:
 
+    // Metal Shading Language address-space qualifiers.  These MUST be
+    // recognised here as declaration-specifiers so that C++ template
+    // argument disambiguation (``isCXXDeclarationSpecifier``) does not fall
+    // into the expression path when it sees, for example,
+    // ``remove_reference<threadgroup_imageblock T &>``.
+  case tok::kw_ray_data:
+  case tok::kw_object_data:
+  case tok::kw_threadgroup_imageblock:
+
     // GNU
   case tok::kw_restrict:
   case tok::kw__Complex:
