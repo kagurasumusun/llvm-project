@@ -2402,7 +2402,8 @@ QualType Sema::BuildVectorType(QualType CurType, Expr *SizeExpr,
 }
 
 QualType Sema::BuildExtVectorType(QualType T, Expr *SizeExpr,
-                                  SourceLocation AttrLoc) {
+                                  SourceLocation AttrLoc,
+                                  bool IsMetalPacked) {
   // Unlike gcc's vector_size attribute, we do not allow vectors to be defined
   // in conjunction with complex types (pointers, arrays, functions, etc.).
   //
@@ -2424,12 +2425,15 @@ QualType Sema::BuildExtVectorType(QualType T, Expr *SizeExpr,
       BIT && CheckBitIntElementType(*this, AttrLoc, BIT))
     return QualType();
 
+  const char *AttrName =
+      IsMetalPacked ? "packed_vector_type" : "ext_vector_type";
+
   if (!SizeExpr->isTypeDependent() && !SizeExpr->isValueDependent()) {
     std::optional<llvm::APSInt> VecSize =
         SizeExpr->getIntegerConstantExpr(Context);
     if (!VecSize) {
       Diag(AttrLoc, diag::err_attribute_argument_type)
-          << "ext_vector_type" << AANT_ArgumentIntegerConstant
+          << AttrName << AANT_ArgumentIntegerConstant
           << SizeExpr->getSourceRange();
       return QualType();
     }
@@ -2454,9 +2458,13 @@ QualType Sema::BuildExtVectorType(QualType T, Expr *SizeExpr,
       return QualType();
     }
 
-    return Context.getExtVectorType(T, VectorSize);
+    return Context.getExtVectorType(T, VectorSize, IsMetalPacked);
   }
 
+  // A dependent-sized ext_vector_type never survives to template
+  // instantiation with different packing, so we always create the ordinary
+  // dependent-sized form; the packed vs. unpacked discrimination will happen
+  // when the type is later substituted.
   return Context.getDependentSizedExtVectorType(T, SizeExpr, AttrLoc);
 }
 
@@ -8361,7 +8369,15 @@ static void HandlePackedVectorTypeAttr(QualType &CurType,
   }
 
   Expr *SizeExpr = Attr.getArgAsExpr(0);
-  QualType T = S.BuildExtVectorType(CurType, SizeExpr, Attr.getLoc());
+  // Pass IsMetalPacked=true so BuildExtVectorType / getExtVectorType create
+  // a distinct ``VectorKind::MetalPacked`` node, ensuring that
+  // ``T __attribute__((ext_vector_type(N)))`` and
+  // ``T __attribute__((packed_vector_type(N)))`` are two different
+  // canonical types for the C++ template machinery -- required by
+  // Apple's ``metal_type_traits`` header which partial-specialises the
+  // same trait on both variants.
+  QualType T = S.BuildExtVectorType(CurType, SizeExpr, Attr.getLoc(),
+                                    /*IsMetalPacked=*/true);
   if (!T.isNull())
     CurType = T;
 }
