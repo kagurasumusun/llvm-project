@@ -2240,14 +2240,16 @@ def MetalObjectDataAddressSpace : TypeAttr {
 //   packed_vector_type(N)   x 16
 //   __packed_vector_type__(2|3|4|8|16)  x 13 each
 def MetalPackedVectorType : TypeAttr {
-  let Spellings = [GNU<"packed_vector_type">,
-                   GNU<"__packed_vector_type__">,
-                   Clang<"packed_vector_type">,
-                   Clang<"__packed_vector_type__">];
+  // GCC<> auto-generates the ``__packed_vector_type__`` double-underscore
+  // synonym in addition to the bare ``packed_vector_type`` spelling, which
+  // is exactly the pair Apple's ``<metal_packed_vector>`` header uses.
+  //
+  // Structurally identical to ExtVectorType; SemaType routes both attributes
+  // through BuildExtVectorType.  A dedicated ``PackedVectorType`` AST node
+  // that also records the packed alignment is future work.
+  let Spellings = [GCC<"packed_vector_type">];
   let Args = [ExprArgument<"NumElements">];
   let Documentation = [MetalPackedVectorTypeDocs];
-  // Handled directly by SemaType (parallel to ExtVectorType).
-  let ASTNode = 0;
 }
 
 def Deprecated : InheritableAttr {
