@@ -8737,6 +8737,61 @@ The full documentation is available here: https://learn.microsoft.com/en-us/wind
   }];
 }
 
+def MetalThreadgroupImageblockAddressSpaceDocs : Documentation {
+  let Category = DocCatVariable;
+  let Content = [{
+``threadgroup_imageblock T`` is a Metal Shading Language address-space
+qualifier that places ``T`` inside the on-tile image-block memory shared by a
+threadgroup.  It is distinct from ``threadgroup T`` even though both live in
+tile memory, because Apple's ``metal_stdlib`` partial-specializes standard
+templates such as ``remove_reference`` on the qualifier itself and must be
+able to tell the two apart at the type-system level.
+
+At AIR lowering time the qualifier maps to numeric address space ``4``.
+  }];
+}
+
+def MetalRayDataAddressSpaceDocs : Documentation {
+  let Category = DocCatVariable;
+  let Content = [{
+``ray_data T`` marks a payload stored on the ray-tracing pipeline stack (BVH
+intersection results, custom payloads passed between intersection and
+closest-hit functions, ...).  Distinct ``LangAS`` value so that the Metal
+stdlib can partial-specialize on it independently of ``device`` / ``constant``
+/ ``threadgroup``.
+
+At AIR lowering time the qualifier maps to numeric address space ``9``.
+  }];
+}
+
+def MetalObjectDataAddressSpaceDocs : Documentation {
+  let Category = DocCatVariable;
+  let Content = [{
+``object_data T`` marks a payload passed between an object shader and a mesh
+shader.  Distinct ``LangAS`` value so that the Metal stdlib can
+partial-specialize on it independently.
+
+At AIR lowering time the qualifier maps to numeric address space ``9``
+(the same class as ``ray_data``; the two are still separate ``LangAS`` values
+for template dispatch purposes).
+  }];
+}
+
+def MetalPackedVectorTypeDocs : Documentation {
+  let Category = DocCatType;
+  let Content = [{
+``__attribute__((packed_vector_type(N)))`` and its ``__packed_vector_type__``
+synonym declare a Metal packed vector: an ``N``-element vector type whose
+storage size is exactly ``N * sizeof(T)`` and whose alignment is
+``alignof(T)`` (not ``N * sizeof(T)`` as with
+``__attribute__((ext_vector_type(N)))``).
+
+This mirrors the ``packed_floatN`` / ``packed_intN`` / ... typedefs defined
+in Apple's ``<metal_packed_vector>`` header.  Element access uses the same
+swizzling syntax as ``ext_vector_type``.
+  }];
+}
+
 def HLSLGroupSharedAddressSpaceDocs : Documentation {
   let Category = DocCatVariable;
   let Content = [{

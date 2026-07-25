@@ -67,6 +67,23 @@ enum class LangAS : unsigned {
   // Wasm specific address spaces.
   wasm_funcref,
 
+  // Metal Shading Language specific address spaces.
+  //
+  // Only address spaces that Apple's Metal standard library uses as
+  // *distinct C++ template arguments* are modelled here.  The classical Metal
+  // qualifiers ``device`` / ``constant`` / ``threadgroup`` / ``thread`` reuse
+  // the corresponding OpenCL address spaces because they map to the exact same
+  // AIR numeric address space (as1 / as2 / as3 / as0) and the Metal stdlib
+  // never partial-specializes a template on those qualifiers alone.  The
+  // three qualifiers below, however, MUST be independent LangAS values, since
+  // ``metal_type_traits`` / ``metal_uniform`` / ``metal_atomic`` distinguish
+  // ``ray_data T &``, ``object_data T &`` and ``threadgroup_imageblock T &``
+  // as separate template specializations of ``remove_reference`` /
+  // ``operator?=`` / ... etc.
+  metal_ray_data,
+  metal_object_data,
+  metal_threadgroup_imageblock,
+
   // This denotes the count of language-specific address spaces and also
   // the offset added to the target-specific address spaces, which are usually
   // specified by address space attributes __attribute__(address_space(n))).

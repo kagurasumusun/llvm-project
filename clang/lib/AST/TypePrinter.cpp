@@ -2662,6 +2662,12 @@ std::string Qualifiers::getAddrSpaceAsString(LangAS AS) {
     return "hlsl_push_constant";
   case LangAS::wasm_funcref:
     return "__funcref";
+  case LangAS::metal_ray_data:
+    return "ray_data";
+  case LangAS::metal_object_data:
+    return "object_data";
+  case LangAS::metal_threadgroup_imageblock:
+    return "threadgroup_imageblock";
   default:
     return std::to_string(toTargetAddressSpace(AS));
   }

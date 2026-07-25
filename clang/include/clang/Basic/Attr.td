@@ -2188,6 +2188,68 @@ def OpenCLNoSVM : Attr {
   let ASTNode = 0;
 }
 
+// -----------------------------------------------------------------------------
+// Metal Shading Language address-space qualifiers.
+//
+// These attributes are the "type-attribute" side of the Metal address-space
+// keywords declared in ``TokenKinds.def``.  They intentionally do NOT alias
+// the OpenCL address-space attributes because Apple's ``metal_stdlib``
+// partial-specializes standard templates on the address-space qualifier
+// itself, e.g.
+//
+//     template <class T> struct remove_reference<threadgroup_imageblock T&>
+//     template <class T> struct remove_reference<ray_data              T&>
+//     template <class T> struct remove_reference<object_data           T&>
+//
+// If the three qualifiers collapsed onto ``opencl_global`` / ``opencl_local``
+// Clang would report a "redefinition of 'remove_reference<T &>'" for each of
+// them.  Keeping them as distinct ``LangAS`` values lets the C++ template
+// machinery discriminate the specializations.
+//
+// The lowering to concrete AIR numeric address spaces
+// (``ray_data``/``object_data`` -> as9, ``threadgroup_imageblock`` -> as4) is
+// done inside ``AIRTargetInfo`` via ``AIRAddrSpaceMap``.
+// -----------------------------------------------------------------------------
+def MetalThreadgroupImageblockAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"threadgroup_imageblock">];
+  let Documentation = [MetalThreadgroupImageblockAddressSpaceDocs];
+}
+
+def MetalRayDataAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"ray_data">];
+  let Documentation = [MetalRayDataAddressSpaceDocs];
+}
+
+def MetalObjectDataAddressSpace : TypeAttr {
+  let Spellings = [CustomKeyword<"object_data">];
+  let Documentation = [MetalObjectDataAddressSpaceDocs];
+}
+
+// Metal packed-vector attribute.
+//
+// Metal's stdlib uses ``__attribute__((packed_vector_type(N)))`` and its
+// ``__packed_vector_type__`` synonym on typedef declarations to produce
+// tightly packed vector aggregates (``packed_float3``, ``packed_uchar4`` ...).
+// These types behave like ``ext_vector_type(N)`` for element access but with
+// alignment equal to the element type -- not the whole vector -- so that
+// three-element packed vectors have ``sizeof == 3*sizeof(T)``.
+//
+// Every spelling variant observed in the Apple metal_stdlib headers is
+// enumerated in ``research/datasets/header_attributes.csv`` inside the
+// ``kagurasumusun/metal-info`` reference repository:
+//   packed_vector_type(N)   x 16
+//   __packed_vector_type__(2|3|4|8|16)  x 13 each
+def MetalPackedVectorType : TypeAttr {
+  let Spellings = [GNU<"packed_vector_type">,
+                   GNU<"__packed_vector_type__">,
+                   Clang<"packed_vector_type">,
+                   Clang<"__packed_vector_type__">];
+  let Args = [ExprArgument<"NumElements">];
+  let Documentation = [MetalPackedVectorTypeDocs];
+  // Handled directly by SemaType (parallel to ExtVectorType).
+  let ASTNode = 0;
+}
+
 def Deprecated : InheritableAttr {
   let Spellings = [GCC<"deprecated">, Declspec<"deprecated">,
                    CXX11<"","deprecated", 201309>,

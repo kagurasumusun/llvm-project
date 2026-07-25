@@ -645,11 +645,18 @@ ALIAS("generic", __generic          , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("device", __global            , KEYMETAL)
 ALIAS("threadgroup", __local        , KEYMETAL)
 ALIAS("thread", __private           , KEYMETAL)
-// Metal 3 stdlib qualifiers.  These are parsed through the existing OpenCL
-// address-space path until their distinct AIR address-space lowering is added.
-ALIAS("threadgroup_imageblock", __local, KEYMETAL)
-ALIAS("ray_data", __global           , KEYMETAL)
-ALIAS("object_data", __global        , KEYMETAL)
+// Metal 3 stdlib address-space qualifiers.
+//
+// These MUST be independent keywords (not ALIASes of the OpenCL address-space
+// keywords) because Apple's metal_stdlib partial-specializes standard
+// templates such as ``remove_reference<threadgroup_imageblock T &>``,
+// ``remove_reference<ray_data T &>`` and ``remove_reference<object_data T &>``.
+// If the three names were aliased onto a single OpenCL address space Clang
+// would see the three specializations as redefinitions of the same primary
+// template and fail with "redefinition of 'remove_reference<T &>'".
+KEYWORD(threadgroup_imageblock      , KEYMETAL)
+KEYWORD(ray_data                    , KEYMETAL)
+KEYWORD(object_data                 , KEYMETAL)
 // OpenCL / Metal function qualifiers
 KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)

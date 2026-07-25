@@ -102,6 +102,20 @@ bool Qualifiers::isTargetAddressSpaceSupersetOf(LangAS A, LangAS B,
          (A == LangAS::Default && B == LangAS::hlsl_device) ||
          (A == LangAS::Default && B == LangAS::hlsl_input) ||
          (A == LangAS::Default && B == LangAS::hlsl_push_constant) ||
+         // Metal Shading Language: the three Metal address spaces
+         // (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) are
+         // distinct types for template partial-specialization purposes, but
+         // Apple's stdlib freely converts them to and from the default
+         // address space when copying payloads into/out of thread-local
+         // variables (e.g. ``T u = *ray_data_ptr;``).  Allow such implicit
+         // conversions in both directions here so those idioms compile.
+         (A == LangAS::Default && (B == LangAS::metal_ray_data ||
+                                   B == LangAS::metal_object_data ||
+                                   B == LangAS::metal_threadgroup_imageblock)) ||
+         ((A == LangAS::metal_ray_data ||
+           A == LangAS::metal_object_data ||
+           A == LangAS::metal_threadgroup_imageblock) &&
+          B == LangAS::Default) ||
          // Conversions from target specific address spaces may be legal
          // depending on the target information.
          Ctx.getTargetInfo().isAddressSpaceSupersetOf(A, B);

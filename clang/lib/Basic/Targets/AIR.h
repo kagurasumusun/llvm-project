@@ -52,6 +52,15 @@ static const unsigned AIRAddrSpaceMap[] = {
     0,  // hlsl_input
     2,  // hlsl_push_constant
     20, // wasm_funcref
+    // AIR-specific Metal address spaces (verified against Apple golden IR in
+    // metal-info / research/spec/TYPE_LAYOUT_MAP.md and
+    // METAL_TARGETINFO_IMPL_MAP.md):
+    //   ray_data              -> as9 (`%struct._intersection_result_t addrspace(9)*`)
+    //   object_data           -> as9 (Apple groups them together with ray_data)
+    //   threadgroup_imageblock-> as4 (`%struct._imageblock_t addrspace(4)*`)
+    9, // metal_ray_data
+    9, // metal_object_data
+    4, // metal_threadgroup_imageblock
 };
 
 class LLVM_LIBRARY_VISIBILITY AIRTargetInfo : public TargetInfo {

@@ -1060,6 +1060,18 @@ void Parser::ParseMetalFunctionAttributes(ParsedAttributes &Attrs) {
   }
 }
 
+/// Consume a single Metal address-space qualifier keyword
+/// (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) and turn
+/// it into the matching ``TypeAttr`` on ``Attrs``.  ``SemaType`` then
+/// converts the attribute into a ``Qualifiers::AddressSpace`` on the
+/// enclosing type.
+void Parser::ParseMetalAddressSpaceQualifier(ParsedAttributes &Attrs) {
+  IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+  auto Kind = Tok.getKind();
+  SourceLocation AttrNameLoc = ConsumeToken();
+  Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr, 0, Kind);
+}
+
 void Parser::ParseCUDAFunctionAttributes(ParsedAttributes &attrs) {
   while (Tok.is(tok::kw___noinline__)) {
     IdentifierInfo *AttrName = Tok.getIdentifierInfo();
@@ -4607,6 +4619,18 @@ void Parser::ParseDeclarationSpecifiers(
       ParseOpenCLQualifiers(DS.getAttributes());
       break;
 
+    // Metal Shading Language address-space keywords that are *not* handled by
+    // the OpenCL fallback because they map to independent ``LangAS`` values.
+    // NOTE: ``device`` / ``constant`` / ``threadgroup`` / ``thread`` are
+    // aliases of the OpenCL keywords above (see ``TokenKinds.def``) and reach
+    // ``ParseOpenCLQualifiers`` through the tokens ``__global`` / ``__local``
+    // / ``__constant`` / ``__private``.
+    case tok::kw_ray_data:
+    case tok::kw_object_data:
+    case tok::kw_threadgroup_imageblock:
+      ParseMetalAddressSpaceQualifier(DS.getAttributes());
+      continue;
+
     case tok::kw_groupshared:
     case tok::kw_in:
     case tok::kw_inout:
@@ -5714,6 +5738,12 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw_private:
     return getLangOpts().OpenCL;
 
+  // Metal Shading Language address-space qualifier keywords.
+  case tok::kw_ray_data:
+  case tok::kw_object_data:
+  case tok::kw_threadgroup_imageblock:
+    return getLangOpts().Metal;
+
   // C11 _Atomic
   case tok::kw__Atomic:
     return true;
@@ -6009,6 +6039,12 @@ bool Parser::isDeclarationSpecifier(
 
   case tok::kw_private:
     return getLangOpts().OpenCL;
+
+  // Metal address-space keywords.
+  case tok::kw_ray_data:
+  case tok::kw_object_data:
+  case tok::kw_threadgroup_imageblock:
+    return getLangOpts().Metal;
   }
 }
 
@@ -6223,6 +6259,14 @@ void Parser::ParseTypeQualifierListOpt(
     case tok::kw___write_only:
     case tok::kw___read_write:
       ParseOpenCLQualifiers(DS.getAttributes());
+      break;
+
+    // Metal Shading Language address-space keywords in a
+    // pointer/reference qualifier position, e.g. ``int * ray_data p``.
+    case tok::kw_ray_data:
+    case tok::kw_object_data:
+    case tok::kw_threadgroup_imageblock:
+      ParseMetalAddressSpaceQualifier(DS.getAttributes());
       break;
 
     case tok::kw_groupshared:

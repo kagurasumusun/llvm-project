@@ -6634,6 +6634,16 @@ static void HandleAddressSpaceTypeAttribute(QualType &Type,
     if (S.getLangOpts().HLSL)
       ASIdx = Attr.asHLSLLangAS();
 
+    // Metal Shading Language address-space keywords
+    // (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) are
+    // distinct from every other language's keywords and therefore only need
+    // to be consulted if the previous language-specific mappings did not
+    // recognise the attribute.  ``device`` / ``constant`` / ``threadgroup``
+    // / ``thread`` still fall through the OpenCL path above because those
+    // Metal qualifiers share their OpenCL counterparts' ``LangAS``.
+    if (ASIdx == LangAS::Default && S.getLangOpts().Metal)
+      ASIdx = Attr.asMetalLangAS();
+
     if (ASIdx == LangAS::Default)
       llvm_unreachable("Invalid address space");
 
@@ -8325,6 +8335,37 @@ static void HandleExtVectorTypeAttr(QualType &CurType, const ParsedAttr &Attr,
     CurType = T;
 }
 
+/// Process the Metal ``packed_vector_type(N)`` /
+/// ``__packed_vector_type__(N)`` attribute.  Semantically this behaves as
+/// ``ext_vector_type(N)`` -- element access, dependent-size handling, and
+/// so on are identical -- but the resulting aggregate is *tightly packed*:
+/// ``sizeof(packed_vec) == N * sizeof(T)`` and
+/// ``alignof(packed_vec) == alignof(T)``, whereas
+/// ``ext_vector_type(3)`` is padded to the alignment of an
+/// ``ext_vector_type(4)``.
+///
+/// Clang's ``ExtVectorType`` node does not carry a "packed" bit yet; the
+/// alignment overrides that Apple's headers expect are provided by a
+/// companion ``__attribute__((aligned(alignof(T))))`` (or equivalent) on the
+/// typedef declaration.  What matters for compiling ``metal_stdlib`` is that
+/// the attribute is *recognised* and does not fall through to
+/// ``-Wunknown-attributes`` -- otherwise the packed_XXX typedefs collapse
+/// onto their unpacked counterparts and every subsequent use of them is a
+/// redefinition error.
+static void HandlePackedVectorTypeAttr(QualType &CurType,
+                                       const ParsedAttr &Attr, Sema &S) {
+  if (Attr.getNumArgs() != 1) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments)
+        << Attr << 1;
+    return;
+  }
+
+  Expr *SizeExpr = Attr.getArgAsExpr(0);
+  QualType T = S.BuildExtVectorType(CurType, SizeExpr, Attr.getLoc());
+  if (!T.isNull())
+    CurType = T;
+}
+
 static bool isPermittedNeonBaseType(QualType &Ty, VectorKind VecKind, Sema &S) {
   const BuiltinType *BTy = Ty->getAs<BuiltinType>();
   if (!BTy)
@@ -8921,8 +8962,15 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     case ParsedAttr::AT_OpenCLConstantAddressSpace:
     case ParsedAttr::AT_OpenCLGenericAddressSpace:
     case ParsedAttr::AT_HLSLGroupSharedAddressSpace:
+    case ParsedAttr::AT_MetalRayDataAddressSpace:
+    case ParsedAttr::AT_MetalObjectDataAddressSpace:
+    case ParsedAttr::AT_MetalThreadgroupImageblockAddressSpace:
     case ParsedAttr::AT_AddressSpace:
       HandleAddressSpaceTypeAttribute(type, attr, state);
+      attr.setUsedAsTypeAttr();
+      break;
+    case ParsedAttr::AT_MetalPackedVectorType:
+      HandlePackedVectorTypeAttr(type, attr, state.getSema());
       attr.setUsedAsTypeAttr();
       break;
     OBJC_POINTER_TYPE_ATTRS_CASELIST:

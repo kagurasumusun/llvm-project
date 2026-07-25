@@ -607,6 +607,26 @@ public:
     }
   }
 
+  /// If this is a Metal Shading Language address-space attribute, returns
+  /// its representation in ``LangAS``.  Otherwise returns
+  /// ``LangAS::Default``.
+  ///
+  /// See ``AddressSpaces.h`` for why these three Metal qualifiers are
+  /// modelled as independent ``LangAS`` values instead of aliasing onto the
+  /// existing OpenCL address spaces.
+  LangAS asMetalLangAS() const {
+    switch (getParsedKind()) {
+    case ParsedAttr::AT_MetalRayDataAddressSpace:
+      return LangAS::metal_ray_data;
+    case ParsedAttr::AT_MetalObjectDataAddressSpace:
+      return LangAS::metal_object_data;
+    case ParsedAttr::AT_MetalThreadgroupImageblockAddressSpace:
+      return LangAS::metal_threadgroup_imageblock;
+    default:
+      return LangAS::Default;
+    }
+  }
+
   AttributeCommonInfo::Kind getKind() const {
     return AttributeCommonInfo::Kind(Info.AttrKind);
   }

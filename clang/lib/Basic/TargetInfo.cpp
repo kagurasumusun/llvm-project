@@ -54,6 +54,9 @@ static const LangASMap FakeAddrSpaceMap = {
     17, // hlsl_input
     18, // hlsl_push_constant
     20, // wasm_funcref
+    21, // metal_ray_data
+    22, // metal_object_data
+    23, // metal_threadgroup_imageblock
 };
 
 // TargetInfo Constructor.

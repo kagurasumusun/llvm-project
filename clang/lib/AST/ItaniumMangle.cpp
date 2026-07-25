@@ -2811,6 +2811,17 @@ void CXXNameMangler::mangleQualifiers(Qualifiers Quals, const DependentAddressSp
       case LangAS::ptr64:
         ASString = "ptr64";
         break;
+      //  <Metal-addrspace> ::= "AIR" [ "ray_data" | "object_data" |
+      //                                "imageblock" ]
+      case LangAS::metal_ray_data:
+        ASString = "AIRray_data";
+        break;
+      case LangAS::metal_object_data:
+        ASString = "AIRobject_data";
+        break;
+      case LangAS::metal_threadgroup_imageblock:
+        ASString = "AIRimageblock";
+        break;
       }
     }
     if (!ASString.empty())
