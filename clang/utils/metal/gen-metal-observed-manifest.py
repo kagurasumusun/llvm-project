@@ -11,9 +11,10 @@ import argparse, json, re
 from collections import defaultdict
 from pathlib import Path
 
-BUILTIN = re.compile(r"^__metal_[A-Za-z0-9_]+$")
+BUILTIN_NAME = re.compile(r"^__metal_[A-Za-z0-9_]+$")
+BUILTIN_REF = re.compile(r"\b(__metal_[A-Za-z0-9_]+)\b")
 ADDR = re.compile(r"\b(thread|device|constant|threadgroup|threadgroup_imageblock|ray_data|object_data)\b")
-FEATURE = re.compile(r"^\s*#\s*define\s+(__HAVE_[A-Z0-9_]+__|__METAL_[A-Z0-9_]+__)\b(?:\s+(.*))?$")
+FEATURE = re.compile(r"^\s*#\s*define\s+(__HAVE_[A-Z0-9_]+__|__METAL_[A-Z0-9_]+__)\b(?:\s+(.*))?$", re.MULTILINE)
 
 def walk(node):
     if isinstance(node, dict):
@@ -27,7 +28,7 @@ def typ(node):
 def function_rows(doc, origin):
     rows = []
     for node in walk(doc):
-        if node.get("kind") != "FunctionDecl" or not BUILTIN.match(node.get("name", "")):
+        if node.get("kind") != "FunctionDecl" or not BUILTIN_NAME.match(node.get("name", "")):
             continue
         params = [typ(x) for x in node.get("inner", []) if x.get("kind") == "ParmVarDecl"]
         row = {"name": node["name"], "type": typ(node), "parameters": params, "origin": origin}
@@ -40,7 +41,7 @@ def header_data(root):
         if not path.is_file() or path.name == "module.modulemap":
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
-        names.update(BUILTIN.findall(text))
+        names.update(BUILTIN_REF.findall(text))
         address_spaces.update(ADDR.findall(text))
         for match in FEATURE.finditer(text):
             features.setdefault(match.group(1), match.group(2) or "1")
