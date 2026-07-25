@@ -106,7 +106,7 @@ RValue CodeGenFunction::EmitMetalBuiltinExpr(const CallExpr *E,
     Args.push_back(EmitScalarExpr(Arg));
   }
 
-  SmallVector<Type *, 8> ArgTypes;
+  SmallVector<llvm::Type *, 8> ArgTypes;
   for (Value *Arg : Args) {
     ArgTypes.push_back(Arg->getType());
   }
