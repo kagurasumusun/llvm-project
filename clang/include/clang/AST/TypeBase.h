@@ -4165,7 +4165,18 @@ enum class VectorKind {
 
   RVVFixedLengthMask_1,
   RVVFixedLengthMask_2,
-  RVVFixedLengthMask_4
+  RVVFixedLengthMask_4,
+
+  /// Metal Shading Language ``__attribute__((packed_vector_type(N)))``.
+  ///
+  /// Structurally identical to an ``ext_vector_type(N)`` for element
+  /// access and arithmetic, but stored tightly packed: no padding after
+  /// the last element (``sizeof(packed_vec) == N * sizeof(T)``) and the
+  /// aggregate is aligned only to ``alignof(T)``.  Distinct
+  /// ``VectorKind`` so that ``metal_type_traits`` can partial-specialize
+  /// templates on ``ext_vector_type`` and ``packed_vector_type``
+  /// independently without collapsing onto the same canonical type.
+  MetalPacked
 };
 
 /// Represents a GCC generic vector type. This type is created using
@@ -4268,11 +4279,21 @@ public:
 class ExtVectorType : public VectorType {
   friend class ASTContext; // ASTContext creates these.
 
-  ExtVectorType(QualType vecType, unsigned nElements, QualType canonType)
-      : VectorType(ExtVector, vecType, nElements, canonType,
-                   VectorKind::Generic) {}
+  ExtVectorType(QualType vecType, unsigned nElements, QualType canonType,
+                VectorKind vecKind = VectorKind::Generic)
+      : VectorType(ExtVector, vecType, nElements, canonType, vecKind) {}
 
 public:
+  /// True if this ``ExtVectorType`` was declared with Metal's
+  /// ``__attribute__((packed_vector_type(N)))`` rather than the ordinary
+  /// ``ext_vector_type(N)``.  The uniquing key already discriminates the
+  /// two through ``VectorKind`` so the C++ template machinery treats them
+  /// as different types; this helper just exposes that information to
+  /// printers and manglers.
+  bool isMetalPacked() const {
+    return getVectorKind() == VectorKind::MetalPacked;
+  }
+
   static int getPointAccessorIdx(char c) {
     switch (c) {
     default: return -1;
