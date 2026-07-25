@@ -11,8 +11,14 @@ import argparse
 import json
 import os
 from pathlib import Path
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
+
+
+MAX_RETRIES = 5
+RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def headers() -> dict[str, str]:
@@ -27,9 +33,32 @@ def headers() -> dict[str, str]:
     return h
 
 
+def _retry_urlopen(req, timeout: int, retries: int = MAX_RETRIES):
+    """Open URL with exponential backoff retry on transient errors."""
+    for attempt in range(retries + 1):
+        try:
+            return urllib.request.urlopen(req, timeout=timeout)
+        except urllib.error.HTTPError as e:
+            if e.code in RETRY_STATUS_CODES and attempt < retries:
+                wait = 2 ** attempt + 1
+                print(f"  retry {attempt + 1}/{retries} after {wait}s "
+                      f"(HTTP {e.code})")
+                time.sleep(wait)
+                continue
+            raise
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if attempt < retries:
+                wait = 2 ** attempt + 1
+                print(f"  retry {attempt + 1}/{retries} after {wait}s "
+                      f"({type(e).__name__}: {e})")
+                time.sleep(wait)
+                continue
+            raise
+
+
 def github_json(url: str):
     req = urllib.request.Request(url, headers=headers())
-    with urllib.request.urlopen(req, timeout=90) as fh:
+    with _retry_urlopen(req, timeout=90) as fh:
         return json.load(fh)
 
 
@@ -39,7 +68,7 @@ def download(url: str, out: Path) -> None:
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(req, timeout=120) as fh:
+    with _retry_urlopen(req, timeout=120) as fh:
         out.write_bytes(fh.read())
 
 
@@ -70,14 +99,16 @@ def main() -> None:
     if not selected:
         raise SystemExit(f"no files found under {prefixes}")
 
-    for path in sorted(selected):
+    total = len(selected)
+    for i, path in enumerate(sorted(selected), 1):
         rel = path[len(clang_root) + 1 :]
         raw = f"https://raw.githubusercontent.com/{owner}/{repo}/{urllib.parse.quote(args.ref)}/{urllib.parse.quote(path, safe='/')}"
+        print(f"  [{i}/{total}] {rel}")
         download(raw, args.output / "clang" / args.apple_clang_version / rel)
 
     include_dir = args.output / "clang" / args.apple_clang_version / "include" / "metal"
     runtime_dir = args.output / "clang" / args.apple_clang_version / "lib" / "darwin"
-    print(f"downloaded {len(selected)} file(s)")
+    print(f"downloaded {total} file(s)")
     print(f"METAL_INFO_APPLE_CLANG_RESOURCE={args.output / 'clang' / args.apple_clang_version}")
     print(f"METAL_INFO_APPLE_METAL_INCLUDE={include_dir}")
     if args.include_runtime:
