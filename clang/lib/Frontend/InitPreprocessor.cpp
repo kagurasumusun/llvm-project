@@ -501,14 +501,6 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("M_LN10_F", "2.302585092994045684018F");
 
     // Compiler builtins for half precision
-    Builder.append("extern \"C\" half __builtin_infh(void);");
-    Builder.append("extern \"C\" half __builtin_nanh(const char*);");
-    Builder.append("extern \"C\" half __builtin_nansh(const char*);");
-    Builder.append("extern \"C\" uint __metal_pack_unorm_rgb10a2(...);");
-    Builder.append("extern \"C\" ushort __metal_pack_unorm_rgb565(...);");
-    Builder.append("extern \"C\" uint __metal_pack_unorm4x8_srgb(...);");
-    Builder.append("extern \"C\" uint __metal_pack_unorm2x16(...);");
-    Builder.append("extern \"C\" uint __metal_pack_snorm2x16(...);");
 
     // Memory coherence builtins
     Builder.defineMacro("__memory_coherence", "0");
@@ -570,6 +562,11 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.append("template<typename T, int N> struct vec { T data[N]; };");
     // Basic type aliases
 
+    Builder.append("extern \"C\" uint __metal_pack_unorm_rgb10a2(...);");
+    Builder.append("extern \"C\" ushort __metal_pack_unorm_rgb565(...);");
+    Builder.append("extern \"C\" uint __metal_pack_unorm4x8_srgb(...);");
+    Builder.append("extern \"C\" uint __metal_pack_unorm2x16(...);");
+    Builder.append("extern \"C\" uint __metal_pack_snorm2x16(...);");
     Builder.append("} // namespace metal");
     Builder.append("using metal::is_same;");
     Builder.append("using metal::is_convertible;");
