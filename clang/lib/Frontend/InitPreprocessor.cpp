@@ -397,6 +397,193 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     else if (TI.getTriple().isOSDarwin())
       Builder.defineMacro("__METAL_IOS__");
 
+    // Metal function and internal macros
+    Builder.defineMacro("METAL_FUNC", "");
+    Builder.defineMacro("METAL_INTERNAL", "");
+
+    // Sampler address modes
+    Builder.defineMacro("__METAL_ADDRESS_CLAMP_TO_EDGE__", "0");
+    Builder.defineMacro("__METAL_ADDRESS_CLAMP_TO_ZERO__", "1");
+    Builder.defineMacro("__METAL_ADDRESS_REPEAT__", "2");
+    Builder.defineMacro("__METAL_ADDRESS_MIRRORED_REPEAT__", "3");
+    Builder.defineMacro("__METAL_ADDRESS_CLAMP_TO_BORDER__", "4");
+
+    // Sampler filter modes
+    Builder.defineMacro("__METAL_FILTER_NEAREST__", "0");
+    Builder.defineMacro("__METAL_FILTER_LINEAR__", "1");
+    Builder.defineMacro("__METAL_FILTER_BICUBIC__", "2");
+    Builder.defineMacro("__METAL_MAG_FILTER_NEAREST__", "0");
+    Builder.defineMacro("__METAL_MAG_FILTER_LINEAR__", "1");
+    Builder.defineMacro("__METAL_MAG_FILTER_BICUBIC__", "2");
+    Builder.defineMacro("__METAL_MIN_FILTER_NEAREST__", "0");
+    Builder.defineMacro("__METAL_MIN_FILTER_LINEAR__", "1");
+    Builder.defineMacro("__METAL_MIN_FILTER_BICUBIC__", "2");
+    Builder.defineMacro("__METAL_MIP_FILTER_NONE__", "0");
+    Builder.defineMacro("__METAL_MIP_FILTER_NEAREST__", "1");
+    Builder.defineMacro("__METAL_MIP_FILTER_LINEAR__", "2");
+
+    // Coordinate modes
+    Builder.defineMacro("__METAL_COORD_NORMALIZED__", "0");
+    Builder.defineMacro("__METAL_COORD_PIXEL__", "1");
+
+    // Compare functions
+    Builder.defineMacro("__METAL_COMPARE_FUNC_NEVER__", "0");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_LESS__", "1");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_EQUAL__", "2");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_LESS_EQUAL__", "3");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_GREATER__", "4");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_NOT_EQUAL__", "5");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_GREATER_EQUAL__", "6");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_ALWAYS__", "7");
+    Builder.defineMacro("__METAL_COMPARE_FUNC_NONE__", "0");
+
+    // Memory flags and scopes
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_NONE__", "0");
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_DEVICE__", "1");
+    Builder.defineMacro("__METAL_MEMORY_FLAGS_THREADGROUP__", "2");
+    Builder.defineMacro("__METAL_MEMORY_SCOPE_THREADGROUP__", "0");
+
+    // Math modes
+    Builder.defineMacro("__METAL_FAST_MATH__", "0");
+    Builder.defineMacro("__METAL_PRECISE_MATH__", "1");
+
+    // C standard library constants
+    Builder.defineMacro("CHAR_BIT", "8");
+    Builder.defineMacro("CHAR_MAX", "127");
+    Builder.defineMacro("CHAR_MIN", "(-128)");
+    Builder.defineMacro("SCHAR_MAX", "127");
+    Builder.defineMacro("SCHAR_MIN", "(-128)");
+    Builder.defineMacro("UCHAR_MAX", "255");
+    Builder.defineMacro("SHRT_MAX", "32767");
+    Builder.defineMacro("SHRT_MIN", "(-32768)");
+    Builder.defineMacro("USHRT_MAX", "65535");
+    Builder.defineMacro("INT_MAX", "2147483647");
+    Builder.defineMacro("INT_MIN", "(-2147483647-1)");
+    Builder.defineMacro("UINT_MAX", "4294967295U");
+    Builder.defineMacro("LONG_MAX", "9223372036854775807L");
+    Builder.defineMacro("LONG_MIN", "(-9223372036854775807L-1L)");
+    Builder.defineMacro("ULONG_MAX", "18446744073709551615UL");
+
+    // Float constants (IEEE 754 single precision)
+    Builder.defineMacro("FLT_RADIX", "2");
+    Builder.defineMacro("FLT_MANT_DIG", "24");
+    Builder.defineMacro("FLT_DIG", "6");
+    Builder.defineMacro("FLT_DECIMAL_DIG", "9");
+    Builder.defineMacro("FLT_MIN_EXP", "(-125)");
+    Builder.defineMacro("FLT_MIN_10_EXP", "(-37)");
+    Builder.defineMacro("FLT_MAX_EXP", "128");
+    Builder.defineMacro("FLT_MAX_10_EXP", "38");
+    Builder.defineMacro("FLT_MIN", "1.17549435e-38F");
+    Builder.defineMacro("FLT_MAX", "3.40282347e+38F");
+    Builder.defineMacro("FLT_EPSILON", "1.19209290e-07F");
+
+    // Half constants (IEEE 754 half precision)
+    Builder.defineMacro("HALF_RADIX", "2");
+    Builder.defineMacro("HALF_MANT_DIG", "11");
+    Builder.defineMacro("HALF_DIG", "3");
+    Builder.defineMacro("HALF_DECIMAL_DIG", "5");
+    Builder.defineMacro("HALF_MIN_EXP", "(-13)");
+    Builder.defineMacro("HALF_MIN_10_EXP", "(-4)");
+    Builder.defineMacro("HALF_MAX_EXP", "16");
+    Builder.defineMacro("HALF_MAX_10_EXP", "4");
+    Builder.defineMacro("HALF_MIN", "6.103515625e-05H");
+    Builder.defineMacro("HALF_MAX", "6.5504e+04H");
+    Builder.defineMacro("HALF_EPSILON", "9.765625e-04H");
+
+    // Math constants
+    Builder.defineMacro("M_LN2_F", "0.693147180559945309417F");
+    Builder.defineMacro("M_LN10_F", "2.302585092994045684018F");
+
+    // Compiler builtins for half precision
+    Builder.append("extern \"C\" half __builtin_infh(void);");
+    Builder.append("extern \"C\" half __builtin_nanh(const char*);");
+    Builder.append("extern \"C\" half __builtin_nansh(const char*);");
+
+    // Memory coherence builtins
+    Builder.defineMacro("__memory_coherence", "0");
+    Builder.defineMacro("__memory_coherence_threadgroup", "1");
+
+    // Type traits in metal namespace
+    Builder.append("namespace metal {");
+    Builder.append("template<typename T, typename U> struct is_same { static const constant bool value = false; };");
+    Builder.append("template<typename T> struct is_same<T, T> { static const constant bool value = true; };");
+    Builder.append("template<typename T, typename U> struct is_convertible { static const constant bool value = false; };");
+    Builder.append("template<typename T> struct is_convertible<T, T> { static const constant bool value = true; };");
+    Builder.append("template<typename T> struct is_floating_point { static const constant bool value = false; };");
+    Builder.append("template<> struct is_floating_point<half> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_floating_point<float> { static const constant bool value = true; };");
+    Builder.append("template<typename T> struct is_scalar { static const constant bool value = false; };");
+    Builder.append("template<> struct is_scalar<bool> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<char> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<uchar> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<short> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<ushort> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<int> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<uint> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<long> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<ulong> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<half> { static const constant bool value = true; };");
+    Builder.append("template<> struct is_scalar<float> { static const constant bool value = true; };");
+    Builder.append("template<bool B, typename T = void> struct enable_if {};");
+    Builder.append("template<typename T> struct enable_if<true, T> { typedef T type; };");
+    Builder.append("template<bool B, typename T = void> using enable_if_t = typename enable_if<B, T>::type;");
+    Builder.append("template<bool B, typename T, typename F> struct conditional { typedef T type; };");
+    Builder.append("template<typename T, typename F> struct conditional<false, T, F> { typedef F type; };");
+    Builder.append("template<bool B, typename T, typename F> using conditional_t = typename conditional<B, T, F>::type;");
+    Builder.append("template<typename T> struct remove_cv { typedef T type; };");
+    Builder.append("template<typename T> struct remove_cv<const T> { typedef T type; };");
+    Builder.append("template<typename T> struct remove_cv<volatile T> { typedef T type; };");
+    Builder.append("template<typename T> struct remove_cv<const volatile T> { typedef T type; };");
+    Builder.append("template<typename T> using remove_cv_t = typename remove_cv<T>::type;");
+    Builder.append("template<typename T> struct remove_reference { typedef T type; };");
+    Builder.append("template<typename T> struct remove_reference<T&> { typedef T type; };");
+    Builder.append("template<typename T> struct remove_reference<T&&> { typedef T type; };");
+    Builder.append("template<typename T> using remove_reference_t = typename remove_reference<T>::type;");
+    Builder.append("template<bool B> struct bool_constant { static const constant bool value = B; };");
+    Builder.append("template<typename...> struct _conjunction : bool_constant<true> {};");
+    Builder.append("template<typename B1> struct _conjunction<B1> : B1 {};");
+    Builder.append("template<typename B1, typename... Bn> struct _conjunction<B1, Bn...> : conditional_t<bool(B1::value), _conjunction<Bn...>, B1> {};");
+    Builder.append("template<typename T> struct make_scalar { typedef T type; };");
+    Builder.append("template<typename T> using make_scalar_t = typename make_scalar<T>::type;");
+    Builder.append("typedef ulong size_t;");
+    Builder.append("template<typename T> T as_type(typename make_scalar<T>::type x) { return reinterpret_cast<T>(x); }");
+    Builder.append("enum class access { read, write, read_write, sample };");
+    Builder.append("enum class memory_order { relaxed, acquire, release, acq_rel, seq_cst };");
+    Builder.append("template<typename T, int N> struct vec { T data[N]; };");
+    Builder.append("} // namespace metal");
+    Builder.append("using metal::is_same;");
+    Builder.append("using metal::is_convertible;");
+    Builder.append("using metal::is_floating_point;");
+    Builder.append("using metal::is_scalar;");
+    Builder.append("using metal::enable_if;");
+    Builder.append("using metal::enable_if_t;");
+    Builder.append("using metal::conditional;");
+    Builder.append("using metal::conditional_t;");
+    Builder.append("using metal::remove_cv;");
+    Builder.append("using metal::remove_cv_t;");
+    Builder.append("using metal::remove_reference;");
+    Builder.append("using metal::remove_reference_t;");
+    Builder.append("using metal::bool_constant;");
+    Builder.append("using metal::_conjunction;");
+    Builder.append("using metal::make_scalar;");
+    Builder.append("using metal::make_scalar_t;");
+    Builder.append("using metal::size_t;");
+    Builder.append("using metal::as_type;");
+    Builder.append("using metal::access;");
+    Builder.append("using metal::memory_order;");
+    Builder.append("using metal::vec;");
+
+    // Vector types
+    Builder.append("typedef bool bool2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef bool bool3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef bool bool4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef float float2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef float float3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef float float4 __attribute__((ext_vector_type(4)));");
+    Builder.append("typedef half half2 __attribute__((ext_vector_type(2)));");
+    Builder.append("typedef half half3 __attribute__((ext_vector_type(3)));");
+    Builder.append("typedef half half4 __attribute__((ext_vector_type(4)));");
+
     Builder.append("#ifndef __CLANG_METAL_PRELUDE_TYPES");
     Builder.append("#define __CLANG_METAL_PRELUDE_TYPES 1");
 #define METAL_AIR_TYPE(Name, CType, AIRName, AIRItaniumMangle)                     Builder.append("typedef " CType " " #Name ";");
