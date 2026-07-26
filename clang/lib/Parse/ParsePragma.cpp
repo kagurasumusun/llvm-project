@@ -95,6 +95,31 @@ struct PragmaOpenCLExtensionHandler : public PragmaHandler {
                     Token &FirstToken) override;
 };
 
+// Handler for ``#pragma METAL internals : enable / disable`` (Apple stdlib).
+//
+// The Metal-flavoured pragma is emitted by Apple's proprietary
+// metal_stdlib headers to bracket ``internal`` header regions where the
+// stdlib deliberately relaxes some MSL user-facing rules -- e.g. it
+// uses ``__fp16`` in parameter lists directly (bypassing the ``half``
+// wrapper), touches private members of sibling class templates via
+// friend declarations, or takes the address of raw ``__metal_*``
+// builtins.
+//
+// See kagurasumusun/metal-info reference-apple/clang/32023.883/include/
+// metal_types (lines 96 / 166) and metal_uniform (lines 10 / 1649) for
+// the real-source enable/disable pattern.
+//
+// We simply toggle LangOptions::MetalInternals; the actual
+// diagnostic-suppression predicates that consume this bit live in
+// SemaMSL.h helpers used from Sema*.cpp.  Doing the toggle inline in
+// LangOptions keeps the pragma parser to ~30 lines and avoids adding
+// any Sema.h class members that would collide on upstream rebase.
+struct PragmaMetalInternalsHandler : public PragmaHandler {
+  PragmaMetalInternalsHandler() : PragmaHandler("METAL") {}
+  void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
+                    Token &FirstToken) override;
+};
+
 
 struct PragmaFPContractHandler : public PragmaHandler {
   PragmaFPContractHandler() : PragmaHandler("FP_CONTRACT") {}
@@ -459,6 +484,13 @@ void Parser::initializePragmaHandlers() {
     PP.AddPragmaHandler("OPENCL", OpenCLExtensionHandler.get());
 
     PP.AddPragmaHandler("OPENCL", FPContractHandler.get());
+  }
+
+  if (getLangOpts().Metal) {
+    MetalInternalsHandler = std::make_unique<PragmaMetalInternalsHandler>();
+    // Note: PragmaHandler name is the pragma's *first* token ("METAL");
+    // the ``internals`` sub-namespace is parsed inside HandlePragma.
+    PP.AddPragmaHandler(MetalInternalsHandler.get());
   }
   if (getLangOpts().OpenMP)
     OpenMPHandler = std::make_unique<PragmaOpenMPHandler>();
@@ -2711,6 +2743,77 @@ void PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP,
   if (PP.getPPCallbacks())
     PP.getPPCallbacks()->PragmaOpenCLExtension(NameLoc, Ext,
                                                StateLoc, State);
+}
+
+/// Handle ``#pragma METAL internals : enable`` / ``... : disable`` toggling
+/// the ``LangOptions::MetalInternals`` bit consumed by SemaMSL::
+/// inInternalsMode.  The pragma comes from Apple's proprietary stdlib
+/// headers (metal-info: metal_types line 96/166, metal_uniform line
+/// 10/1649).  Malformed pragmas produce a warning and are otherwise
+/// no-ops so user code that types ``#pragma METAL something-else`` never
+/// hard-errors.
+void PragmaMetalInternalsHandler::HandlePragma(Preprocessor &PP,
+                                               PragmaIntroducer Introducer,
+                                               Token &FirstToken) {
+  // Expect: ``internals : enable`` or ``internals : disable`` (with
+  // optional whitespace).  ``fp`` / ``osx_metal`` / other Apple pragmas
+  // are ignored (silently accepted so their body of tokens is skipped).
+  Token Tok;
+  PP.LexUnexpandedToken(Tok);
+  if (Tok.isNot(tok::identifier)) {
+    PP.DiscardUntilEndOfDirective();
+    return;
+  }
+  IdentifierInfo *Kind = Tok.getIdentifierInfo();
+  if (!Kind->isStr("internals")) {
+    // Not the sub-pragma we care about (e.g. ``#pragma METAL fp
+    // math_mode(safe)``).  Consume the rest of the directive so we
+    // don't warn on it.
+    PP.DiscardUntilEndOfDirective();
+    return;
+  }
+
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::colon)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_colon)
+        << "METAL internals";
+    PP.DiscardUntilEndOfDirective();
+    return;
+  }
+
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::identifier)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_predicate) << 0;
+    PP.DiscardUntilEndOfDirective();
+    return;
+  }
+  IdentifierInfo *Pred = Tok.getIdentifierInfo();
+  bool NewState;
+  if (Pred->isStr("enable"))
+    NewState = true;
+  else if (Pred->isStr("disable"))
+    NewState = false;
+  else {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_predicate) << 0;
+    PP.DiscardUntilEndOfDirective();
+    return;
+  }
+
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::eod)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+        << "METAL internals";
+    PP.DiscardUntilEndOfDirective();
+    // Fall through: still apply the toggle -- the extra tokens are just
+    // noise and we don't want a warning to break stdlib parse.
+  }
+
+  // Toggle the flag directly.  LangOptions is mutable via
+  // const_cast because the language-mode-influencing bit needs to
+  // change mid-translation-unit exactly like ``#pragma float_control``
+  // toggles LangOptions::FastMath.  Sema queries this bit via
+  // SemaMSL::inInternalsMode(SemaRef).
+  const_cast<LangOptions &>(PP.getLangOpts()).MetalInternals = NewState;
 }
 
 /// Handle '#pragma omp ...' when OpenMP is disabled and '#pragma acc ...' when
