@@ -500,6 +500,17 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__is_metal_visible_function_table_argument(T)", "true");
     Builder.defineMacro("__is_metal_acceleration_structure(T)", "true");
 
+    // Half-precision floating-point constant builtins.  Metal Shading
+    // Language uses ``__builtin_infh``, ``__builtin_nanh`` and
+    // ``__builtin_nansh`` (see <metal_limits>::infinity() /
+    // ::quiet_NaN() / ::signaling_NaN() for ``half``), but our clang only
+    // exposes the more-standard ``__builtin_inff16`` / ``__builtin_nanf16``
+    // / ``__builtin_nansf16`` spellings.  Alias the Metal-flavoured
+    // spellings to the standard ones so <metal_limits> compiles.
+    Builder.defineMacro("__builtin_infh()",   "__builtin_inff16()");
+    Builder.defineMacro("__builtin_nanh(x)",  "__builtin_nanf16(x)");
+    Builder.defineMacro("__builtin_nansh(x)", "__builtin_nansf16(x)");
+
     // Metal ``as_type<T>(x)`` reinterpret-cast template.  Apple's
     // proprietary clang treats this as a compiler-recognised template
     // whose only expansion is ``__builtin_astype(x, T)`` (i.e. an OpenCL
