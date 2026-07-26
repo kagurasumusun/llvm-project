@@ -56,7 +56,6 @@
 #include "clang/Sema/SemaCUDA.h"
 #include "clang/Sema/SemaFixItUtils.h"
 #include "clang/Sema/SemaHLSL.h"
-#include "clang/Sema/SemaMSL.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaOpenMP.h"
 #include "clang/Sema/SemaPseudoObject.h"
@@ -3892,7 +3891,7 @@ ExprResult Sema::ActOnNumericConstant(const Token &Tok, Scope *UDLScope) {
       // always-available 16-bit float; the two-axis compilation model
       // extends this uniformly to both user code and stdlib parse (see
       // clang/Sema/SemaMSL.h and LangOptions::MetalInternals).
-      if (getLangOpts().HLSL || SemaMSL::allowHalfLiteral(getLangOpts()) ||
+      if (getLangOpts().HLSL || getLangOpts().Metal ||
           getOpenCLOptions().isAvailableOption("cl_khr_fp16", getLangOpts()))
         Ty = Context.HalfTy;
       else {
@@ -13436,7 +13435,7 @@ QualType Sema::CheckVectorLogicalOperands(ExprResult &LHS, ExprResult &RHS,
   // is required, MSL evaluates the operator element-wise and returns
   // the source bool vector type, so we permit boolean vector operands
   // and let the surrounding logic pick the result type.
-  const bool AllowMSLBoolLogic = SemaMSL::isMetalMode(getLangOpts());
+  const bool AllowMSLBoolLogic = getLangOpts().Metal;
   // Ensure that either both operands are of the same vector type, or
   // one operand is of a vector type and the other is of its element type.
   QualType vType = CheckVectorOperands(LHS, RHS, Loc, false,
