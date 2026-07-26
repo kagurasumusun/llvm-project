@@ -38,7 +38,6 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaCUDA.h"
 #include "clang/Sema/SemaHLSL.h"
-#include "clang/Sema/SemaMSL.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaOpenMP.h"
 #include "clang/Sema/Template.h"
@@ -5376,7 +5375,7 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         // the inline transfer body unchanged so the upstream diff
         // stays minimal.  See SemaMSL.cpp for rationale on why we
         // exclude friend declarations and non-Member DeclaratorContext.
-        if (SemaMSL::shouldTransferMethodAddressSpace(state.getSema(), D) &&
+        if (state.getSema().getLangOpts().Metal &&
             IsClassMember()) {
           LangAS ASIdx = LangAS::Default;
           // Take address space attr if any and mark as invalid to avoid adding
