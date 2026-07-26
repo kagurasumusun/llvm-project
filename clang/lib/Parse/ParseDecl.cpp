@@ -6262,12 +6262,23 @@ void Parser::ParseTypeQualifierListOpt(
       break;
 
     // Metal Shading Language address-space keywords in a
-    // pointer/reference qualifier position, e.g. ``int * ray_data p``.
+    // pointer/reference qualifier position, e.g. ``int * ray_data p``, or
+    // as a method-qualifier position such as ``T &front() threadgroup_imageblock``.
+    //
+    // NOTE: ``ParseMetalAddressSpaceQualifier`` internally advances past the
+    // keyword via ``ConsumeToken()``.  We MUST use ``continue`` here (not
+    // ``break``) because the enclosing loop performs a second
+    // ``EndLoc = ConsumeToken();`` after every ``break``.  A double-consume
+    // would eat the token that follows the qualifier (e.g. the ``{`` opening
+    // a function body), producing spurious "expected ';' at end of declaration
+    // list" diagnostics that cascade through every subsequent member.
+    // Compare ``ParseOpenCLQualifiers`` above, which intentionally does NOT
+    // consume the token and therefore uses ``break``.
     case tok::kw_ray_data:
     case tok::kw_object_data:
     case tok::kw_threadgroup_imageblock:
       ParseMetalAddressSpaceQualifier(DS.getAttributes());
-      break;
+      continue;
 
     case tok::kw_groupshared:
     case tok::kw_in:
