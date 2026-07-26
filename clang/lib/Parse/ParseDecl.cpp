@@ -1051,10 +1051,26 @@ void Parser::ParseOpenCLKernelAttributes(ParsedAttributes &attrs) {
 }
 
 void Parser::ParseMetalFunctionAttributes(ParsedAttributes &Attrs) {
-  while (Tok.isOneOf(tok::kw_vertex, tok::kw_fragment, tok::kw_object,
-                     tok::kw_mesh, tok::kw_intersection, tok::kw_tile)) {
-    IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+  // Recognise Metal shader-stage adornments in prefix position (e.g.
+  // ``vertex void shader() { ... }``).
+  //
+  // ``vertex`` / ``fragment`` / ``mesh`` / ``intersection`` / ``tile`` are
+  // KEYMETAL keywords; ``object`` is intentionally NOT a keyword because
+  // Apple's <metal_atomic> uses it as a parameter identifier (24+ CI
+  // diagnostics in run 30181013320).  We instead recognise ``object`` here
+  // by identifier text: this only fires at declaration-specifier position
+  // (before the declarator), so it cannot shadow a parameter-name usage
+  // further inside a function type.
+  while (true) {
     tok::TokenKind Kind = Tok.getKind();
+    bool IsObjectStage =
+        Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
+        Tok.getIdentifierInfo()->isStr("object");
+    if (Kind != tok::kw_vertex && Kind != tok::kw_fragment &&
+        Kind != tok::kw_mesh && Kind != tok::kw_intersection &&
+        Kind != tok::kw_tile && !IsObjectStage)
+      break;
+    IdentifierInfo *AttrName = Tok.getIdentifierInfo();
     SourceLocation AttrNameLoc = ConsumeToken();
     Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr, 0, Kind);
   }
@@ -3771,6 +3787,36 @@ void Parser::ParseDeclarationSpecifiers(
     case tok::kw_decltype:
     case tok::identifier:
     ParseIdentifier: {
+      // Metal ``object`` shader-stage adornment: context-sensitive
+      // keyword, intentionally NOT KEYMETAL so <metal_atomic> can use
+      // ``object`` as a parameter identifier without triggering
+      //   error: invalid parameter name: 'object' is a keyword
+      // (24 diagnostics in CI run 30181013320).  We treat it as a
+      // stage token only in declaration-specifier prefix position AND
+      // only when no type-specifier has been seen yet AND when it does
+      // not resolve to a typedef in the current scope.  In all other
+      // positions it retains its ordinary identifier semantics.
+      if (getLangOpts().Metal && !DS.hasTypeSpecifier() &&
+          Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
+          Tok.getIdentifierInfo()->isStr("object")) {
+        // Peek at the next token: a stage adornment is followed by a
+        // type specifier (``void``, ``__attribute__``, another Metal
+        // keyword, etc.), *never* by another identifier that would form
+        // a declaration by itself (avoids swallowing ``object foo;``
+        // where ``object`` is a typedef).
+        const Token &NT = NextToken();
+        bool LooksLikeStage =
+            NT.is(tok::kw_void) || NT.is(tok::kw_auto) ||
+            NT.is(tok::kw_vertex) || NT.is(tok::kw_fragment) ||
+            NT.is(tok::kw_mesh) || NT.is(tok::kw_intersection) ||
+            NT.is(tok::kw_tile) || NT.is(tok::kw___attribute) ||
+            NT.is(tok::kw_alignas) || NT.is(tok::l_square);
+        if (LooksLikeStage) {
+          ParseMetalFunctionAttributes(DS.getAttributes());
+          continue;
+        }
+      }
+
       // This identifier can only be a typedef name if we haven't already seen
       // a type-specifier.  Without this check we misparse:
       //  typedef int X; struct Y { short X; };  as 'short int'.
@@ -4068,9 +4114,13 @@ void Parser::ParseDeclarationSpecifiers(
       continue;
 
     // Metal single token function stage adornments.
+    // NOTE: ``object`` is not a keyword (see TokenKinds.def rationale);
+    // it is recognised by identifier text inside
+    // ParseMetalFunctionAttributes.  A leading ``object`` at the
+    // declaration-specifier position is detected by
+    // ParseOptionalMetalStageAdornment which is invoked separately.
     case tok::kw_vertex:
     case tok::kw_fragment:
-    case tok::kw_object:
     case tok::kw_mesh:
     case tok::kw_intersection:
     case tok::kw_tile:
@@ -5719,7 +5769,6 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___kernel:
   case tok::kw_vertex:
   case tok::kw_fragment:
-  case tok::kw_object:
   case tok::kw_mesh:
   case tok::kw_intersection:
   case tok::kw_tile:
@@ -6015,7 +6064,6 @@ bool Parser::isDeclarationSpecifier(
   case tok::kw___kernel:
   case tok::kw_vertex:
   case tok::kw_fragment:
-  case tok::kw_object:
   case tok::kw_mesh:
   case tok::kw_intersection:
   case tok::kw_tile:
