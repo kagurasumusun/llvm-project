@@ -11179,6 +11179,32 @@ bool clang::isBetterOverloadCandidate(
         return true;
       if (Qualifiers::isAddressSpaceSupersetOf(AS1, AS2, S.getASTContext()))
         return false;
+
+      // Metal Shading Language tiebreak: MSL 2.0+ s4.1.1 makes ``thread``
+      // (LangAS::opencl_private) the default AS at function scope, so a
+      // constructor qualified ``thread`` is strictly preferable to one
+      // qualified with any Metal-specific AS (ray_data / object_data /
+      // threadgroup_imageblock / device / constant / threadgroup) when
+      // the caller lives in the default AS.  Without this rule, Apple's
+      // <metal_raytracing>::_acceleration_structure {ap} (where ``ap`` is
+      // a default-AS ``primitive_acceleration_structure``) picks 8+ ctors
+      // as equally viable (thread copy, device copy, constant copy, ray_data
+      // copy, object_data copy, ...) and reports "ambiguous" (12+
+      // diagnostics in CI run 30187007293).
+      //
+      // The rule fires only in Metal mode and only picks a winner when
+      // exactly one side is ``thread``; if neither or both are ``thread``
+      // (e.g. a genuine ray_data-vs-object_data disambiguation) we fall
+      // through to the ordinary "no better candidate" behaviour so
+      // legitimate ambiguities still surface.
+      if (S.getLangOpts().Metal) {
+        bool AS1IsThread = (AS1 == LangAS::opencl_private);
+        bool AS2IsThread = (AS2 == LangAS::opencl_private);
+        if (AS1IsThread && !AS2IsThread)
+          return true;
+        if (AS2IsThread && !AS1IsThread)
+          return false;
+      }
     }
   }
 
