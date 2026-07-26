@@ -80,6 +80,19 @@ public:
     UseAddrSpaceMapMangling = true;
     HasFastHalfType = true;
     HasFloat16 = true;
+    // Metal Shading Language 2.0+ s2.1 admits ``half`` as a function
+    // parameter or return type unconditionally, unlike OpenCL C which
+    // gates that behind ``cl_khr_fp16``.  Apple's metal_stdlib uses
+    // half everywhere (metal_relational::isfinite(half),
+    // metal_math::abs(half), etc.).  Setting HalfArgsAndReturns=true
+    // at target level bypasses the SemaType.cpp
+    // err_parameters_retval_cannot_have_fp16_type gate uniformly for
+    // AIR targets.
+    //
+    // Note: this file's previous HalfArgsAndReturns=true was lost during
+    // an earlier metal_object_data (as9 -> as7) rewrite; be careful when
+    // regenerating AIR.h from raw fetch to include this line again.
+    HalfArgsAndReturns = true;
     PlatformMinVersion = Triple.getOSVersion();
     PlatformName = llvm::Triple::getOSTypeName(Triple.getOS());
     TheCXXABI.set(TargetCXXABI::GenericItanium);
