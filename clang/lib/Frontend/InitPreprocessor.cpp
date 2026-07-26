@@ -528,6 +528,15 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__is_metal_depth_texture_imageblock_slice_storage_valid(E,T)", "true");
     Builder.defineMacro("__is_metal_stencil_texture_imageblock_slice_storage_valid(E,T)", "true");
 
+    // Mesh vertex/primitive struct traits: previously promoted to
+    // KEYMETAL TYPE_TRAIT_1 in TokenKinds.def, but current bisection
+    // shows the token-kind path fails inside a template partial-
+    // specialization base-class clause (metal_mesh:47).  Fall back to
+    // the macro form until we understand why the trait keyword is not
+    // being recognised in that context.
+    Builder.defineMacro("__is_metal_mesh_vertex(T)", "true");
+    Builder.defineMacro("__is_metal_mesh_primitive(T)", "true");
+
     // NOTE: __is_metal_mesh_vertex / __is_metal_mesh_primitive are
     // compiler-intrinsic type traits (KEYMETAL TYPE_TRAIT_1 entries in
     // clang/Basic/TokenKinds.def, evaluated in
