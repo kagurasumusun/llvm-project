@@ -115,9 +115,26 @@ bool Qualifiers::isTargetAddressSpaceSupersetOf(LangAS A, LangAS B,
          // an object in address space unqualified" diagnostics in CI run
          // 30184801874.  ObjC / OpenCL / CUDA are the other axes that
          // distinguish thread from default; Metal chose to fuse them.
+         // Metal Shading Language: LangAS::Default IS ``thread`` semantically
+         // (MSL 2.0+ s4.1.1).  We only need to allow one direction here:
+         // an object whose method qualifier is ``thread`` (A) can accept
+         // an argument whose type-level AS is unqualified (B=Default);
+         // that is the exact pattern used by Apple's <metal_raytracing>
+         // ::_intersection_params::_intersection_params() thread when
+         // instantiated with ``_intersection_params p{};`` (default AS).
+         //
+         // We deliberately do NOT allow the reverse direction (A=Default,
+         // B=thread) here, because doing so opens the door to reporting
+         // every ``operator[]`` method (thread / device / threadgroup /
+         // ...) as a "viable" candidate for a default-AS object and thus
+         // reproducing an ambiguity on every ``matrix<T,C,R>::operator[]``
+         // call (44 diagnostics in run 30186507453 were of this kind).
+         // Correct overload selection with the object's true (thread)
+         // address space happens naturally once the object argument is
+         // implicitly converted to the ``thread`` address space by
+         // PerformObjectArgumentInitialization.
          (Ctx.getLangOpts().Metal &&
-          ((A == LangAS::opencl_private && B == LangAS::Default) ||
-           (A == LangAS::Default && B == LangAS::opencl_private))) ||
+          A == LangAS::opencl_private && B == LangAS::Default) ||
          // Metal Shading Language: the three Metal address spaces
          // (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) are
          // distinct types for template partial-specialization purposes, but
