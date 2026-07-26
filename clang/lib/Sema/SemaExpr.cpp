@@ -13428,12 +13428,21 @@ static void diagnoseXorMisusedAsPow(Sema &S, const ExprResult &XorLHS,
 QualType Sema::CheckVectorLogicalOperands(ExprResult &LHS, ExprResult &RHS,
                                           SourceLocation Loc,
                                           BinaryOperatorKind Opc) {
+  // Metal Shading Language 2.0+ s5.16.4 admits ``||`` / ``&&`` between
+  // boolean vectors (``bool2 || bool2``, etc.).  Apple's
+  // <metal_relational>::isordered(half2 x, half2 y) uses this via
+  //   return isnan(x) || isnan(y);
+  // returning a ``bool2``.  Unlike OpenCL where GetSignedVectorType
+  // is required, MSL evaluates the operator element-wise and returns
+  // the source bool vector type, so we permit boolean vector operands
+  // and let the surrounding logic pick the result type.
+  const bool AllowMSLBoolLogic = SemaMSL::isMetalMode(getLangOpts());
   // Ensure that either both operands are of the same vector type, or
   // one operand is of a vector type and the other is of its element type.
   QualType vType = CheckVectorOperands(LHS, RHS, Loc, false,
                                        /*AllowBothBool*/ true,
                                        /*AllowBoolConversions*/ false,
-                                       /*AllowBooleanOperation*/ false,
+                                       /*AllowBooleanOperation*/ AllowMSLBoolLogic,
                                        /*ReportInvalid*/ false);
   if (vType.isNull())
     return InvalidOperands(Loc, LHS, RHS);
