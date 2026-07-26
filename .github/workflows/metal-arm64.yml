@@ -41,16 +41,8 @@ env:
   CCACHE_COMPRESSLEVEL: "6"
   CCACHE_MAXSIZE: "8G"
   CCACHE_NOHASHDIR: "true"
-  # depend_mode uses the compiler-emitted .d file instead of preprocessing
-  # the source to compute the ccache hash.  With Metal's TableGen churn on
-  # Attr.td / TokenKinds.def this dramatically reduces preprocessor-time
-  # miss cost.
   CCACHE_DEPEND: "true"
-  # inode_cache avoids re-stat'ing every include chain for every object.
-  # Requires ccache >= 4.7 (ubuntu-24.04-arm ships 4.9.1).
   CCACHE_INODECACHE: "true"
-  # Store cache entries as hardlinks; there is no external consumer of the
-  # cache files after a run so the "hardlink safety" caveat does not apply.
   CCACHE_HARDLINK: "true"
   CCACHE_SLOPPINESS: "pch_defines,time_macros,include_file_mtime,include_file_ctime,system_headers"
 
@@ -111,7 +103,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.METAL_INFO_TOKEN }}
         run: |
           set -euxo pipefail
-          # Fetch only headers (no runtime library needed - Xcode will link Metal.framework automatically)
           python3 clang/utils/metal/fetch-metal-info-resource.py \
             --output "$PWD/metal-info-resource"
           test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
@@ -169,8 +160,6 @@ jobs:
         run: |
           set -o pipefail
           ccache --zero-stats || true
-          # Snapshot cache state so the diff after the build is
-          # attributable in the raw log.
           echo "::group::ccache config + pre-build stats"
           ccache --show-config | head -40 || true
           ccache -s || true
@@ -192,16 +181,6 @@ jobs:
 
       - name: Compile Apple Metal samples with fork clang (Linux)
         run: |
-          # This stage's job is to prove our fork clang can parse Apple's
-          # unmodified metal_stdlib and produce valid air64 LLVM bitcode.
-          # The final .metallib packaging is done on macOS with Apple's
-          # own ``metallib`` linker because the on-disk .metallib format
-          # is proprietary Apple layout that our previous hand-rolled
-          # metal-ld could not reproduce faithfully (iOS reported
-          # "Invalid mach-o file!" on run 30195546876's bundled
-          # Shaders.metallib because metal-ld emitted a Mach-O
-          # universal-binary header 0xCAFEBABE instead of the MTLB
-          # container Apple's driver expects).
           set -euxo pipefail
           mkdir -p test-results metal-bc-output
           exec > >(tee test-results/metal-bc-smoke.log) 2>&1
@@ -209,7 +188,6 @@ jobs:
           APPLE_METAL_RESOURCE="$PWD/metal-info-resource/clang/32023.883"
           APPLE_METAL_INCLUDE="$APPLE_METAL_RESOURCE/include/metal"
 
-          # Compile add.metal (compute shader).
           echo "Compiling add.metal with fork clang -> LLVM bitcode ..."
           "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
             -I "$APPLE_METAL_INCLUDE" \
@@ -217,7 +195,6 @@ jobs:
             -emit-llvm-bc -o metal-bc-output/add.bc \
             clang/test/AppleMetalSamples/PerformingCalculationsOnAGPU/add.metal
 
-          # Compile AAPLShaders.metal (render pipeline).
           echo "Compiling AAPLShaders.metal with fork clang -> LLVM bitcode ..."
           "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
             -I "$APPLE_METAL_INCLUDE" \
@@ -226,10 +203,6 @@ jobs:
             -emit-llvm-bc -o metal-bc-output/AAPLShaders.bc \
             clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaders.metal
 
-          # Also copy the .metal sources so the macOS stage has a fallback
-          # path (Apple's own ``xcrun metal`` recompile) if it turns out that
-          # ``metallib`` refuses raw bitcode.  This is defence-in-depth: the
-          # authoritative path is fork-clang-bc -> Apple-metallib.
           mkdir -p metal-bc-output/sources
           cp clang/test/AppleMetalSamples/PerformingCalculationsOnAGPU/add.metal \
              metal-bc-output/sources/add.metal
@@ -241,9 +214,6 @@ jobs:
           echo "✓ Fork clang emitted LLVM bitcode for both Metal samples"
           ls -lh metal-bc-output/
 
-          # Confirm the bitcode magic ("BC\xC0\xDE") is present at the start
-          # of each .bc so the macOS stage does not silently pick up a
-          # Darwin-wrapped or empty file.
           for bc in metal-bc-output/add.bc metal-bc-output/AAPLShaders.bc; do
             head -c 4 "$bc" | od -An -tx1 | tr -d ' \n' > /tmp/magic.hex
             magic=$(cat /tmp/magic.hex)
@@ -314,35 +284,11 @@ jobs:
 
       - name: Package fork-clang bitcode into a real .metallib with Apple's toolchain
         run: |
-          # Apple's on-disk .metallib format is proprietary (MTLB container
-          # with per-function metadata sections).  Our fork clang emits
-          # standards-compliant air64 LLVM bitcode; Apple's ``metallib``
-          # linker consumes ``.air`` files (Apple's LLVM-bitcode-inside-
-          # MTLB wrapper) and produces the final .metallib.  Route the
-          # fork-clang bitcode through Apple's tools:
-          #
-          #   fork clang -> .bc  (Linux stage)
-          #   xcrun metal -c -x metal-bc .bc -o .air  (this step)
-          #   xcrun metallib .air -o .metallib        (this step)
-          #
-          # The macOS stage owns the last-mile packaging because only
-          # Apple ships the MTLB writer.  This replaces our previous
-          # hand-rolled metal-as / metal-ld pair that produced a
-          # 0xCAFEBABE-prefixed file iOS rejected with "Invalid mach-o
-          # file!" (CI run 30195546876).
           set -euxo pipefail
           ls -lh metal-bc-input/
           mkdir -p metallib-work
           cd metallib-work
 
-          # ``xcrun metal`` accepts LLVM bitcode via ``-x metal-bc`` (Apple
-          # documented undocumented flag; equivalent to Clang's
-          # ``-x ir``).  Fall back to recompiling the .metal source with
-          # Apple's own ``metal`` compiler if the bitcode path is rejected
-          # for any reason -- this preserves the demo while still logging
-          # the failure for triage.
-          # Enumerate Apple's Metal toolchain so failures are easy to
-          # diagnose from the CI log alone.
           echo "--- Apple Metal toolchain probe ---"
           xcrun -sdk iphoneos --find metal    || true
           xcrun -sdk iphoneos --find metal-as || true
@@ -352,58 +298,20 @@ jobs:
           for name in add AAPLShaders; do
             echo "--- Assembling $name.air from fork-clang bitcode ---"
 
-            # Fork clang emits opaque-pointer LLVM 22 bitcode.  Apple's
-            # Xcode 26.5 Metal toolchain ships an older LLVM whose
-            # bitcode reader defaults to typed pointers and refuses
-            # opaque-pointer bitcode with
-            #     error: Opaque pointers are only supported in
-            #            -opaque-pointers mode
-            #        (Producer: 'LLVM22.1.8' Reader: 'LLVM ')
-            # (observed on CI run 30196036679).  Enable opaque-pointer
-            # mode on Apple's reader via -mllvm so it matches our
-            # producer.  Since LLVM 15 typed pointers were removed from
-            # the LLVM code base entirely, we cannot regenerate typed
-            # bitcode from the producer side -- opting Apple's reader in
-            # is the only path.
-            OP_FLAGS=(-mllvm -opaque-pointers)
-
-            # Path A -- Apple's own ``metal-as`` (LLVM-bitcode / IR to
-            #   AIR): the direct analogue of our in-tree metal-as.
-            # NB: Apple's metal-as v17 accepts *textual* .ll only and
-            # rejects binary .bc with "expected top-level entity";
-            # tolerate that specific failure and fall through.
-            if xcrun -sdk iphoneos metal-as "${OP_FLAGS[@]}" \
+            if xcrun -sdk iphoneos metal-as \
                  "../metal-bc-input/${name}.bc" -o "${name}.air" \
                  2> "${name}.metal-as.log"; then
-              echo "  ✓ metal-as accepted fork-clang bitcode (opaque-pointer OK)"
-            # Path B -- ``metal`` frontend with -x ir (LLVM textual/binary
-            #   IR); this is the flag-free spelling that clang inherits
-            #   from upstream.
-            elif xcrun -sdk iphoneos metal "${OP_FLAGS[@]}" \
+              echo "  ✓ metal-as accepted fork-clang bitcode"
+            elif xcrun -sdk iphoneos metal \
                    -target air64-apple-ios${{ inputs.ios_target }} \
                    -x ir -c "../metal-bc-input/${name}.bc" \
                    -o "${name}.air" 2> "${name}.metal-ir.log"; then
-              echo "  ✓ metal -x ir accepted fork-clang bitcode (opaque-pointer OK)"
-            # Path C -- fallback: recompile the .metal source with Apple's
-            # own metal frontend.  This still produces a working demo but
-            # bypasses our fork clang, so it will be logged loudly.
+              echo "  ✓ metal -x ir accepted fork-clang bitcode"
             else
-              echo "  !! bitcode paths rejected even with -opaque-pointers, falling back to source recompile"
+              echo "  !! bitcode paths rejected"
               echo "     metal-as log:"; sed 's/^/       /' "${name}.metal-as.log" || true
               echo "     metal -x ir log:"; sed 's/^/       /' "${name}.metal-ir.log" || true
-              case "$name" in
-                add)
-                  xcrun -sdk iphoneos metal \
-                    -target air64-apple-ios${{ inputs.ios_target }} \
-                    -c ../metal-bc-input/sources/add.metal -o add.air
-                  ;;
-                AAPLShaders)
-                  xcrun -sdk iphoneos metal \
-                    -target air64-apple-ios${{ inputs.ios_target }} \
-                    -I ../metal-bc-input/sources \
-                    -c ../metal-bc-input/sources/AAPLShaders.metal -o AAPLShaders.air
-                  ;;
-              esac
+              exit 1
             fi
             file "${name}.air" || true
           done
@@ -415,8 +323,6 @@ jobs:
           echo "--- Final .metallib inspection ---"
           ls -lh Shaders.metallib
           file Shaders.metallib
-          # The Apple metallib format starts with 'MTLB' magic; guard the
-          # bundling step against regressing to Mach-O universal binary.
           head -c 4 Shaders.metallib | od -An -c | tr -d ' \n' > /tmp/mtlb.magic
           magic=$(cat /tmp/mtlb.magic)
           echo "magic (chars): '$magic'"
@@ -426,8 +332,6 @@ jobs:
           fi
           echo "✓ Real MTLB-format Shaders.metallib produced with Apple's linker"
 
-          # Also expose the file where the "Create iOS app with metallib"
-          # step below already expects it (metallib-input/Shaders.metallib).
           mkdir -p ../metallib-input
           cp Shaders.metallib ../metallib-input/Shaders.metallib
           ls -lh ../metallib-input/
@@ -442,15 +346,12 @@ jobs:
       - name: Create iOS app with metallib
         run: |
           set -euxo pipefail
-          
-          # Create Xcode project structure
+
           mkdir -p MetalTestApp
           cd MetalTestApp
-          
-          # Copy metallib only (no libmetal_rt_ios.a needed - Xcode links Metal.framework automatically)
+
           cp ../metallib-input/Shaders.metallib .
-          
-          # Create basic iOS app structure
+
           cat > Info.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -489,16 +390,15 @@ jobs:
           </dict>
           </plist>
           EOF
-          
-          # Create basic Swift app that uses metallib
+
           cat > AppDelegate.swift << 'EOF'
           import UIKit
           import Metal
-          
+
           @main
           class AppDelegate: UIResponder, UIApplicationDelegate {
             var window: UIWindow?
-            
+
             func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
               window = UIWindow(frame: UIScreen.main.bounds)
               window?.rootViewController = MetalViewController()
@@ -507,27 +407,13 @@ jobs:
             }
           }
           EOF
-          
-          # Create Metal view controller
-          # The vertex shader in AAPLShaders.metal expects
-          #     constant AAPLVertex   *vertices [[buffer(0)]]
-          #     constant vector_uint2 *viewportSizePointer [[buffer(1)]]
-          # where AAPLVertex = { vector_float2 position; vector_float4 color; }.
-          # If either buffer is left unbound, Metal returns undefined data
-          # to the shader (positions become NaN, triangles get clipped, and
-          # the validation layer paints the drawable magenta -- which was
-          # the pink screen reported for CI run 30195861955's IPA).
-          # Bind both buffers explicitly with a hard-coded RGB triangle so
-          # the demo actually exercises our fork-clang-produced metallib.
+
           cat > MetalViewController.swift << 'EOF'
           import UIKit
           import Metal
           import MetalKit
           import simd
 
-          // Mirror of AAPLShaderTypes.h AAPLVertex.  Order and alignment
-          // must match the C header exactly because both sides address
-          // the same buffer bytes.
           struct AAPLVertex {
             var position: SIMD2<Float>
             var color:    SIMD4<Float>
@@ -540,10 +426,6 @@ jobs:
             var pipelineState: MTLRenderPipelineState!
             var vertexBuffer: MTLBuffer!
 
-            // Triangle vertices in pixel space -- the vertex shader
-            // divides by half the viewport to reach NDC.  Colors are red,
-            // green, blue at the three corners so the rasterizer's
-            // interpolation makes the result visually obvious.
             static let triangleVertices: [AAPLVertex] = [
               AAPLVertex(position: SIMD2<Float>( 250, -250), color: SIMD4<Float>(1, 0, 0, 1)),
               AAPLVertex(position: SIMD2<Float>(-250, -250), color: SIMD4<Float>(0, 1, 0, 1)),
@@ -586,7 +468,6 @@ jobs:
                 return
               }
 
-              // Upload the triangle vertices once into a shared MTLBuffer.
               let vs = MetalViewController.triangleVertices
               let byteCount = vs.count * MemoryLayout<AAPLVertex>.stride
               vertexBuffer = device.makeBuffer(bytes: vs, length: byteCount, options: [])
@@ -608,12 +489,8 @@ jobs:
               let enc = cb.makeRenderCommandEncoder(descriptor: rpd)!
 
               enc.setRenderPipelineState(pipelineState)
-
-              // buffer(0) = vertices
               enc.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
 
-              // buffer(1) = viewportSizePointer (vector_uint2 = 2 x UInt32).
-              // Reuse the drawable size so pixel-space vertices map to NDC.
               var viewportSize = SIMD2<UInt32>(UInt32(view.drawableSize.width),
                                                UInt32(view.drawableSize.height))
               enc.setVertexBytes(&viewportSize,
@@ -628,16 +505,12 @@ jobs:
             }
           }
           EOF
-          
+
           echo "✓ iOS app structure created"
 
       - name: Install XcodeGen
         run: |
           set -euxo pipefail
-          # macos-latest ships Homebrew; XcodeGen builds a real Xcode project
-          # from a YAML spec, replacing our previous comment-only pbxproj stub
-          # that xcodebuild rejected with
-          #   Project file 'MetalTestApp' was written by an unsupported Xcode version (0)
           brew install xcodegen
           xcodegen --version
 
@@ -646,16 +519,6 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # XcodeGen spec.  Notes:
-          # * ``Shaders.metallib`` is treated as a resource so it lands in the
-          #   .app bundle root and Bundle.main.path(forResource:"Shaders",
-          #   ofType:"metallib") succeeds at runtime.
-          # * ``CODE_SIGNING_ALLOWED=NO`` at the target level so xcodebuild
-          #   accepts an unsigned build (device install still requires an
-          #   Ad Hoc signature applied out-of-band).
-          # * Deployment target follows the workflow's ``ios_target`` input.
-          # * Bundle identifier and executable name match the Info.plist
-          #   generated by the "Create iOS app with metallib" step above.
           cat > project.yml << 'PROJECT_YML_EOF'
           name: MetalTestApp
           options:
@@ -681,14 +544,6 @@ jobs:
               sources:
                 - path: AppDelegate.swift
                 - path: MetalViewController.swift
-                # XcodeGen infers file type from extension; ``.metallib`` is
-                # not in its built-in map so it silently drops the file
-                # instead of copying it into the app bundle -- observed on
-                # CI run 30195359805 where the produced .app contained only
-                # MetalTestApp / Info.plist / PkgInfo and Bundle.main.path
-                # would return nil at runtime.  Declare the metallib as a
-                # generic ``file`` in the resources phase so xcodebuild's
-                # CpResource copies it verbatim.
                 - path: Shaders.metallib
                   buildPhase: resources
                   type: file
@@ -724,9 +579,6 @@ jobs:
                 - sdk: UIKit.framework
           PROJECT_YML_EOF
 
-          # Drop the old hand-rolled Info.plist -- xcodegen synthesizes one
-          # from the ``info:`` block above so keeping both would confuse the
-          # build system.
           rm -f Info.plist
 
           xcodegen generate --spec project.yml
@@ -737,10 +589,6 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # Build for iOS device (arm64, unsigned).  Signing must be
-          # supplied externally for on-device installation (Ad Hoc,
-          # development, or Enterprise); the .app produced here is the
-          # unsigned Payload that a signing step would consume.
           xcodebuild \
             -project MetalTestApp.xcodeproj \
             -scheme MetalTestApp \
@@ -762,26 +610,21 @@ jobs:
         run: |
           set -euxo pipefail
           cd MetalTestApp
-          
-          # Find the .app bundle
+
           APP_PATH=$(find . -name "*.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: No .app bundle found"
             exit 1
           fi
-          
+
           echo "Found app bundle: $APP_PATH"
-          
-          # Create Payload directory
+
           mkdir -p Payload
-          
-          # Copy .app to Payload
           cp -R "$APP_PATH" Payload/
-          
-          # Create IPA (just a zip with .ipa extension)
+
           APP_NAME=$(basename "$APP_PATH" .app)
           zip -r "${APP_NAME}.ipa" Payload/
-          
+
           echo "✓ Created ${APP_NAME}.ipa (unsigned, requires Ad Hoc signing for device installation)"
           ls -lh *.ipa
 
