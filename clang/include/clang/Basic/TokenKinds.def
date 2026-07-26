@@ -692,7 +692,16 @@ KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 KEYWORD(vertex                      , KEYMETAL)
 KEYWORD(fragment                    , KEYMETAL)
-KEYWORD(object                      , KEYMETAL)
+// NOTE: ``object`` intentionally NOT a KEYWORD.
+// Apple's metal_stdlib uses ``object`` freely as a parameter name inside
+// <metal_atomic> (``atomic_store_explicit(..., _atomic<T> *object, ...)``).
+// If we promote ``object`` to KEYMETAL, every such declaration produces
+//   error: invalid parameter name: 'object' is a keyword
+// (24+ diagnostics in CI run 30181013320).  Instead, ``ParseMetalFunctionAttributes``
+// recognises the ``object`` shader-stage adornment via identifier lookup
+// (see clang/lib/Parse/ParseDecl.cpp).  ``vertex`` / ``fragment`` / ``mesh``
+// / ``intersection`` / ``tile`` remain KEYMETAL for now because Apple's
+// stdlib does not use those spellings as parameter names.
 KEYWORD(mesh                        , KEYMETAL)
 KEYWORD(intersection                , KEYMETAL)
 KEYWORD(tile                        , KEYMETAL)
@@ -704,7 +713,7 @@ ALIAS("read_only", __read_only      , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("write_only", __write_only    , KEYOPENCLC | KEYOPENCLCXX)
 ALIAS("read_write", __read_write    , KEYOPENCLC | KEYOPENCLCXX)
 // OpenCL builtins
-KEYWORD(__builtin_astype            , KEYOPENCLC | KEYOPENCLCXX)
+KEYWORD(__builtin_astype            , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 UNARY_EXPR_OR_TYPE_TRAIT(vec_step, VecStep, KEYOPENCLC | KEYOPENCLCXX | KEYALTIVEC | KEYZVECTOR)
 #define GENERIC_IMAGE_TYPE(ImgType, Id) KEYWORD(ImgType##_t, KEYOPENCLC | KEYOPENCLCXX)
 #include "clang/Basic/OpenCLImageTypes.def"
