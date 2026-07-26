@@ -1,0 +1,62 @@
+#ifndef _METAL_TYPES_DEF_H_
+#define _METAL_TYPES_DEF_H_
+#include <metal/metal_common>
+namespace metal {
+
+// Opaque resource types (forward declarations)
+struct _texture_1d_t;
+struct _texture_1d_array_t;
+struct _texture_2d_t;
+struct _texture_2d_array_t;
+struct _texture_2d_ms_t;
+struct _texture_2d_ms_array_t;
+struct _texture_3d_t;
+struct _texture_cube_t;
+struct _texture_cube_array_t;
+struct _texture_buffer_1d_t;
+struct _depth_2d_t;
+struct _depth_2d_array_t;
+struct _depth_2d_ms_t;
+struct _depth_2d_ms_array_t;
+struct _depth_cube_t;
+struct _depth_cube_array_t;
+struct _depth_stencil_state_t;
+struct _sampler_t;
+struct _imageblock_t;
+struct _interpolant_t;
+
+// Acceleration structures
+struct _instance_acceleration_structure_t;
+struct _primitive_acceleration_structure_t;
+
+// Function tables
+struct _intersection_function_table_t;
+struct _visible_function_table_t;
+struct _function_handle_t;
+
+// Pipeline states
+struct _compute_pipeline_state_t;
+struct _render_pipeline_state_t;
+
+// Mesh types
+struct _mesh_t;
+struct _mesh_grid_properties_t;
+
+// Tensor types
+struct _tensor_t;
+struct _tensor_thread_t;
+
+// Command types
+struct _command_buffer_t;
+struct _compute_command_t;
+struct _render_command_t;
+struct _copy_command_t;
+
+// Patch
+struct _patch_control_point_t;
+
+// Vertex value
+struct _vertex_value_t;
+
+} // namespace metal
+#endif

@@ -1,0 +1,123 @@
+// __bits/metal_texture_common — Shared texture infrastructure
+// Cleanroom: matches Apple metalfe 32023.883 ABI
+#ifndef __BITS_METAL_TEXTURE_COMMON
+#define __BITS_METAL_TEXTURE_COMMON
+
+namespace metal {
+
+struct access { enum type { sample = 0, read = 1, write = 2, read_write = 3 }; };
+struct texture_type { enum type { d1 = 0, d2 = 1, d3 = 2, cube = 3, d1_array = 4, d2_array = 5, cube_array = 6, d2_ms = 7, d2_ms_array = 8, buffer = 9 }; };
+struct pixel_format { enum type { r8unorm = 1, rg8unorm = 30, rgba8unorm = 70, bgra8unorm = 80, rgba16float = 115, rgba32float = 125, depth32float = 252 }; };
+
+struct bias  { float value; };
+struct level { float lod; };
+struct gradient2d { float2 dPdx; float2 dPdy; };
+struct gradient3d { float3 dPdx; float3 dPdy; };
+struct min_lod_clamp { float value; };
+
+template <typename T>
+struct sparse_color {
+  T color;
+  bool resident;
+  METAL_ALWAYS_INLINE operator T() const { return color; }
+  METAL_ALWAYS_INLINE bool is_resident() const { return resident; }
+};
+
+template <typename T, int A>
+struct _texture2d_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texture1d_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texture3d_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texturecube_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texture1d_array_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texture2d_array_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texturecube_array_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texture2d_ms_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texture2d_ms_array_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _texture_buffer_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _depth2d_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _depth2d_array_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _depth2d_ms_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _depth2d_ms_array_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _depthcube_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+template <typename T, int A>
+struct _depthcube_array_t {
+  uint t;
+  static constexpr int a = A;
+};
+
+} // namespace metal
+#endif // __BITS_METAL_TEXTURE_COMMON

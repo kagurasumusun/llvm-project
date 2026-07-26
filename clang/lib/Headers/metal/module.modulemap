@@ -1,0 +1,48 @@
+// Metal module map for clang modules support
+module metal [system] {
+  header "metal.h"
+  export *
+  module math { header "metal_math.h" export * }
+  module relational { header "metal_relational.h" export * }
+  module geometric { header "metal_geometric.h" export * }
+  module matrix { header "metal_matrix.h" export * }
+  module atomic { header "metal_atomic.h" export * }
+  module texture { header "metal_texture.h" export * }
+  module compute { header "metal_compute.h" export * }
+  module render { header "metal_render.h" export * }
+  module mesh { header "metal_mesh.h" export * }
+  module raytracing { header "metal_raytracing.h" export * }
+  module tensor { header "metal_tensor.h" export * }
+  module integer { header "metal_integer.h" export * }
+  module pack { header "metal_pack.h" export * }
+  module numeric { header "metal_numeric.h" export * }
+  module limits { header "metal_limits.h" export * }
+  module array { header "metal_array.h" export * }
+  module assert { header "metal_assert.h" export * }
+  module config { header "metal_config.h" export * }
+  module simd { header "simd/simd.h" export * }
+  module simdgroup { header "metal_simdgroup.h" export * }
+  module quadgroup { header "metal_quadgroup.h" export * }
+  module types { header "metal_types" export * }
+  module type_traits { header "metal_type_traits.h" export * }
+  module functional { header "metal_functional.h" export * }
+  module utility { header "metal_utility.h" export * }
+  module limits { header "metal_limits.h" export * }
+  module logging { header "metal_logging.h" export * }
+  module interpolation { header "metal_interpolate.h" export * }
+  module simdgroup_matrix { header "metal_simdgroup_matrix.h" export * }
+  module visible_function_table { header "metal_visible_function_table.h" export * }
+  module imageblocks { header "metal_imageblocks.h" export * }
+  module command_buffer { header "metal_command_buffer.h" export * }
+  module graphics { header "metal_graphics.h" export * }
+  module pixel { header "metal_pixel.h" export * }
+  module tessellation { header "metal_tessellation.h" export * }
+  module uniform { header "metal_uniform.h" export * }
+  module vertex_value { header "metal_vertex_value.h" export * }
+  module extended_vector { header "metal_extended_vector.h" export * }
+  module packed_vector { header "metal_packed_vector.h" export * }
+  module packed_numeric { header "metal_packed_numeric.h" export * }
+  module initializer_list { header "metal_initializer_list.h" export * }
+  module cooperative_tensor { header "metal_cooperative_tensor.h" export * }
+  module curves { header "metal_curves.h" export * }
+}

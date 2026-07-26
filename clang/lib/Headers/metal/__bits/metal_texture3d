@@ -1,0 +1,23 @@
+// __bits/metal_texture3d — texture3d implementation
+// Cleanroom: matches Apple metalfe 32023.883 ABI
+#ifndef __BITS_METAL_TEXTURE3D
+#define __BITS_METAL_TEXTURE3D
+#include <__bits/metal_texture_common>
+
+namespace metal {
+
+template <typename T, int A>
+struct _texture3d_sample : _texture_d3_t<T, A> {
+  METAL_FUNC T read(uint2 coord, uint lod = 0) const thread { return __metal_read_texture3d_t(this->t, coord, lod, int(this->a)); }
+  METAL_FUNC void write(T color, uint3 coord, uint lod = 0) const thread { __metal_write_texture3d_t(this->t, color, coord, lod, int(this->a)); }
+  METAL_FUNC T sample(sampler s, float3 coord, int2 offset = int2(0)) const thread { return __metal_sample_texture3d_t(this->t, s.val, coord, true, offset, false, 0.0f, 0.0f, int(this->a), nullptr, T()); }
+  METAL_FUNC T sample(sampler s, float3 coord, bias options, int2 offset = int2(0)) const thread { return __metal_sample_texture3d_t(this->t, s.val, coord, true, offset, false, options.value, 0.0f, int(this->a), nullptr, T()); }
+  METAL_FUNC T sample(sampler s, float3 coord, level options, int2 offset = int2(0)) const thread { return __metal_sample_texture3d_t(this->t, s.val, coord, true, offset, true, options.lod, 0.0f, int(this->a), nullptr, T()); }
+  METAL_FUNC T load(uint3 coord, uint lod = 0) const thread { return __metal_read_texture3d_t(this->t, coord, lod, int(this->a)); }
+  METAL_FUNC uint get_width() const thread { return __metal_get_width_texture3d_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_height() const thread { return __metal_get_height_texture3d_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_num_mip_levels() const thread { return __metal_get_num_mip_levels_texture3d_t(this->t, int(this->a)); }
+};
+
+} // namespace metal
+#endif

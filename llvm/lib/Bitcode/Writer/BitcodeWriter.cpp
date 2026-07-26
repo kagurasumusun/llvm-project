@@ -180,13 +180,14 @@ public:
       : Stream(Stream), StrtabBuilder(StrtabBuilder) {}
 
 protected:
-  void writeModuleVersion();
-};
+  unsigned ModuleVersion = 2; // default: latest
 
-void BitcodeWriterBase::writeModuleVersion() {
-  // VERSION: [version#]
-  Stream.EmitRecord(bitc::MODULE_CODE_VERSION, ArrayRef<uint64_t>{2});
-}
+  void writeModuleVersion() {
+    // VERSION: [version#]
+    Stream.EmitRecord(bitc::MODULE_CODE_VERSION,
+                      ArrayRef<uint64_t>{ModuleVersion});
+  }
+};
 
 /// Base class to manage the module bitcode writing, currently subclassed for
 /// ModuleBitcodeWriter and ThinLinkBitcodeWriter.
@@ -307,23 +308,80 @@ class ModuleBitcodeWriter : public ModuleBitcodeWriterBase {
   /// The start bit of the identification block.
   uint64_t BitcodeStartBit;
 
+  /// Bitcode emission mode.
+  BitcodeEmitMode EmitMode;
+
+  /// Typed-pointer map used only in AIR mode.  When non-null every opaque
+  /// pointer in the module has a corresponding entry mapping it to its
+  /// TypedPointerType.
+  BitcodePointerTypeMap PtrTypeMap;
+
+  /// Cached i8* TypedPointerType (used as fallback in AIR mode).
+  Type *I8PtrTy = nullptr;
+
 public:
   /// Constructs a ModuleBitcodeWriter object for the given Module,
   /// writing to the provided \p Buffer.
   ModuleBitcodeWriter(const Module &M, StringTableBuilder &StrtabBuilder,
                       BitstreamWriter &Stream, bool ShouldPreserveUseListOrder,
                       const ModuleSummaryIndex *Index, bool GenerateHash,
-                      ModuleHash *ModHash = nullptr)
+                      ModuleHash *ModHash = nullptr,
+                      BitcodeEmitMode Mode = BitcodeEmitMode::Normal,
+                      const BitcodePointerTypeMap *ExternalPtrMap = nullptr)
       : ModuleBitcodeWriterBase(M, StrtabBuilder, Stream,
                                 ShouldPreserveUseListOrder, Index),
         GenerateHash(GenerateHash), ModHash(ModHash),
-        BitcodeStartBit(Stream.GetCurrentBitNo()) {}
+        BitcodeStartBit(Stream.GetCurrentBitNo()), EmitMode(Mode) {
+    if (EmitMode == BitcodeEmitMode::AIR) {
+      ModuleVersion = 1; // metalfe 32023.883 compatibility
+    }
+    if (usesTypedPointers()) {
+      I8PtrTy = TypedPointerType::get(Type::getInt8Ty(M.getContext()), 0);
+      if (ExternalPtrMap)
+        PtrTypeMap = *ExternalPtrMap;
+    }
+  }
 
   /// Emit the current module to the bitstream.
   void write();
 
 private:
   uint64_t bitcodeStartBit() { return BitcodeStartBit; }
+
+  bool isAIR() const { return EmitMode == BitcodeEmitMode::AIR; }
+  bool usesTypedPointers() const {
+    return EmitMode == BitcodeEmitMode::AIR ||
+           EmitMode == BitcodeEmitMode::Typed;
+  }
+
+  /// Return the type ID for \p T, resolving opaque pointers to their
+  /// TypedPointerType when the value \p V is known and we are in a
+  /// typed-pointer mode (Typed or AIR).
+  unsigned resolveTypeID(Type *T, const Value *V = nullptr) {
+    if (!usesTypedPointers() || !T->isPointerTy())
+      return VE.getTypeID(T);
+    if (V) {
+      auto It = PtrTypeMap.find(V);
+      if (It != PtrTypeMap.end())
+        return VE.getTypeID(It->second);
+    }
+    return VE.getTypeID(I8PtrTy);
+  }
+
+  /// Return the value-type ID for a GlobalObject's value type, resolving
+  /// through the PtrTypeMap when in a typed-pointer mode.
+  unsigned resolveGlobalValueTypeID(Type *T, const GlobalObject *G) {
+    if (!usesTypedPointers())
+      return VE.getTypeID(T);
+    if (G) {
+      auto It = PtrTypeMap.find(G);
+      if (It != PtrTypeMap.end()) {
+        if (auto *TP = dyn_cast<TypedPointerType>(It->second))
+          return VE.getTypeID(TP->getElementType());
+      }
+    }
+    return VE.getTypeID(T);
+  }
 
   size_t addToStrtab(StringRef Str);
 
@@ -1104,11 +1162,23 @@ void ModuleBitcodeWriter::writeTypeTable() {
 
   uint64_t NumBits = VE.computeBitsRequiredForTypeIndices();
 
-  // Abbrev for TYPE_CODE_OPAQUE_POINTER.
-  auto Abbv = std::make_shared<BitCodeAbbrev>();
-  Abbv->Add(BitCodeAbbrevOp(bitc::TYPE_CODE_OPAQUE_POINTER));
-  Abbv->Add(BitCodeAbbrevOp(0)); // Addrspace = 0
-  unsigned OpaquePtrAbbrev = Stream.EmitAbbrev(std::move(Abbv));
+  // Abbrev for pointer types.  In AIR mode we use TYPE_CODE_POINTER (typed),
+  // in Normal mode TYPE_CODE_OPAQUE_POINTER.
+  unsigned OpaquePtrAbbrev = 0;
+  unsigned PtrAbbrev = 0;
+  std::shared_ptr<BitCodeAbbrev> Abbv;
+  if (usesTypedPointers()) {
+    Abbv = std::make_shared<BitCodeAbbrev>();
+    Abbv->Add(BitCodeAbbrevOp(bitc::TYPE_CODE_POINTER));
+    Abbv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, NumBits));
+    Abbv->Add(BitCodeAbbrevOp(0)); // Addrspace = 0
+    PtrAbbrev = Stream.EmitAbbrev(Abbv);
+  } else {
+    Abbv = std::make_shared<BitCodeAbbrev>();
+    Abbv->Add(BitCodeAbbrevOp(bitc::TYPE_CODE_OPAQUE_POINTER));
+    Abbv->Add(BitCodeAbbrevOp(0)); // Addrspace = 0
+    OpaquePtrAbbrev = Stream.EmitAbbrev(Abbv);
+  }
 
   // Abbrev for TYPE_CODE_FUNCTION.
   Abbv = std::make_shared<BitCodeAbbrev>();
@@ -1181,11 +1251,22 @@ void ModuleBitcodeWriter::writeTypeTable() {
     case Type::PointerTyID: {
       PointerType *PTy = cast<PointerType>(T);
       unsigned AddressSpace = PTy->getAddressSpace();
-      // OPAQUE_POINTER: [address space]
-      Code = bitc::TYPE_CODE_OPAQUE_POINTER;
-      TypeVals.push_back(AddressSpace);
-      if (AddressSpace == 0)
-        AbbrevToUse = OpaquePtrAbbrev;
+      if (usesTypedPointers()) {
+        // Typed/AIR mode: opaque pointers should have been replaced by
+        // TypedPointerType via PointerTypeAnalysis.  Emit a fallback
+        // i8* typed pointer for any that were missed.
+        Code = bitc::TYPE_CODE_POINTER;
+        TypeVals.push_back(VE.getTypeID(Type::getInt8Ty(M.getContext())));
+        TypeVals.push_back(AddressSpace);
+        if (AddressSpace == 0)
+          AbbrevToUse = PtrAbbrev;
+      } else {
+        // Opaque mode: OPAQUE_POINTER: [address space]
+        Code = bitc::TYPE_CODE_OPAQUE_POINTER;
+        TypeVals.push_back(AddressSpace);
+        if (AddressSpace == 0)
+          AbbrevToUse = OpaquePtrAbbrev;
+      }
       break;
     }
     case Type::FunctionTyID: {
@@ -1257,8 +1338,17 @@ void ModuleBitcodeWriter::writeTypeTable() {
       llvm::append_range(TypeVals, TET->int_params());
       break;
     }
-    case Type::TypedPointerTyID:
-      llvm_unreachable("Typed pointers cannot be added to IR modules");
+    case Type::TypedPointerTyID: {
+      // AIR mode: emit TYPE_CODE_POINTER with the pointee type.
+      // Normal mode: this should not appear.
+      TypedPointerType *PTy = cast<TypedPointerType>(T);
+      Code = bitc::TYPE_CODE_POINTER;
+      TypeVals.push_back(VE.getTypeID(PTy->getElementType()));
+      TypeVals.push_back(PTy->getAddressSpace());
+      if (PTy->getAddressSpace() == 0)
+        AbbrevToUse = PtrAbbrev;
+      break;
+    }
     }
 
     // Emit the finished record.
@@ -5585,6 +5675,20 @@ void BitcodeWriter::writeModule(const Module &M,
   ModuleWriter.write();
 }
 
+void BitcodeWriter::writeModule(const Module &M, BitcodeEmitMode Mode,
+                                const BitcodePointerTypeMap *PtrTypeMap,
+                                bool ShouldPreserveUseListOrder) {
+  assert(!WroteStrtab);
+  assert(M.isMaterialized());
+  Mods.push_back(const_cast<Module *>(&M));
+
+  ModuleBitcodeWriter ModuleWriter(M, StrtabBuilder, *Stream,
+                                   ShouldPreserveUseListOrder, /*Index=*/nullptr,
+                                   /*GenerateHash=*/false, /*ModHash=*/nullptr,
+                                   Mode, PtrTypeMap);
+  ModuleWriter.write();
+}
+
 void BitcodeWriter::writeIndex(
     const ModuleSummaryIndex *Index,
     const ModuleToSummariesForIndexTy *ModuleToSummariesForIndex,
@@ -5611,6 +5715,33 @@ void llvm::WriteBitcodeToFile(const Module &M, raw_ostream &Out,
     // header. Note that the header is computed *after* the output is known, so
     // we currently explicitly use a buffer, write to it, and then subsequently
     // flush to Out.
+    SmallVector<char, 0> Buffer;
+    Buffer.reserve(256 * 1024);
+    Buffer.insert(Buffer.begin(), BWH_HeaderSize, 0);
+    BitcodeWriter Writer(Buffer);
+    Write(Writer);
+    emitDarwinBCHeaderAndTrailer(Buffer, TT);
+    Out.write(Buffer.data(), Buffer.size());
+  } else {
+    BitcodeWriter Writer(Out);
+    Write(Writer);
+  }
+}
+
+void llvm::WriteBitcodeToFile(const Module &M, raw_ostream &Out,
+                              BitcodeEmitMode Mode,
+                              const BitcodePointerTypeMap *PtrTypeMap,
+                              bool ShouldPreserveUseListOrder) {
+  assert(M.isMaterialized());
+
+  auto Write = [&](BitcodeWriter &Writer) {
+    Writer.writeModule(M, Mode, PtrTypeMap, ShouldPreserveUseListOrder);
+    Writer.writeSymtab();
+    Writer.writeStrtab();
+  };
+
+  Triple TT(M.getTargetTriple());
+  if (TT.isOSDarwin() || TT.isOSBinFormatMachO()) {
     SmallVector<char, 0> Buffer;
     Buffer.reserve(256 * 1024);
     Buffer.insert(Buffer.begin(), BWH_HeaderSize, 0);

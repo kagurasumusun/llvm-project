@@ -1,0 +1,20 @@
+// __bits/metal_texture2d_ms_array — texture2d_ms_array implementation
+// Cleanroom: matches Apple metalfe 32023.883 ABI
+#ifndef __BITS_METAL_TEXTURE2D_MS_ARRAY
+#define __BITS_METAL_TEXTURE2D_MS_ARRAY
+#include <__bits/metal_texture_common>
+
+namespace metal {
+
+template <typename T, int A>
+struct _texture2d_ms_array_sample : _texture_d2_ms_array_t<T, A> {
+  METAL_FUNC T read(uint2 coorduint array_index, uint lod = 0) const thread { return __metal_read_texture2d_ms_array_t(this->t, coord, array_index, lod, int(this->a)); }
+  METAL_FUNC void write(T color, uint2 coorduint array_index, uint lod = 0) const thread { __metal_write_texture2d_ms_array_t(this->t, color, coord, array_index, lod, int(this->a)); }
+  METAL_FUNC T load(uint2 coorduint array_index, uint lod = 0) const thread { return __metal_read_texture2d_ms_array_t(this->t, coord, array_index, lod, int(this->a)); }
+  METAL_FUNC uint get_width() const thread { return __metal_get_width_texture2d_ms_array_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_height() const thread { return __metal_get_height_texture2d_ms_array_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_num_mip_levels() const thread { return __metal_get_num_mip_levels_texture2d_ms_array_t(this->t, int(this->a)); }
+};
+
+} // namespace metal
+#endif

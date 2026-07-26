@@ -505,6 +505,13 @@ CODEGENOPT(AllResourcesBound, 1, 0, Benign)
 ENUM_CODEGENOPT(WinX64EHUnwindV2, WinX64EHUnwindV2Mode,
                 2, WinX64EHUnwindV2Mode::Disabled, Benign)
 
+/// Bitcode emission mode for AIR (Metal IR) targets.
+///   0 = opaque (default, standard LLVM)
+///   1 = typed  (legacy typed pointers, all attributes)
+///   2 = AIR    (typed pointers, stripped attributes, version 1)
+ENUM_CODEGENOPT(AIRBitcodeMode, AIRBitcodeEmitMode,
+                2, AIRBitcodeEmitMode::Default, Benign)
+
 /// FIXME: Make DebugOptions its own top-level .def file.
 #include "DebugOptions.def"
 

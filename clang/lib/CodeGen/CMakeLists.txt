@@ -32,6 +32,7 @@ set(LLVM_LINK_COMPONENTS
   Target
   TargetParser
   TransformUtils
+  AIRBitWriter
   )
 
 # Workaround for MSVC ARM64 performance regression:

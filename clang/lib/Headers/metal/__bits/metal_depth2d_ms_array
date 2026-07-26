@@ -1,0 +1,22 @@
+// __bits/metal_depth2d_ms_array — depth2d_ms_array implementation
+#ifndef __BITS_METAL_DEPTH2D_MS_ARRAY
+#define __BITS_METAL_DEPTH2D_MS_ARRAY
+#include <__bits/metal_texture_common>
+
+namespace metal {
+
+template <typename T, int A>
+struct _depth2d_ms_array_sample : _depth_d2_ms_array_t<T, A> {
+  METAL_FUNC T read(uint2 coorduint array_index, uint lod = 0) const thread { return __metal_read_depth2d_ms_array_t(this->t, coord, array_index, lod, int(this->a)); }
+  METAL_FUNC T sample(sampler s, float2 coorduint array_index, int2 offset = int2(0)) const thread { return __metal_sample_depth2d_ms_array_t(this->t, s.val, coord, true, offset, false, 0.0f, 0.0f, int(this->a), nullptr, T()); }
+  METAL_FUNC T sample_compare(sampler s, float2 coord, T compare_valueuint array_index, int2 offset = int2(0)) const thread { return __metal_sample_compare_depth2d_ms_array_t(this->t, s.val, coord, compare_value, true, offset, 0.0f, int(this->a), nullptr); }
+  METAL_FUNC T sample_compare(sampler s, float2 coord, T compare_value, bias optionsuint array_index, int2 offset = int2(0)) const thread { return __metal_sample_compare_depth2d_ms_array_t(this->t, s.val, coord, compare_value, true, offset, options.value, int(this->a), nullptr); }
+  METAL_FUNC T gather(sampler s, float2 coorduint array_index, int2 offset = int2(0)) const thread { return __metal_gather_depth2d_ms_array_t(this->t, s.val, coord, true, offset, int(this->a), nullptr, T()); }
+  METAL_FUNC T gather_compare(sampler s, float2 coord, T compare_valueuint array_index, int2 offset = int2(0)) const thread { return __metal_gather_compare_depth2d_ms_array_t(this->t, s.val, coord, compare_value, true, offset, int(this->a), nullptr); }
+  METAL_FUNC uint get_width() const thread { return __metal_get_width_depth2d_ms_array_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_height() const thread { return __metal_get_height_depth2d_ms_array_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_num_mip_levels() const thread { return __metal_get_num_mip_levels_depth2d_ms_array_t(this->t, int(this->a)); }
+};
+
+} // namespace metal
+#endif

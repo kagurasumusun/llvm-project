@@ -1,0 +1,19 @@
+// __bits/metal_texture_buffer — texture_buffer implementation
+// Cleanroom: matches Apple metalfe 32023.883 ABI
+#ifndef __BITS_METAL_TEXTURE_BUFFER
+#define __BITS_METAL_TEXTURE_BUFFER
+#include <__bits/metal_texture_common>
+
+namespace metal {
+
+template <typename T, int A>
+struct _texture_buffer_sample : _texture_buffer_t<T, A> {
+  METAL_FUNC T read(uint1 coord, uint lod = 0) const thread { return __metal_read_texture_buffer_t(this->t, coord, lod, int(this->a)); }
+  METAL_FUNC void write(T color, uint2 coord, uint lod = 0) const thread { __metal_write_texture_buffer_t(this->t, color, coord, lod, int(this->a)); }
+  METAL_FUNC uint get_width() const thread { return __metal_get_width_texture_buffer_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_height() const thread { return __metal_get_height_texture_buffer_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_num_mip_levels() const thread { return __metal_get_num_mip_levels_texture_buffer_t(this->t, int(this->a)); }
+};
+
+} // namespace metal
+#endif

@@ -120,6 +120,14 @@ public:
     Embed_Marker    // Embed a marker as a placeholder for bitcode.
   };
 
+  /// Bitcode emission mode for AIR (Metal IR) targets.
+  enum AIRBitcodeEmitMode {
+    AIRBitcode_Default, // Auto-detect: isAIR() → AIR, else opaque.
+    AIRBitcode_Opaque,  // Force opaque pointers (standard LLVM).
+    AIRBitcode_Typed,   // Force typed pointers (legacy, all attributes).
+    AIRBitcode_AIR,     // Force AIR mode (typed, stripped attrs, v1).
+  };
+
   enum class ExtendVariableLivenessKind {
     None,
     This,

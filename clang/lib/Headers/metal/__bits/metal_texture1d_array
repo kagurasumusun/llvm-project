@@ -1,0 +1,21 @@
+// __bits/metal_texture1d_array — texture1d_array implementation
+// Cleanroom: matches Apple metalfe 32023.883 ABI
+#ifndef __BITS_METAL_TEXTURE1D_ARRAY
+#define __BITS_METAL_TEXTURE1D_ARRAY
+#include <__bits/metal_texture_common>
+
+namespace metal {
+
+template <typename T, int A>
+struct _texture1d_array_sample : _texture_d1_array_t<T, A> {
+  METAL_FUNC T read(uint1 coorduint array_index, uint lod = 0) const thread { return __metal_read_texture1d_array_t(this->t, coord, array_index, lod, int(this->a)); }
+  METAL_FUNC T sample(sampler s, float2 coorduint array_index, int2 offset = int2(0)) const thread { return __metal_sample_texture1d_array_t(this->t, s.val, coord, true, offset, false, 0.0f, 0.0f, int(this->a), nullptr, T()); }
+  METAL_FUNC T sample(sampler s, float2 coord, bias optionsuint array_index, int2 offset = int2(0)) const thread { return __metal_sample_texture1d_array_t(this->t, s.val, coord, true, offset, false, options.value, 0.0f, int(this->a), nullptr, T()); }
+  METAL_FUNC T sample(sampler s, float2 coord, level optionsuint array_index, int2 offset = int2(0)) const thread { return __metal_sample_texture1d_array_t(this->t, s.val, coord, true, offset, true, options.lod, 0.0f, int(this->a), nullptr, T()); }
+  METAL_FUNC uint get_width() const thread { return __metal_get_width_texture1d_array_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_height() const thread { return __metal_get_height_texture1d_array_t(this->t, int(this->a)); }
+  METAL_FUNC uint get_num_mip_levels() const thread { return __metal_get_num_mip_levels_texture1d_array_t(this->t, int(this->a)); }
+};
+
+} // namespace metal
+#endif
