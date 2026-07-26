@@ -9226,6 +9226,22 @@ bool InitializationSequence::Diagnose(Sema &S,
     }
 
     R.setBegin(S.getLocForEndOfToken(R.getBegin()));
+    // Metal Shading Language 2.0+ s2.3 admits multi-scalar functional
+    // casts of vector types (e.g. ``ulong2(0, 0)``).  Our SemaExprCXX
+    // adjustment routes the expression to CreateDirectList, but the
+    // SequenceInit sometimes still lands here for corner cases such as
+    // default-argument evaluation of a stdlib parameter.  When the
+    // destination type is a vector and we are in Metal / OpenCL, this
+    // failure kind is a false positive -- fall through silently to the
+    // BuildCXXFunctionalCastExpr sibling path (which correctly builds
+    // a vector-typed expression from the paren-arg-list).
+    QualType DestT = Entity.getType();
+    bool IsMetalOrOpenCLVectorTarget =
+        (S.getLangOpts().Metal || S.getLangOpts().OpenCL) &&
+        !DestT.isNull() && DestT->isVectorType();
+    if (IsMetalOrOpenCLVectorTarget) {
+      break;
+    }
     if (Kind.isCStyleOrFunctionalCast())
       S.Diag(Kind.getLocation(), diag::err_builtin_func_cast_more_than_one_arg)
         << R;
