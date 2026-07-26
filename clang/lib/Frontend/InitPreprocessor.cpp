@@ -392,6 +392,32 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
   if (LangOpts.Metal) {
     Builder.defineMacro("__METAL__");
     Builder.defineMacro("__METAL_VERSION__", Twine(LangOpts.MetalVersion));
+
+    // Metal C++ generation control per kagurasumusun/metal-info
+    // METAL_CXX_MASTER_ATLAS.md (2026-07-21 experimental measurements):
+    //   metal1.0 - metal1.2   -> __cplusplus 201103L  (C++11)
+    //   metal2.0 - metal3.2   -> __cplusplus 201402L  (C++14 base)
+    //   metal4.0 - metal4.1   -> __cplusplus 201703L  (C++17)
+    //
+    // The LangStandard flags for metal2.x / metal3.x additionally grant
+    // ``CPlusPlus17`` so that Apple's metal_stdlib can use if constexpr,
+    // structured bindings and fold expressions (metalfe backports; see
+    // metal-info FEAT-07/08/09).  But __cplusplus itself must still
+    // report 201402L for those standards to match metalfe observations
+    // and so user code checking __cplusplus takes the right branch.  We
+    // therefore undefine the auto-emitted __cplusplus and re-emit it
+    // with the correct value for the requested Metal version.
+    unsigned MetalVersion = LangOpts.MetalVersion;
+    const char *MetalCPlusPlusValue = nullptr;
+    if (MetalVersion < 200)
+      MetalCPlusPlusValue = "201103L";  // metal1.x -> C++11
+    else if (MetalVersion < 400)
+      MetalCPlusPlusValue = "201402L";  // metal2.x/3.x -> C++14 (C++17 features backported)
+    else
+      MetalCPlusPlusValue = "201703L";  // metal4.x -> C++17
+    Builder.undefineMacro("__cplusplus");
+    Builder.defineMacro("__cplusplus", MetalCPlusPlusValue);
+
     if (TI.getTriple().isMacOSX())
       Builder.defineMacro("__METAL_MACOS__");
     else if (TI.getTriple().isOSDarwin())
