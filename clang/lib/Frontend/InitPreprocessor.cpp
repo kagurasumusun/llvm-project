@@ -427,10 +427,20 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     // return type is itself the proxy (dependent contexts).
     Builder.append("  template<class __U> constexpr __clang_metal_any_t(__U&&) noexcept {}");
     // Universal-conversion operator: models Apple's implicit intrinsic
-    // return-type deduction.  ``T()`` is well-formed for every built-in
-    // scalar / vector / matrix type used by metal_stdlib; for user types
-    // Sema will pick a matching converting constructor.
-    Builder.append("  template<class __T> constexpr operator __T() const noexcept { return __T(); }");
+    // return-type deduction.  We deliberately declare FOUR overloads,
+    // one per Metal address-space method qualifier, because the temporary
+    // returned by ``__metal_X(...)`` may live in any of ``thread``,
+    // ``device``, ``constant`` or ``threadgroup`` depending on the enclosing
+    // function's AS.  A single unqualified operator would be treated as
+    // ``thread``-qualified and Sema would reject the conversion with
+    // "'this' object is in generic address space, but method expects
+    // object in address space '__private'".  The four-fold declaration
+    // matches Apple's own pattern for stdlib helpers that must survive
+    // AS-polymorphic instantiation.
+    Builder.append("  template<class __T> constexpr operator __T() const thread    noexcept { return __T(); }");
+    Builder.append("  template<class __T> constexpr operator __T() const device    noexcept { return __T(); }");
+    Builder.append("  template<class __T> constexpr operator __T() const constant  noexcept { return __T(); }");
+    Builder.append("  template<class __T> constexpr operator __T() const threadgroup noexcept { return __T(); }");
     Builder.append("};");
     Builder.append("#endif");
 
@@ -448,6 +458,20 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #define METAL_PREDEFINE_STR(Name, Str)                                          \
     Builder.defineMacro(#Name, Str);
 #include "clang/Basic/MetalPredefines.def"
+
+    // Function-like macro fallbacks for imageblock layout type-traits used
+    // by <metal_imageblocks> and <__bits/metal_texture_common>.  Apple's
+    // proprietary Metal clang implements these as compiler intrinsics that
+    // inspect the argument struct's layout attributes; we don't yet model
+    // those attributes, so we conservatively return ``true`` -- which
+    // means "any struct is treated as an admissible imageblock struct".
+    // This is safe at Sema time (matching the ``__is_metal_patch_control_point_struct``
+    // philosophy) because the *real* layout check happens at pipeline
+    // linking, not at shader compilation.  A follow-up commit will
+    // promote these to proper KEYMETAL TYPE_TRAIT_1 entries alongside
+    // ``__is_metal_buffer`` etc. once the corresponding Sema logic lands.
+    Builder.defineMacro("__is_metal_explicit_layout_imageblock_struct(T)", "true");
+    Builder.defineMacro("__is_metal_implicit_layout_imageblock_struct(T)", "true");
 
     // Note: __is_metal_buffer / __is_metal_buffer_pointee /
     // __is_metal_patch_control_point_struct are compiler-intrinsic type
