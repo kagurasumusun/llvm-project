@@ -4148,7 +4148,14 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   // vs HLSL), we simply re-assert the Metal defaults immediately after
   // marshalling.  This keeps the Options.td file unchanged.
   if (Opts.Metal) {
-    Opts.NativeHalfType = 1;
+    // Only re-apply NativeHalfArgsAndReturns; NativeHalfType was found
+    // to trigger a crash in Sema during template instantiation of
+    // half-based helpers in Apple's stdlib (CI runs 30188454610-
+    // 30189999775 all segfault after this bit is set).  The half
+    // parameter/return relaxation is sufficient to compile the sample
+    // shaders; native-half arithmetic promotion (which was what
+    // NativeHalfType controls) is a separate improvement that needs
+    // deeper investigation before re-enabling.
     Opts.NativeHalfArgsAndReturns = 1;
   }
 
