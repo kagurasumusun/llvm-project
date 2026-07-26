@@ -4125,39 +4125,17 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 #include "clang/Options/Options.inc"
 #undef LANG_OPTION_WITH_MARSHALLING
 
-  // Re-apply Metal-specific defaults after generic option marshalling.
-  //
-  // The marshalling loop above walks every option in Options.td.  Options
-  // that have not been explicitly passed on the command line get their
-  // default value (defined in Options.td) written back into ``Opts``,
-  // *overwriting* whatever ``LangOptions::setLangDefaults`` set for them
-  // moments earlier.  Two Metal-critical LangOpts are affected today:
-  //
-  //   * NativeHalfType         (default 0 in LangOptions.def)
-  //   * NativeHalfArgsAndReturns (default 0)
-  //
-  // MSL 2.0+ s2.1 requires both to be 1 unconditionally (see LangOptions
-  // .cpp::setLangDefaults for the rationale), otherwise ``half * half``
-  // usual-arithmetic-conversion promotes to ``float`` and Apple's
-  // <metal_geometric>::cross(half3, half3) triggers spurious narrowing
-  // diagnostics (3 in run 30188311912, plus half literal / half
-  // parameter regressions).
-  //
-  // Instead of adding a Marshalling attribute to LangOptions.def (which
-  // would require redesigning the default logic for OpenCL vs Metal
-  // vs HLSL), we simply re-assert the Metal defaults immediately after
-  // marshalling.  This keeps the Options.td file unchanged.
-  if (Opts.Metal) {
-    // Only re-apply NativeHalfArgsAndReturns; NativeHalfType was found
-    // to trigger a crash in Sema during template instantiation of
-    // half-based helpers in Apple's stdlib (CI runs 30188454610-
-    // 30189999775 all segfault after this bit is set).  The half
-    // parameter/return relaxation is sufficient to compile the sample
-    // shaders; native-half arithmetic promotion (which was what
-    // NativeHalfType controls) is a separate improvement that needs
-    // deeper investigation before re-enabling.
-    Opts.NativeHalfArgsAndReturns = 1;
-  }
+  // NOTE: The prior version of this file re-applied Metal-specific
+  // LangOptions defaults (NativeHalfArgsAndReturns=1) after the
+  // marshalling loop above.  That re-apply was found to correlate
+  // with a SIGSEGV crash in Sema during Apple stdlib parse (CI runs
+  // 30188454610 through 30190254445).  The crash exact root cause is
+  // still under investigation.  In the meantime, remove the re-apply
+  // so we return to the pre-fix behaviour (marshalling default of 0
+  // wins over setLangDefaults value in Metal mode).  This costs us
+  // the ``half * half -> half`` type preservation we briefly had, but
+  // avoids the crash so CI can produce reliable error counts for
+  // isolation of the remaining bugs.
 
   if (const Arg *A = Args.getLastArg(OPT_fcf_protection_EQ)) {
     StringRef Name = A->getValue();
