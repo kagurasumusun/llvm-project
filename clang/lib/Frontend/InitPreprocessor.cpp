@@ -403,6 +403,37 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("METAL_FUNC", "inline __attribute__((__always_inline__))");
     Builder.defineMacro("METAL_INTERNAL", "");
 
+    // Universal proxy return type used by MetalStdlibBuiltinPrototypes.def.
+    //
+    // Apple's proprietary Metal clang treats every ``__metal_*`` name as a
+    // compiler intrinsic whose signature is *inferred at every call site*.
+    // We can't yet reproduce that mechanism, so we declare each __metal_X
+    // as a permissive variadic template returning this proxy type.  The
+    // proxy implicitly converts to any type Apple's headers may expect,
+    // which lets the stdlib compile through the AST layer.  The final IR
+    // is then materialised by CGMetalBuiltins.cpp / CGExpr.cpp based on
+    // the callee's *name*, so runtime behaviour is unaffected -- only the
+    // Sema-time type check is loosened.
+    //
+    // The proxy is placed in the global namespace so the ``::`` prefix in
+    // the .def template is always resolvable regardless of surrounding
+    // ``namespace metal { ... }`` scope.
+    Builder.append("#ifndef __CLANG_METAL_ANY_T_DEFINED");
+    Builder.append("#define __CLANG_METAL_ANY_T_DEFINED 1");
+    Builder.append("struct __clang_metal_any_t {");
+    Builder.append("  constexpr __clang_metal_any_t() noexcept {}");
+    // Absorb any single scalar so `__clang_metal_any_t(x)` is well-formed;
+    // used by `return __metal_X(...)` when the surrounding function's
+    // return type is itself the proxy (dependent contexts).
+    Builder.append("  template<class __U> constexpr __clang_metal_any_t(__U&&) noexcept {}");
+    // Universal-conversion operator: models Apple's implicit intrinsic
+    // return-type deduction.  ``T()`` is well-formed for every built-in
+    // scalar / vector / matrix type used by metal_stdlib; for user types
+    // Sema will pick a matching converting constructor.
+    Builder.append("  template<class __T> constexpr operator __T() const noexcept { return __T(); }");
+    Builder.append("};");
+    Builder.append("#endif");
+
     // Emit every compiler-supplied Metal preprocessor macro from a single
     // authoritative table (clang/Basic/MetalPredefines.def).  Keeping the
     // list in an X-macro file gives us two benefits:
@@ -526,13 +557,39 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
 #undef METAL_STDLIB_BUILTIN_PROTO
       return "";
     };
+    // Texture helper names are hand-declared with concrete prototypes
+    // earlier in this function so that CGExpr.cpp can lower them to the
+    // dedicated ``air.texture.*`` intrinsics.  We must NOT re-declare them
+    // here as permissive templates, or we would create a
+    // template-vs-extern-"C" mismatch and Sema would reject the second
+    // declaration.
+    auto IsMetalTextureHelperName = [](StringRef CandidateName) {
+      return CandidateName == "__metal_texture_get_width" ||
+             CandidateName == "__metal_texture_get_width_lod" ||
+             CandidateName == "__metal_texture_get_height" ||
+             CandidateName == "__metal_texture_get_height_lod" ||
+             CandidateName == "__metal_texture_get_depth" ||
+             CandidateName == "__metal_texture_get_depth_lod" ||
+             CandidateName == "__metal_texture_get_array_size" ||
+             CandidateName == "__metal_texture_get_num_mip_levels" ||
+             CandidateName == "__metal_texture_get_num_samples" ||
+             CandidateName == "__metal_texture_read" ||
+             CandidateName == "__metal_texture_sample" ||
+             CandidateName == "__metal_texture_write";
+    };
 #define METAL_STDLIB_BUILTIN(Name)                                                  \
-    if (!IsMetalBuiltinTypeName(#Name)) {                                           \
+    if (!IsMetalBuiltinTypeName(#Name) && !IsMetalTextureHelperName(#Name)) {       \
       StringRef Prototype = GetMetalStdlibBuiltinPrototype(#Name);                  \
       if (!Prototype.empty())                                                       \
         Builder.append(Prototype);                                                  \
       else                                                                          \
-        Builder.append("extern \"C\" int " #Name "(...);");                    \
+        /* Same permissive strategy as MetalStdlibBuiltinPrototypes.def.            \
+           A single ``extern "C" int NAME(...)`` fallback cannot satisfy the        \
+           dozens of overloaded call sites that Apple's stdlib emits per            \
+           builtin (varying arity, scalar-vs-vector-vs-matrix return, etc.),        \
+           so we mirror the .def strategy: variadic template returning the          \
+           universal proxy type. */                                                 \
+        Builder.append("template<class... __M_A> inline ::__clang_metal_any_t " #Name "(__M_A&&...) noexcept;");                    \
     }
 #include "clang/Basic/MetalStdlibBuiltins.def"
 #undef METAL_STDLIB_BUILTIN
