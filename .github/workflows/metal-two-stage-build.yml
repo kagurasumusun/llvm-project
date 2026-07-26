@@ -299,11 +299,11 @@ jobs:
           # opaque-pointer bitcode with:
           #   error: Opaque pointers are only supported in -opaque-pointers mode
           #     (Producer: 'LLVM22.1.8' Reader: 'LLVM ')
-          # Fork clang emits opaque-pointer bitcode (LLVM 15+), so -opaque-pointers
-          # must be passed explicitly. metal-as also rejects binary .bc with
-          # "expected top-level entity" (it expects textual .ll), so metal -x ir
-          # is the only working path here.
-          OP_FLAGS=(-mllvm -opaque-pointers)
+          # -mllvm -opaque-pointers does NOT work here (still rejected with the
+          # same error). The flag must be passed to cc1 directly via -Xclang.
+          # metal-as also rejects binary .bc with "expected top-level entity"
+          # (it expects textual .ll), so metal -x ir is the only working path.
+          OP_FLAGS=(-Xclang -opaque-pointers)
 
           for name in add AAPLShaders; do
             echo "--- Assembling $name.air from fork-clang bitcode ---"
