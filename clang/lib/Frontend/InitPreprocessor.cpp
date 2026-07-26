@@ -497,34 +497,22 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro(#Name, Str);
 #include "clang/Basic/MetalPredefines.def"
 
-    // Function-like macro fallbacks for imageblock layout type-traits used
-    // by <metal_imageblocks> and <__bits/metal_texture_common>.  Apple's
-    // proprietary Metal clang implements these as compiler intrinsics that
-    // inspect the argument struct's layout attributes; we don't yet model
-    // those attributes, so we conservatively return ``true`` -- which
-    // means "any struct is treated as an admissible imageblock struct".
-    // This is safe at Sema time (matching the ``__is_metal_patch_control_point_struct``
-    // philosophy) because the *real* layout check happens at pipeline
-    // linking, not at shader compilation.  A follow-up commit will
-    // promote these to proper KEYMETAL TYPE_TRAIT_1 entries alongside
-    // ``__is_metal_buffer`` etc. once the corresponding Sema logic lands.
-    Builder.defineMacro("__is_metal_explicit_layout_imageblock_struct(T)", "true");
-    Builder.defineMacro("__is_metal_implicit_layout_imageblock_struct(T)", "true");
-    // Additional __is_metal_* type-trait fallbacks used inside
-    // <metal_raytracing>, <metal_visible_function_table>, <metal_mesh>,
-    // <metal_command_buffer>.  Same rationale as above: full Sema-side
-    // TypeTrait support is future work; the immediate goal is to unblock
-    // the metal_stdlib parse.  Always returning ``true`` is safe because
-    // the concrete validation is performed at pipeline-link time.
-    Builder.defineMacro("__is_metal_intersection_tag(T)", "true");
-    Builder.defineMacro("__is_metal_intersection_tag_sequence(T)", "true");
-    Builder.defineMacro("__is_metal_visible_function_table(T)", "true");
-    Builder.defineMacro("__is_metal_command_buffer(T)", "true");
-    Builder.defineMacro("__is_metal_compute_command(T)", "true");
-    Builder.defineMacro("__is_metal_render_command(T)", "true");
-    Builder.defineMacro("__is_metal_mesh_grid_properties(T)", "true");
-    Builder.defineMacro("__is_metal_visible_function_table_argument(T)", "true");
-    Builder.defineMacro("__is_metal_acceleration_structure(T)", "true");
+    // NOTE: __is_metal_explicit_layout_imageblock_struct /
+    //       __is_metal_implicit_layout_imageblock_struct /
+    //       __is_metal_intersection_tag / __is_metal_intersection_tag_sequence /
+    //       __is_metal_visible_function_table /
+    //       __is_metal_visible_function_table_argument /
+    //       __is_metal_command_buffer / __is_metal_compute_command /
+    //       __is_metal_render_command / __is_metal_mesh_grid_properties /
+    //       __is_metal_acceleration_structure
+    //
+    // are compiler-intrinsic type traits (KEYMETAL TYPE_TRAIT_1 entries in
+    // TokenKinds.def, evaluated in Sema::EvaluateUnaryTypeTrait).  They do
+    // NOT need a preprocessor macro definition here.  The prior
+    // function-like ``#define __is_metal_X(T) true`` fallbacks were
+    // removed on 2026-07-26 in favour of proper Sema-side implementation,
+    // giving each trait the per-argument-type semantics documented in
+    // clang/lib/Sema/SemaTypeTraits.cpp instead of a blanket ``true``.
 
     // Half-precision floating-point constant builtins.  Metal Shading
     // Language uses ``__builtin_infh``, ``__builtin_nanh`` and
