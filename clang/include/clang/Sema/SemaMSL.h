@@ -37,8 +37,13 @@
 
 namespace clang {
 class Sema;
+class Declarator;
 
 namespace SemaMSL {
+
+//===----------------------------------------------------------------------===//
+// Language-mode gates (all inline).
+//===----------------------------------------------------------------------===//
 
 /// Return true if we are compiling in Metal mode at all
 /// (``-x metal`` or an ``-std=metal*`` was selected).  Every axis-2 gate
@@ -53,24 +58,18 @@ inline bool inInternalsMode(const LangOptions &LO) {
   return LO.Metal && LO.MetalInternals;
 }
 
-/// Convenience overload used from Sema code that has a Sema& in scope
-/// (the vast majority of call sites).  Defined inline to avoid a call
-/// through the vtable.
+/// Convenience overload used from Sema code that has a Sema& in scope.
+/// Defined out-of-line in SemaMSL.cpp to avoid forcing Sema.h transitively
+/// on every consumer.
 bool inInternalsMode(const Sema &S);
 
 //===----------------------------------------------------------------------===//
-// Per-diagnostic gates.  Every one is a one-liner around
-// ``inInternalsMode`` today; they exist as named predicates so future
-// axis-2 additions (e.g. per-header enables via ``__attribute__((...))``,
-// or a per-feature bit inside MetalInternals) do not require a
-// touch-and-recompile of every Sema*.cpp file.
+// Per-diagnostic gates (all inline: zero call overhead at every site).
 //===----------------------------------------------------------------------===//
 
 /// Whether ``half`` / ``__fp16`` may appear as a function parameter or
 /// return type without requiring the ``cl_khr_fp16`` extension.  Metal
-/// user code allows this natively (MSL 2.0+ s2.1), so we return true
-/// whenever ``isMetalMode`` is true -- the axis-2 aspect enters only if
-/// a strict axis-1 subset is later requested via a flag.
+/// user code allows this natively (MSL 2.0+ s2.1).
 inline bool allowHalfArgsAndReturns(const LangOptions &LO) {
   return isMetalMode(LO);
 }
@@ -81,16 +80,39 @@ inline bool allowHalfLiteral(const LangOptions &LO) {
   return isMetalMode(LO);
 }
 
-/// Whether the Sema pass should attempt to transfer a member-function's
-/// method address-space qualifier (``thread`` / ``device`` / ``constant``
-/// / ``threadgroup``) into the resulting FunctionProtoType.
-///
-/// Enabled for all Metal member functions -- axis 2 doesn't relax it
-/// because Apple's stdlib member functions rely on the transfer for
-/// overload resolution to work.
+/// Whether Sema should transfer a member-function's method address-space
+/// qualifier into the resulting FunctionProtoType.  Metal always yes;
+/// under OpenCL C++ same behaviour applies via the upstream code path.
 inline bool transferMethodAddressSpace(const LangOptions &LO) {
   return isMetalMode(LO);
 }
+
+//===----------------------------------------------------------------------===//
+// Encapsulated Sema-time helpers used by SemaType / SemaExpr / SemaDecl.
+// These live out-of-line in SemaMSL.cpp so the upstream files consuming
+// them retain a minimal delta from LLVM main.
+//===----------------------------------------------------------------------===//
+
+/// Should Sema::GetFullTypeForDeclarator's DeclaratorChunk::Function
+/// path perform the Metal / OpenCL C++ method-qualifier address-space
+/// transfer for this declarator?
+///
+/// Returns false for:
+///   * non-Metal, non-OpenCLCPlusPlus modes,
+///   * declarators that are ``friend`` (avoid AS mismatch with the
+///     out-of-class definition -- see companion note in the .cpp),
+///   * declarators whose ``DeclaratorContext`` is not ``Member`` /
+///     ``File`` / ``CXXCatch`` (i.e. inner function types of parameters,
+///     typedefs, etc., which must stay AS-free so template argument
+///     deduction can succeed against AS-free reference specimens).
+///
+/// The upstream Sema call site keeps its ~40 lines of transfer logic;
+/// this predicate simply owns the policy (WHEN to run it), letting the
+/// call site drop from a 40-line inline conditional to a single
+/// ``if (SemaMSL::shouldTransferMethodAddressSpace(state.getSema(), D))``
+/// -- much less merge-conflict surface against upstream refactors of
+/// clang/lib/Sema/SemaType.cpp.
+bool shouldTransferMethodAddressSpace(const Sema &S, const Declarator &D);
 
 } // namespace SemaMSL
 } // namespace clang
