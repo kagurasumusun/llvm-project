@@ -662,6 +662,24 @@ TYPE_TRAIT_1(__is_metal_mesh_grid_properties,
 TYPE_TRAIT_1(__is_metal_acceleration_structure,
              IsMetalAccelerationStructure, KEYMETAL)
 
+// Additional traits discovered by full-scan of kagurasumusun/metal-info
+// reference-apple/clang/32023.883/include/metal/* (2026-07-26).  All
+// six are used by stdlib templates as
+//   template <class T> struct trait : bool_constant<__is_metal_X(T)> {};
+// specialisations.  Missing them caused ``'T' does not refer to a value``
+// diagnostics inside metal_imageblocks / metal_mesh / metal_simdgroup_matrix /
+// metal_vertex_value in CI run 30185642634.
+TYPE_TRAIT_1(__is_metal_explicit_layout_imageblock_slice_storage,
+             IsMetalExplicitLayoutImageblockSliceStorage, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_implicit_layout_imageblock_slice_storage,
+             IsMetalImplicitLayoutImageblockSliceStorage, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_mesh_primitive, IsMetalMeshPrimitive, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_mesh_vertex, IsMetalMeshVertex, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_simdgroup_matrix_element,
+             IsMetalSimdgroupMatrixElement, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_vertex_value_underlying_type,
+             IsMetalVertexValueUnderlyingType, KEYMETAL)
+
 // Embarcadero Binary Type Traits
 TYPE_TRAIT_2(__is_same, IsSame, KEYCXX)
 TYPE_TRAIT_2(__is_convertible, IsConvertible, KEYCXX)
