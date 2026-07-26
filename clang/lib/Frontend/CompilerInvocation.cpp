@@ -4125,17 +4125,21 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 #include "clang/Options/Options.inc"
 #undef LANG_OPTION_WITH_MARSHALLING
 
-  // NOTE: The prior version of this file re-applied Metal-specific
-  // LangOptions defaults (NativeHalfArgsAndReturns=1) after the
-  // marshalling loop above.  That re-apply was found to correlate
-  // with a SIGSEGV crash in Sema during Apple stdlib parse (CI runs
-  // 30188454610 through 30190254445).  The crash exact root cause is
-  // still under investigation.  In the meantime, remove the re-apply
-  // so we return to the pre-fix behaviour (marshalling default of 0
-  // wins over setLangDefaults value in Metal mode).  This costs us
-  // the ``half * half -> half`` type preservation we briefly had, but
-  // avoids the crash so CI can produce reliable error counts for
-  // isolation of the remaining bugs.
+  // Re-apply Metal-specific defaults after generic option marshalling.
+  //
+  // The marshalling loop above overwrites ``NativeHalfType`` /
+  // ``NativeHalfArgsAndReturns`` with the Options.td default (0)
+  // whenever the user did not explicitly pass -fnative-half-type etc.
+  // That undoes what LangOptions::setLangDefaults sets for Metal.
+  //
+  // A prior version of this re-apply was suspected of crashing clang,
+  // but the actual crash source was later isolated to Phase 2's
+  // PragmaMetalInternalsHandler (const_cast on shared LangOptions).
+  // With that removed, re-applying the Metal defaults here is safe.
+  if (Opts.Metal) {
+    Opts.NativeHalfArgsAndReturns = 1;
+    Opts.NativeHalfType = 1;
+  }
 
   if (const Arg *A = Args.getLastArg(OPT_fcf_protection_EQ)) {
     StringRef Name = A->getValue();
