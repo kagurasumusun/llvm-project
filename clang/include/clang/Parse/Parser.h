@@ -7005,6 +7005,8 @@ private:
   std::unique_ptr<PragmaHandler> RedefineExtnameHandler;
   std::unique_ptr<PragmaHandler> FPContractHandler;
   std::unique_ptr<PragmaHandler> OpenCLExtensionHandler;
+  // Metal ``#pragma METAL internals : enable / disable`` (LangOpts.Metal)
+  std::unique_ptr<PragmaHandler> MetalInternalsHandler;
   std::unique_ptr<PragmaHandler> OpenMPHandler;
   std::unique_ptr<PragmaHandler> OpenACCHandler;
   std::unique_ptr<PragmaHandler> PCSectionHandler;
