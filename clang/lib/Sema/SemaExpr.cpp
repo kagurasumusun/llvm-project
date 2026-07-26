@@ -56,6 +56,7 @@
 #include "clang/Sema/SemaCUDA.h"
 #include "clang/Sema/SemaFixItUtils.h"
 #include "clang/Sema/SemaHLSL.h"
+#include "clang/Sema/SemaMSL.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaOpenMP.h"
 #include "clang/Sema/SemaPseudoObject.h"
@@ -3887,13 +3888,11 @@ ExprResult Sema::ActOnNumericConstant(const Token &Tok, Scope *UDLScope) {
     if (Literal.isHalf){
       // Half-precision literal (``0.5h`` etc.).  Historically clang only
       // accepts them under HLSL or when the OpenCL ``cl_khr_fp16``
-      // extension is enabled.  Metal Shading Language always supports
-      // half literals natively (MSL 2.0+ s2.1: "half is a 16-bit
-      // floating-point data type"), so accept them unconditionally in
-      // Metal mode as well.  Apple's <metal_limits>::min()/max() and
-      // <metal_geometric> both depend on ``HALF_MIN``/``HALF_MAX``
-      // macros that expand to ``0x1p-14h`` / ``65504.0h`` etc.
-      if (getLangOpts().HLSL || getLangOpts().Metal ||
+      // extension is enabled.  MSL 2.0+ s2.1 defines ``half`` as an
+      // always-available 16-bit float; the two-axis compilation model
+      // extends this uniformly to both user code and stdlib parse (see
+      // clang/Sema/SemaMSL.h and LangOptions::MetalInternals).
+      if (getLangOpts().HLSL || SemaMSL::allowHalfLiteral(getLangOpts()) ||
           getOpenCLOptions().isAvailableOption("cl_khr_fp16", getLangOpts()))
         Ty = Context.HalfTy;
       else {
