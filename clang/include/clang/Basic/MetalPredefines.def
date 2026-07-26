@@ -250,6 +250,19 @@ METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_INSTANCE_MOTION__,     
 METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_EXTENDED_LIMITS__,              0x020)
 METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_MAX_LEVELS__,                   0x040)
 METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_USER_DATA__,                    0x080)
+
+// ---------------------------------------------------------------------------
+// Texture-write rounding mode.  Passed to
+// ``__metal_write_texture_*_t(..., mode)`` and
+// ``__metal_write_imageblock_slice_to_texture_*_t(..., mode)`` throughout
+// <__bits/metal_texturecube*>, <__bits/metal_texture_common> etc.
+//
+// Values mirror ``air.rounding_mode`` enum used by AIR intrinsics
+// (metal-info: research/datasets/air_dictionary_from_binaries.txt line
+// 12659).  Default is round-to-nearest-even (RTE = 0), matching IEEE 754
+// tie-to-even and Apple's compiler default when no ``#pragma METAL fp``
+// is in scope.
+METAL_PREDEFINE_ENUM(__METAL_TEXTURE_WRITE_ROUNDING_MODE__, 0)
 METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_CURVE_DATA__,                   0x100)
 METAL_PREDEFINE_ENUM(__METAL_RAYTRACING_INTERSECTION_TAG_INTERSECTION_FUNCTION_BUFFER__, 0x200)
 
