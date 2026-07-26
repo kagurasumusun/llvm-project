@@ -43,39 +43,6 @@
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
-// Metal Shading Language: destination-address-space normalisation
-//===----------------------------------------------------------------------===//
-//
-// MSL 2.0+ s4.1.1 declares that ``the default address space of variables
-// declared at function scope is thread``.  Therefore an object typed
-// ``float4x3`` (no explicit AS) is semantically ``thread float4x3``,
-// and a constructor selection for it should prefer the constructor
-// qualified with method AS ``thread`` over overloads qualified with
-// other Metal address spaces (``constant``, ``ray_data``, ...).
-//
-// The constructor overload set consults CandidateSet.getDestAS() when
-// deciding whether a constructor is viable for a particular destination
-// object; that value comes from ``DestType.getAddressSpace()``.  For a
-// default-AS destination the value is ``LangAS::Default`` and every
-// method-AS-qualified ctor becomes viable (via the Metal 3-AS <-> Default
-// implicit rules in AST/Type.cpp), producing the CI-observed
-// "call to constructor of 'float4x3' is ambiguous" family of diagnostics
-// (14 in run 30186884435).
-//
-// This helper rewrites LangAS::Default to LangAS::opencl_private (Metal's
-// ``thread``) whenever Metal mode is active, so only ``thread``-qualified
-// constructors survive the viability filter and the ambiguity disappears.
-// Non-Metal front-ends observe no change (the branch is guarded on
-// ``getLangOpts().Metal``).
-static LangAS getMSLDestAddressSpace(const Sema &S, QualType DestType) {
-  LangAS AS = DestType.getQualifiers().getAddressSpace();
-  if (S.getLangOpts().Metal && AS == LangAS::Default)
-    return LangAS::opencl_private;
-  return AS;
-}
-
-
-//===----------------------------------------------------------------------===//
 // Sema Initialization Checking
 //===----------------------------------------------------------------------===//
 
@@ -4493,7 +4460,7 @@ static OverloadingResult ResolveConstructorOverload(
     bool IsListInit, bool RequireActualConstructor,
     bool SecondStepOfCopyInit = false) {
   CandidateSet.clear(OverloadCandidateSet::CSK_InitByConstructor);
-  CandidateSet.setDestAS(getMSLDestAddressSpace(S, DestType));
+  CandidateSet.setDestAS(DestType.getQualifiers().getAddressSpace());
 
   for (NamedDecl *D : Ctors) {
     auto Info = getConstructorInfo(D);
@@ -6224,7 +6191,7 @@ static void TryUserDefinedConversion(Sema &S,
   // structure, so that it will persist if we fail.
   OverloadCandidateSet &CandidateSet = Sequence.getFailedCandidateSet();
   CandidateSet.clear(OverloadCandidateSet::CSK_InitByUserDefinedConversion);
-  CandidateSet.setDestAS(getMSLDestAddressSpace(S, DestType));
+  CandidateSet.setDestAS(DestType.getQualifiers().getAddressSpace());
 
   // Determine whether we are allowed to call explicit constructors or
   // explicit conversion operators.
