@@ -49,28 +49,32 @@ static const char SECTION_MDSZ[] = "MDSZ";
 static const char SECTION_ENDT[] = "ENDT";
 
 static void writeSection(raw_ostream &OS, StringRef Name, StringRef Data) {
-  // Section format:
-  // - 4 bytes: section name (e.g., "NAME", "TYPE")
-  // - 4 bytes: padding
+  // Section format (best-effort MTLB-ish container -- this tool is a
+  // developer-only stopgap until a full Apple-compatible packer lands):
+  // - N bytes: section name (variable, ASCII, no NUL) -- historically 4
+  //   chars ("NAME", "TYPE", ...) but Apple's own format uses 6-char
+  //   ("XSOFFT") tags too.  We therefore pad up to the next 4-byte
+  //   boundary rather than assuming exactly 4 characters, which used to
+  //   underflow ``size_t Padding = 4 - Name.size();`` for "XSOFFT" (6)
+  //   and allocate SIZE_MAX zero bytes -> std::bad_alloc (CI run
+  //   30194745335).
+  // - pad-to-4 bytes: padding
   // - 8 bytes: data size (little-endian)
   // - Variable: data
-  
+  // - pad-to-8 bytes: alignment
   OS.write(Name.data(), Name.size());
-  
-  // Padding to 4 bytes
-  size_t Padding = 4 - Name.size();
+
+  size_t NameRoundedUp = (Name.size() + 3u) & ~size_t(3u);
+  size_t Padding = NameRoundedUp - Name.size();
   for (size_t i = 0; i < Padding; ++i)
     OS.write('\0');
-  
-  // Data size (little-endian)
+
   uint64_t DataSize = Data.size();
   OS.write(reinterpret_cast<const char *>(&DataSize), 8);
-  
-  // Data
+
   OS.write(Data.data(), Data.size());
-  
-  // Align to 8 bytes
-  size_t TotalSize = 4 + Padding + 8 + Data.size();
+
+  size_t TotalSize = NameRoundedUp + 8 + Data.size();
   size_t AlignPadding = (8 - (TotalSize % 8)) % 8;
   for (size_t i = 0; i < AlignPadding; ++i)
     OS.write('\0');
