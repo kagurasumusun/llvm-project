@@ -137,20 +137,26 @@ bool Qualifiers::isTargetAddressSpaceSupersetOf(LangAS A, LangAS B,
           A == LangAS::opencl_private && B == LangAS::Default) ||
          // Metal Shading Language: the three Metal-specific address spaces
          // (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) are
-         // distinct types for template partial-specialization purposes.  We
-         // allow ``metal_*`` -> ``Default`` (a payload in one of the special
-         // AS may be assigned to a default-AS local, e.g. ``T u =
-         // *ray_data_ptr;``) but NOT the reverse: ``Default`` -> ``metal_*``
-         // would treat every default-AS constructor argument as viable for
-         // every metal_* parameter, producing ambiguities on
-         // ``_acceleration_structure(as)`` in <metal_raytracing> and
-         // ``float4x3()`` ctor selection (14 ambiguity diagnostics in run
-         // 30186884435).  Note: reverse conversions are still available via
-         // explicit ``address_space_cast<T>``.
-         ((A == LangAS::metal_ray_data ||
-           A == LangAS::metal_object_data ||
-           A == LangAS::metal_threadgroup_imageblock) &&
-          B == LangAS::Default) ||
+         // distinct types for template partial-specialization purposes AND
+         // for overload resolution.  We do NOT define an implicit conversion
+         // between them and ``Default`` in either direction:
+         //
+         //   * ``metal_* -> Default`` was too permissive: it made every
+         //     copy constructor overload ``_acceleration_structure(const
+         //     ray_data _acceleration_structure &) thread`` viable for a
+         //     default-AS argument, producing 6 remaining
+         //     ``call to constructor is ambiguous`` diagnostics in CI run
+         //     30187595916 despite the SemaOverload thread-tiebreak.
+         //
+         //   * ``Default -> metal_*`` was even worse: it opened the same
+         //     ambiguity for constructor destination selection.
+         //
+         // Both conversions remain available at the source level via the
+         // explicit ``address_space_cast<T>`` construct.  Removing the
+         // implicit path here forces overload candidates whose parameter
+         // (or destination) AS differs from the argument's AS to be
+         // non-viable rather than merely equal-ranked-viable, so
+         // ambiguity collapses to a single winner.
          // Conversions from target specific address spaces may be legal
          // depending on the target information.
          Ctx.getTargetInfo().isAddressSpaceSupersetOf(A, B);
