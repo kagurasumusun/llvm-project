@@ -412,6 +412,13 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
   case UTT_IsMetalRenderCommand:
   case UTT_IsMetalMeshGridProperties:
   case UTT_IsMetalAccelerationStructure:
+    // Additional traits added 2026-07-26 (see TokenKinds.def)
+  case UTT_IsMetalExplicitLayoutImageblockSliceStorage:
+  case UTT_IsMetalImplicitLayoutImageblockSliceStorage:
+  case UTT_IsMetalMeshPrimitive:
+  case UTT_IsMetalMeshVertex:
+  case UTT_IsMetalSimdgroupMatrixElement:
+  case UTT_IsMetalVertexValueUnderlyingType:
     return true;
 
     // We diagnose incomplete class types later.
@@ -917,6 +924,51 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, TypeTrait UTT,
     if (T->isDependentType())
       return true;
     return T->isRecordType();
+  }
+
+  // Additional Metal type traits added 2026-07-26.  Same
+  // permissive structural check pattern as above.
+  case UTT_IsMetalExplicitLayoutImageblockSliceStorage:
+  case UTT_IsMetalImplicitLayoutImageblockSliceStorage:
+    // ``imageblock_slice<>`` storage struct: dependent -> yes, else
+    // a non-union record type.
+    if (T->isDependentType())
+      return true;
+    return T->isRecordType() && !T->isUnionType();
+
+  case UTT_IsMetalMeshPrimitive:
+  case UTT_IsMetalMeshVertex:
+    // Primitive / vertex payload record used by <metal_mesh>.  Same
+    // permissive test: non-union record type.
+    if (T->isDependentType())
+      return true;
+    return T->isRecordType() && !T->isUnionType();
+
+  case UTT_IsMetalSimdgroupMatrixElement: {
+    // Element type of ``simdgroup_matrix<T,C,R>`` must be ``half``,
+    // ``float`` or ``bfloat`` per MSL 2.3+ s6.7.1.  A concrete check
+    // is worthwhile here because it is the one trait that stdlib
+    // uses to reject invalid ``simdgroup_matrix<int>`` etc.  For
+    // dependent T we still say yes.
+    if (T->isDependentType())
+      return true;
+    if (T->isHalfType() || T->isFloatingType())
+      return true;
+    // BFloat16 not yet exposed as a distinct C++ type in our clang;
+    // Apple's stdlib currently synthesises it as ``__bf16`` alias, so
+    // this branch covers it as ``isFloatingType()``.
+    return false;
+  }
+
+  case UTT_IsMetalVertexValueUnderlyingType: {
+    // Type valid as the payload of ``vertex_value<T>`` in <metal_vertex_value>.
+    // MSL 3.0 s2.16: any trivially-copyable standard-layout POD type.
+    if (T->isDependentType())
+      return true;
+    if (!T->isRecordType() && !T->isScalarType())
+      return false;
+    return T.isTriviallyCopyableType(Self.Context) &&
+           T->isStandardLayoutType();
   }
 
     // Type trait expressions which query classes regarding their construction,
