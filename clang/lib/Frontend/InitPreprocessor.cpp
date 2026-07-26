@@ -514,6 +514,20 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     // giving each trait the per-argument-type semantics documented in
     // clang/lib/Sema/SemaTypeTraits.cpp instead of a blanket ``true``.
 
+    // Two-argument texture-channel traits used by
+    // <__bits/metal_texture_common>.  Same rationale as the earlier
+    // ``__is_metal_intersection_tag`` etc. macro fallbacks (see
+    // git blame for InitPreprocessor.cpp historic comment): promote
+    // to proper KEYMETAL TYPE_TRAIT_1 in a follow-up once the Sema
+    // predicate has target-side implementation. Return ``true`` for
+    // any argument type to unblock stdlib parse (real validation
+    // happens at Metal pipeline linking).
+    Builder.defineMacro("__is_metal_color_texture_channel(T)", "true");
+    Builder.defineMacro("__is_metal_depth_texture_channel(T)", "true");
+    Builder.defineMacro("__is_metal_color_texture_imageblock_slice_storage_valid(E,T)", "true");
+    Builder.defineMacro("__is_metal_depth_texture_imageblock_slice_storage_valid(E,T)", "true");
+    Builder.defineMacro("__is_metal_stencil_texture_imageblock_slice_storage_valid(E,T)", "true");
+
     // Half-precision floating-point constant builtins.  Metal Shading
     // Language uses ``__builtin_infh``, ``__builtin_nanh`` and
     // ``__builtin_nansh`` (see <metal_limits>::infinity() /
