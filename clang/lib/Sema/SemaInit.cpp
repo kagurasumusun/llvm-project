@@ -43,6 +43,57 @@
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
+// Metal Shading Language: narrow destination-address-space normalisation
+//===----------------------------------------------------------------------===//
+//
+// MSL 2.0+ s4.1.1 declares that ``the default address space of variables
+// declared at function scope is thread``.  Constructor overload
+// resolution therefore should prefer the ``thread``-qualified ctor for
+// a default-AS destination.  Without this, both ``matrix() thread`` and
+// ``matrix() ray_data`` become viable for ``float4x3()`` and the
+// selection is reported as ambiguous.
+//
+// Naive rewrite (LangAS::Default -> LangAS::opencl_private for ALL
+// default-AS destinations) breaks opaque-handle types whose default
+// AS is intentionally kept: ``texturecube()`` is *deleted* on the
+// thread overload, and the Default-AS path is what lets its deletion
+// diagnostic fire correctly.  We therefore restrict the rewrite to
+// the tight case where:
+//   * we are in Metal mode
+//   * DestType has AS = Default
+//   * DestType is a *record* type (so texturecube / handle ctors are
+//     unaffected -- they are record types too but the enclosing
+//     context is not a Metal method), AND
+//   * the enclosing lexical context is a Metal method / ctor whose
+//     method-AS qualifier is ``thread`` (LangAS::opencl_private) --
+//     i.e. we are inside a thread-qualified member initializer or
+//     a thread-qualified nested constructor call.
+//
+// Restricting on the enclosing method's own AS avoids the regression
+// hit by the earlier broad fix (a1a1f0fead), because
+// texturecube-family default ctors are called from ordinary user
+// code whose enclosing context is *not* a thread-qualified member.
+static LangAS getMSLDestAddressSpaceNarrow(const Sema &S, QualType DestType) {
+  if (!S.getLangOpts().Metal)
+    return DestType.getQualifiers().getAddressSpace();
+  LangAS DstAS = DestType.getQualifiers().getAddressSpace();
+  if (DstAS != LangAS::Default)
+    return DstAS;
+  if (!DestType->isRecordType())
+    return DstAS;
+  const auto *EnclosingMethod =
+      dyn_cast_or_null<CXXMethodDecl>(S.CurContext);
+  if (!EnclosingMethod)
+    return DstAS;
+  LangAS EnclosingAS =
+      EnclosingMethod->getMethodQualifiers().getAddressSpace();
+  if (EnclosingAS == LangAS::opencl_private)
+    return LangAS::opencl_private;
+  return DstAS;
+}
+
+
+//===----------------------------------------------------------------------===//
 // Sema Initialization Checking
 //===----------------------------------------------------------------------===//
 
@@ -4460,7 +4511,7 @@ static OverloadingResult ResolveConstructorOverload(
     bool IsListInit, bool RequireActualConstructor,
     bool SecondStepOfCopyInit = false) {
   CandidateSet.clear(OverloadCandidateSet::CSK_InitByConstructor);
-  CandidateSet.setDestAS(DestType.getQualifiers().getAddressSpace());
+  CandidateSet.setDestAS(getMSLDestAddressSpaceNarrow(S, DestType));
 
   for (NamedDecl *D : Ctors) {
     auto Info = getConstructorInfo(D);
@@ -6191,7 +6242,7 @@ static void TryUserDefinedConversion(Sema &S,
   // structure, so that it will persist if we fail.
   OverloadCandidateSet &CandidateSet = Sequence.getFailedCandidateSet();
   CandidateSet.clear(OverloadCandidateSet::CSK_InitByUserDefinedConversion);
-  CandidateSet.setDestAS(DestType.getQualifiers().getAddressSpace());
+  CandidateSet.setDestAS(getMSLDestAddressSpaceNarrow(S, DestType));
 
   // Determine whether we are allowed to call explicit constructors or
   // explicit conversion operators.
