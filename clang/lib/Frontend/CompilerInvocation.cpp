@@ -4125,6 +4125,33 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
 #include "clang/Options/Options.inc"
 #undef LANG_OPTION_WITH_MARSHALLING
 
+  // Re-apply Metal-specific defaults after generic option marshalling.
+  //
+  // The marshalling loop above walks every option in Options.td.  Options
+  // that have not been explicitly passed on the command line get their
+  // default value (defined in Options.td) written back into ``Opts``,
+  // *overwriting* whatever ``LangOptions::setLangDefaults`` set for them
+  // moments earlier.  Two Metal-critical LangOpts are affected today:
+  //
+  //   * NativeHalfType         (default 0 in LangOptions.def)
+  //   * NativeHalfArgsAndReturns (default 0)
+  //
+  // MSL 2.0+ s2.1 requires both to be 1 unconditionally (see LangOptions
+  // .cpp::setLangDefaults for the rationale), otherwise ``half * half``
+  // usual-arithmetic-conversion promotes to ``float`` and Apple's
+  // <metal_geometric>::cross(half3, half3) triggers spurious narrowing
+  // diagnostics (3 in run 30188311912, plus half literal / half
+  // parameter regressions).
+  //
+  // Instead of adding a Marshalling attribute to LangOptions.def (which
+  // would require redesigning the default logic for OpenCL vs Metal
+  // vs HLSL), we simply re-assert the Metal defaults immediately after
+  // marshalling.  This keeps the Options.td file unchanged.
+  if (Opts.Metal) {
+    Opts.NativeHalfType = 1;
+    Opts.NativeHalfArgsAndReturns = 1;
+  }
+
   if (const Arg *A = Args.getLastArg(OPT_fcf_protection_EQ)) {
     StringRef Name = A->getValue();
     if (Name == "full") {
