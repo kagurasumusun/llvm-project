@@ -5375,8 +5375,23 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
         // the inline transfer body unchanged so the upstream diff
         // stays minimal.  See SemaMSL.cpp for rationale on why we
         // exclude friend declarations and non-Member DeclaratorContext.
+        // Additional gate: friend declarations and inner function-typed
+        // parameters must NOT receive the method-AS transfer, otherwise:
+        //   * friend prototype ``friend METAL_FUNC X f(...) ;`` gets tagged
+        //     with ``__private`` and mismatches the out-of-class definition
+        //     that carries no AS -> "conflicting types" (2 diagnostics on
+        //     metal_texture_common:366/380)
+        //   * inner function-pointer parameter ``bool (*)(X) __private``
+        //     fails template-argument deduction against the AS-free
+        //     partial specialisation
+        bool IsFriendDecl = D.getDeclSpec().isFriendSpecified();
+        bool IsMemberOrFileFunctionDecl =
+            D.getContext() == DeclaratorContext::Member ||
+            D.getContext() == DeclaratorContext::File ||
+            D.getContext() == DeclaratorContext::CXXCatch;
         if (state.getSema().getLangOpts().Metal &&
-            IsClassMember()) {
+            IsClassMember() && !IsFriendDecl &&
+            IsMemberOrFileFunctionDecl) {
           LangAS ASIdx = LangAS::Default;
           // Take address space attr if any and mark as invalid to avoid adding
           // them later while creating QualType.
