@@ -134,7 +134,8 @@ bool Qualifiers::isTargetAddressSpaceSupersetOf(LangAS A, LangAS B,
          // implicitly converted to the ``thread`` address space by
          // PerformObjectArgumentInitialization.
          (Ctx.getLangOpts().Metal &&
-          A == LangAS::opencl_private && B == LangAS::Default) ||
+          ((A == LangAS::opencl_private && B == LangAS::Default) ||
+           (A == LangAS::Default && B == LangAS::opencl_private))) ||
          // Metal Shading Language: the three Metal-specific address spaces
          // (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) are
          // distinct types for template partial-specialization purposes AND
