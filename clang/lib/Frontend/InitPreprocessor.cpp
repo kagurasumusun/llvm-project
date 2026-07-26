@@ -484,6 +484,40 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     // ``__is_metal_buffer`` etc. once the corresponding Sema logic lands.
     Builder.defineMacro("__is_metal_explicit_layout_imageblock_struct(T)", "true");
     Builder.defineMacro("__is_metal_implicit_layout_imageblock_struct(T)", "true");
+    // Additional __is_metal_* type-trait fallbacks used inside
+    // <metal_raytracing>, <metal_visible_function_table>, <metal_mesh>,
+    // <metal_command_buffer>.  Same rationale as above: full Sema-side
+    // TypeTrait support is future work; the immediate goal is to unblock
+    // the metal_stdlib parse.  Always returning ``true`` is safe because
+    // the concrete validation is performed at pipeline-link time.
+    Builder.defineMacro("__is_metal_intersection_tag(T)", "true");
+    Builder.defineMacro("__is_metal_intersection_tag_sequence(T)", "true");
+    Builder.defineMacro("__is_metal_visible_function_table(T)", "true");
+    Builder.defineMacro("__is_metal_command_buffer(T)", "true");
+    Builder.defineMacro("__is_metal_compute_command(T)", "true");
+    Builder.defineMacro("__is_metal_render_command(T)", "true");
+    Builder.defineMacro("__is_metal_mesh_grid_properties(T)", "true");
+    Builder.defineMacro("__is_metal_visible_function_table_argument(T)", "true");
+    Builder.defineMacro("__is_metal_acceleration_structure(T)", "true");
+
+    // Metal ``as_type<T>(x)`` reinterpret-cast template.  Apple's
+    // proprietary clang treats this as a compiler-recognised template
+    // whose only expansion is ``__builtin_astype(x, T)`` (i.e. an OpenCL
+    // bit-cast).  Provide the same lowering here so
+    // <metal_math>::copysign etc. compile.  We forward-declare it before
+    // any Metal header is parsed by injecting the definition into the
+    // predefines buffer.
+    Builder.append("#ifndef __CLANG_METAL_AS_TYPE_DEFINED");
+    Builder.append("#define __CLANG_METAL_AS_TYPE_DEFINED 1");
+    Builder.append("namespace metal {");
+    Builder.append("template<class __To, class __From>");
+    Builder.append("constexpr __To as_type(__From __x) noexcept { return __builtin_astype(__x, __To); }");
+    Builder.append("}");
+    // Re-export into the enclosing scope like Apple does implicitly, so
+    // both ``metal::as_type<T>(x)`` and unqualified ``as_type<T>(x)``
+    // inside ``namespace metal { ... }`` work.
+    Builder.append("using ::metal::as_type;");
+    Builder.append("#endif");
 
     // Note: __is_metal_buffer / __is_metal_buffer_pointee /
     // __is_metal_patch_control_point_struct are compiler-intrinsic type
