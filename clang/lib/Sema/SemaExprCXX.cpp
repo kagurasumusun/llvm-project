@@ -1530,9 +1530,19 @@ Sema::BuildCXXTypeConstructExpr(TypeSourceInfo *TInfo,
 
   InitializedEntity Entity =
       InitializedEntity::InitializeTemporary(Context, TInfo);
+  // Metal / OpenCL: multi-scalar functional-cast of a vector type
+  // ``vec_t(a, b, c, d)`` is valid vector construction (MSL 2.0+ s2.3 /
+  // OpenCL 1.2 s6.1.5).  Route it through direct-list-init so InitSeq's
+  // existing vector-elements-from-scalars path fires instead of the
+  // paren-list aggregate path (which would report "excess elements in
+  // scalar initializer").
+  bool MetalOrOpenCLVectorMultiInit =
+      Exprs.size() > 1 && !ListInitialization &&
+      TInfo->getType()->isVectorType() &&
+      (getLangOpts().Metal || getLangOpts().OpenCL);
   InitializationKind Kind =
       Exprs.size()
-          ? ListInitialization
+          ? (ListInitialization || MetalOrOpenCLVectorMultiInit)
                 ? InitializationKind::CreateDirectList(
                       TyBeginLoc, LParenOrBraceLoc, RParenOrBraceLoc)
                 : InitializationKind::CreateDirect(TyBeginLoc, LParenOrBraceLoc,
