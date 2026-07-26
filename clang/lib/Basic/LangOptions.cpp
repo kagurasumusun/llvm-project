@@ -132,6 +132,24 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
   Opts.NamedLoops = Std.isC2y();
 
   Opts.Metal = Lang == Language::Metal;
+  if (Opts.Metal) {
+    // Metal Shading Language 2.0+ s2.1 defines ``half`` as an always-native
+    // 16-bit floating-point type at the language level.  Enable
+    // NativeHalfType so:
+    //   * ``half`` promotions do NOT auto-widen to ``float`` for arithmetic
+    //     (default C rule promotes __fp16 → float, breaking
+    //     <metal_geometric>::cross(half3, half3) whose result is half3 built
+    //     from ``x[i] * y[j]`` products).
+    //   * SemaType's ``err_parameters_retval_cannot_have_fp16_type`` gate
+    //     is bypassed by the LangOpts short-circuit
+    //     (``!getLangOpts().NativeHalfArgsAndReturns`` etc.).
+    //
+    // This mirrors HLSL's use of the same LangOpts to enable native half
+    // math and matches Apple's metalfe behaviour observed in
+    // metal-info/research/spec/METAL_TARGETINFO_IMPL_MAP.md.
+    Opts.NativeHalfType = 1;
+    Opts.NativeHalfArgsAndReturns = 1;
+  }
 
   Opts.HLSL = Lang == Language::HLSL;
   if (Opts.HLSL) {
