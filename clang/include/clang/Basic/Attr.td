@@ -1878,7 +1878,16 @@ def MetalIntersection : InheritableAttr {
   let Documentation = [InternalOnly];
 }
 
-def MetalVisible : InheritableAttr {
+def MetalVisible : DeclOrTypeAttr {
+  // Metal Shading Language: ``[[visible]]`` marks a function as callable
+  // via a visible_function_table<T> handle.  Apple's stdlib also uses it
+  // as a *type* attribute on function-pointer aliases inside
+  // <metal_visible_function_table>:
+  //     using function_pointer_type = R(*)(Args...) [[visible]];
+  // so we inherit from DeclOrTypeAttr instead of InheritableAttr to
+  // permit the attribute in both positions.  Non-InheritableAttr status
+  // affects merge behaviour but is acceptable because [[visible]] is
+  // idempotent -- inheriting through redecls has no semantic effect.
   let Spellings = [CXX11<"", "visible", 202600>];
   let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
