@@ -147,7 +147,11 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
     // This mirrors HLSL's use of the same LangOpts to enable native half
     // math and matches Apple's metalfe behaviour observed in
     // metal-info/research/spec/METAL_TARGETINFO_IMPL_MAP.md.
-    Opts.NativeHalfType = 1;
+    // NativeHalfType is intentionally NOT set here: doing so triggers a
+    // Sema-level segfault during instantiation of Apple's half-based
+    // stdlib templates (see CompilerInvocation.cpp for the diagnosis).
+    // Only NativeHalfArgsAndReturns is safe to enable in Metal mode
+    // today; native-half arithmetic promotion requires a deeper fix.
     Opts.NativeHalfArgsAndReturns = 1;
   }
 
