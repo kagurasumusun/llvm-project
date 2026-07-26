@@ -341,14 +341,38 @@ jobs:
           # Apple's own ``metal`` compiler if the bitcode path is rejected
           # for any reason -- this preserves the demo while still logging
           # the failure for triage.
+          # Enumerate Apple's Metal toolchain so failures are easy to
+          # diagnose from the CI log alone.
+          echo "--- Apple Metal toolchain probe ---"
+          xcrun -sdk iphoneos --find metal    || true
+          xcrun -sdk iphoneos --find metal-as || true
+          xcrun -sdk iphoneos --find metallib || true
+          xcrun -sdk iphoneos metal --version || true
+
           for name in add AAPLShaders; do
             echo "--- Assembling $name.air from fork-clang bitcode ---"
-            if ! xcrun -sdk iphoneos metal \
+
+            # Path A -- Apple's own ``metal-as`` (LLVM-bitcode / IR to AIR):
+            #   this is the direct analogue of our in-tree metal-as and
+            #   the correct entry point when you already have a .bc file.
+            if xcrun -sdk iphoneos metal-as \
+                 "../metal-bc-input/${name}.bc" -o "${name}.air" \
+                 2> "${name}.metal-as.log"; then
+              echo "  ✓ metal-as accepted fork-clang bitcode"
+            # Path B -- ``metal`` frontend with -x ir (LLVM textual/binary
+            # IR).  Some Xcode SDK releases prefer this spelling.
+            elif xcrun -sdk iphoneos metal \
                    -target air64-apple-ios${{ inputs.ios_target }} \
-                   -x metal-bc -c "../metal-bc-input/${name}.bc" \
-                   -o "${name}.air" 2> "${name}.bc-to-air.log"; then
-              echo "  bitcode path failed, falling back to source recompile"
-              cat "${name}.bc-to-air.log"
+                   -x ir -c "../metal-bc-input/${name}.bc" \
+                   -o "${name}.air" 2> "${name}.metal-ir.log"; then
+              echo "  ✓ metal -x ir accepted fork-clang bitcode"
+            # Path C -- fallback: recompile the .metal source with Apple's
+            # own metal frontend.  This still produces a working demo but
+            # bypasses our fork clang, so it will be logged loudly.
+            else
+              echo "  !! bitcode paths rejected, falling back to source recompile"
+              echo "     metal-as log:"; sed 's/^/       /' "${name}.metal-as.log" || true
+              echo "     metal -x ir log:"; sed 's/^/       /' "${name}.metal-ir.log" || true
               case "$name" in
                 add)
                   xcrun -sdk iphoneos metal \
