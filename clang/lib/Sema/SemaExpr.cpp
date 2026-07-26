@@ -3885,7 +3885,15 @@ ExprResult Sema::ActOnNumericConstant(const Token &Tok, Scope *UDLScope) {
   } else if (Literal.isFloatingLiteral()) {
     QualType Ty;
     if (Literal.isHalf){
-      if (getLangOpts().HLSL ||
+      // Half-precision literal (``0.5h`` etc.).  Historically clang only
+      // accepts them under HLSL or when the OpenCL ``cl_khr_fp16``
+      // extension is enabled.  Metal Shading Language always supports
+      // half literals natively (MSL 2.0+ s2.1: "half is a 16-bit
+      // floating-point data type"), so accept them unconditionally in
+      // Metal mode as well.  Apple's <metal_limits>::min()/max() and
+      // <metal_geometric> both depend on ``HALF_MIN``/``HALF_MAX``
+      // macros that expand to ``0x1p-14h`` / ``65504.0h`` etc.
+      if (getLangOpts().HLSL || getLangOpts().Metal ||
           getOpenCLOptions().isAvailableOption("cl_khr_fp16", getLangOpts()))
         Ty = Context.HalfTy;
       else {
