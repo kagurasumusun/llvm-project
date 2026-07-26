@@ -6939,13 +6939,22 @@ void InitializationSequence::InitializeFrom(Sema &S,
 
   assert(Args.size() >= 1 && "Zero-argument case handled above");
 
-  // For HLSL ext vector types we allow list initialization behavior for C++
-  // functional cast expressions which look like constructor syntax. This is
-  // accomplished by converting initialization arguments to InitListExpr.
-  if (S.getLangOpts().HLSL && Args.size() > 1 &&
+  // For HLSL / Metal / OpenCL ext vector types we allow list-initialization
+  // behavior for C++ functional-cast expressions that look like constructor
+  // syntax (``float4(x, y, z, w)`` / ``ulong2(a, b)`` etc.).  This is
+  // accomplished by converting the parenthesised initialization arguments
+  // into an InitListExpr and re-routing them through TryListInitialization
+  // so ``CheckVectorType`` can distribute the scalars across the vector
+  // lanes (Metal Shading Language 2.0+ s2.3, OpenCL 1.2 s6.1.5, HLSL
+  // 2021 s3.1.2).  Without this the initialization sequence falls through
+  // to FK_TooManyInitsForScalar and CodeGen never receives an AST it can
+  // lower, producing "cannot compile this scalar expression yet".
+  if (Args.size() > 1 &&
       (DestType->isExtVectorType() || DestType->isConstantMatrixType()) &&
       (SourceType.isNull() ||
-       !Context.hasSameUnqualifiedType(SourceType, DestType))) {
+       !Context.hasSameUnqualifiedType(SourceType, DestType)) &&
+      (S.getLangOpts().HLSL || S.getLangOpts().Metal ||
+       S.getLangOpts().OpenCL)) {
     InitListExpr *ILE = new (Context)
         InitListExpr(S.getASTContext(), Args.front()->getBeginLoc(), Args,
                      Args.back()->getEndLoc());
