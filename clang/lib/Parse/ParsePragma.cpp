@@ -95,31 +95,6 @@ struct PragmaOpenCLExtensionHandler : public PragmaHandler {
                     Token &FirstToken) override;
 };
 
-// Handler for ``#pragma METAL internals : enable / disable`` (Apple stdlib).
-//
-// The Metal-flavoured pragma is emitted by Apple's proprietary
-// metal_stdlib headers to bracket ``internal`` header regions where the
-// stdlib deliberately relaxes some MSL user-facing rules -- e.g. it
-// uses ``__fp16`` in parameter lists directly (bypassing the ``half``
-// wrapper), touches private members of sibling class templates via
-// friend declarations, or takes the address of raw ``__metal_*``
-// builtins.
-//
-// See kagurasumusun/metal-info reference-apple/clang/32023.883/include/
-// metal_types (lines 96 / 166) and metal_uniform (lines 10 / 1649) for
-// the real-source enable/disable pattern.
-//
-// We simply toggle LangOptions::MetalInternals; the actual
-// diagnostic-suppression predicates that consume this bit live in
-// SemaMSL.h helpers used from Sema*.cpp.  Doing the toggle inline in
-// LangOptions keeps the pragma parser to ~30 lines and avoids adding
-// any Sema.h class members that would collide on upstream rebase.
-struct PragmaMetalInternalsHandler : public PragmaHandler {
-  PragmaMetalInternalsHandler() : PragmaHandler("METAL") {}
-  void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
-                    Token &FirstToken) override;
-};
-
 
 struct PragmaFPContractHandler : public PragmaHandler {
   PragmaFPContractHandler() : PragmaHandler("FP_CONTRACT") {}
@@ -484,13 +459,6 @@ void Parser::initializePragmaHandlers() {
     PP.AddPragmaHandler("OPENCL", OpenCLExtensionHandler.get());
 
     PP.AddPragmaHandler("OPENCL", FPContractHandler.get());
-  }
-
-  if (getLangOpts().Metal) {
-    MetalInternalsHandler = std::make_unique<PragmaMetalInternalsHandler>();
-    // Note: PragmaHandler name is the pragma's *first* token ("METAL");
-    // the ``internals`` sub-namespace is parsed inside HandlePragma.
-    PP.AddPragmaHandler(MetalInternalsHandler.get());
   }
   if (getLangOpts().OpenMP)
     OpenMPHandler = std::make_unique<PragmaOpenMPHandler>();
@@ -2743,30 +2711,6 @@ void PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP,
   if (PP.getPPCallbacks())
     PP.getPPCallbacks()->PragmaOpenCLExtension(NameLoc, Ext,
                                                StateLoc, State);
-}
-
-/// Handle ``#pragma METAL internals : enable`` / ``... : disable`` toggling
-/// the ``LangOptions::MetalInternals`` bit consumed by SemaMSL::
-/// inInternalsMode.  The pragma comes from Apple's proprietary stdlib
-/// headers (metal-info: metal_types line 96/166, metal_uniform line
-/// 10/1649).  Malformed pragmas produce a warning and are otherwise
-/// no-ops so user code that types ``#pragma METAL something-else`` never
-/// hard-errors.
-void PragmaMetalInternalsHandler::HandlePragma(Preprocessor &PP,
-                                               PragmaIntroducer Introducer,
-                                               Token &FirstToken) {
-  // MINIMAL SAFE VARIANT (crash isolation): only skip tokens up to eod
-  // without touching PP state or LangOptions.  The full ``internals``
-  // toggle (via const_cast on getLangOpts()) will be reintroduced once
-  // the SIGSEGV during subsequent parse is diagnosed.
-  //
-  // Rationale for this backoff: repeatedly setting a bit in the shared
-  // ``const LangOptions &`` via const_cast broke long-lived cached
-  // state in Sema / ASTContext / Preprocessor macro-info memoisation
-  // that assumes LangOptions is immutable post-init.  This is the
-  // strongest suspect for the CI SIGSEGV seen since run_30184235004
-  // (see /home/user/metal-addrspace-patch/CRASH_ANALYSIS.md).
-  PP.DiscardUntilEndOfDirective();
 }
 
 /// Handle '#pragma omp ...' when OpenMP is disabled and '#pragma acc ...' when
