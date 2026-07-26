@@ -6065,9 +6065,25 @@ static ImplicitConversionSequence TryObjectArgumentInitialization(
     return ICS;
   }
 
-  if (FromTypeCanon.hasAddressSpace()) {
+  // Metal Shading Language 2.0+ s4.1.1 declares the default AS at
+  // function scope is ``thread``.  A local like ``float4x3 result;``
+  // therefore has an object-address-space of ``thread`` even though its
+  // canonical type does not spell any AS qualifier.  Stock
+  // ``FromTypeCanon.hasAddressSpace()`` is false in that case, which
+  // caused overloaded ``operator[]`` (thread / device / threadgroup /
+  // ray_data / object_data ...) to all be treated as viable candidates
+  // for ``result[i]``, producing 24+ ``use of overloaded operator '[]'
+  // is ambiguous`` diagnostics inside <metal_raytracing> in CI run
+  // 30186507453.  Fix: in Metal mode, if the object type has no
+  // explicit AS, synthesise a ``thread``-qualified copy for the
+  // superset check so only method-AS candidates that can actually
+  // accept a thread object stay viable.
+  Qualifiers QualsFromType = FromTypeCanon.getQualifiers();
+  if (S.getLangOpts().Metal && !QualsFromType.hasAddressSpace()) {
+    QualsFromType.setAddressSpace(LangAS::opencl_private);
+  }
+  if (QualsFromType.hasAddressSpace()) {
     Qualifiers QualsImplicitParamType = ImplicitParamType.getQualifiers();
-    Qualifiers QualsFromType = FromTypeCanon.getQualifiers();
     if (!QualsImplicitParamType.isAddressSpaceSupersetOf(QualsFromType,
                                                          S.getASTContext())) {
       ICS.setBad(BadConversionSequence::bad_qualifiers,
