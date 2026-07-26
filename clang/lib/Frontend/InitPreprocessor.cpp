@@ -528,6 +528,11 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__is_metal_depth_texture_imageblock_slice_storage_valid(E,T)", "true");
     Builder.defineMacro("__is_metal_stencil_texture_imageblock_slice_storage_valid(E,T)", "true");
 
+    // Mesh shader stage vertex/primitive struct traits used by <metal_mesh>.
+    // Same macro-fallback strategy as the texture-channel traits above.
+    Builder.defineMacro("__is_metal_mesh_vertex(T)", "true");
+    Builder.defineMacro("__is_metal_mesh_primitive(T)", "true");
+
     // Half-precision floating-point constant builtins.  Metal Shading
     // Language uses ``__builtin_infh``, ``__builtin_nanh`` and
     // ``__builtin_nansh`` (see <metal_limits>::infinity() /
