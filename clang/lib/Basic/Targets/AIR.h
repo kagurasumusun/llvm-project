@@ -80,6 +80,13 @@ public:
     UseAddrSpaceMapMangling = true;
     HasFastHalfType = true;
     HasFloat16 = true;
+    // Metal Shading Language 2.0+ s2.1 explicitly permits ``half`` (16-bit
+    // float) as a function parameter or return type -- unlike stock OpenCL C
+    // which forbids it unless ``cl_khr_fp16`` is enabled.  Apple's
+    // metal_stdlib assumes this everywhere (metal_relational::isfinite(half)
+    // etc.), so mirror the language rule at the target level to avoid
+    // hundreds of spurious "parameters cannot have __fp16 type" diagnostics.
+    HalfArgsAndReturns = true;
     PlatformMinVersion = Triple.getOSVersion();
     PlatformName = llvm::Triple::getOSTypeName(Triple.getOS());
     TheCXXABI.set(TargetCXXABI::GenericItanium);
