@@ -741,17 +741,24 @@ KEYWORD(__kernel                    , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 ALIAS("kernel", __kernel            , KEYOPENCLC | KEYOPENCLCXX | KEYMETAL)
 KEYWORD(vertex                      , KEYMETAL)
 KEYWORD(fragment                    , KEYMETAL)
-// NOTE: ``object`` intentionally NOT a KEYWORD.
+// NOTE: ``object`` and ``mesh`` intentionally NOT KEYWORDs.
 // Apple's metal_stdlib uses ``object`` freely as a parameter name inside
 // <metal_atomic> (``atomic_store_explicit(..., _atomic<T> *object, ...)``).
-// If we promote ``object`` to KEYMETAL, every such declaration produces
+// It also declares ``struct mesh<V, P, NV, NP, t>`` in <metal_mesh> as the
+// mesh-payload class template.  If we promote either identifier to
+// KEYMETAL the parser interprets them as reserved tokens and fails with
+// either
 //   error: invalid parameter name: 'object' is a keyword
-// (24+ diagnostics in CI run 30181013320).  Instead, ``ParseMetalFunctionAttributes``
-// recognises the ``object`` shader-stage adornment via identifier lookup
-// (see clang/lib/Parse/ParseDecl.cpp).  ``vertex`` / ``fragment`` / ``mesh``
-// / ``intersection`` / ``tile`` remain KEYMETAL for now because Apple's
-// stdlib does not use those spellings as parameter names.
-KEYWORD(mesh                        , KEYMETAL)
+// (24+ diagnostics in CI run 30181013320) or
+//   error: declaration of anonymous struct must be a definition
+// (metal_mesh:46 in CI run 30193638707).  Instead,
+// ``ParseMetalFunctionAttributes`` (clang/lib/Parse/ParseDecl.cpp) and
+// ``ParseDeclarationSpecifiers`` recognise ``object`` / ``mesh`` as
+// context-sensitive shader-stage adornments via identifier lookup, so
+// their ordinary-identifier semantics are preserved.  ``vertex`` /
+// ``fragment`` / ``intersection`` / ``tile`` remain KEYMETAL because
+// Apple's stdlib does not use those spellings as parameter names or
+// user-defined type names.
 KEYWORD(intersection                , KEYMETAL)
 KEYWORD(tile                        , KEYMETAL)
 // OpenCL access qualifiers

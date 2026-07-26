@@ -9019,6 +9019,31 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       // it it breaks large amounts of Linux software.
       attr.setUsedAsTypeAttr();
       break;
+
+    case ParsedAttr::AT_MetalVisible: {
+      // Apple's <metal_visible_function_table> declares
+      //     using function_pointer_type = R(*)(Args...) [[visible]];
+      // ``MetalVisible`` inherits from ``DeclOrTypeAttr`` in Attr.td, so it
+      // is legal in both declaration and type positions.  In type position
+      // we materialise it as an ``AttributedType`` so the marker survives
+      // through canonicalisation and reaches the AIR back-end via the
+      // function-pointer's AST type.  It carries no C++ type-system
+      // semantics of its own -- it is an ABI marker for the
+      // visible_function_table<T> family and is checked by
+      // ``ProcessDeclAttribute`` (SemaDeclAttr.cpp) in declaration
+      // position.
+      if (!state.getSema().getLangOpts().Metal) {
+        state.getSema().Diag(attr.getLoc(), diag::err_attribute_not_type_attr)
+            << attr << attr.isRegularKeywordAttribute();
+        attr.setInvalid();
+        break;
+      }
+      ASTContext &Ctx = state.getSema().Context;
+      type = state.getAttributedType(
+          createSimpleAttr<MetalVisibleAttr>(Ctx, attr), type, type);
+      attr.setUsedAsTypeAttr();
+      break;
+    }
     case ParsedAttr::AT_OpenCLPrivateAddressSpace:
     case ParsedAttr::AT_OpenCLGlobalAddressSpace:
     case ParsedAttr::AT_OpenCLGlobalDeviceAddressSpace:

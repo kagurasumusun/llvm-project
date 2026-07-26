@@ -1858,7 +1858,7 @@ def MetalObject : InheritableAttr {
 }
 
 def MetalMesh : InheritableAttr {
-  let Spellings = [CXX11<"", "mesh", 202600>, CustomKeyword<"mesh">];
+  let Spellings = [CXX11<"", "mesh", 202600>];
   let Subjects = SubjectList<[ParmVar, Function]>;
   let LangOpts = [Metal];
   let Documentation = [InternalOnly];

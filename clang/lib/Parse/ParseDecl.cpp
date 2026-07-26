@@ -1054,21 +1054,28 @@ void Parser::ParseMetalFunctionAttributes(ParsedAttributes &Attrs) {
   // Recognise Metal shader-stage adornments in prefix position (e.g.
   // ``vertex void shader() { ... }``).
   //
-  // ``vertex`` / ``fragment`` / ``mesh`` / ``intersection`` / ``tile`` are
-  // KEYMETAL keywords; ``object`` is intentionally NOT a keyword because
-  // Apple's <metal_atomic> uses it as a parameter identifier (24+ CI
-  // diagnostics in run 30181013320).  We instead recognise ``object`` here
+  // ``vertex`` / ``fragment`` / ``intersection`` / ``tile`` are KEYMETAL
+  // keywords.  ``object`` and ``mesh`` are intentionally NOT keywords
+  // because Apple's <metal_atomic> uses ``object`` as a parameter
+  // identifier (24+ CI diagnostics in run 30181013320) and <metal_mesh>
+  // declares ``struct mesh<V, P, NV, NP, t>`` as a user class-template
+  // name (2 diagnostics in CI run 30193638707).  We recognise both here
   // by identifier text: this only fires at declaration-specifier position
-  // (before the declarator), so it cannot shadow a parameter-name usage
-  // further inside a function type.
+  // (before the declarator), so it cannot shadow a parameter-name or
+  // class-name usage further inside a function or type-specifier.
   while (true) {
     tok::TokenKind Kind = Tok.getKind();
-    bool IsObjectStage =
+    // ``object`` and ``mesh`` are context-sensitive stage adornments;
+    // they are ordinary identifiers everywhere else so Apple's
+    // <metal_atomic> parameter name ``object`` and <metal_mesh>
+    // ``struct mesh<...>`` class-template name continue to parse.
+    bool IsIdentStage =
         Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
-        Tok.getIdentifierInfo()->isStr("object");
+        (Tok.getIdentifierInfo()->isStr("object") ||
+         Tok.getIdentifierInfo()->isStr("mesh"));
     if (Kind != tok::kw_vertex && Kind != tok::kw_fragment &&
-        Kind != tok::kw_mesh && Kind != tok::kw_intersection &&
-        Kind != tok::kw_tile && !IsObjectStage)
+        Kind != tok::kw_intersection && Kind != tok::kw_tile &&
+        !IsIdentStage)
       break;
     IdentifierInfo *AttrName = Tok.getIdentifierInfo();
     SourceLocation AttrNameLoc = ConsumeToken();
@@ -3798,19 +3805,21 @@ void Parser::ParseDeclarationSpecifiers(
       // positions it retains its ordinary identifier semantics.
       if (getLangOpts().Metal && !DS.hasTypeSpecifier() &&
           Tok.is(tok::identifier) && Tok.getIdentifierInfo() &&
-          Tok.getIdentifierInfo()->isStr("object")) {
+          (Tok.getIdentifierInfo()->isStr("object") ||
+           Tok.getIdentifierInfo()->isStr("mesh"))) {
         // Peek at the next token: a stage adornment is followed by a
         // type specifier (``void``, ``__attribute__``, another Metal
         // keyword, etc.), *never* by another identifier that would form
         // a declaration by itself (avoids swallowing ``object foo;``
-        // where ``object`` is a typedef).
+        // where ``object`` is a typedef, or ``struct mesh { ... }``
+        // where ``mesh`` is a user-defined class-template name).
         const Token &NT = NextToken();
         bool LooksLikeStage =
             NT.is(tok::kw_void) || NT.is(tok::kw_auto) ||
             NT.is(tok::kw_vertex) || NT.is(tok::kw_fragment) ||
-            NT.is(tok::kw_mesh) || NT.is(tok::kw_intersection) ||
-            NT.is(tok::kw_tile) || NT.is(tok::kw___attribute) ||
-            NT.is(tok::kw_alignas) || NT.is(tok::l_square);
+            NT.is(tok::kw_intersection) || NT.is(tok::kw_tile) ||
+            NT.is(tok::kw___attribute) || NT.is(tok::kw_alignas) ||
+            NT.is(tok::l_square);
         if (LooksLikeStage) {
           ParseMetalFunctionAttributes(DS.getAttributes());
           continue;
@@ -4121,7 +4130,6 @@ void Parser::ParseDeclarationSpecifiers(
     // ParseOptionalMetalStageAdornment which is invoked separately.
     case tok::kw_vertex:
     case tok::kw_fragment:
-    case tok::kw_mesh:
     case tok::kw_intersection:
     case tok::kw_tile:
       ParseMetalFunctionAttributes(DS.getAttributes());
@@ -5769,7 +5777,6 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___kernel:
   case tok::kw_vertex:
   case tok::kw_fragment:
-  case tok::kw_mesh:
   case tok::kw_intersection:
   case tok::kw_tile:
 
@@ -6064,7 +6071,6 @@ bool Parser::isDeclarationSpecifier(
   case tok::kw___kernel:
   case tok::kw_vertex:
   case tok::kw_fragment:
-  case tok::kw_mesh:
   case tok::kw_intersection:
   case tok::kw_tile:
 
