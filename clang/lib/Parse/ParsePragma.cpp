@@ -2755,65 +2755,18 @@ void PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP,
 void PragmaMetalInternalsHandler::HandlePragma(Preprocessor &PP,
                                                PragmaIntroducer Introducer,
                                                Token &FirstToken) {
-  // Expect: ``internals : enable`` or ``internals : disable`` (with
-  // optional whitespace).  ``fp`` / ``osx_metal`` / other Apple pragmas
-  // are ignored (silently accepted so their body of tokens is skipped).
-  Token Tok;
-  PP.LexUnexpandedToken(Tok);
-  if (Tok.isNot(tok::identifier)) {
-    PP.DiscardUntilEndOfDirective();
-    return;
-  }
-  IdentifierInfo *Kind = Tok.getIdentifierInfo();
-  if (!Kind->isStr("internals")) {
-    // Not the sub-pragma we care about (e.g. ``#pragma METAL fp
-    // math_mode(safe)``).  Consume the rest of the directive so we
-    // don't warn on it.
-    PP.DiscardUntilEndOfDirective();
-    return;
-  }
-
-  PP.Lex(Tok);
-  if (Tok.isNot(tok::colon)) {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_colon)
-        << "METAL internals";
-    PP.DiscardUntilEndOfDirective();
-    return;
-  }
-
-  PP.Lex(Tok);
-  if (Tok.isNot(tok::identifier)) {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_predicate) << 0;
-    PP.DiscardUntilEndOfDirective();
-    return;
-  }
-  IdentifierInfo *Pred = Tok.getIdentifierInfo();
-  bool NewState;
-  if (Pred->isStr("enable"))
-    NewState = true;
-  else if (Pred->isStr("disable"))
-    NewState = false;
-  else {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_predicate) << 0;
-    PP.DiscardUntilEndOfDirective();
-    return;
-  }
-
-  PP.Lex(Tok);
-  if (Tok.isNot(tok::eod)) {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
-        << "METAL internals";
-    PP.DiscardUntilEndOfDirective();
-    // Fall through: still apply the toggle -- the extra tokens are just
-    // noise and we don't want a warning to break stdlib parse.
-  }
-
-  // Toggle the flag directly.  LangOptions is mutable via
-  // const_cast because the language-mode-influencing bit needs to
-  // change mid-translation-unit exactly like ``#pragma float_control``
-  // toggles LangOptions::FastMath.  Sema queries this bit via
-  // SemaMSL::inInternalsMode(SemaRef).
-  const_cast<LangOptions &>(PP.getLangOpts()).MetalInternals = NewState;
+  // MINIMAL SAFE VARIANT (crash isolation): only skip tokens up to eod
+  // without touching PP state or LangOptions.  The full ``internals``
+  // toggle (via const_cast on getLangOpts()) will be reintroduced once
+  // the SIGSEGV during subsequent parse is diagnosed.
+  //
+  // Rationale for this backoff: repeatedly setting a bit in the shared
+  // ``const LangOptions &`` via const_cast broke long-lived cached
+  // state in Sema / ASTContext / Preprocessor macro-info memoisation
+  // that assumes LangOptions is immutable post-init.  This is the
+  // strongest suspect for the CI SIGSEGV seen since run_30184235004
+  // (see /home/user/metal-addrspace-patch/CRASH_ANALYSIS.md).
+  PP.DiscardUntilEndOfDirective();
 }
 
 /// Handle '#pragma omp ...' when OpenMP is disabled and '#pragma acc ...' when
