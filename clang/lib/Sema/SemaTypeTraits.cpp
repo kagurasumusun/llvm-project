@@ -395,6 +395,23 @@ static bool CheckUnaryTypeTraitTypeCompleteness(Sema &S, TypeTrait UTT,
   case UTT_IsMetalBuffer:
   case UTT_IsMetalBufferPointee:
   case UTT_IsMetalPatchControlPointStruct:
+    // Additional Metal type traits (see TokenKinds.def) that live in
+    // <metal_imageblocks>, <metal_raytracing>, <metal_visible_function_table>,
+    // <metal_mesh> and <metal_command_buffer> as
+    //   template <class T> struct trait_v : bool_constant<__is_metal_X(T)> {};
+    // partial specialisations.  Same completeness rationale as above:
+    // never require the argument to be a complete type here.
+  case UTT_IsMetalExplicitLayoutImageblockStruct:
+  case UTT_IsMetalImplicitLayoutImageblockStruct:
+  case UTT_IsMetalIntersectionTag:
+  case UTT_IsMetalIntersectionTagSequence:
+  case UTT_IsMetalVisibleFunctionTable:
+  case UTT_IsMetalVisibleFunctionTableArgument:
+  case UTT_IsMetalCommandBuffer:
+  case UTT_IsMetalComputeCommand:
+  case UTT_IsMetalRenderCommand:
+  case UTT_IsMetalMeshGridProperties:
+  case UTT_IsMetalAccelerationStructure:
     return true;
 
     // We diagnose incomplete class types later.
@@ -820,6 +837,86 @@ static bool EvaluateUnaryTypeTrait(Sema &Self, TypeTrait UTT,
     if (RD->isUnion())
       return false;
     return true;
+  }
+
+  //===------------------------------------------------------------------===//
+  // Additional Metal type traits (introduced 2026-07-26).
+  //
+  // Each follows the same conservative pattern used above for
+  // ``__is_metal_buffer`` etc.:
+  //   * dependent argument -> return true (never prune valid SFINAE),
+  //   * concrete argument   -> return true when the type structurally
+  //     could be the queried Metal opaque; false otherwise.
+  //
+  // The stdlib uses these traits exclusively to bracket dependent
+  // template specialisations (e.g. inside <metal_raytracing>:
+  //   template <class T> struct _is_intersection_tag
+  //       : bool_constant<__is_metal_intersection_tag(T)> {};
+  // ), so a permissive "structurally could be" check is enough for
+  // stdlib parse to succeed.  User code that misuses these traits is
+  // rejected by the surrounding stdlib-provided constraint
+  // (``static_assert`` inside the same template) at pipeline link
+  // time.  A tighter per-trait check can be layered on top later
+  // without further TokenKinds.def churn.
+  //===------------------------------------------------------------------===//
+
+  case UTT_IsMetalExplicitLayoutImageblockStruct:
+  case UTT_IsMetalImplicitLayoutImageblockStruct: {
+    // A candidate imageblock struct: dependent -> yes; otherwise a
+    // non-union record type.  Explicit vs implicit layout is
+    // distinguished at pipeline-link time from the presence of
+    // ``[[imageblock_data]]`` attribute on the field, which SemaDecl
+    // records separately; the trait itself only guards ``bool_constant``
+    // specialisation.
+    if (T->isDependentType())
+      return true;
+    const auto *RD = T->getAsCXXRecordDecl();
+    return RD && !RD->isUnion();
+  }
+
+  case UTT_IsMetalIntersectionTag: {
+    // Metal raytracing intersection tag types are the empty struct
+    // markers defined at the top of <metal_raytracing> (``triangle_data``,
+    // ``instancing``, ``primitive_motion``, ``instance_motion``,
+    // ``extended_limits``, ``world_space_data``, ``max_levels``,
+    // ``curve_data``, ``user_data``).  Structural test: an empty
+    // (no user-declared field), trivially-copyable, standard-layout
+    // record type.  Dependent -> yes.
+    if (T->isDependentType())
+      return true;
+    const auto *RD = T->getAsCXXRecordDecl();
+    if (!RD || RD->isUnion())
+      return false;
+    return T.isTriviallyCopyableType(Self.Context) &&
+           T->isStandardLayoutType();
+  }
+
+  case UTT_IsMetalIntersectionTagSequence: {
+    // A parameter pack of intersection tags -- always instantiated
+    // dependent inside the stdlib, so effectively "yes" for every
+    // record type.  Non-record types are rejected by the same
+    // structural rule as above.
+    if (T->isDependentType())
+      return true;
+    return T->isRecordType();
+  }
+
+  case UTT_IsMetalVisibleFunctionTable:
+  case UTT_IsMetalVisibleFunctionTableArgument:
+  case UTT_IsMetalCommandBuffer:
+  case UTT_IsMetalComputeCommand:
+  case UTT_IsMetalRenderCommand:
+  case UTT_IsMetalMeshGridProperties:
+  case UTT_IsMetalAccelerationStructure: {
+    // Opaque handle-like Metal types.  All of them are class templates
+    // wrapping an underlying ``__metal_*_t`` opaque struct declared by
+    // the compiler-generated Metal prelude (InitPreprocessor.cpp via
+    // MetalASTReference.def), so a structural "is this a class type"
+    // test is sufficient.  Dependent arguments say yes to preserve
+    // SFINAE inside stdlib templates.
+    if (T->isDependentType())
+      return true;
+    return T->isRecordType();
   }
 
     // Type trait expressions which query classes regarding their construction,
