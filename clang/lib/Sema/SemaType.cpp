@@ -38,6 +38,7 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaCUDA.h"
 #include "clang/Sema/SemaHLSL.h"
+#include "clang/Sema/SemaMSL.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaOpenMP.h"
 #include "clang/Sema/Template.h"
@@ -5369,43 +5370,14 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
                      DeclaratorContext::LambdaExpr;
         };
 
-        // Metal / OpenCL C++ class-method address-space transfer must NOT
-        // fire for
-        //   (a) friend declarations inside a class body
-        //       (``friend METAL_FUNC void f(...)``) -- friends have
-        //       *non-member* function type, so tagging them with
-        //       ``__private`` would create a mismatch against the eventual
-        //       out-of-class definition
-        //       (``constexpr METAL_FUNC void f(...) { ... }``) which is
-        //       plain non-member and carries no address space.  Apple's
-        //       <__bits/metal_texture_common> uses this pattern for the
-        //       ``_build_sampler_state`` helper and produced 10+ "conflicting
-        //       types" diagnostics in CI run 30181725358.
+        // Metal / OpenCL C++ class-method address-space transfer.
         //
-        //   (b) function-pointer / function-typedef parameters
-        //       (``bool (*)(_acceleration_structure<Tags...>)``) -- the
-        //       inner function type is not a member function, so it must
-        //       stay AS-free.  Attaching __private here caused Apple's
-        //       <metal_raytracing> ``__is_null_acceleration_structure``
-        //       overload set to fail template-argument deduction against
-        //       every ``bool (_acceleration_structure<...>) __private``
-        //       specialisation (46 diagnostics in run 30182354278).
-        //
-        // The FunctionDecl object is not yet bound to a Sema Decl here, but
-        // we can detect (a) via ``D.getDeclSpec().isFriendSpecified()``
-        // and (b) via ``D.getContext() != Member/File`` (only Member and
-        // File contexts declare *the* function -- everything else is a
-        // nested function-typed component).
-        bool IsFriendDecl = D.getDeclSpec().isFriendSpecified();
-        bool IsMemberOrFileFunctionDecl =
-            D.getContext() == DeclaratorContext::Member ||
-            D.getContext() == DeclaratorContext::File ||
-            D.getContext() == DeclaratorContext::CXXCatch;
-        bool IsMetalOrOpenCLCPP =
-            state.getSema().getLangOpts().OpenCLCPlusPlus ||
-            state.getSema().getLangOpts().Metal;
-        if (IsMetalOrOpenCLCPP && IsClassMember() && !IsFriendDecl &&
-            IsMemberOrFileFunctionDecl) {
+        // Policy owned by clang/Sema/SemaMSL.h; this call site keeps
+        // the inline transfer body unchanged so the upstream diff
+        // stays minimal.  See SemaMSL.cpp for rationale on why we
+        // exclude friend declarations and non-Member DeclaratorContext.
+        if (SemaMSL::shouldTransferMethodAddressSpace(state.getSema(), D) &&
+            IsClassMember()) {
           LangAS ASIdx = LangAS::Default;
           // Take address space attr if any and mark as invalid to avoid adding
           // them later while creating QualType.
