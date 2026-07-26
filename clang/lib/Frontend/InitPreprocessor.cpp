@@ -528,10 +528,15 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__is_metal_depth_texture_imageblock_slice_storage_valid(E,T)", "true");
     Builder.defineMacro("__is_metal_stencil_texture_imageblock_slice_storage_valid(E,T)", "true");
 
-    // Mesh shader stage vertex/primitive struct traits used by <metal_mesh>.
-    // Same macro-fallback strategy as the texture-channel traits above.
-    Builder.defineMacro("__is_metal_mesh_vertex(T)", "true");
-    Builder.defineMacro("__is_metal_mesh_primitive(T)", "true");
+    // NOTE: __is_metal_mesh_vertex / __is_metal_mesh_primitive are
+    // compiler-intrinsic type traits (KEYMETAL TYPE_TRAIT_1 entries in
+    // clang/Basic/TokenKinds.def, evaluated in
+    // Sema::EvaluateUnaryTypeTrait).  A prior fallback here defined them
+    // as function-like preprocessor macros returning ``true`` which
+    // shadowed the real Sema traits (preprocessor expansion wins over
+    // token-kind resolution), breaking Apple's <metal_mesh>::mesh<>
+    // partial-specialization ``conditional_t<__is_metal_mesh_vertex(V),
+    // V, void>``.  Remove the shadow so proper Sema traits fire.
 
     // Half-precision floating-point constant builtins.  Metal Shading
     // Language uses ``__builtin_infh``, ``__builtin_nanh`` and
@@ -703,7 +708,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
            builtin (varying arity, scalar-vs-vector-vs-matrix return, etc.),        \
            so we mirror the .def strategy: variadic template returning the          \
            universal proxy type. */                                                 \
-        Builder.append("template<class... __M_A> inline ::__clang_metal_any_t " #Name "(__M_A&&...) noexcept;");                    \
+        Builder.append("template<class... __M_A> inline constexpr ::__clang_metal_any_t " #Name "(__M_A&&...) noexcept;");                    \
     }
 #include "clang/Basic/MetalStdlibBuiltins.def"
 #undef METAL_STDLIB_BUILTIN
