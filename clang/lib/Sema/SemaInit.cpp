@@ -9226,6 +9226,23 @@ bool InitializationSequence::Diagnose(Sema &S,
     }
 
     R.setBegin(S.getLocForEndOfToken(R.getBegin()));
+    {
+      // Metal Shading Language 2.0+ s2.3 admits multi-scalar functional
+      // casts of vector types (e.g. ``ulong2(0, 0)``).  Apple's
+      // <metal_simdgroup_matrix> uses this in default arguments:
+      //   ``ulong2 matrix_origin = ulong2(0, 0)``
+      // Even after our Parser/Sema list-init routing, the InitSeq
+      // sometimes still lands here for default-argument re-evaluation.
+      // When the destination is a vector and we are in Metal or OpenCL
+      // mode, this failure kind is a false positive -- silently break
+      // out and let sibling paths (BuildCXXFunctionalCastExpr's
+      // vector-scalar composition) construct the expression.
+      QualType DestT = Entity.getType();
+      if ((S.getLangOpts().Metal || S.getLangOpts().OpenCL) &&
+          !DestT.isNull() && DestT->isVectorType()) {
+        break;
+      }
+    }
     if (Kind.isCStyleOrFunctionalCast())
       S.Diag(Kind.getLocation(), diag::err_builtin_func_cast_more_than_one_arg)
         << R;
