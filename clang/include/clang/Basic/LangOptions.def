@@ -245,6 +245,33 @@ LANGOPT(NoGPULib  , 1, 0, NotCompatible, "Indicate a build without the standard 
 LANGOPT(Metal, 1, 0, NotCompatible, "Metal Shading Language")
 LANGOPT(MetalVersion, 32, 0, NotCompatible, "Metal Shading Language version")
 
+// MSL two-axis compilation model per Apple metalfe design (verified in
+// kagurasumusun/metal-info reference-apple/clang/32023.883/include/metal/*
+// via ``#pragma METAL internals : enable / disable`` markers in metal_types
+// and metal_uniform).
+//
+//   Axis 1: user code (.metal shader files) -- strict MSL spec rules apply
+//           (no ``__fp16`` in parameters/returns without half wrapper,
+//           no private-member access via friend tricks, no raw
+//           ``__metal_*`` builtin calls, etc.).
+//
+//   Axis 2: stdlib internals (Apple metal_stdlib header parse) -- Apple's
+//           own stdlib DELIBERATELY violates axis-1 rules to implement
+//           library primitives.  metalfe enables an ``internals`` mode
+//           for the header parse window and disables it again after.
+//
+// ``MetalInternals`` is toggled by the ``#pragma METAL internals :
+// enable / disable`` pragma parser (Sema/SemaPragma.cpp) and controls
+// the diagnostic-enable predicates ``SemaMSL::inInternalsMode(...)``
+// used by SemaType / SemaExpr / SemaDeclAttr Metal-specific gates.
+// User code parses with MetalInternals = 0, stdlib parses with
+// MetalInternals = 1.  This matches Apple's proprietary approach
+// exactly and lets us keep the axis-1 diagnostics strict without
+// breaking Apple's own header instantiation.
+LANGOPT(MetalInternals, 1, 0, NotCompatible,
+        "Metal stdlib internals parse mode "
+        "(#pragma METAL internals : enable / disable)")
+
 LANGOPT(HLSL, 1, 0, NotCompatible, "HLSL")
 ENUM_LANGOPT(HLSLVersion, HLSLLangStd, 16, HLSL_Unset, NotCompatible, "HLSL Version")
 LANGOPT(HLSLStrictAvailability, 1, 0, NotCompatible,
