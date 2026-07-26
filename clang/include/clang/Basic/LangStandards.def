@@ -233,9 +233,33 @@ LANGSTANDARD_ALIAS_DEPR(openclcpp2021, "CLC++2021")
 
 // Metal Shading Language
 // Apple historically used platform-qualified language-standard spellings for
-// Metal 1.x and 2.x.  metal-info reference artifacts show ios-metal* for iOS,
-// tvOS, and watchOS-family builds, and macos-metal*/osx-metal* for macOS.
-// Metal 3+ uses unqualified metal3.x/metal4.x spellings.
+// Metal Shading Language language standards
+// -------------------------------------------
+//
+// Per Apple's metalfe reference compiler (kagurasumusun/metal-info
+// research/spec/METAL_CXX_MASTER_ATLAS.md, 2026-07-21 experimental
+// measurements from Xcode 26.x metal frontends), each MSL standard maps
+// to a specific C++ *language* level while additionally allowing
+// header-metaprogramming features backported from later standards:
+//
+//   metal1.0 - metal1.2   : C++11 base language, no backports.
+//   metal2.0 - metal3.2   : C++14 base language (__cplusplus == 201402L).
+//                            metalfe additionally accepts C++17 features
+//                            "if constexpr", structured bindings and fold
+//                            expressions (metal-info FEAT-07/08/09).
+//   metal4.0 - metal4.1   : C++17 base language (__cplusplus == 201703L).
+//
+// We encode the *feature availability* (i.e. what Sema will accept) in
+// the LANGSTANDARD flags below.  The *__cplusplus macro value* is
+// separately overridden in clang/lib/Frontend/InitPreprocessor.cpp so
+// user code observes the same value that metalfe emits.  This mirrors
+// Apple's proprietary implementation strategy of a C++14 base plus
+// selective C++17 backports for stdlib header consumption.
+//
+// Naming conventions: metal-info's reference artifacts show ios-metal*
+// for iOS/tvOS/watchOS-family builds, macos-metal*/osx-metal* for
+// macOS, and unqualified metal3.x/metal4.x for the unified Metal 3+
+// spellings.
 
 LANGSTANDARD(iosmetal10, "ios-metal1.0",
              Metal, "Metal Shading Language 1.0 for iOS-family targets",
@@ -256,28 +280,28 @@ LANGSTANDARD(iosmetal12, "ios-metal1.2",
 LANGSTANDARD(iosmetal20, "ios-metal2.0",
              Metal, "Metal Shading Language 2.0 for iOS-family targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 200)
+             CPlusPlus17 | Digraphs | HexFloat, 200)
 LANGSTANDARD_ALIAS(iosmetal20, "ios-metal2")
 
 LANGSTANDARD(iosmetal21, "ios-metal2.1",
              Metal, "Metal Shading Language 2.1 for iOS-family targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 210)
+             CPlusPlus17 | Digraphs | HexFloat, 210)
 
 LANGSTANDARD(iosmetal22, "ios-metal2.2",
              Metal, "Metal Shading Language 2.2 for iOS-family targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 220)
+             CPlusPlus17 | Digraphs | HexFloat, 220)
 
 LANGSTANDARD(iosmetal23, "ios-metal2.3",
              Metal, "Metal Shading Language 2.3 for iOS-family targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 230)
+             CPlusPlus17 | Digraphs | HexFloat, 230)
 
 LANGSTANDARD(iosmetal24, "ios-metal2.4",
              Metal, "Metal Shading Language 2.4 for iOS-family targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 240)
+             CPlusPlus17 | Digraphs | HexFloat, 240)
 
 LANGSTANDARD(macosmetal11, "macos-metal1.1",
              Metal, "Metal Shading Language 1.1 for macOS targets",
@@ -296,7 +320,7 @@ LANGSTANDARD_ALIAS(macosmetal12, "osx-metal1.2")
 LANGSTANDARD(macosmetal20, "macos-metal2.0",
              Metal, "Metal Shading Language 2.0 for macOS targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 200)
+             CPlusPlus17 | Digraphs | HexFloat, 200)
 LANGSTANDARD_ALIAS(macosmetal20, "osx-metal2.0")
 LANGSTANDARD_ALIAS(macosmetal20, "osx-metal2")
 LANGSTANDARD_ALIAS(macosmetal20, "macos-metal2")
@@ -304,38 +328,38 @@ LANGSTANDARD_ALIAS(macosmetal20, "macos-metal2")
 LANGSTANDARD(macosmetal21, "macos-metal2.1",
              Metal, "Metal Shading Language 2.1 for macOS targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 210)
+             CPlusPlus17 | Digraphs | HexFloat, 210)
 
 LANGSTANDARD(macosmetal22, "macos-metal2.2",
              Metal, "Metal Shading Language 2.2 for macOS targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 220)
+             CPlusPlus17 | Digraphs | HexFloat, 220)
 
 LANGSTANDARD(macosmetal23, "macos-metal2.3",
              Metal, "Metal Shading Language 2.3 for macOS targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 230)
+             CPlusPlus17 | Digraphs | HexFloat, 230)
 
 LANGSTANDARD(macosmetal24, "macos-metal2.4",
              Metal, "Metal Shading Language 2.4 for macOS targets",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 240)
+             CPlusPlus17 | Digraphs | HexFloat, 240)
 
 LANGSTANDARD(metal30, "metal3.0",
              Metal, "Metal Shading Language 3.0",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 300)
+             CPlusPlus17 | Digraphs | HexFloat, 300)
 LANGSTANDARD_ALIAS(metal30, "metal3")
 
 LANGSTANDARD(metal31, "metal3.1",
              Metal, "Metal Shading Language 3.1",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 310)
+             CPlusPlus17 | Digraphs | HexFloat, 310)
 
 LANGSTANDARD(metal32, "metal3.2",
              Metal, "Metal Shading Language 3.2",
              LineComment | Metal | CPlusPlus | CPlusPlus11 | CPlusPlus14 |
-             Digraphs | HexFloat, 320)
+             CPlusPlus17 | Digraphs | HexFloat, 320)
 
 LANGSTANDARD(metal40, "metal4.0",
              Metal, "Metal Shading Language 4.0",
