@@ -437,10 +437,22 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     // object in address space '__private'".  The four-fold declaration
     // matches Apple's own pattern for stdlib helpers that must survive
     // AS-polymorphic instantiation.
-    Builder.append("  template<class __T> constexpr operator __T() const thread    noexcept { return __T(); }");
-    Builder.append("  template<class __T> constexpr operator __T() const device    noexcept { return __T(); }");
-    Builder.append("  template<class __T> constexpr operator __T() const constant  noexcept { return __T(); }");
+    Builder.append("  template<class __T> constexpr operator __T() const thread      noexcept { return __T(); }");
+    Builder.append("  template<class __T> constexpr operator __T() const device      noexcept { return __T(); }");
+    Builder.append("  template<class __T> constexpr operator __T() const constant    noexcept { return __T(); }");
     Builder.append("  template<class __T> constexpr operator __T() const threadgroup noexcept { return __T(); }");
+    // The 5th overload uses ``__generic`` (a.k.a. OpenCL's default AS for
+    // temporaries under OpenCL C++).  Metal doesn't officially expose the
+    // ``generic`` spelling, but rvalue temporaries -- e.g. the object
+    // returned by ``__metal_X(...)`` in ``return __metal_X(...);`` -- live
+    // in the generic AS during Sema-time overload resolution.  Without
+    // this overload every 4-AS-qualified overload above is rejected with
+    //   "'this' object is in generic address space, but method expects
+    //    object in address space '__private/__global/__constant/__local'"
+    // (1754 such diagnostics in CI run 30180886683).  KEYMETAL was added
+    // to ``__generic`` in TokenKinds.def so this is well-formed under
+    // ``-x metal``.
+    Builder.append("  template<class __T> constexpr operator __T() const __generic  noexcept { return __T(); }");
     Builder.append("};");
     Builder.append("#endif");
 
