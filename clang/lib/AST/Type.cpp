@@ -102,6 +102,22 @@ bool Qualifiers::isTargetAddressSpaceSupersetOf(LangAS A, LangAS B,
          (A == LangAS::Default && B == LangAS::hlsl_device) ||
          (A == LangAS::Default && B == LangAS::hlsl_input) ||
          (A == LangAS::Default && B == LangAS::hlsl_push_constant) ||
+         // Metal Shading Language: the default address space semantically
+         // *is* ``thread`` (LangAS::opencl_private) -- MSL 2.0+ s4.1.1
+         // ("the default address space of variables declared at
+         // function scope is thread").  So constructors qualified
+         // ``thread`` (e.g. ``struct S { S() thread; };`` in Apple's
+         // stdlib) MUST be usable to initialise an object typed with
+         // the default AS, and vice versa.  Without this rule Apple's
+         // <metal_raytracing>::_intersection_params default-initialised
+         // with ``{}`` fails constructor overload resolution with 8+
+         // "candidate constructor ignored: cannot be used to construct
+         // an object in address space unqualified" diagnostics in CI run
+         // 30184801874.  ObjC / OpenCL / CUDA are the other axes that
+         // distinguish thread from default; Metal chose to fuse them.
+         (Ctx.getLangOpts().Metal &&
+          ((A == LangAS::opencl_private && B == LangAS::Default) ||
+           (A == LangAS::Default && B == LangAS::opencl_private))) ||
          // Metal Shading Language: the three Metal address spaces
          // (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) are
          // distinct types for template partial-specialization purposes, but
