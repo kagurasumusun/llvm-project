@@ -58,9 +58,9 @@ static const unsigned AIRAddrSpaceMap[] = {
     //   ray_data              -> as9 (`%struct._intersection_result_t addrspace(9)*`)
     //   object_data           -> as9 (Apple groups them together with ray_data)
     //   threadgroup_imageblock-> as4 (`%struct._imageblock_t addrspace(4)*`)
-    9, // metal_ray_data
-    9, // metal_object_data
-    4, // metal_threadgroup_imageblock
+    9, // metal_ray_data              (AIR as9, per TYPE_LAYOUT_MAP: %struct._intersection_result_t addrspace(9))
+    7, // metal_object_data           (AIR as7, per TYPE_LAYOUT_MAP: %struct._mesh_t addrspace(7); object shader payload)
+    4, // metal_threadgroup_imageblock (AIR as4, per TYPE_LAYOUT_MAP: %struct._imageblock_t addrspace(4))
 };
 
 class LLVM_LIBRARY_VISIBILITY AIRTargetInfo : public TargetInfo {
@@ -80,13 +80,6 @@ public:
     UseAddrSpaceMapMangling = true;
     HasFastHalfType = true;
     HasFloat16 = true;
-    // Metal Shading Language 2.0+ s2.1 explicitly permits ``half`` (16-bit
-    // float) as a function parameter or return type -- unlike stock OpenCL C
-    // which forbids it unless ``cl_khr_fp16`` is enabled.  Apple's
-    // metal_stdlib assumes this everywhere (metal_relational::isfinite(half)
-    // etc.), so mirror the language rule at the target level to avoid
-    // hundreds of spurious "parameters cannot have __fp16 type" diagnostics.
-    HalfArgsAndReturns = true;
     PlatformMinVersion = Triple.getOSVersion();
     PlatformName = llvm::Triple::getOSTypeName(Triple.getOS());
     TheCXXABI.set(TargetCXXABI::GenericItanium);
