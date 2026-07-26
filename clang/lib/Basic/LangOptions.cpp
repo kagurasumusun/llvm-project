@@ -147,12 +147,21 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
     // This mirrors HLSL's use of the same LangOpts to enable native half
     // math and matches Apple's metalfe behaviour observed in
     // metal-info/research/spec/METAL_TARGETINFO_IMPL_MAP.md.
-    // NativeHalfType is intentionally NOT set here: doing so triggers a
-    // Sema-level segfault during instantiation of Apple's half-based
-    // stdlib templates (see CompilerInvocation.cpp for the diagnosis).
-    // Only NativeHalfArgsAndReturns is safe to enable in Metal mode
-    // today; native-half arithmetic promotion requires a deeper fix.
+    // Metal Shading Language 2.0+ s2.1 defines ``half`` as an always-native
+    // 16-bit float.  Enable both LangOpts:
+    //   * NativeHalfArgsAndReturns : allow ``half`` in parameter/return
+    //     position without requiring cl_khr_fp16
+    //   * NativeHalfType : keep ``half * half`` as ``half`` in usual
+    //     arithmetic conversions (avoids float promotion narrowing)
+    //
+    // Note: an earlier attempt (94bc2d0b6b) to re-apply NativeHalfType
+    // via CompilerInvocation.cpp *after* option marshalling correlated
+    // with a SIGSEGV crash.  The crash root cause was later isolated to
+    // the Phase 2 PragmaMetalInternalsHandler (const_cast on LangOptions),
+    // which has since been reverted.  Re-enabling NativeHalfType here in
+    // setLangDefaults should now be safe.
     Opts.NativeHalfArgsAndReturns = 1;
+    Opts.NativeHalfType = 1;
   }
 
   Opts.HLSL = Lang == Language::HLSL;
