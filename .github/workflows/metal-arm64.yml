@@ -495,8 +495,17 @@ jobs:
               sources:
                 - path: AppDelegate.swift
                 - path: MetalViewController.swift
-              resources:
+                # XcodeGen infers file type from extension; ``.metallib`` is
+                # not in its built-in map so it silently drops the file
+                # instead of copying it into the app bundle -- observed on
+                # CI run 30195359805 where the produced .app contained only
+                # MetalTestApp / Info.plist / PkgInfo and Bundle.main.path
+                # would return nil at runtime.  Declare the metallib as a
+                # generic ``file`` in the resources phase so xcodebuild's
+                # CpResource copies it verbatim.
                 - path: Shaders.metallib
+                  buildPhase: resources
+                  type: file
               info:
                 path: Info.plist
                 properties:
