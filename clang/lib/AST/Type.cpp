@@ -135,16 +135,18 @@ bool Qualifiers::isTargetAddressSpaceSupersetOf(LangAS A, LangAS B,
          // PerformObjectArgumentInitialization.
          (Ctx.getLangOpts().Metal &&
           A == LangAS::opencl_private && B == LangAS::Default) ||
-         // Metal Shading Language: the three Metal address spaces
+         // Metal Shading Language: the three Metal-specific address spaces
          // (``ray_data`` / ``object_data`` / ``threadgroup_imageblock``) are
-         // distinct types for template partial-specialization purposes, but
-         // Apple's stdlib freely converts them to and from the default
-         // address space when copying payloads into/out of thread-local
-         // variables (e.g. ``T u = *ray_data_ptr;``).  Allow such implicit
-         // conversions in both directions here so those idioms compile.
-         (A == LangAS::Default && (B == LangAS::metal_ray_data ||
-                                   B == LangAS::metal_object_data ||
-                                   B == LangAS::metal_threadgroup_imageblock)) ||
+         // distinct types for template partial-specialization purposes.  We
+         // allow ``metal_*`` -> ``Default`` (a payload in one of the special
+         // AS may be assigned to a default-AS local, e.g. ``T u =
+         // *ray_data_ptr;``) but NOT the reverse: ``Default`` -> ``metal_*``
+         // would treat every default-AS constructor argument as viable for
+         // every metal_* parameter, producing ambiguities on
+         // ``_acceleration_structure(as)`` in <metal_raytracing> and
+         // ``float4x3()`` ctor selection (14 ambiguity diagnostics in run
+         // 30186884435).  Note: reverse conversions are still available via
+         // explicit ``address_space_cast<T>``.
          ((A == LangAS::metal_ray_data ||
            A == LangAS::metal_object_data ||
            A == LangAS::metal_threadgroup_imageblock) &&
