@@ -631,6 +631,37 @@ TYPE_TRAIT_1(__is_metal_buffer_pointee, IsMetalBufferPointee, KEYMETAL)
 TYPE_TRAIT_1(__is_metal_patch_control_point_struct,
              IsMetalPatchControlPointStruct, KEYMETAL)
 
+// Additional Metal type traits used by Apple metal_stdlib.  See
+// clang/lib/Sema/SemaTypeTraits.cpp for the concrete semantics.
+// These 11 entries were previously provided as function-like
+// preprocessor macros returning ``true`` -- a placeholder that could
+// not distinguish valid uses (e.g. an ``intersection_tag`` is only
+// valid inside a ``_is_intersection_tag_sequence``) from invalid ones.
+// Promoting them to real KEYMETAL TYPE_TRAIT_1 entries lets Sema
+// consult the actual argument type and reject accidental misuse from
+// user code, while still returning ``true`` for the stdlib's own
+// dependent template arguments (matching the "opaque struct" pattern
+// used by ``__is_metal_buffer`` etc.).
+TYPE_TRAIT_1(__is_metal_explicit_layout_imageblock_struct,
+             IsMetalExplicitLayoutImageblockStruct, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_implicit_layout_imageblock_struct,
+             IsMetalImplicitLayoutImageblockStruct, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_intersection_tag,
+             IsMetalIntersectionTag, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_intersection_tag_sequence,
+             IsMetalIntersectionTagSequence, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_visible_function_table,
+             IsMetalVisibleFunctionTable, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_visible_function_table_argument,
+             IsMetalVisibleFunctionTableArgument, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_command_buffer, IsMetalCommandBuffer, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_compute_command, IsMetalComputeCommand, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_render_command, IsMetalRenderCommand, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_mesh_grid_properties,
+             IsMetalMeshGridProperties, KEYMETAL)
+TYPE_TRAIT_1(__is_metal_acceleration_structure,
+             IsMetalAccelerationStructure, KEYMETAL)
+
 // Embarcadero Binary Type Traits
 TYPE_TRAIT_2(__is_same, IsSame, KEYCXX)
 TYPE_TRAIT_2(__is_convertible, IsConvertible, KEYCXX)
