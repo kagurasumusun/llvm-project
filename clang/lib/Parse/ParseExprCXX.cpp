@@ -1844,9 +1844,24 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
     if (!TypeRep)
       return ExprError();
 
+    // Metal / OpenCL: ``ulong2(0, 0)``-style multi-scalar functional cast
+    // of a vector type is a valid vector construction (MSL 2.0+ s2.3,
+    // OpenCL 1.2 s6.1.5).  Route through list-initialization so InitSeq's
+    // vector-elements-from-scalars path fires, instead of the paren-list
+    // path that treats extras as excess initializers.  Detect the case
+    // here by peeking at TypeRep's underlying type -- more than one
+    // argument, and the declared type is a vector.
+    bool MetalOrOpenCLVectorMultiInit = false;
+    if ((getLangOpts().Metal || getLangOpts().OpenCL) && Exprs.size() > 1) {
+      QualType T = Actions.GetTypeFromParser(TypeRep);
+      if (!T.isNull() && T->isVectorType())
+        MetalOrOpenCLVectorMultiInit = true;
+    }
+
     return Actions.ActOnCXXTypeConstructExpr(TypeRep, T.getOpenLocation(),
                                              Exprs, T.getCloseLocation(),
-                                             /*ListInitialization=*/false);
+                                             /*ListInitialization=*/
+                                             MetalOrOpenCLVectorMultiInit);
   }
 }
 
