@@ -1361,7 +1361,8 @@ void InitListChecker::CheckExplicitInitList(const InitializedEntity &Entity,
   if ((Index < IList->getNumInits() || CurEmbed) && !T->isIncompleteType()) {
     // We have leftover initializers
     bool ExtraInitsIsError = SemaRef.getLangOpts().CPlusPlus ||
-          (SemaRef.getLangOpts().OpenCL && T->isVectorType());
+          ((SemaRef.getLangOpts().OpenCL || SemaRef.getLangOpts().Metal) &&
+           T->isVectorType());
     hadError = ExtraInitsIsError;
     if (VerifyOnly) {
       return;
@@ -1672,8 +1673,11 @@ void InitListChecker::CheckSubElementType(const InitializedEntity &Entity,
   //   subaggregate, brace elision is assumed and the initializer is
   //   considered for the initialization of the first member of
   //   the subaggregate.
-  // OpenCL vector initializer is handled elsewhere.
-  if ((!SemaRef.getLangOpts().OpenCL && ElemType->isVectorType()) ||
+  // OpenCL / Metal vector initializers are handled elsewhere (they support
+  // multi-scalar functional-cast such as ``ulong2(0, 0)`` directly rather
+  // than treating the extra scalars as excess initializers of a scalar).
+  if ((!SemaRef.getLangOpts().OpenCL && !SemaRef.getLangOpts().Metal &&
+       ElemType->isVectorType()) ||
       ElemType->isAggregateType()) {
     CheckImplicitInitList(Entity, IList, ElemType, Index, StructuredList,
                           StructuredIndex);
