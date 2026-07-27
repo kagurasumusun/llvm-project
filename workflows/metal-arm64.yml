@@ -206,8 +206,26 @@ jobs:
             -emit-llvm-bc -o metal-bc-output/AAPLShaders.bc \
             clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaders.metal
 
-          echo "=== Stage 2: Assemble bitcode -> .air (MTLB container) ==="
+          echo "=== Stage 2: Compile runtime libraries to bitcode ==="
 
+          RUNTIME_DIR="llvm/lib/Target/AIR/Runtime"
+
+          # Compile each runtime library to bitcode
+          for rt in libmetal_rt/metal_runtime_complete.c \
+                    libmetal_math_rt/math_impl.c \
+                    libair_rt/air_intrinsics.c; do
+            if [ -f "$RUNTIME_DIR/$rt" ]; then
+              rt_name=$(basename "$rt" .c)
+              echo "Compiling runtime: $rt -> ${rt_name}.bc"
+              "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} \
+                -emit-llvm-bc -o "metal-bc-output/${rt_name}.bc" \
+                "$RUNTIME_DIR/$rt" 2>&1 || echo "  (warning: $rt compilation failed)"
+            fi
+          done
+
+          echo "=== Stage 3: Assemble bitcode -> .air (MTLB container) ==="
+
+          # Assemble shader bitcode
           "$METALLIB" assemble metal-bc-output/add.bc \
             -o metal-bc-output/add.air \
             -triple air64-apple-ios${{ inputs.ios_target }} \
@@ -218,18 +236,39 @@ jobs:
             -triple air64-apple-ios${{ inputs.ios_target }} \
             -kernel-name vertexShader
 
-          echo "=== Stage 3: Link .air files -> .metallib ==="
+          # Assemble runtime library bitcode
+          for bc in metal-bc-output/libmetal_rt.bc metal-bc-output/libmetal_math_rt.bc metal-bc-output/libair_rt.bc; do
+            if [ -f "$bc" ]; then
+              air="${bc%.bc}.air"
+              echo "Assembling runtime: $bc -> $air"
+              "$METALLIB" assemble "$bc" \
+                -o "$air" \
+                -triple air64-apple-ios${{ inputs.ios_target }} \
+                -kernel-name "$(basename "$bc" .bc)"
+            fi
+          done
 
+          echo "=== Stage 4: Link .air files -> .metallib ==="
+
+          # Collect all .air files (shaders + runtime libraries)
+          AIR_FILES=""
+          for air in metal-bc-output/*.air; do
+            if [ -f "$air" ]; then
+              AIR_FILES="$AIR_FILES $air"
+            fi
+          done
+
+          echo "Linking .air files: $AIR_FILES"
           "$METALLIB" link \
-            metal-bc-output/add.air \
-            metal-bc-output/AAPLShaders.air \
+            $AIR_FILES \
             -o metal-bc-output/Shaders.metallib \
             -triple air64-apple-ios${{ inputs.ios_target }}
 
-          echo "=== Stage 4: Verify generated metallib ==="
+          echo "=== Stage 5: Verify generated metallib ==="
 
           "$METALLIB" info metal-bc-output/Shaders.metallib
 
+          echo "=== Generated files ==="
           ls -lh metal-bc-output/*.metallib metal-bc-output/*.air metal-bc-output/*.bc
 
           head -c 4 metal-bc-output/add.air | od -An -tx1 | tr -d ' \n' > /tmp/air_magic.hex
@@ -252,8 +291,7 @@ jobs:
           name: metal-metallib-arm64
           path: |
             metal-bc-output/Shaders.metallib
-            metal-bc-output/add.air
-            metal-bc-output/AAPLShaders.air
+            metal-bc-output/*.air
           if-no-files-found: error
           retention-days: 7
 
