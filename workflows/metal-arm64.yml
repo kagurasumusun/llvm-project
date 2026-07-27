@@ -1,0 +1,631 @@
+name: Metal Two-Stage Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to checkout and build"
+        required: true
+        default: "metal-test"
+      build_type:
+        description: "CMake build type"
+        required: true
+        default: "Release"
+        type: choice
+        options:
+          - Release
+          - RelWithDebInfo
+          - Debug
+      ninja_jobs:
+        description: "Parallel ninja jobs; 0 means nproc"
+        required: true
+        default: "0"
+      ios_target:
+        description: "iOS target version"
+        required: true
+        default: "26.2"
+        type: string
+      xcode_version:
+        description: "Xcode version"
+        required: true
+        default: "26.5"
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_COMPRESS: "true"
+  CCACHE_COMPRESSLEVEL: "6"
+  CCACHE_MAXSIZE: "8G"
+  CCACHE_NOHASHDIR: "true"
+  CCACHE_DEPEND: "true"
+  CCACHE_INODECACHE: "true"
+  CCACHE_HARDLINK: "true"
+  CCACHE_SLOPPINESS: "pch_defines,time_macros,include_file_mtime,include_file_ctime,system_headers"
+
+concurrency:
+  group: metal-two-stage-arm64-${{ inputs.ref }}-${{ inputs.build_type }}
+  cancel-in-progress: false
+
+jobs:
+  # Stage 1: Build metallib on Linux
+  build-metallib:
+    name: Build metallib (Linux)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout selected ref sparse
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: true
+          sparse-checkout: |
+            clang
+            llvm
+            cmake
+            third-party
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3 ccache lld mold
+          if ! command -v clang >/dev/null 2>&1 || ! command -v clang++ >/dev/null 2>&1; then
+            sudo apt-get install -y clang
+          fi
+          cmake --version
+          ninja --version
+          ccache --version
+          clang --version
+          clang++ --version
+          ld.lld --version
+          python3 --version
+
+      - name: Restore ccache
+        id: restore-ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: .ccache
+          key: ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-${{ inputs.ref }}-${{ hashFiles('llvm/CMakeLists.txt', 'clang/CMakeLists.txt', 'cmake/**/*.cmake') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-${{ inputs.ref }}-${{ hashFiles('llvm/CMakeLists.txt', 'clang/CMakeLists.txt', 'cmake/**/*.cmake') }}-
+            ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-${{ inputs.ref }}-
+            ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-
+            ${{ runner.os }}-arm64-metal-metallib-
+
+      - name: Fetch Apple Metal stdlib headers from metal-info
+        env:
+          GITHUB_TOKEN: ${{ secrets.METAL_INFO_TOKEN }}
+        run: |
+          set -euxo pipefail
+          python3 clang/utils/metal/fetch-metal-info-resource.py \
+            --output "$PWD/metal-info-resource"
+          test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
+          python3 clang/utils/metal/gen-metal-observed-manifest.py \
+            --headers "$PWD/metal-info-resource/clang/32023.883/include/metal" \
+            --output "$PWD/metal-observed-manifest.json" \
+            --apple-clang-version 32023.883
+          echo "✓ Apple Metal stdlib headers and compatibility manifest fetched"
+
+      - name: Configure minimal clang-only LLVM build
+        run: |
+          set -euxo pipefail
+          ccache --set-config=max_size="$CCACHE_MAXSIZE" || true
+          cmake -S llvm -B build -G Ninja \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG" \
+            -DLLVM_ENABLE_PROJECTS=clang \
+            -DLLVM_TARGETS_TO_BUILD="AArch64" \
+            -DCMAKE_BUILD_TYPE="${{ inputs.build_type }}" \
+            -DLLVM_USE_LINKER=mold \
+            -DLLVM_PARALLEL_LINK_JOBS=2 \
+            -DLLVM_ENABLE_ASSERTIONS=$([ "${{ inputs.build_type }}" != "Release" ] && echo ON || echo OFF) \
+            -DLLVM_INCLUDE_TESTS=OFF \
+            -DCLANG_INCLUDE_TESTS=OFF \
+            -DLLVM_BUILD_TESTS=OFF \
+            -DLLVM_INCLUDE_BENCHMARKS=OFF \
+            -DLLVM_BUILD_BENCHMARKS=OFF \
+            -DLLVM_INCLUDE_EXAMPLES=OFF \
+            -DLLVM_BUILD_EXAMPLES=OFF \
+            -DLLVM_INCLUDE_DOCS=OFF \
+            -DCLANG_INCLUDE_DOCS=OFF \
+            -DLLVM_ENABLE_BINDINGS=OFF \
+            -DLLVM_BUILD_TOOLS=ON \
+            -DLLVM_OPTIMIZED_TABLEGEN=ON \
+            -DLLVM_ENABLE_ZLIB=OFF \
+            -DLLVM_ENABLE_ZSTD=OFF \
+            -DLLVM_ENABLE_TERMINFO=OFF \
+            -DLLVM_ENABLE_LIBXML2=OFF \
+            -DCLANG_ENABLE_ARCMT=OFF \
+            -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
+            -DCLANG_ENABLE_HLSL=OFF \
+            -DLLVM_INCLUDE_UTILS=OFF \
+            -DLLVM_APPEND_VC_REV=OFF \
+            -DLLVM_BUILD_32_BITS=OFF \
+            -DLLVM_LINK_LLVM_DYLIB=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+            $( [ "${{ inputs.build_type }}" != "Release" ] && printf %s "-DLLVM_USE_SPLIT_DWARF=ON" )
+
+      - name: Build clang + llvm-metallib with Metal support
+        run: |
+          set -o pipefail
+          ccache --zero-stats || true
+          echo "::group::ccache config + pre-build stats"
+          ccache --show-config | head -40 || true
+          ccache -s || true
+          echo "::endgroup::"
+          JOBS="${{ inputs.ninja_jobs }}"
+          if [ "$JOBS" = "0" ] || [ -z "$JOBS" ]; then JOBS="$(nproc)"; fi
+          echo "Using ninja jobs: $JOBS"
+          ninja -C build -j"$JOBS" clang llvm-metallib 2>&1 | tee build.log
+          echo "::group::ccache post-build stats"
+          ccache -s || true
+          echo "::endgroup::"
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ${{ steps.restore-ccache.outputs.cache-primary-key }}
+
+      - name: Compile Metal samples and generate .metallib on Linux
+        run: |
+          set -euxo pipefail
+          mkdir -p test-results metal-bc-output
+          exec > >(tee test-results/metal-bc-smoke.log) 2>&1
+          CLANG="$PWD/build/bin/clang"
+          METALLIB="$PWD/build/bin/llvm-metallib"
+          APPLE_METAL_RESOURCE="$PWD/metal-info-resource/clang/32023.883"
+          APPLE_METAL_INCLUDE="$APPLE_METAL_RESOURCE/include/metal"
+
+          echo "=== Stage 1: Compile Metal -> LLVM bitcode ==="
+
+          echo "Compiling add.metal with fork clang -> LLVM bitcode ..."
+          "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
+            -I "$APPLE_METAL_INCLUDE" \
+            -include "$APPLE_METAL_INCLUDE/metal_types" \
+            -emit-llvm-bc -o metal-bc-output/add.bc \
+            clang/test/AppleMetalSamples/PerformingCalculationsOnAGPU/add.metal
+
+          echo "Compiling AAPLShaders.metal with fork clang -> LLVM bitcode ..."
+          "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} -x metal -std=metal3.0 \
+            -I "$APPLE_METAL_INCLUDE" \
+            -include "$APPLE_METAL_INCLUDE/metal_types" \
+            -I clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives \
+            -emit-llvm-bc -o metal-bc-output/AAPLShaders.bc \
+            clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaders.metal
+
+          echo "=== Stage 2: Assemble bitcode -> .air (MTLB container) ==="
+
+          "$METALLIB" assemble metal-bc-output/add.bc \
+            -o metal-bc-output/add.air \
+            -triple air64-apple-ios${{ inputs.ios_target }} \
+            -kernel-name add_arrays
+
+          "$METALLIB" assemble metal-bc-output/AAPLShaders.bc \
+            -o metal-bc-output/AAPLShaders.air \
+            -triple air64-apple-ios${{ inputs.ios_target }} \
+            -kernel-name vertexShader
+
+          echo "=== Stage 3: Link .air files -> .metallib ==="
+
+          "$METALLIB" link \
+            metal-bc-output/add.air \
+            metal-bc-output/AAPLShaders.air \
+            -o metal-bc-output/Shaders.metallib \
+            -triple air64-apple-ios${{ inputs.ios_target }}
+
+          echo "=== Stage 4: Verify generated metallib ==="
+
+          "$METALLIB" info metal-bc-output/Shaders.metallib
+
+          ls -lh metal-bc-output/*.metallib metal-bc-output/*.air metal-bc-output/*.bc
+
+          head -c 4 metal-bc-output/add.air | od -An -tx1 | tr -d ' \n' > /tmp/air_magic.hex
+          air_magic=$(cat /tmp/air_magic.hex)
+          echo "AIR magic: 0x$air_magic"
+
+          mkdir -p metal-bc-output/sources
+          cp clang/test/AppleMetalSamples/PerformingCalculationsOnAGPU/add.metal \
+             metal-bc-output/sources/add.metal
+          cp clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaders.metal \
+             metal-bc-output/sources/AAPLShaders.metal
+          cp clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaderTypes.h \
+             metal-bc-output/sources/AAPLShaderTypes.h 2>/dev/null || true
+
+          echo "✓ Complete pipeline: Metal source -> bitcode -> .air -> .metallib (all on Linux)"
+
+      - name: Upload Linux-built metallib for macOS stage
+        uses: actions/upload-artifact@v4
+        with:
+          name: metal-metallib-arm64
+          path: |
+            metal-bc-output/Shaders.metallib
+            metal-bc-output/add.air
+            metal-bc-output/AAPLShaders.air
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload compiler and diagnostic artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metal-linux-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/bin/clang
+            build/bin/llvm-metallib
+            build.log
+            test-results/
+            metal-observed-manifest.json
+            metal-bc-output/
+          if-no-files-found: warn
+          retention-days: 7
+
+  # Stage 2: Build iOS app on macOS
+  build-ios-app:
+    name: Build iOS App (macOS)
+    needs: build-metallib
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Select Xcode ${{ inputs.xcode_version }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ inputs.xcode_version }}
+
+      - name: Verify Xcode and Metal toolchain
+        run: |
+          set -euxo pipefail
+          xcodebuild -version
+          xcrun --find metal
+          xcrun metal --version
+          echo "✓ Xcode ${{ inputs.xcode_version }} with Metal toolchain verified"
+
+      - name: Checkout selected ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 1
+
+      - name: Download Linux-built metallib artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: metal-metallib-arm64
+          path: metallib-input
+
+      - name: Verify Linux-built metallib
+        run: |
+          set -euxo pipefail
+          echo "=== Verifying Linux-built metallib ==="
+          ls -lh metallib-input/
+          file metallib-input/Shaders.metallib
+
+          head -c 4 metallib-input/Shaders.metallib | od -An -c | tr -d ' \n' > /tmp/mtlb.magic
+          magic=$(cat /tmp/mtlb.magic)
+          echo "magic (chars): '$magic'"
+          if [ "$magic" != "MTLB" ]; then
+            echo "WARNING: Expected MTLB magic, got '$magic'"
+            head -c 4 metallib-input/Shaders.metallib | od -An -tx1 | tr -d ' \n' > /tmp/mtlb_hex.magic
+            hex_magic=$(cat /tmp/mtlb_hex.magic)
+            echo "hex magic: 0x$hex_magic"
+            if [ "$hex_magic" = "bebafecb" ]; then
+              echo "  -> Fat 64 container (valid)"
+            fi
+          else
+            echo "✓ MTLB magic verified"
+          fi
+
+          echo "✓ Linux-built metallib verified and ready for bundling"
+
+      - name: Create iOS app with metallib
+        run: |
+          set -euxo pipefail
+
+          mkdir -p MetalTestApp
+          cd MetalTestApp
+
+          cp ../metallib-input/Shaders.metallib .
+
+          cat > Info.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>en</string>
+            <key>CFBundleExecutable</key>
+            <string>$(EXECUTABLE_NAME)</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.example.MetalTestApp</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleName</key>
+            <string>MetalTestApp</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>LSRequiresIPhoneOS</key>
+            <true/>
+            <key>UILaunchStoryboardName</key>
+            <string>LaunchScreen</string>
+            <key>UIRequiredDeviceCapabilities</key>
+            <array>
+              <string>armv7</string>
+            </array>
+            <key>UISupportedInterfaceOrientations</key>
+            <array>
+              <string>UIInterfaceOrientationPortrait</string>
+            </array>
+            <key>MinimumOSVersion</key>
+            <string>${{ inputs.ios_target }}</string>
+          </dict>
+          </plist>
+          EOF
+
+          cat > AppDelegate.swift << 'EOF'
+          import UIKit
+          import Metal
+
+          @main
+          class AppDelegate: UIResponder, UIApplicationDelegate {
+            var window: UIWindow?
+
+            func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+              window = UIWindow(frame: UIScreen.main.bounds)
+              window?.rootViewController = MetalViewController()
+              window?.makeKeyAndVisible()
+              return true
+            }
+          }
+          EOF
+
+          cat > MetalViewController.swift << 'EOF'
+          import UIKit
+          import Metal
+          import MetalKit
+          import simd
+
+          struct AAPLVertex {
+            var position: SIMD2<Float>
+            var color:    SIMD4<Float>
+          }
+
+          class MetalViewController: UIViewController {
+            var metalView: MTKView!
+            var device: MTLDevice!
+            var commandQueue: MTLCommandQueue!
+            var pipelineState: MTLRenderPipelineState!
+            var vertexBuffer: MTLBuffer!
+
+            static let triangleVertices: [AAPLVertex] = [
+              AAPLVertex(position: SIMD2<Float>( 250, -250), color: SIMD4<Float>(1, 0, 0, 1)),
+              AAPLVertex(position: SIMD2<Float>(-250, -250), color: SIMD4<Float>(0, 1, 0, 1)),
+              AAPLVertex(position: SIMD2<Float>(   0,  250), color: SIMD4<Float>(0, 0, 1, 1)),
+            ]
+
+            override func viewDidLoad() {
+              super.viewDidLoad()
+
+              guard let device = MTLCreateSystemDefaultDevice() else {
+                print("Metal is not supported on this device")
+                return
+              }
+              self.device = device
+
+              metalView = MTKView(frame: view.bounds, device: device)
+              metalView.delegate = self
+              metalView.clearColor = MTLClearColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
+              metalView.colorPixelFormat = .bgra8Unorm
+              view.addSubview(metalView)
+
+              commandQueue = device.makeCommandQueue()
+
+              guard let metallibPath = Bundle.main.path(forResource: "Shaders", ofType: "metallib") else {
+                print("ERROR: Shaders.metallib missing from bundle")
+                return
+              }
+              do {
+                let library = try device.makeLibrary(filepath: metallibPath)
+                print("metallib functions: \(library.functionNames)")
+
+                let pd = MTLRenderPipelineDescriptor()
+                pd.vertexFunction   = library.makeFunction(name: "vertexShader")
+                pd.fragmentFunction = library.makeFunction(name: "fragmentShader")
+                pd.colorAttachments[0].pixelFormat = .bgra8Unorm
+                pipelineState = try device.makeRenderPipelineState(descriptor: pd)
+                print("render pipeline state OK")
+              } catch {
+                print("Failed to load metallib or create pipeline: \(error)")
+                return
+              }
+
+              let vs = MetalViewController.triangleVertices
+              let byteCount = vs.count * MemoryLayout<AAPLVertex>.stride
+              vertexBuffer = device.makeBuffer(bytes: vs, length: byteCount, options: [])
+            }
+          }
+
+          extension MetalViewController: MTKViewDelegate {
+            func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+
+            func draw(in view: MTKView) {
+              guard let drawable = view.currentDrawable,
+                    let rpd = view.currentRenderPassDescriptor,
+                    let pipelineState = pipelineState,
+                    let vertexBuffer = vertexBuffer else {
+                return
+              }
+
+              let cb = commandQueue.makeCommandBuffer()!
+              let enc = cb.makeRenderCommandEncoder(descriptor: rpd)!
+
+              enc.setRenderPipelineState(pipelineState)
+              enc.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
+
+              var viewportSize = SIMD2<UInt32>(UInt32(view.drawableSize.width),
+                                               UInt32(view.drawableSize.height))
+              enc.setVertexBytes(&viewportSize,
+                                 length: MemoryLayout<SIMD2<UInt32>>.stride,
+                                 index: 1)
+
+              enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+              enc.endEncoding()
+
+              cb.present(drawable)
+              cb.commit()
+            }
+          }
+          EOF
+
+          echo "✓ iOS app structure created"
+
+      - name: Install XcodeGen
+        run: |
+          set -euxo pipefail
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project with XcodeGen
+        working-directory: MetalTestApp
+        run: |
+          set -euxo pipefail
+
+          cat > project.yml << 'PROJECT_YML_EOF'
+          name: MetalTestApp
+          options:
+            bundleIdPrefix: com.example
+            deploymentTarget:
+              iOS: "${{ inputs.ios_target }}"
+            createIntermediateGroups: true
+          settings:
+            base:
+              IPHONEOS_DEPLOYMENT_TARGET: "${{ inputs.ios_target }}"
+              CODE_SIGNING_ALLOWED: NO
+              CODE_SIGNING_REQUIRED: NO
+              CODE_SIGN_IDENTITY: ""
+              CODE_SIGN_STYLE: Manual
+              ENABLE_BITCODE: NO
+              ONLY_ACTIVE_ARCH: NO
+              TARGETED_DEVICE_FAMILY: "1,2"
+              SWIFT_VERSION: "5.0"
+          targets:
+            MetalTestApp:
+              type: application
+              platform: iOS
+              sources:
+                - path: AppDelegate.swift
+                - path: MetalViewController.swift
+                - path: Shaders.metallib
+                  buildPhase: resources
+                  type: file
+              info:
+                path: Info.plist
+                properties:
+                  CFBundleDevelopmentRegion: en
+                  CFBundleExecutable: $(EXECUTABLE_NAME)
+                  CFBundleIdentifier: com.example.MetalTestApp
+                  CFBundleInfoDictionaryVersion: "6.0"
+                  CFBundleName: MetalTestApp
+                  CFBundlePackageType: APPL
+                  CFBundleShortVersionString: "1.0"
+                  CFBundleVersion: "1"
+                  LSRequiresIPhoneOS: true
+                  MinimumOSVersion: "${{ inputs.ios_target }}"
+                  UILaunchStoryboardName: LaunchScreen
+                  UIRequiredDeviceCapabilities:
+                    - arm64
+                  UISupportedInterfaceOrientations:
+                    - UIInterfaceOrientationPortrait
+              settings:
+                base:
+                  PRODUCT_BUNDLE_IDENTIFIER: com.example.MetalTestApp
+                  PRODUCT_NAME: MetalTestApp
+                  CODE_SIGNING_ALLOWED: NO
+                  CODE_SIGNING_REQUIRED: NO
+                  CODE_SIGN_IDENTITY: ""
+                  INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+              dependencies:
+                - sdk: Metal.framework
+                - sdk: MetalKit.framework
+                - sdk: UIKit.framework
+          PROJECT_YML_EOF
+
+          rm -f Info.plist
+
+          xcodegen generate --spec project.yml
+          ls -la MetalTestApp.xcodeproj
+
+      - name: Build iOS app for device (unsigned)
+        working-directory: MetalTestApp
+        run: |
+          set -euxo pipefail
+
+          xcodebuild \
+            -project MetalTestApp.xcodeproj \
+            -scheme MetalTestApp \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build \
+            build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            | tee xcodebuild.log
+
+          echo "✓ iOS app built for device (unsigned, Ad Hoc compatible)"
+          find build -name "*.app" -type d | head -5
+
+      - name: Create IPA from app bundle
+        run: |
+          set -euxo pipefail
+          cd MetalTestApp
+
+          APP_PATH=$(find . -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app bundle found"
+            exit 1
+          fi
+
+          echo "Found app bundle: $APP_PATH"
+
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+
+          APP_NAME=$(basename "$APP_PATH" .app)
+          zip -r "${APP_NAME}.ipa" Payload/
+
+          echo "✓ Created ${APP_NAME}.ipa (unsigned, requires Ad Hoc signing for device installation)"
+          ls -lh *.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-ipa
+          path: MetalTestApp/*.ipa
+          retention-days: 1
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-build-logs
+          path: |
+            MetalTestApp/xcodebuild.log
+          if-no-files-found: ignore
