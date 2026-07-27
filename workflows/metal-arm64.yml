@@ -98,19 +98,22 @@ jobs:
             ${{ runner.os }}-arm64-metal-metallib-${{ inputs.build_type }}-
             ${{ runner.os }}-arm64-metal-metallib-
 
-      - name: Fetch Apple Metal stdlib headers from metal-info
+      - name: Fetch Apple Metal stdlib headers and runtime from metal-info
         env:
           GITHUB_TOKEN: ${{ secrets.METAL_INFO_TOKEN }}
         run: |
           set -euxo pipefail
           python3 clang/utils/metal/fetch-metal-info-resource.py \
-            --output "$PWD/metal-info-resource"
+            --output "$PWD/metal-info-resource" \
+            --include-runtime
           test -f "$PWD/metal-info-resource/clang/32023.883/include/metal/metal_stdlib"
           python3 clang/utils/metal/gen-metal-observed-manifest.py \
             --headers "$PWD/metal-info-resource/clang/32023.883/include/metal" \
             --output "$PWD/metal-observed-manifest.json" \
             --apple-clang-version 32023.883
-          echo "✓ Apple Metal stdlib headers and compatibility manifest fetched"
+          echo "✓ Apple Metal stdlib headers, runtime libraries, and manifest fetched"
+          echo "Runtime libraries:"
+          ls -lh "$PWD/metal-info-resource/clang/32023.883/lib/darwin/" 2>/dev/null | head -20
 
       - name: Configure minimal clang-only LLVM build
         run: |
@@ -206,24 +209,7 @@ jobs:
             -emit-llvm-bc -o metal-bc-output/AAPLShaders.bc \
             clang/test/AppleMetalSamples/UsingARenderPipelineToRenderPrimitives/AAPLShaders.metal
 
-          echo "=== Stage 2: Compile runtime libraries to bitcode ==="
-
-          RUNTIME_DIR="llvm/lib/Target/AIR/Runtime"
-
-          # Compile each runtime library to bitcode
-          for rt in libmetal_rt/metal_runtime_complete.c \
-                    libmetal_math_rt/math_impl.c \
-                    libair_rt/air_intrinsics.c; do
-            if [ -f "$RUNTIME_DIR/$rt" ]; then
-              rt_name=$(basename "$rt" .c)
-              echo "Compiling runtime: $rt -> ${rt_name}.bc"
-              "$CLANG" -cc1 -triple air64-apple-ios${{ inputs.ios_target }} \
-                -emit-llvm-bc -o "metal-bc-output/${rt_name}.bc" \
-                "$RUNTIME_DIR/$rt" 2>&1 || echo "  (warning: $rt compilation failed)"
-            fi
-          done
-
-          echo "=== Stage 3: Assemble bitcode -> .air (MTLB container) ==="
+          echo "=== Stage 2: Assemble bitcode -> .air (MTLB container) ==="
 
           # Assemble shader bitcode
           "$METALLIB" assemble metal-bc-output/add.bc \
@@ -236,33 +222,41 @@ jobs:
             -triple air64-apple-ios${{ inputs.ios_target }} \
             -kernel-name vertexShader
 
-          # Assemble runtime library bitcode
-          for bc in metal-bc-output/libmetal_rt.bc metal-bc-output/libmetal_math_rt.bc metal-bc-output/libair_rt.bc; do
-            if [ -f "$bc" ]; then
-              air="${bc%.bc}.air"
-              echo "Assembling runtime: $bc -> $air"
-              "$METALLIB" assemble "$bc" \
-                -o "$air" \
-                -triple air64-apple-ios${{ inputs.ios_target }} \
-                -kernel-name "$(basename "$bc" .bc)"
-            fi
-          done
+          echo "=== Stage 3: Link with Apple runtime libraries ==="
 
-          echo "=== Stage 4: Link .air files -> .metallib ==="
+          # Select appropriate runtime library for iOS
+          RUNTIME_DIR="$PWD/metal-info-resource/clang/32023.883/lib/darwin"
+          RT_LIB=""
 
-          # Collect all .air files (shaders + runtime libraries)
-          AIR_FILES=""
-          for air in metal-bc-output/*.air; do
-            if [ -f "$air" ]; then
-              AIR_FILES="$AIR_FILES $air"
-            fi
-          done
+          # Prefer .rtlib (bitcode) over .a (static library)
+          if [ -f "$RUNTIME_DIR/libair_rt_ios.rtlib" ]; then
+            RT_LIB="$RUNTIME_DIR/libair_rt_ios.rtlib"
+            echo "Using Apple runtime: libair_rt_ios.rtlib"
+          elif [ -f "$RUNTIME_DIR/libmetal_rt_ios.a" ]; then
+            RT_LIB="$RUNTIME_DIR/libmetal_rt_ios.a"
+            echo "Using Apple runtime: libmetal_rt_ios.a"
+          else
+            echo "WARNING: No iOS runtime library found in $RUNTIME_DIR"
+            ls -lh "$RUNTIME_DIR/" 2>/dev/null || echo "  (directory not found)"
+          fi
 
-          echo "Linking .air files: $AIR_FILES"
-          "$METALLIB" link \
-            $AIR_FILES \
-            -o metal-bc-output/Shaders.metallib \
-            -triple air64-apple-ios${{ inputs.ios_target }}
+          # Collect all .air files
+          AIR_FILES="metal-bc-output/add.air metal-bc-output/AAPLShaders.air"
+
+          # Link .air files + runtime into .metallib
+          if [ -n "$RT_LIB" ]; then
+            echo "Linking: $AIR_FILES + $RT_LIB"
+            "$METALLIB" link \
+              $AIR_FILES "$RT_LIB" \
+              -o metal-bc-output/Shaders.metallib \
+              -triple air64-apple-ios${{ inputs.ios_target }}
+          else
+            echo "Linking: $AIR_FILES (no runtime)"
+            "$METALLIB" link \
+              $AIR_FILES \
+              -o metal-bc-output/Shaders.metallib \
+              -triple air64-apple-ios${{ inputs.ios_target }}
+          fi
 
           echo "=== Stage 5: Verify generated metallib ==="
 
@@ -291,7 +285,8 @@ jobs:
           name: metal-metallib-arm64
           path: |
             metal-bc-output/Shaders.metallib
-            metal-bc-output/*.air
+            metal-bc-output/add.air
+            metal-bc-output/AAPLShaders.air
           if-no-files-found: error
           retention-days: 7
 
