@@ -53,9 +53,39 @@ LLVM 22.1.8 へ移植するにあたり、**移植元と移植先の対応関係
 | 4 | 構造体/配列/ベクトル型中の ptr 要素 | GEP の source element 参照からモジュール全体で制約集約 |
 | 5 | `inttoptr` / 未解決 | **i8 (fallback)** — LLVM 15 upgrade と同一思想 |
 
-集約には不動点反復を使い、収束後も未解決のものは `i8*` へフォールバック
-(release では remark、debug では statistics)。**値本来の pointee が一意に
-定まらない場合でも、bitcode フォーマットとしては常に正しい**。
+解決は value 単位のメモ化付きDFS (再帰中参照は in-progress ガードで検出し
+`i8*` で打ち切る)。未解決・証拠衝突のものは最終的に `i8*` へフォールバック。
+**値本来の pointee が一意に定まらない場合でも、bitcode フォーマットとしては
+常に正しい**。
+
+## 検証済み結果 (2026-07-28)
+
+手動 FileCheck 検証済み (`llvm/test/Bitcode/typed-pointers-write.ll` の3経路):
+
+1. `llvm-as -opaque-pointers=0` → TYPE_BLOCK が LLVM 16 形式
+   (`TYPE_CODE_POINTER [pointee, AS]`、PTR abbrev が OPAQUE abbrev より先、
+   モジュールバージョン 2 = LLVM 16 と同じ無条件値)。
+2. 既定 `llvm-as` → `TYPE_CODE_OPAQUE_POINTER` のみ、既存挙動不変。
+3. typed 出力 → 現行 `llvm-dis` で opaque IR へ復元可能 (reader 自動
+   アップグレード)。struct 名 (`struct.Pair` 等) も往復で保持。
+   再アセンブルで TYPE_CODE_POINTER 個数が不変 (冪等)。
+
+証拠伝播の実測 (stress 入力での確認済み):
+
+- `ret ptr @seed` → 戻り値 FT `() -> i32*`
+- グローバル初期化子 `{ i32 7, ptr @seed }` → `{ i32, i32* }`
+- canonical 構造体 GEP (`gep %ST, ptr, i32 0, i32 N`) + store → フィールド
+  pointee 推論 (indirection レベルは初期化子経路と同一)
+- phi/select/bitcast チェーン越しの逆伝播 (`phi ptr` → `load i64` →
+  実引数 `i64*`)
+- AS1 ポインタ保持、inttoptr → i8 フォールバック
+
+既知の制約 (fallback 仕様):
+
+- 関数ポインタ配列の初期化子は要素 FT を推論しない → 要素は `i8*`
+- 間接呼出箇所の FT は generic 形 (直接 callee の StipPointerCasts 失敗時)
+- declare のみで使用証拠のないシグネチャは `i8*`
+
 
 ## 検証方法
 
