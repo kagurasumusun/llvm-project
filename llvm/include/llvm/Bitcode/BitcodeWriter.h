@@ -13,10 +13,8 @@
 #ifndef LLVM_BITCODE_BITCODEWRITER_H
 #define LLVM_BITCODE_BITCODEWRITER_H
 
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/IR/TypedPointerType.h"
 #include "llvm/MC/StringTableBuilder.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
@@ -29,25 +27,6 @@ namespace llvm {
 class BitstreamWriter;
 class Module;
 class raw_ostream;
-
-/// Bitcode emission mode.
-///
-/// Three modes are supported:
-///   Opaque — Standard LLVM bitcode (opaque pointers, all attributes).
-///   Typed  — Legacy typed-pointer bitcode (TYPE_CODE_POINTER, all attrs).
-///            Useful for targets that still require typed pointers but do
-///            not need attribute stripping.
-///   AIR    — Apple Metal IR bitcode (typed pointers, stripped attributes,
-///            module version 1 for metalfe 32023.883 compatibility).
-enum class BitcodeEmitMode {
-  Opaque, ///< Standard LLVM bitcode (opaque pointers, all attributes).
-  Typed,  ///< Legacy typed-pointer bitcode (all attributes kept).
-  AIR,    ///< Apple Metal IR bitcode (typed pointers, stripped attributes).
-};
-
-/// Maps opaque-pointer Values to their TypedPointerType.
-/// Used only in AIR mode.
-using BitcodePointerTypeMap = DenseMap<const Value *, Type *>;
 
 class BitcodeWriter {
   std::unique_ptr<BitstreamWriter> Stream;
@@ -112,16 +91,6 @@ public:
                             bool GenerateHash = false,
                             ModuleHash *ModHash = nullptr);
 
-  /// Write the module in the specified \p Mode.
-  ///
-  /// When \p Mode is \c BitcodeEmitMode::AIR the writer emits typed pointers
-  /// (TYPE_CODE_POINTER) and strips attributes not understood by Apple's
-  /// Metal runtime.  The optional \p PtrTypeMap overrides the built-in
-  /// pointer type analysis when non-null.
-  LLVM_ABI void writeModule(const Module &M, BitcodeEmitMode Mode,
-                            const BitcodePointerTypeMap *PtrTypeMap = nullptr,
-                            bool ShouldPreserveUseListOrder = false);
-
   /// Write the specified thin link bitcode file (i.e., the minimized bitcode
   /// file) to the buffer specified at construction time. The thin link
   /// bitcode file is used for thin link, and it only contains the necessary
@@ -165,21 +134,6 @@ LLVM_ABI void WriteBitcodeToFile(const Module &M, raw_ostream &Out,
                                  const ModuleSummaryIndex *Index = nullptr,
                                  bool GenerateHash = false,
                                  ModuleHash *ModHash = nullptr);
-
-/// Write the module to \p Out in the given \p Mode.
-///
-/// When \p Mode is \c BitcodeEmitMode::AIR the writer:
-///  - runs its own PointerTypeAnalysis to reconstruct typed pointer types,
-///  - emits TYPE_CODE_POINTER instead of TYPE_CODE_OPAQUE_POINTER,
-///  - strips attributes unknown to Apple's Metal runtime,
-///  - uses bitcode module version 1 (compatible with metalfe 32023.883).
-///
-/// The optional \p PtrTypeMap overrides the built-in pointer type analysis
-/// when non-null (useful when the caller has already computed the map).
-LLVM_ABI void WriteBitcodeToFile(const Module &M, raw_ostream &Out,
-                                 BitcodeEmitMode Mode,
-                                 const BitcodePointerTypeMap *PtrTypeMap = nullptr,
-                                 bool ShouldPreserveUseListOrder = false);
 
 /// Write the specified thin link bitcode file (i.e., the minimized bitcode
 /// file) to the given raw output stream, where it will be written in a new

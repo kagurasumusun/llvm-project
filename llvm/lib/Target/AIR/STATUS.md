@@ -1,161 +1,108 @@
-# Metal (AIR) Implementation Status & Verification Plan
+# Metal (AIR) Implementation Status & Plan
 
-## Current State: What Works
+Last updated: 2026-07-28.
 
-### BitcodeWriter (3 modes)
-| Mode | Pointer | Attributes | Version | Status |
-|------|---------|-----------|---------|--------|
-| `Opaque` (default) | TYPE_CODE_OPAQUE_POINTER | All latest | 2 | ✅ Production |
-| `Typed` (legacy) | TYPE_CODE_POINTER | All latest | 2 | ✅ Implemented |
-| `AIR` (Metal) | TYPE_CODE_POINTER | Stripped | 1 | ⚠️ Needs verification |
+## Current State
 
-### Tool: llvm-metallib
-| Subcommand | Status |
-|------------|--------|
-| `assemble` (.bc → .air) | ⚠️ Header structure unverified on real hardware |
-| `link` (.air → .metallib) | ⚠️ Fat 64 format unverified |
-| `info` (inspect) | ✅ Basic |
+### Kept: Metal language / frontend support
 
-### AIRPrepare Pass
-| Function | Status |
-|----------|--------|
-| Strip DEAD_ON_UNWIND (91) | ✅ Fixes reported error |
-| Strip other unsupported attrs | ⚠️ Whititelist needs real-device verification |
-| No-op bitcast insertion | ✅ Implemented |
+The clang Metal frontend and LLVM target plumbing are **kept** and unchanged:
 
----
+- `Language::Metal`, `-x metal`, `.metal` input detection.
+- Metal keywords (`kernel`, `vertex`, `fragment`, `device`, `constant`,
+  `threadgroup`, `thread`, `mesh`, `tile`, `ray_data`, ...), `[[...]]`
+  attribute parsing, Sema validation.
+- `air32` / `air64` target triples (`llvm/lib/TargetParser/Triple.cpp`,
+  `Triple::isAIR()`), AIR data layouts (`TargetDataLayout.cpp`), and
+  `clang/lib/Basic/Targets/AIR.h` (`AIRTargetInfo` with device=AS1,
+  constant=AS2, threadgroup=AS3, thread=AS0).
+- AIR metadata / intrinsic emission in CodeGen (`CGMetalBuiltins.cpp`,
+  686 builtins mapped), `!air.kernel` / `!air.version` /
+  `!air.language_version` metadata.
+- Metal standard library headers (`clang/lib/Headers/metal/**`) and the
+  generator utilities (`clang/utils/metal/*.py`).
+- Metal tests (`clang/test/{Parser,Sema,CodeGen,AST,Preprocessor,Frontend}/metal-*`).
 
-## Gaps Requiring Work
+### Kept: Metal runtime library stubs (cleanroom)
 
-### 1. Bitcode Compatibility (CRITICAL)
-- [ ] Verify bitcode module version 1 is correct for metalfe 32023.883
-- [ ] Verify TYPE_CODE_POINTER encoding matches Apple's format exactly
-- [ ] Test with real Metal runtime (macOS + Xcode)
-- [ ] Verify all AIR intrinsics survive bitcode round-trip
-- [ ] Verify metadata (!air.kernel etc.) encoding
+`llvm/lib/Target/AIR/Runtime/**`
+(`libair_rt`, `libmetal_rt`, `libmetal_math_rt`, `libtracepoint_rt`, ...).
 
-### 2. Metal Parser/Lexer/Sema (HIGH PRIORITY)
-Based on metal-info's `CLANG_FRONTEND_IMPL_MAP.md` and `clang_frontend_impl_map.csv`:
+These are cleanroom C implementations derived from
+[metal-info](https://github.com/kagurasumusun/metal-info)
+(`research/spec/RTLIB_CLEANROOM_MAP.md`, 13,067 symbols).
+They are **not** built by LLVM's CMake (no CMakeLists); they are compiled
+by the `metal-arm64` workflows.
 
-| Component | Status | Detail |
-|-----------|--------|--------|
-| **Lexer** | | |
-| Metal keywords (kernel, vertex, fragment, device, constant, threadgroup) | ✅ | Registered in IdentifierTable when `LangOpts.Metal` |
-| Metal 4.0+ keywords (ray_data, mesh, tile) | ✅ | In parser |
-| **Parser** | | |
-| [[buffer(N)]] attribute syntax | ✅ | C++11 attribute parsing |
-| [[texture(N)]], [[sampler(N)]] | ✅ | |
-| [[thread_position_in_grid]] etc. | ✅ | |
-| [[color(N)]], [[flat]], [[perspective]] | ⚠️ | Partial - needs verification |
-| [[mesh]] payload attributes | ⚠️ | Needs verification |
-| [[raytracing]] attributes | ⚠️ | Needs verification |
-| **Sema** | | |
-| Address space conversion checking | ✅ | device→generic, constant→generic allowed |
-| Metal function qualifier validation (kernel/vertex/fragment) | ✅ | |
-| Metal overload resolution for builtins | ⚠️ | Needs verification |
-| Metal type checking for textures/samplers | ⚠️ | Needs verification |
-| **CodeGen** | | |
-| !air.kernel metadata generation | ✅ | |
-| !air.version metadata | ✅ | |
-| !air.language_version | ✅ | |
-| AIR intrinsic emission (__metal_*) | ✅ | 686 builtins mapped |
-| Texture/sampler intrinsic emission | ⚠️ | Partial |
-| Raytracing intrinsic emission | ⚠️ | Partial |
-| Mesh shader intrinsic emission | ⚠️ | Not started |
+### Removed (2026-07-28): incomplete typed-pointer bitcode writer
 
-### 3. Metal stdlib / Runtime (CLEANROOM IMPLEMENTATION NEEDED)
+The following **incomplete, non-compiling, work-in-progress** code was
+removed to restore a clean state:
 
-From metal-info's `stdlib_cleanroom_complete_map.csv` (113 modules) and
-`rtlib_cleanroom_map.csv` (13,067 symbols):
+| Piece | Why it was removed |
+|-------|--------------------|
+| `BitcodeEmitMode` 3-mode hack in `llvm/lib/Bitcode/Writer/BitcodeWriter.{h,cpp}` | Contaminated the standard (opaque-pointer) writer with Metal-specific modes; did not even compile (`BitcodeEmitMode::Normal` vs `Opaque` mix-up). The opaque bitcode path must stay pristine upstream. |
+| `-mllvm -air-bitcode-mode=` interception in `clang/lib/CodeGen/BackendUtil.cpp` | Same: mixed Metal emission into the standard `Backend_EmitBC` path. |
+| `AIRBitcodeEmitMode` enum in `clang/Basic/CodeGenOptions.{h,def}` | Only existed for the above. |
+| `llvm/lib/Target/AIR/AIRWriter/` (`AIRBitcodeWriter`, `AIRPointerTypeAnalysis`, `AIRValueEnumerator`) | Incomplete standalone typed-pointer writer, unverified against real Metal runtime. |
+| `llvm/lib/Target/AIR/AIRPrepare.{h,cpp}` + `AIR.h` | Attribute-strip / bitcast-insert pass that only served the removed writer (it `#include`d `AIRWriter/AIRPointerTypeAnalysis.h`). The attribute whitelist research is preserved in metal-info (`research/spec/IR_GROUND_TRUTH.md` §6.4) and in git history for reuse in the proper implementation. |
+| `llvm/tools/llvm-metallib/` | Incomplete `.air` / `.metallib` container tool (symbol table was a stub: single `"default"` symbol, fake SHA-256 UUID, never linked into the build). |
+| `llvm/CMakeLists.txt` `AIR` in `LLVM_ALL_EXPERIMENTAL_TARGETS`, `llvm/lib/Target/AIR/CMakeLists.txt` | Registry entries for the removed library. |
 
-#### Runtime Libraries (libmetal-rt etc.)
-| Library | Symbols | Status |
-|---------|---------|--------|
-| libair_rt | ~2000 | ❌ Not started |
-| libmetal_math_rt | ~5000 | ❌ Not started |
-| libmetal_rt | ~3000 | ❌ Not started |
-| libtracepoint_rt | ~500 | ❌ Not started |
+The standard LLVM bitcode writer (`llvm/lib/Bitcode/Writer/`) is now
+**identical to upstream llvmorg-22.1.8** — opaque pointers only, no Metal
+modes. `clang -emit-llvm-bc` for `air64-*` triples therefore emits ordinary
+opaque-pointer bitcode for now.
 
-#### Standard Library Modules
-| Module | Status |
-|--------|--------|
-| metal_math | ❌ Not started |
-| metal_relational | ❌ Not started |
-| metal_geometric | ❌ Not started |
-| metal_matrix | ❌ Not started |
-| metal_atomic | ❌ Not started |
-| metal_texture | ❌ Not started |
-| metal_sampler | ❌ Not started |
-| simd (simd.h) | ❌ Not started |
-| Metal标准ライブラリ (全113モジュール) | ❌ Not started |
+## Plan: proper AIR implementation (to be done)
 
-### 4. Metal-Specific Features Not Yet Implemented
-| Feature | Status | Reference |
-|---------|--------|-----------|
-| Imageblocks (MSL4) | ❌ | metal-info golden probes |
-| Mesh shaders | ❌ | metal-info golden probes |
-| Ray tracing (intersection queries) | ❌ | AIR_VOCABULARY.md §5 |
-| Tensor operations (MSL4) | ❌ | AIR_VOCABULARY.md §6.3 |
-| Visible function tables | ❌ | AIR_VOCABULARY.md |
-| Indirect command buffers | ❌ | AIR_VOCABULARY.md |
-| Sparse textures | ❌ | |
-| Atomic texture operations | ❌ | AIR_VOCABULARY.md §4 |
+AIR emission will be **reimplemented properly** as a separate component. The
+design constraints learned from the failed attempt:
 
----
+1. **Never** add modes to the upstream `BitcodeWriter`. The opaque path
+   stays untouched.
+2. Metal needs `air` bitcode as Apple emits it. Per metal-info ground truth
+   (`research/spec/IR_GROUND_TRUTH.md`), Apple's real AIR bitcode parses
+   with vanilla modern LLVM (opaque pointers, bitcode module version 2);
+   old metalfe-era containers use typed-pointer bitcode with version 1.
+   The exact encoding target must be verified against golden `.air` files in
+   `metal-info/research/golden/**` before writing code.
+3. Container format is specified in `research/spec/METALLIB_WRITER_SPEC.md`
+   (machine-verified on real hardware): `MTLB` slice header (88 bytes),
+   symbol tags (`NAME`/`TYPE`/`HASH`/`OFFT`/`VERS`/`MDSZ`/`ENDT`),
+   `HDYN`/`RLST`/`UUID`, bitcode wrapper (`0x0B17C0DE`), fat binary
+   (`0xCAFEBABE` 64-bit) for `.metallib`.
+4. Attribute whitelist for old metalfe readers:
+   `research/spec/IR_GROUND_TRUTH.md` §6.4.
+5. Runtime libraries to link against: `llvm/lib/Target/AIR/Runtime/**`
+   (already present, see above).
 
-## Verification Plan
+Note: `.github/workflows/metal-arm64.yml`, `workflows/metal-arm64.yml` and
+`.github/workflows/linux-build.yml` still reference an `llvm-metallib`
+binary in their CI pipeline stages. Those stages describe the intended
+future pipeline (Metal source → .bc → .air → .metallib) and will need to be
+rewritten once the proper AIR writer / container tool lands; they are
+expected to fail until then.
 
-### Phase 1: Bitcode Compatibility (NOW)
-1. Build clang with AIR support
-2. Compile simple Metal kernel
-3. Verify bitcode with `llvm-dis` (should round-trip)
-4. Verify with `llvm-metallib info`
-5. Test on real hardware (macOS + Xcode)
+## References (metal-info)
 
-### Phase 2: Frontend Completeness
-1. Run existing Metal test suite:
-   ```
-   llvm-lit clang/test/Parser/metal-*.metal
-   llvm-lit clang/test/Sema/metal-*.metal
-   llvm-lit clang/test/CodeGen/metal-*.metal
-   ```
-2. Compare output with Apple's golden IR from metal-info
-3. Add missing test cases for each feature gap
+- `research/spec/AIR_VOCABULARY.md` — AIR intrinsic vocabulary
+- `research/spec/IR_GROUND_TRUTH.md` — ground-truth analysis of real Apple AIR bitcode
+- `research/spec/METALLIB_WRITER_SPEC.md` — .air / .metallib container spec
+- `research/spec/LEGACY_METAL_SUPPORT.md` — Metal 1.0–4.1 std flags ↔ AIR versions mapping
+- `research/spec/CLANG_FRONTEND_IMPL_MAP.md` — frontend implementation map
+- `clang/utils/metal/fetch-metal-info-resource.py` — helper to pull these into tree
 
-### Phase 3: Runtime Implementation (CLEANROOM)
-1. Create stub implementations for each rt library
-2. Implement metal_math functions first (most commonly used)
-3. Verify against Apple's reference implementations
-4. Build comprehensive test suite
-
----
-
-## How to Update for New LLVM Versions
-
-When LLVM adds new attributes or changes bitcode format:
-
-1. **Opaque mode**: No changes needed (standard LLVM behavior)
-2. **Typed mode**: No changes needed (attributes pass through)
-3. **AIR mode**: Update `AIRPrepare::isValidForAIR()` in `llvm/lib/Target/AIR/AIRPrepare.cpp`
-   - Add new attributes to the whitelist if Metal runtime supports them
-   - The default is to STRIP unknown attributes (safe)
-
-To find which attributes Metal supports:
-1. Compile with Apple's metalfe
-2. Use `llvm-bcanalyzer` on the output .air
-3. Compare attribute kinds
-
----
-
-## File Map
+## File map (current)
 
 ```
-llvm/include/llvm/Bitcode/BitcodeWriter.h     ← BitcodeEmitMode enum
-llvm/lib/Bitcode/Writer/BitcodeWriter.cpp     ← 3-mode writer
-llvm/lib/Target/AIR/AIRPrepare.cpp            ← Attribute filter
-llvm/lib/Target/AIR/AIRWriter/                ← Standalone AIR writer (optional)
-llvm/lib/Target/AIR/Runtime/                  ← Runtime stubs (future)
-llvm/tools/llvm-metallib/                     ← metallib tool
-clang/lib/CodeGen/BackendUtil.cpp             ← Integration
-clang/include/clang/Basic/CodeGenOptions.h    ← AIRBitcodeEmitMode enum
+clang/lib/CodeGen/CGMetalBuiltins.cpp          ← AIR intrinsic emission (kept)
+clang/lib/CodeGen/CodeGenFunction.{h,cpp}      ← AIR metadata emission (kept)
+clang/lib/Basic/Targets/AIR.h                  ← AIRTargetInfo (kept)
+clang/lib/Headers/metal/**                     ← Metal stdlib headers (kept)
+llvm/lib/TargetParser/Triple.cpp               ← air32/air64 triples (kept)
+llvm/lib/Target/AIR/Runtime/**                 ← runtime stubs (kept)
+llvm/lib/Target/AIR/STATUS.md                  ← this file
+llvm/lib/Bitcode/Writer/BitcodeWriter.{h,cpp}  ← PRISTINE upstream (no Metal code)
+clang/lib/CodeGen/BackendUtil.cpp              ← upstream (no -air-bitcode-mode)
 ```

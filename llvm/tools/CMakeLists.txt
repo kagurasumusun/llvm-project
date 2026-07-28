@@ -25,10 +25,6 @@ if(CYGWIN OR NOT LLVM_ENABLE_PIC)
   set(LLVM_TOOL_LTO_BUILD Off)
 endif()
 
-
-
-# Metal tools
-
 if (LLVM_TOOL_LLVM_DRIVER_BUILD)
   add_llvm_tool(llvm-driver)
 endif()

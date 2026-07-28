@@ -25,15 +25,13 @@
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Target/AIR/AIRPrepare.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Frontend/Driver/CodeGenOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/LLVMRemarkStreamer.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
 #include "llvm/IR/PassManager.h"
@@ -123,17 +121,6 @@ static cl::opt<PGOOptions::ColdFuncOpt> ClPGOColdFuncAttr(
                           "Mark cold functions with minsize."),
                clEnumValN(PGOOptions::ColdFuncOpt::OptNone, "optnone",
                           "Mark cold functions with optnone.")));
-
-/// Bitcode emission mode for Metal / AIR targets.
-/// Pass via: -mllvm -air-bitcode-mode=<mode>
-///   auto   — auto-detect from target triple (default)
-///   opaque — force standard opaque-pointer bitcode
-///   typed  — force typed-pointer bitcode (all attributes kept)
-///   air    — force AIR mode (typed pointers, stripped attributes, v1)
-static cl::opt<std::string> AIRBitcodeModeFlag(
-    "air-bitcode-mode", cl::Hidden,
-    cl::desc("Bitcode emission mode for AIR/Metal: auto|opaque|typed|air"),
-    cl::init("auto"));
 
 LLVM_ABI extern cl::opt<InstrProfCorrelator::ProfCorrelatorKind>
     ProfileCorrelate;
@@ -1172,37 +1159,6 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
 
   if (Action == Backend_EmitBC || Action == Backend_EmitLL ||
       CodeGenOpts.FatLTO) {
-
-    // For AIR (Metal) targets, use typed-pointer bitcode that strips
-    // unsupported attributes.  The mode can be overridden via
-    //   -mllvm -air-bitcode-mode=auto|opaque|typed|air
-    if (Action == Backend_EmitBC) {
-      BitcodeEmitMode Mode = BitcodeEmitMode::Opaque;
-      StringRef Flag = AIRBitcodeModeFlag;
-      if (Flag == "air")
-        Mode = BitcodeEmitMode::AIR;
-      else if (Flag == "typed")
-        Mode = BitcodeEmitMode::Typed;
-      else if (Flag == "opaque")
-        Mode = BitcodeEmitMode::Opaque;
-      else // "auto" (default)
-        Mode = TargetTriple.isAIR() ? BitcodeEmitMode::AIR
-                                    : BitcodeEmitMode::Opaque;
-
-      if (Mode == BitcodeEmitMode::AIR) {
-        // Strip unsupported attributes and insert typed-pointer bitcasts.
-        legacy::PassManager PreparePM;
-        PreparePM.add(createAIRPrepareModulePass());
-        PreparePM.run(*TheModule);
-      }
-
-      if (Mode != BitcodeEmitMode::Opaque) {
-        // Typed or AIR mode — use the typed-pointer writer.
-        WriteBitcodeToFile(*TheModule, *OS, Mode);
-        return;
-      }
-    }
-
     if (CodeGenOpts.PrepareForThinLTO && !CodeGenOpts.DisableLLVMPasses) {
       if (!TheModule->getModuleFlag("EnableSplitLTOUnit"))
         TheModule->addModuleFlag(llvm::Module::Error, "EnableSplitLTOUnit",
