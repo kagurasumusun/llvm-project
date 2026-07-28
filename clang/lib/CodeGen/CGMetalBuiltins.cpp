@@ -102,17 +102,12 @@ static llvm::Intrinsic::ID getIntIntrinsic(StringRef Name) {
       .Default(llvm::Intrinsic::not_intrinsic);
 }
 
-/// Map __air_* derivative function names to LLVM intrinsics.
-///
-/// Note: there is no llvm::Intrinsic::dx_fwidth in current LLVM; fwidth is
-/// synthesized below as fabs(dpdx(x)) + fabs(dpdy(x)), following the DirectX
-/// definition which Metal matches for pixel derivatives.
-static llvm::Intrinsic::ID getDerivativeIntrinsic(StringRef Name) {
-  return llvm::StringSwitch<llvm::Intrinsic::ID>(Name)
-      .Case("__air_dfdx", llvm::Intrinsic::dx_dpdx)
-      .Case("__air_dfdy", llvm::Intrinsic::dx_dpdy)
-      .Default(llvm::Intrinsic::not_intrinsic);
-}
+// Note for this fork: __air_* derivative builtins (dfdx/dfdy/fwidth) are
+// *not* mapped to the DirectX derivative intrinsics — those only exist when
+// the DirectX target is built (and there is no dx_fwidth at all).  AIR has
+// its own derivative ops, so derivatives fall through to the external
+// __air_* call path below (like the texture/atomics builtins) and are
+// resolved by the AIR runtime libraries at metallib link time.
 
 } // namespace
 
@@ -140,27 +135,8 @@ RValue CodeGenFunction::EmitMetalBuiltinExpr(const CallExpr *E,
     return RValue::get(Builder.CreateCall(Fn, Args));
   }
 
-  // Handle derivative intrinsics
-  if (llvm::Intrinsic::ID IID = getDerivativeIntrinsic(BuiltinName)) {
-    Function *Fn = CGM.getIntrinsic(IID, Args[0]->getType());
-    return RValue::get(Builder.CreateCall(Fn, Args));
-  }
-
-  // fwidth(x) = fabs(dfdx(x)) + fabs(dfdy(x))
-  if (BuiltinName == "__air_fwidth") {
-    llvm::Type *Ty = Args[0]->getType();
-    Value *DX = Builder.CreateCall(
-        CGM.getIntrinsic(llvm::Intrinsic::dx_dpdx, Ty), Args[0]);
-    Value *DY = Builder.CreateCall(
-        CGM.getIntrinsic(llvm::Intrinsic::dx_dpdy, Ty), Args[0]);
-    Value *AbsDX =
-        Builder.CreateCall(CGM.getIntrinsic(llvm::Intrinsic::fabs, Ty), DX);
-    Value *AbsDY =
-        Builder.CreateCall(CGM.getIntrinsic(llvm::Intrinsic::fabs, Ty), DY);
-    return RValue::get(Builder.CreateFAdd(AbsDX, AbsDY));
-  }
-
-  // All other builtins (texture, atomic, simd, raytracing, mesh, etc.)
+  // All other builtins (texture, atomic, derivatives, simd, raytracing,
+  // mesh, etc.)
   // are emitted as external function calls.  They are resolved by the Metal
   // runtime at metallib link time.
   //
