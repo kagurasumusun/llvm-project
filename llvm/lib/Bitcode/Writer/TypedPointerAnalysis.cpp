@@ -151,6 +151,9 @@ void TypedPointerAnalysis::collectUseEvidence(const Value *V,
     if (const auto *CB = dyn_cast<CallBase>(Usr)) {
       if (CB->isCallee(&U))
         continue; // V is the callee; not a pointer-slot use.
+      if (!CB->isArgOperand(&U))
+        continue; // Operand bundle inputs (gc-live, deopt, ...) carry no
+                  // pointee evidence for the called signature.
       unsigned ArgNo = CB->getArgOperandNo(&U);
       const Function *G =
           dyn_cast<Function>(CB->getCalledOperand()->stripPointerCasts());
