@@ -352,6 +352,25 @@ public:
   /// the global tracker.
   LLVM_ABI uint64_t incNextDILocationAtomGroup();
 
+  /// Set whether opaque pointers are enabled. The method may be called multiple
+  /// times, but only with the same value. Note that creating a pointer type or
+  /// otherwise querying the opaque pointer mode performs an implicit set to
+  /// the default value.
+  ///
+  /// When typed pointers are enabled (\p Enable is false), the bitcode writer
+  /// emits legacy typed-pointer bitcode (TYPE_CODE_POINTER records, LLVM 16
+  /// format) instead of the default opaque-pointer bitcode. This is intended
+  /// for targets that still consume typed-pointer bitcode (e.g. Apple Metal's
+  /// AIR / metalfe). IR in memory always stays in opaque-pointer form; typed
+  /// pointers are reconstructed only at the bitcode emission boundary.
+  LLVM_ABI void setOpaquePointers(bool Enable) const;
+
+  /// Whether typed pointers are supported. If false, all pointers are opaque.
+  ///
+  /// When true, modules in this context are emitted as legacy typed-pointer
+  /// bitcode (see setOpaquePointers()).
+  LLVM_ABI bool supportsTypedPointers() const;
+
 private:
   // Module needs access to the add/removeModule methods.
   friend class Module;

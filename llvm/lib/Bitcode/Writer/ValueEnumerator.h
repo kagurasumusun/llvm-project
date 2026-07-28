@@ -20,6 +20,7 @@
 #include "llvm/IR/UseListOrder.h"
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <utility>
 #include <vector>
 
@@ -44,6 +45,20 @@ class ValueEnumerator {
 public:
   using TypeList = std::vector<Type *>;
 
+  /// Type translator hook used by legacy typed-pointer bitcode emission.
+  ///
+  /// When set, every type referenced through the enumerator is mapped through
+  /// this function before being enumerated or looked up.  This allows the
+  /// bitcode writer to substitute synthesized \c TypedPointerType objects for
+  /// the opaque \c PointerType objects used by the module's IR, without
+  /// mutating the module itself.
+  ///
+  /// The hook receives the original type and, when available, the value whose
+  /// type is being translated.  The value matters because the emitted form of
+  /// an opaque pointer depends on how the value is produced/used (pointee
+  /// types are recovered from the IR; see TypedPointerAnalysis).
+  using TypeTranslatorTy = std::function<Type *(Type *Ty, const Value *V)>;
+
   // For each value, we remember its Value* and occurrence frequency.
   using ValueList = std::vector<std::pair<const Value *, unsigned>>;
 
@@ -54,6 +69,16 @@ public:
   UseListOrderStack UseListOrders;
 
 private:
+  /// Optional hook translating module types into their emitted form.
+  TypeTranslatorTy RemapTypeFn;
+
+  /// Apply RemapTypeFn if set.  \p V is the value \p Ty was taken from, or
+  /// nullptr if the type is referenced standalone (e.g. a GEP source element
+  /// type or an aggregate element type).
+  Type *remapType(Type *Ty, const Value *V) const {
+    return RemapTypeFn ? RemapTypeFn(Ty, V) : Ty;
+  }
+
   using TypeMapType = DenseMap<Type *, unsigned>;
   TypeMapType TypeMap;
   TypeList Types;
@@ -138,7 +163,8 @@ private:
   unsigned FirstInstID;
 
 public:
-  ValueEnumerator(const Module &M, bool ShouldPreserveUseListOrder);
+  ValueEnumerator(const Module &M, bool ShouldPreserveUseListOrder,
+                  TypeTranslatorTy RemapTypeFn = nullptr);
   ValueEnumerator(const ValueEnumerator &) = delete;
   ValueEnumerator &operator=(const ValueEnumerator &) = delete;
 
@@ -163,8 +189,9 @@ public:
 
   bool shouldPreserveUseListOrder() const { return ShouldPreserveUseListOrder; }
 
-  unsigned getTypeID(Type *T) const {
-    TypeMapType::const_iterator I = TypeMap.find(T);
+  unsigned getTypeID(Type *T, const Value *V = nullptr) const {
+    Type *EmTy = remapType(T, V);
+    TypeMapType::const_iterator I = TypeMap.find(EmTy);
     assert(I != TypeMap.end() && "Type not in ValueEnumerator!");
     return I->second-1;
   }
@@ -292,7 +319,7 @@ private:
   void EnumerateFunctionLocalListMetadata(unsigned F, const DIArgList *Arglist);
   void EnumerateNamedMDNode(const NamedMDNode *NMD);
   void EnumerateValue(const Value *V);
-  void EnumerateType(Type *T);
+  void EnumerateType(Type *T, const Value *V = nullptr);
   void EnumerateOperandType(const Value *V);
   void EnumerateAttributes(AttributeList PAL);
 

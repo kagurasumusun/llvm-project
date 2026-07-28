@@ -1900,6 +1900,16 @@ public:
   ///
   /// Start a 1 because 0 means the source location isn't part of an atom group.
   uint64_t NextAtomGroup = 1;
+
+  // Typed-pointer bitcode emission support (ported from LLVM 16).
+  // When OpaquePointers is false, the bitcode writer emits legacy
+  // typed-pointer bitcode (TYPE_CODE_POINTER) for modules in this context.
+  // In-memory IR always remains in opaque-pointer form.
+  bool getOpaquePointers();
+  void setOpaquePointers(bool OP);
+
+private:
+  std::optional<bool> OpaquePointers;
 };
 
 } // end namespace llvm

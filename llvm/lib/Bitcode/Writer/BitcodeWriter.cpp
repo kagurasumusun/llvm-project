@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "TypedPointerAnalysis.h"
 #include "ValueEnumerator.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
@@ -40,6 +41,7 @@
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/TypedPointerType.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalIFunc.h"
@@ -188,12 +190,29 @@ void BitcodeWriterBase::writeModuleVersion() {
   Stream.EmitRecord(bitc::MODULE_CODE_VERSION, ArrayRef<uint64_t>{2});
 }
 
+/// Build the ValueEnumerator type-translation hook for legacy typed-pointer
+/// emission, or an empty hook when \p Analysis is null.
+static ValueEnumerator::TypeTranslatorTy
+makeTypedPointerTranslator(const TypedPointerAnalysis *Analysis) {
+  if (!Analysis)
+    return nullptr;
+  return [Analysis](Type *Ty, const Value *V) -> Type * {
+    return const_cast<TypedPointerAnalysis *>(Analysis)->remap(Ty, V);
+  };
+}
+
 /// Base class to manage the module bitcode writing, currently subclassed for
 /// ModuleBitcodeWriter and ThinLinkBitcodeWriter.
 class ModuleBitcodeWriterBase : public BitcodeWriterBase {
 protected:
   /// The Module to write to bitcode.
   const Module &M;
+
+  /// Analysis used to emit legacy typed-pointer bitcode
+  /// (LLVM <= 16, TYPE_CODE_POINTER format).  Null for normal opaque-pointer
+  /// emission.  Must be declared before VE so the enumerator can be
+  /// constructed with the type translation hook.
+  std::unique_ptr<TypedPointerAnalysis> TPA;
 
   /// Enumerates ids for all values in the module.
   ValueEnumerator VE;
@@ -213,17 +232,42 @@ protected:
   /// backpatched with the offset of the actual VST.
   uint64_t VSTOffsetPlaceholder = 0;
 
+  /// Whether we are emitting legacy typed-pointer bitcode.
+  bool emitTypedPointerBitcode() const { return TPA != nullptr; }
+
+  /// Return the type ID for \p Ty, translating opaque-pointer types into
+  /// their legacy typed-pointer form when \p TPA is active.  \p V is the
+  /// value the type is taken from (required to resolve pointer pointees).
+  unsigned getTypeID(Type *Ty, const Value *V = nullptr) const {
+    return VE.getTypeID(Ty, V);
+  }
+
+  /// The struct name to emit for \p Ty: for structs synthesized by \p TPA
+  /// this is the original LLVM IR struct name rather than the synthesized
+  /// body's temporary unique name.
+  StringRef getEmissionNameFor(Type *Ty) const {
+    if (TPA)
+      return TPA->getEmissionName(Ty);
+    if (auto *ST = dyn_cast<StructType>(Ty))
+      return ST->getName();
+    return StringRef();
+  }
+
 public:
   /// Constructs a ModuleBitcodeWriterBase object for the given Module,
-  /// writing to the provided \p Buffer.
+  /// writing to the provided \p Buffer.  When \p TPAArg is non-null, the
+  /// module is emitted in legacy typed-pointer form (LLVM <= 16 bitcode).
   ModuleBitcodeWriterBase(const Module &M, StringTableBuilder &StrtabBuilder,
                           BitstreamWriter &Stream,
                           bool ShouldPreserveUseListOrder,
-                          const ModuleSummaryIndex *Index)
+                          const ModuleSummaryIndex *Index,
+                          std::unique_ptr<TypedPointerAnalysis> TPAArg = nullptr)
       : BitcodeWriterBase(Stream, StrtabBuilder), M(M),
+        TPA(std::move(TPAArg)),
         VE(M, PreserveBitcodeUseListOrder.getNumOccurrences()
                   ? PreserveBitcodeUseListOrder
-                  : ShouldPreserveUseListOrder),
+                  : ShouldPreserveUseListOrder,
+           makeTypedPointerTranslator(TPA.get())),
         Index(Index) {
     // Assign ValueIds to any callee values in the index that came from
     // indirect call profiles and were recorded as a GUID not a Value*
@@ -310,12 +354,22 @@ class ModuleBitcodeWriter : public ModuleBitcodeWriterBase {
 public:
   /// Constructs a ModuleBitcodeWriter object for the given Module,
   /// writing to the provided \p Buffer.
+  ///
+  /// When the module's context has typed pointers enabled
+  /// (LLVMContext::setOpaquePointers(false), i.e. -opaque-pointers=0), the
+  /// module is emitted in the legacy typed-pointer bitcode format
+  /// (LLVM <= 16, TYPE_CODE_POINTER records).  Pointer pointee types are
+  /// reconstructed from the IR by TypedPointerAnalysis; the module itself
+  /// is untouched.
   ModuleBitcodeWriter(const Module &M, StringTableBuilder &StrtabBuilder,
                       BitstreamWriter &Stream, bool ShouldPreserveUseListOrder,
                       const ModuleSummaryIndex *Index, bool GenerateHash,
                       ModuleHash *ModHash = nullptr)
-      : ModuleBitcodeWriterBase(M, StrtabBuilder, Stream,
-                                ShouldPreserveUseListOrder, Index),
+      : ModuleBitcodeWriterBase(
+            M, StrtabBuilder, Stream, ShouldPreserveUseListOrder, Index,
+            M.getContext().supportsTypedPointers()
+                ? std::make_unique<TypedPointerAnalysis>(M)
+                : nullptr),
         GenerateHash(GenerateHash), ModHash(ModHash),
         BitcodeStartBit(Stream.GetCurrentBitNo()) {}
 
@@ -1049,7 +1103,7 @@ void ModuleBitcodeWriter::writeAttributeGroupTable() {
         Record.push_back(Ty ? 6 : 5);
         Record.push_back(getAttrKindEncoding(Attr.getKindAsEnum()));
         if (Ty)
-          Record.push_back(VE.getTypeID(Attr.getValueAsType()));
+          Record.push_back(getTypeID(Attr.getValueAsType()));
       } else if (Attr.isConstantRangeAttribute()) {
         Record.push_back(7);
         Record.push_back(getAttrKindEncoding(Attr.getKindAsEnum()));
@@ -1104,8 +1158,21 @@ void ModuleBitcodeWriter::writeTypeTable() {
 
   uint64_t NumBits = VE.computeBitsRequiredForTypeIndices();
 
+  // Abbrev for TYPE_CODE_POINTER, used when emitting legacy typed-pointer
+  // bitcode (LLVM <= 16 format).  It is emitted ahead of the opaque-pointer
+  // abbrev, matching the legacy writer's abbrev order exactly.
+  unsigned PtrAbbrev = 0;
+  std::shared_ptr<BitCodeAbbrev> Abbv;
+  if (emitTypedPointerBitcode()) {
+    Abbv = std::make_shared<BitCodeAbbrev>();
+    Abbv->Add(BitCodeAbbrevOp(bitc::TYPE_CODE_POINTER));
+    Abbv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, NumBits));
+    Abbv->Add(BitCodeAbbrevOp(0)); // Addrspace = 0
+    PtrAbbrev = Stream.EmitAbbrev(std::move(Abbv));
+  }
+
   // Abbrev for TYPE_CODE_OPAQUE_POINTER.
-  auto Abbv = std::make_shared<BitCodeAbbrev>();
+  Abbv = std::make_shared<BitCodeAbbrev>();
   Abbv->Add(BitCodeAbbrevOp(bitc::TYPE_CODE_OPAQUE_POINTER));
   Abbv->Add(BitCodeAbbrevOp(0)); // Addrspace = 0
   unsigned OpaquePtrAbbrev = Stream.EmitAbbrev(std::move(Abbv));
@@ -1193,9 +1260,9 @@ void ModuleBitcodeWriter::writeTypeTable() {
       // FUNCTION: [isvararg, retty, paramty x N]
       Code = bitc::TYPE_CODE_FUNCTION;
       TypeVals.push_back(FT->isVarArg());
-      TypeVals.push_back(VE.getTypeID(FT->getReturnType()));
+      TypeVals.push_back(getTypeID(FT->getReturnType()));
       for (unsigned i = 0, e = FT->getNumParams(); i != e; ++i)
-        TypeVals.push_back(VE.getTypeID(FT->getParamType(i)));
+        TypeVals.push_back(getTypeID(FT->getParamType(i)));
       AbbrevToUse = FunctionAbbrev;
       break;
     }
@@ -1205,7 +1272,7 @@ void ModuleBitcodeWriter::writeTypeTable() {
       TypeVals.push_back(ST->isPacked());
       // Output all of the element types.
       for (Type *ET : ST->elements())
-        TypeVals.push_back(VE.getTypeID(ET));
+        TypeVals.push_back(getTypeID(ET));
 
       if (ST->isLiteral()) {
         Code = bitc::TYPE_CODE_STRUCT_ANON;
@@ -1218,9 +1285,11 @@ void ModuleBitcodeWriter::writeTypeTable() {
           AbbrevToUse = StructNamedAbbrev;
         }
 
-        // Emit the name if it is present.
-        if (!ST->getName().empty())
-          writeStringRecord(Stream, bitc::TYPE_CODE_STRUCT_NAME, ST->getName(),
+        // Emit the name if it is present.  For structs synthesized by the
+        // typed-pointer translator this is the original LLVM IR struct name.
+        StringRef EmissionName = getEmissionNameFor(ST);
+        if (!EmissionName.empty())
+          writeStringRecord(Stream, bitc::TYPE_CODE_STRUCT_NAME, EmissionName,
                             StructNameAbbrev);
       }
       break;
@@ -1230,7 +1299,7 @@ void ModuleBitcodeWriter::writeTypeTable() {
       // ARRAY: [numelts, eltty]
       Code = bitc::TYPE_CODE_ARRAY;
       TypeVals.push_back(AT->getNumElements());
-      TypeVals.push_back(VE.getTypeID(AT->getElementType()));
+      TypeVals.push_back(getTypeID(AT->getElementType()));
       AbbrevToUse = ArrayAbbrev;
       break;
     }
@@ -1241,7 +1310,7 @@ void ModuleBitcodeWriter::writeTypeTable() {
       //        [numelts, eltty, scalable]
       Code = bitc::TYPE_CODE_VECTOR;
       TypeVals.push_back(VT->getElementCount().getKnownMinValue());
-      TypeVals.push_back(VE.getTypeID(VT->getElementType()));
+      TypeVals.push_back(getTypeID(VT->getElementType()));
       if (isa<ScalableVectorType>(VT))
         TypeVals.push_back(true);
       break;
@@ -1253,12 +1322,24 @@ void ModuleBitcodeWriter::writeTypeTable() {
                         StructNameAbbrev);
       TypeVals.push_back(TET->getNumTypeParameters());
       for (Type *InnerTy : TET->type_params())
-        TypeVals.push_back(VE.getTypeID(InnerTy));
+        TypeVals.push_back(getTypeID(InnerTy));
       llvm::append_range(TypeVals, TET->int_params());
       break;
     }
-    case Type::TypedPointerTyID:
-      llvm_unreachable("Typed pointers cannot be added to IR modules");
+    case Type::TypedPointerTyID: {
+      // Legacy typed-pointer emission: POINTER: [pointee type, address space]
+      // Only reachable when the typed-pointer translator substituted
+      // TypedPointerTypes for the module's opaque pointers; these types never
+      // appear inside IR modules themselves.
+      auto *PTy = cast<TypedPointerType>(T);
+      unsigned AddressSpace = PTy->getAddressSpace();
+      Code = bitc::TYPE_CODE_POINTER;
+      TypeVals.push_back(getTypeID(PTy->getElementType()));
+      TypeVals.push_back(AddressSpace);
+      if (AddressSpace == 0)
+        AbbrevToUse = PtrAbbrev;
+      break;
+    }
     }
 
     // Emit the finished record.
@@ -1511,7 +1592,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
   for (const GlobalVariable &GV : M.globals()) {
     if (MaybeAlign A = GV.getAlign())
       MaxGVarAlignment = !MaxGVarAlignment ? *A : std::max(*MaxGVarAlignment, *A);
-    MaxGlobalType = std::max(MaxGlobalType, VE.getTypeID(GV.getValueType()));
+    MaxGlobalType = std::max(MaxGlobalType, getTypeID(GV.getValueType(), &GV));
     if (GV.hasSection()) {
       // Give section names unique ID's.
       unsigned &Entry = SectionMap[std::string(GV.getSection())];
@@ -1609,7 +1690,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     //             comdat, attributes, DSO_Local, GlobalSanitizer, code_model]
     Vals.push_back(addToStrtab(GV.getName()));
     Vals.push_back(GV.getName().size());
-    Vals.push_back(VE.getTypeID(GV.getValueType()));
+    Vals.push_back(getTypeID(GV.getValueType(), &GV));
     Vals.push_back(GV.getType()->getAddressSpace() << 2 | 2 | GV.isConstant());
     Vals.push_back(GV.isDeclaration() ? 0 :
                    (VE.getValueID(GV.getInitializer()) + 1));
@@ -1658,7 +1739,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     //             prefixdata, personalityfn, DSO_Local, addrspace]
     Vals.push_back(addToStrtab(F.getName()));
     Vals.push_back(F.getName().size());
-    Vals.push_back(VE.getTypeID(F.getFunctionType()));
+    Vals.push_back(getTypeID(F.getFunctionType(), &F));
     Vals.push_back(F.getCallingConv());
     Vals.push_back(F.isDeclaration());
     Vals.push_back(getEncodedLinkage(F));
@@ -1695,7 +1776,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     //         DSO_Local]
     Vals.push_back(addToStrtab(A.getName()));
     Vals.push_back(A.getName().size());
-    Vals.push_back(VE.getTypeID(A.getValueType()));
+    Vals.push_back(getTypeID(A.getValueType(), &A));
     Vals.push_back(A.getType()->getAddressSpace());
     Vals.push_back(VE.getValueID(A.getAliasee()));
     Vals.push_back(getEncodedLinkage(A));
@@ -1718,7 +1799,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     //         val#, linkage, visibility, DSO_Local]
     Vals.push_back(addToStrtab(I.getName()));
     Vals.push_back(I.getName().size());
-    Vals.push_back(VE.getTypeID(I.getValueType()));
+    Vals.push_back(getTypeID(I.getValueType(), &I));
     Vals.push_back(I.getType()->getAddressSpace());
     Vals.push_back(VE.getValueID(I.getResolver()));
     Vals.push_back(getEncodedLinkage(I));
@@ -1789,7 +1870,7 @@ void ModuleBitcodeWriter::writeValueAsMetadata(
     const ValueAsMetadata *MD, SmallVectorImpl<uint64_t> &Record) {
   // Mimic an MDNode with a value as one operand.
   Value *V = MD->getValue();
-  Record.push_back(VE.getTypeID(V->getType()));
+  Record.push_back(getTypeID(V->getType(), V));
   Record.push_back(VE.getValueID(V));
   Stream.EmitRecord(bitc::METADATA_VALUE, Record, 0);
   Record.clear();
@@ -2829,17 +2910,22 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
   Type *LastTy = nullptr;
   for (unsigned i = FirstVal; i != LastVal; ++i) {
     const Value *V = Vals[i].first;
-    // If we need to switch types, do so now.
-    if (V->getType() != LastTy) {
-      LastTy = V->getType();
-      Record.push_back(VE.getTypeID(LastTy));
+    // If we need to switch types, do so now.  When emitting legacy
+    // typed-pointer bitcode, constants are grouped by their *translated*
+    // type: two constants may share an opaque IR type while carrying
+    // different typed-pointer types in the bitcode.
+    Type *CurTy = TPA ? TPA->remap(V->getType(), V)
+                      : const_cast<Value *>(V)->getType();
+    if (CurTy != LastTy) {
+      LastTy = CurTy;
+      Record.push_back(getTypeID(LastTy, V));
       Stream.EmitRecord(bitc::CST_CODE_SETTYPE, Record,
                         CONSTANTS_SETTYPE_ABBREV);
       Record.clear();
     }
 
     if (const InlineAsm *IA = dyn_cast<InlineAsm>(V)) {
-      Record.push_back(VE.getTypeID(IA->getFunctionType()));
+      Record.push_back(getTypeID(IA->getFunctionType(), IA));
       Record.push_back(
           unsigned(IA->hasSideEffects()) | unsigned(IA->isAlignStack()) << 1 |
           unsigned(IA->getDialect() & 1) << 2 | unsigned(IA->canThrow()) << 3);
@@ -2947,7 +3033,7 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
         if (Instruction::isCast(CE->getOpcode())) {
           Code = bitc::CST_CODE_CE_CAST;
           Record.push_back(getEncodedCastOpcode(CE->getOpcode()));
-          Record.push_back(VE.getTypeID(C->getOperand(0)->getType()));
+          Record.push_back(getTypeID(C->getOperand(0)->getType(), C->getOperand(0)));
           Record.push_back(VE.getValueID(C->getOperand(0)));
           AbbrevToUse = CONSTANTS_CE_CAST_Abbrev;
         } else {
@@ -2974,30 +3060,30 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
       case Instruction::GetElementPtr: {
         Code = bitc::CST_CODE_CE_GEP;
         const auto *GO = cast<GEPOperator>(C);
-        Record.push_back(VE.getTypeID(GO->getSourceElementType()));
+        Record.push_back(getTypeID(GO->getSourceElementType()));
         Record.push_back(getOptimizationFlags(GO));
         if (std::optional<ConstantRange> Range = GO->getInRange()) {
           Code = bitc::CST_CODE_CE_GEP_WITH_INRANGE;
           emitConstantRange(Record, *Range, /*EmitBitWidth=*/true);
         }
         for (const Value *Op : CE->operands()) {
-          Record.push_back(VE.getTypeID(Op->getType()));
+          Record.push_back(getTypeID(Op->getType(), Op));
           Record.push_back(VE.getValueID(Op));
         }
         break;
       }
       case Instruction::ExtractElement:
         Code = bitc::CST_CODE_CE_EXTRACTELT;
-        Record.push_back(VE.getTypeID(C->getOperand(0)->getType()));
+        Record.push_back(getTypeID(C->getOperand(0)->getType(), C->getOperand(0)));
         Record.push_back(VE.getValueID(C->getOperand(0)));
-        Record.push_back(VE.getTypeID(C->getOperand(1)->getType()));
+        Record.push_back(getTypeID(C->getOperand(1)->getType(), C->getOperand(1)));
         Record.push_back(VE.getValueID(C->getOperand(1)));
         break;
       case Instruction::InsertElement:
         Code = bitc::CST_CODE_CE_INSERTELT;
         Record.push_back(VE.getValueID(C->getOperand(0)));
         Record.push_back(VE.getValueID(C->getOperand(1)));
-        Record.push_back(VE.getTypeID(C->getOperand(2)->getType()));
+        Record.push_back(getTypeID(C->getOperand(2)->getType(), C->getOperand(2)));
         Record.push_back(VE.getValueID(C->getOperand(2)));
         break;
       case Instruction::ShuffleVector:
@@ -3009,7 +3095,7 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
           Code = bitc::CST_CODE_CE_SHUFFLEVEC;
         } else {
           Code = bitc::CST_CODE_CE_SHUFVEC_EX;
-          Record.push_back(VE.getTypeID(C->getOperand(0)->getType()));
+          Record.push_back(getTypeID(C->getOperand(0)->getType(), C->getOperand(0)));
         }
         Record.push_back(VE.getValueID(C->getOperand(0)));
         Record.push_back(VE.getValueID(C->getOperand(1)));
@@ -3018,16 +3104,16 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
       }
     } else if (const BlockAddress *BA = dyn_cast<BlockAddress>(C)) {
       Code = bitc::CST_CODE_BLOCKADDRESS;
-      Record.push_back(VE.getTypeID(BA->getFunction()->getType()));
+      Record.push_back(getTypeID(BA->getFunction()->getType(), BA->getFunction()));
       Record.push_back(VE.getValueID(BA->getFunction()));
       Record.push_back(VE.getGlobalBasicBlockID(BA->getBasicBlock()));
     } else if (const auto *Equiv = dyn_cast<DSOLocalEquivalent>(C)) {
       Code = bitc::CST_CODE_DSO_LOCAL_EQUIVALENT;
-      Record.push_back(VE.getTypeID(Equiv->getGlobalValue()->getType()));
+      Record.push_back(getTypeID(Equiv->getGlobalValue()->getType(), Equiv->getGlobalValue()));
       Record.push_back(VE.getValueID(Equiv->getGlobalValue()));
     } else if (const auto *NC = dyn_cast<NoCFIValue>(C)) {
       Code = bitc::CST_CODE_NO_CFI_VALUE;
-      Record.push_back(VE.getTypeID(NC->getGlobalValue()->getType()));
+      Record.push_back(getTypeID(NC->getGlobalValue()->getType(), NC->getGlobalValue()));
       Record.push_back(VE.getValueID(NC->getGlobalValue()));
     } else if (const auto *CPA = dyn_cast<ConstantPtrAuth>(C)) {
       Code = bitc::CST_CODE_PTRAUTH2;
@@ -3076,7 +3162,7 @@ bool ModuleBitcodeWriter::pushValueAndType(const Value *V, unsigned InstID,
   // Make encoding relative to the InstID.
   Vals.push_back(InstID - ValID);
   if (ValID >= InstID) {
-    Vals.push_back(VE.getTypeID(V->getType()));
+    Vals.push_back(getTypeID(V->getType(), V));
     return true;
   }
   return false;
@@ -3140,7 +3226,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
       Code = bitc::FUNC_CODE_INST_CAST;
       if (!pushValueAndType(I.getOperand(0), InstID, Vals))
         AbbrevToUse = FUNCTION_INST_CAST_ABBREV;
-      Vals.push_back(VE.getTypeID(I.getType()));
+      Vals.push_back(getTypeID(I.getType(), &I));
       Vals.push_back(getEncodedCastOpcode(I.getOpcode()));
       uint64_t Flags = getOptimizationFlags(&I);
       if (Flags != 0) {
@@ -3181,7 +3267,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     AbbrevToUse = FUNCTION_INST_GEP_ABBREV;
     auto &GEPInst = cast<GetElementPtrInst>(I);
     Vals.push_back(getOptimizationFlags(&I));
-    Vals.push_back(VE.getTypeID(GEPInst.getSourceElementType()));
+    Vals.push_back(getTypeID(GEPInst.getSourceElementType()));
     for (const Value *Op : I.operands())
       pushValueAndType(Op, InstID, Vals);
     break;
@@ -3279,7 +3365,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     {
       Code = bitc::FUNC_CODE_INST_SWITCH;
       const SwitchInst &SI = cast<SwitchInst>(I);
-      Vals.push_back(VE.getTypeID(SI.getCondition()->getType()));
+      Vals.push_back(getTypeID(SI.getCondition()->getType(), SI.getCondition()));
       pushValue(SI.getCondition(), InstID, Vals);
       Vals.push_back(VE.getValueID(SI.getDefaultDest()));
       for (auto Case : SI.cases()) {
@@ -3290,7 +3376,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     break;
   case Instruction::IndirectBr:
     Code = bitc::FUNC_CODE_INST_INDIRECTBR;
-    Vals.push_back(VE.getTypeID(I.getOperand(0)->getType()));
+    Vals.push_back(getTypeID(I.getOperand(0)->getType(), I.getOperand(0)));
     // Encode the address operand as relative, but not the basic blocks.
     pushValue(I.getOperand(0), InstID, Vals);
     for (const Value *Op : drop_begin(I.operands()))
@@ -3311,7 +3397,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     Vals.push_back(II->getCallingConv() | 1 << 13);
     Vals.push_back(VE.getValueID(II->getNormalDest()));
     Vals.push_back(VE.getValueID(II->getUnwindDest()));
-    Vals.push_back(VE.getTypeID(FTy));
+    Vals.push_back(getTypeID(FTy, II));
     pushValueAndType(Callee, InstID, Vals);
 
     // Emit value #'s for the fixed parameters.
@@ -3392,7 +3478,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     for (unsigned i = 0, e = CBI->getNumIndirectDests(); i != e; ++i)
       Vals.push_back(VE.getValueID(CBI->getIndirectDest(i)));
 
-    Vals.push_back(VE.getTypeID(FTy));
+    Vals.push_back(getTypeID(FTy, CBI));
     pushValueAndType(Callee, InstID, Vals);
 
     // Emit value #'s for the fixed parameters.
@@ -3418,7 +3504,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     // negative valued IDs.  This is most common for PHIs, so we use
     // signed VBRs.
     SmallVector<uint64_t, 128> Vals64;
-    Vals64.push_back(VE.getTypeID(PN.getType()));
+    Vals64.push_back(getTypeID(PN.getType(), &PN));
     for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i) {
       pushValueSigned(PN.getIncomingValue(i), InstID, Vals64);
       Vals64.push_back(VE.getValueID(PN.getIncomingBlock(i)));
@@ -3437,7 +3523,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
   case Instruction::LandingPad: {
     const LandingPadInst &LP = cast<LandingPadInst>(I);
     Code = bitc::FUNC_CODE_INST_LANDINGPAD;
-    Vals.push_back(VE.getTypeID(LP.getType()));
+    Vals.push_back(getTypeID(LP.getType(), &LP));
     Vals.push_back(LP.isCleanup());
     Vals.push_back(LP.getNumClauses());
     for (unsigned I = 0, E = LP.getNumClauses(); I != E; ++I) {
@@ -3453,8 +3539,8 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
   case Instruction::Alloca: {
     Code = bitc::FUNC_CODE_INST_ALLOCA;
     const AllocaInst &AI = cast<AllocaInst>(I);
-    Vals.push_back(VE.getTypeID(AI.getAllocatedType()));
-    Vals.push_back(VE.getTypeID(I.getOperand(0)->getType()));
+    Vals.push_back(getTypeID(AI.getAllocatedType(), &AI));
+    Vals.push_back(getTypeID(I.getOperand(0)->getType(), I.getOperand(0)));
     Vals.push_back(VE.getValueID(I.getOperand(0))); // size.
     using APV = AllocaPackedValues;
     unsigned Record = 0;
@@ -3483,7 +3569,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
       if (!pushValueAndType(I.getOperand(0), InstID, Vals)) // ptr
         AbbrevToUse = FUNCTION_INST_LOAD_ABBREV;
     }
-    Vals.push_back(VE.getTypeID(I.getType()));
+    Vals.push_back(getTypeID(I.getType(), &I));
     Vals.push_back(getEncodedAlign(cast<LoadInst>(I).getAlign()));
     Vals.push_back(cast<LoadInst>(I).isVolatile());
     if (cast<LoadInst>(I).isAtomic()) {
@@ -3563,7 +3649,7 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
     if (Flags != 0)
       Vals.push_back(Flags);
 
-    Vals.push_back(VE.getTypeID(FTy));
+    Vals.push_back(getTypeID(FTy, &CI));
     pushValueAndType(CI.getCalledOperand(), InstID, Vals); // Callee
 
     // Emit value #'s for the fixed parameters.
@@ -3579,9 +3665,9 @@ void ModuleBitcodeWriter::writeInstruction(const Instruction &I,
   }
   case Instruction::VAArg:
     Code = bitc::FUNC_CODE_INST_VAARG;
-    Vals.push_back(VE.getTypeID(I.getOperand(0)->getType()));   // valistty
-    pushValue(I.getOperand(0), InstID, Vals);                   // valist.
-    Vals.push_back(VE.getTypeID(I.getType())); // restype.
+    Vals.push_back(getTypeID(I.getOperand(0)->getType(), I.getOperand(0))); // valistty
+    pushValue(I.getOperand(0), InstID, Vals);                                     // valist.
+    Vals.push_back(getTypeID(I.getType(), &I)); // restype.
     break;
   case Instruction::Freeze:
     Code = bitc::FUNC_CODE_INST_FREEZE;

@@ -389,3 +389,11 @@ void LLVMContext::updateDILocationAtomGroupWaterline(uint64_t V) {
 uint64_t LLVMContext::incNextDILocationAtomGroup() {
   return pImpl->NextAtomGroup++;
 }
+
+void LLVMContext::setOpaquePointers(bool Enable) const {
+  pImpl->setOpaquePointers(Enable);
+}
+
+bool LLVMContext::supportsTypedPointers() const {
+  return !pImpl->getOpaquePointers();
+}

@@ -97,6 +97,9 @@ CODEGENOPT(ForbidGuardVariables , 1, 0, Benign) ///< Issue errors if C++ guard v
                                                 ///< are required.
 CODEGENOPT(FunctionSections  , 1, 0, Benign) ///< Set when -ffunction-sections is enabled.
 CODEGENOPT(BBAddrMap  , 1, 0, Benign) ///< Set when -fbasic-block-address-map is enabled.
+CODEGENOPT(OpaquePointers, 1, 1, Benign)     ///< Whether to use opaque pointers
+                                             ///< (-Xclang -fno-opaque-pointers selects
+                                             ///< legacy typed-pointer bitcode emission).
 CODEGENOPT(InstrumentFunctions , 1, 0, Benign) ///< Set when -finstrument-functions is
                                                ///< enabled.
 CODEGENOPT(InstrumentFunctionsAfterInlining , 1, 0, Benign) ///< Set when

@@ -4660,6 +4660,11 @@ defm unique_section_names : BoolFOption<"unique-section-names",
   NegFlag<SetFalse, [], [ClangOption, CC1Option],
           "Don't use unique names for text and data sections">,
   PosFlag<SetTrue>>;
+defm opaque_pointers : BoolFOption<"opaque-pointers",
+  CodeGenOpts<"OpaquePointers">, DefaultTrue,
+  NegFlag<SetFalse, [], [ClangOption, CC1Option],
+          "Disable opaque pointers (emit legacy typed-pointer bitcode)">,
+  PosFlag<SetTrue>>;
 defm separate_named_sections : BoolFOption<"separate-named-sections",
   CodeGenOpts<"SeparateNamedSections">, DefaultFalse,
   PosFlag<SetTrue, [], [ClangOption, CC1Option],

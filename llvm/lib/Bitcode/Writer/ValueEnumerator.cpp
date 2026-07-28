@@ -341,34 +341,36 @@ static bool isIntOrIntVectorValue(const std::pair<const Value*, unsigned> &V) {
 }
 
 ValueEnumerator::ValueEnumerator(const Module &M,
-                                 bool ShouldPreserveUseListOrder)
-    : ShouldPreserveUseListOrder(ShouldPreserveUseListOrder) {
+                                 bool ShouldPreserveUseListOrder,
+                                 TypeTranslatorTy RemapTypeFn)
+    : RemapTypeFn(std::move(RemapTypeFn)),
+      ShouldPreserveUseListOrder(ShouldPreserveUseListOrder) {
   if (ShouldPreserveUseListOrder)
     UseListOrders = predictUseListOrder(M);
 
   // Enumerate the global variables.
   for (const GlobalVariable &GV : M.globals()) {
     EnumerateValue(&GV);
-    EnumerateType(GV.getValueType());
+    EnumerateType(GV.getValueType(), &GV);
   }
 
   // Enumerate the functions.
   for (const Function & F : M) {
     EnumerateValue(&F);
-    EnumerateType(F.getValueType());
+    EnumerateType(F.getValueType(), &F);
     EnumerateAttributes(F.getAttributes());
   }
 
   // Enumerate the aliases.
   for (const GlobalAlias &GA : M.aliases()) {
     EnumerateValue(&GA);
-    EnumerateType(GA.getValueType());
+    EnumerateType(GA.getValueType(), &GA);
   }
 
   // Enumerate the ifuncs.
   for (const GlobalIFunc &GIF : M.ifuncs()) {
     EnumerateValue(&GIF);
-    EnumerateType(GIF.getValueType());
+    EnumerateType(GIF.getValueType(), &GIF);
   }
 
   // Remember what is the cutoff between globalvalue's and other constants.
@@ -420,7 +422,7 @@ ValueEnumerator::ValueEnumerator(const Module &M,
   // Enumerate types used by function bodies and argument lists.
   for (const Function &F : M) {
     for (const Argument &A : F.args())
-      EnumerateType(A.getType());
+      EnumerateType(A.getType(), &A);
 
     // Enumerate metadata attached to this function.
     MDs.clear();
@@ -479,11 +481,11 @@ ValueEnumerator::ValueEnumerator(const Module &M,
         if (auto *GEP = dyn_cast<GetElementPtrInst>(&I))
           EnumerateType(GEP->getSourceElementType());
         if (auto *AI = dyn_cast<AllocaInst>(&I))
-          EnumerateType(AI->getAllocatedType());
-        EnumerateType(I.getType());
+          EnumerateType(AI->getAllocatedType(), AI);
+        EnumerateType(I.getType(), &I);
         if (const auto *Call = dyn_cast<CallBase>(&I)) {
           EnumerateAttributes(Call->getAttributes());
-          EnumerateType(Call->getFunctionType());
+          EnumerateType(Call->getFunctionType(), Call);
         }
 
         // Enumerate metadata attached with this instruction.
@@ -601,7 +603,8 @@ void ValueEnumerator::OptimizeConstants(unsigned CstStart, unsigned CstEnd) {
                           const std::pair<const Value *, unsigned> &RHS) {
     // Sort by plane.
     if (LHS.first->getType() != RHS.first->getType())
-      return getTypeID(LHS.first->getType()) < getTypeID(RHS.first->getType());
+      return getTypeID(LHS.first->getType(), LHS.first) <
+             getTypeID(RHS.first->getType(), RHS.first);
     // Then by frequency.
     return LHS.second > RHS.second;
   });
@@ -929,7 +932,7 @@ void ValueEnumerator::EnumerateValue(const Value *V) {
       Comdats.insert(C);
 
   // Enumerate the type of this value.
-  EnumerateType(V->getType());
+  EnumerateType(V->getType(), V);
 
   if (const Constant *C = dyn_cast<Constant>(V)) {
     if (isa<GlobalValue>(C)) {
@@ -967,7 +970,12 @@ void ValueEnumerator::EnumerateValue(const Value *V) {
 }
 
 
-void ValueEnumerator::EnumerateType(Type *Ty) {
+void ValueEnumerator::EnumerateType(Type *Ty, const Value *V) {
+  // Map the type into its emitted form (only noteworthy when emitting
+  // legacy typed-pointer bitcode, where opaque pointers are replaced by
+  // synthesized typed pointers resolved per value).
+  Ty = remapType(Ty, V);
+
   unsigned *TypeID = &TypeMap[Ty];
 
   // We've already seen this type.
@@ -1006,7 +1014,7 @@ void ValueEnumerator::EnumerateType(Type *Ty) {
 // Enumerate the types for the specified value.  If the value is a constant,
 // walk through it, enumerating the types of the constant.
 void ValueEnumerator::EnumerateOperandType(const Value *V) {
-  EnumerateType(V->getType());
+  EnumerateType(V->getType(), V);
 
   assert(!isa<MetadataAsValue>(V) && "Unexpected metadata operand");
 
