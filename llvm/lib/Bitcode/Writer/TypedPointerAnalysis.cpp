@@ -356,16 +356,29 @@ void TypedPointerAnalysis::gatherStructFieldEvidence() {
   std::function<void(const GEPOperator *)> ScanGEP =
       [this, &AddCand](const GEPOperator *GEP) {
         auto *ST = dyn_cast<StructType>(GEP->getSourceElementType());
-        if (!ST || ST->isOpaque() || GEP->getNumOperands() != 2)
+        if (!ST || ST->isOpaque())
           return;
-        const auto *CI = dyn_cast<ConstantInt>(GEP->getOperand(1));
-        if (!CI)
+        // Canonical struct-field GEP (LLVM 16 form):
+        //   getelementptr %ST, ptr %base, i32 0, i32 FieldIdx
+        // -- 3 operands, a zero leading index, then the field index.
+        if (GEP->getNumOperands() != 3)
+          return;
+        const auto *Zero = dyn_cast<ConstantInt>(GEP->getOperand(1));
+        const auto *CI = dyn_cast<ConstantInt>(GEP->getOperand(2));
+        if (!Zero || !Zero->isZero() || !CI)
           return;
         unsigned Idx = CI->getZExtValue();
         if (Idx >= ST->getNumElements() ||
             !ST->getElementType(Idx)->isPointerTy())
           return;
-        AddCand(ST, Idx, resolvePointee(GEP));
+        // resolvePointee() of the GEP gives the type of the *cell* the GEP
+        // points at; for a pointer field that cell holds pointer values, so
+        // the field candidate is the cell content type's element type --
+        // the same level the initializer path records (resolvePointee() of
+        // the stored value).
+        Type *Cell = resolvePointee(GEP);
+        if (auto *TP = dyn_cast_or_null<TypedPointerType>(Cell))
+          AddCand(ST, Idx, TP->getElementType());
       };
 
   // Evidence 2: global initializers. A struct element initialized with a

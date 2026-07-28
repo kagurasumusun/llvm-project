@@ -103,11 +103,14 @@ static llvm::Intrinsic::ID getIntIntrinsic(StringRef Name) {
 }
 
 /// Map __air_* derivative function names to LLVM intrinsics.
+///
+/// Note: there is no llvm::Intrinsic::dx_fwidth in current LLVM; fwidth is
+/// synthesized below as fabs(dpdx(x)) + fabs(dpdy(x)), following the DirectX
+/// definition which Metal matches for pixel derivatives.
 static llvm::Intrinsic::ID getDerivativeIntrinsic(StringRef Name) {
   return llvm::StringSwitch<llvm::Intrinsic::ID>(Name)
       .Case("__air_dfdx", llvm::Intrinsic::dx_dpdx)
       .Case("__air_dfdy", llvm::Intrinsic::dx_dpdy)
-      .Case("__air_fwidth", llvm::Intrinsic::dx_fwidth)
       .Default(llvm::Intrinsic::not_intrinsic);
 }
 
@@ -141,6 +144,20 @@ RValue CodeGenFunction::EmitMetalBuiltinExpr(const CallExpr *E,
   if (llvm::Intrinsic::ID IID = getDerivativeIntrinsic(BuiltinName)) {
     Function *Fn = CGM.getIntrinsic(IID, Args[0]->getType());
     return RValue::get(Builder.CreateCall(Fn, Args));
+  }
+
+  // fwidth(x) = fabs(dfdx(x)) + fabs(dfdy(x))
+  if (BuiltinName == "__air_fwidth") {
+    llvm::Type *Ty = Args[0]->getType();
+    Value *DX = Builder.CreateCall(
+        CGM.getIntrinsic(llvm::Intrinsic::dx_dpdx, Ty), Args[0]);
+    Value *DY = Builder.CreateCall(
+        CGM.getIntrinsic(llvm::Intrinsic::dx_dpdy, Ty), Args[0]);
+    Value *AbsDX =
+        Builder.CreateCall(CGM.getIntrinsic(llvm::Intrinsic::fabs, Ty), DX);
+    Value *AbsDY =
+        Builder.CreateCall(CGM.getIntrinsic(llvm::Intrinsic::fabs, Ty), DY);
+    return RValue::get(Builder.CreateFAdd(AbsDX, AbsDY));
   }
 
   // All other builtins (texture, atomic, simd, raytracing, mesh, etc.)
