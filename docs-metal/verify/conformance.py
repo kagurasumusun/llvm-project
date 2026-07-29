@@ -45,7 +45,7 @@ blk=air_h.split('AIRAddrSpaceMap[] = {')[1].split('};')[0]
 amap={n:int(v) for v,n in re.findall(r'(\d+), // (\w+)',blk)}
 for n,w in [('metal_device',1),('metal_constant',2),('metal_threadgroup',3),
             ('metal_thread',0),('metal_threadgroup_imageblock',4),
-            ('metal_object_data',7),('metal_ray_data',9)]:
+            ('metal_object_data',6),('metal_ray_data',9)]:
     rec('addrspace',n,'MATCH' if amap.get(n)==w else 'MISMATCH',f'want {w} got {amap.get(n)}')
 
 # ---- 3. Types --------------------------------------------------------------
@@ -120,6 +120,16 @@ rec('sema','member function address-space qualifier',
     'stdlib uses 7,668 of these')
 scalar = read('clang/lib/CodeGen/CGExprScalar.cpp')
 cgm = read('clang/lib/CodeGen/CGMetal.cpp')
+rec('entry-metadata','vertex/fragment output operands',
+    'MATCH' if 'EmitMetalStageOutputs' in cgm else 'MISSING',
+    'golden P02: air.position / air.vertex_output / air.render_target')
+rec('entry-metadata','generated(...) stage connection id',
+    'MATCH' if 'getMetalGeneratedID' in cgm else 'MISSING',
+    'rule: <strlen(name)><name><itanium type>, all 10 corpus instances decode')
+attrtd = read('clang/include/clang/Basic/Attr.td')
+rec('attributes','grid_origin / grid_size',
+    'MATCH' if ('"grid_origin"' in attrtd and '"grid_size"' in attrtd) else 'MISSING',
+    'measured: real attributes, 16 diagnostics each')
 rec('codegen','fast_ infix follows element type (f32 yes, f16 no)',
     'MATCH' if 'airMathOpTakesFastInfix' in cgm else 'MISSING',
     'measured: air.sqrt.f16 vs air.fast_sqrt.f32')

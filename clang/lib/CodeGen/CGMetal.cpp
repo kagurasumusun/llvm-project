@@ -563,6 +563,90 @@ std::string CodeGenModule::getMetalGeneratedID(StringRef Name, QualType Ty) {
   return (Twine(Name.size()) + Name + T).str();
 }
 
+/// Emit the output operand list for a vertex or fragment entry point.
+///
+/// The second operand of the entry node is the output list. Its shape is taken
+/// from research/golden/P02:
+///
+///   vertex:
+///     !{!"air.position", !"air.arg_type_name", !"float4",
+///       !"air.arg_name", !"pos"}
+///     !{!"air.vertex_output", !"generated(2uvDv2_f)",
+///       !"air.arg_type_name", !"float2", !"air.arg_name", !"uv"}
+///   fragment:
+///     !{!"air.render_target", i32 0, i32 0,
+///       !"air.arg_type_name", !"float4"}
+///
+/// A user-defined vertex output carries the `generated(...)` connection id
+/// that the matching fragment input repeats, which is how the runtime pairs
+/// the two stages up.
+llvm::MDNode *
+CodeGenModule::EmitMetalStageOutputs(const FunctionDecl *FD, bool IsVertex) {
+  llvm::LLVMContext &Ctx = getLLVMContext();
+  llvm::SmallVector<llvm::Metadata *, 8> Outs;
+
+  QualType RetTy = FD->getReturnType();
+  if (RetTy->isVoidType())
+    return llvm::MDNode::get(Ctx, Outs);
+
+  // A struct return describes one output per field; a scalar or vector return
+  // is a single unnamed render target.
+  const RecordDecl *RD = RetTy->getAsRecordDecl();
+  if (!RD) {
+    if (!IsVertex) {
+      MetalArgMetadataBuilder B(Ctx);
+      B.addStr("air.render_target");
+      B.addInt(0);
+      B.addInt(0);
+      B.addStr("air.arg_type_name");
+      B.addStr(getMetalTypeName(RetTy));
+      Outs.push_back(B.finish());
+    }
+    return llvm::MDNode::get(Ctx, Outs);
+  }
+
+  unsigned ColorIndex = 0;
+  for (const FieldDecl *FD2 : RD->fields()) {
+    MetalArgMetadataBuilder B(Ctx);
+    QualType FTy = FD2->getType();
+
+    if (FD2->hasAttr<MetalPositionAttr>()) {
+      B.addStr("air.position");
+    } else if (FD2->hasAttr<MetalPointSizeAttr>()) {
+      B.addStr("air.point_size");
+    } else if (FD2->hasAttr<MetalClipDistanceAttr>()) {
+      B.addStr("air.clip_distance");
+    } else if (FD2->hasAttr<MetalRenderTargetArrayIndexAttr>()) {
+      B.addStr("air.render_target_array_index");
+    } else if (FD2->hasAttr<MetalViewportArrayIndexAttr>()) {
+      B.addStr("air.viewport_array_index");
+    } else if (const auto *CA = FD2->getAttr<MetalColorAttr>()) {
+      B.addStr("air.render_target");
+      B.addInt(getMetalAttrIndex(CA->getIndex()));
+      B.addInt(0);
+    } else if (!IsVertex) {
+      // An unattributed fragment field is the next colour attachment.
+      B.addStr("air.render_target");
+      B.addInt(ColorIndex++);
+      B.addInt(0);
+    } else {
+      // A user-defined vertex output, connected by its generated id.
+      B.addStr("air.vertex_output");
+      B.addStr("generated(" + getMetalGeneratedID(FD2->getName(), FTy) + ")");
+    }
+
+    B.addStr("air.arg_type_name");
+    B.addStr(getMetalTypeName(FTy));
+    if (!FD2->getName().empty()) {
+      B.addStr("air.arg_name");
+      B.addStr(FD2->getName());
+    }
+    Outs.push_back(B.finish());
+  }
+
+  return llvm::MDNode::get(Ctx, Outs);
+}
+
 void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
                                                 llvm::Function *Fn) {
   if (!getLangOpts().Metal || !FD)
@@ -677,7 +761,14 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
   //   !9 = !{void (...)* @probe_p01_kernel, !10, !11}
   //   !10 = !{}
   llvm::Metadata *FnMD = llvm::ConstantAsMetadata::get(Fn);
-  llvm::Metadata *Outputs = llvm::MDNode::get(Ctx, std::nullopt);
+  // Kernels have no outputs (the second operand is an empty node, as in
+  // golden P01); vertex and fragment stages describe theirs.
+  bool IsVertexStage = FD->hasAttr<MetalVertexAttr>();
+  bool IsFragmentStage = FD->hasAttr<MetalFragmentAttr>();
+  llvm::Metadata *Outputs =
+      (IsVertexStage || IsFragmentStage)
+          ? cast<llvm::Metadata>(EmitMetalStageOutputs(FD, IsVertexStage))
+          : cast<llvm::Metadata>(llvm::MDNode::get(Ctx, std::nullopt));
   llvm::Metadata *Args = llvm::MDNode::get(Ctx, ArgNodes);
 
   llvm::SmallVector<llvm::Metadata *, 4> FnNodeOps{FnMD, Outputs, Args};

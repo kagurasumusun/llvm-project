@@ -1662,6 +1662,9 @@ private:
   /// matching fragment input.
   std::string getMetalGeneratedID(StringRef Name, QualType Ty);
 
+  /// Build the output operand list for a Metal vertex or fragment entry point.
+  llvm::MDNode *EmitMetalStageOutputs(const FunctionDecl *FD, bool IsVertex);
+
   /// Try to emit external vtables as available_externally if they have emitted
   /// all inlined virtual functions.  It runs after EmitDeferred() and therefore
   /// is not allowed to create new references to things that need to be emitted
