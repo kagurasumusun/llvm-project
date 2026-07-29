@@ -55,6 +55,10 @@ TYPE("objc++-cpp-output",        PP_ObjCXX_Alias, INVALID,      "mii",    phases
 TYPE("objective-c++",            ObjCXX,       PP_ObjCXX,       "mm",     phases::Preprocess, phases::Compile, phases::Backend, phases::Assemble, phases::Link)
 TYPE("renderscript",             RenderScript, PP_C,            "rs",     phases::Preprocess, phases::Compile, phases::Backend, phases::Assemble, phases::Link)
 TYPE("hlsl",                     HLSL,         PP_CXX,          "hlsl",   phases::Preprocess, phases::Compile, phases::Backend)
+// Metal Shading Language. The pipeline stops after Backend: the compiler
+// produces a .air file (an LLVM bitcode container) which is then wrapped into
+// a .metallib, so there is no assembler stage.
+TYPE("metal",                    Metal,        PP_CXX,          "metal",  phases::Preprocess, phases::Compile, phases::Backend)
 
 // C family input files to precompile.
 TYPE("c-header-cpp-output",      PP_CHeader,   INVALID,         "i",      phases::Precompile)

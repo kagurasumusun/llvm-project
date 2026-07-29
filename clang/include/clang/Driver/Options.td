@@ -7103,6 +7103,26 @@ def fcgl : DXCFlag<"fcgl">, Alias<emit_pristine_llvm>;
 def enable_16bit_types : DXCFlag<"enable-16bit-types">, Alias<fnative_half_type>,
   HelpText<"Enable 16-bit types and disable min precision types."
            "Available in HLSL 2018 and shader model 6.2.">;
+// Metal Shading Language options.
+//
+// The spellings and help text are transcribed from the reference toolchain's
+// own `metal --help` output, captured in
+// reference/metal-ast-macos-air64/meta/metal-help.txt.
+def fmetal_math_fp32_functions_EQ : Joined<["-"], "fmetal-math-fp32-functions=">,
+  Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Controls default math functions for single precision "
+           "floating-point: fast (selects the corresponding functions in "
+           "'metal::fast' namespace) | precise (selects the corresponding "
+           "functions in 'metal::precise' namespace). Default is 'fast'.">,
+  Values<"fast,precise">;
+def fmetal_math_mode_EQ : Joined<["-"], "fmetal-math-mode=">,
+  Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Floating point math mode for Metal">;
+def fmetal_enable_logging : Flag<["-"], "fmetal-enable-logging">,
+  Group<f_Group>, Flags<[CC1Option]>,
+  MarshallingInfoFlag<LangOpts<"MetalEnableLogging">>,
+  HelpText<"Enable logging in Metal">;
+
 def hlsl_entrypoint : Option<["-"], "hlsl-entry", KIND_SEPARATE>,
                       Group<dxc_Group>,
                       Flags<[CC1Option]>,

@@ -296,6 +296,44 @@ def main(info):
     check("every air.* key CGMetal emits was observed in Apple output",
           not unknown, "unknown %s" % sorted(unknown))
 
+    print("== AIR version from deployment target ==")
+    # The driver derives the _vNN suffix from the deployment target. Re-derive
+    # the expected mapping from Apple's own -### logs and compare it against
+    # the table compiled into AIR.cpp.
+    logdir = os.path.join(ast_dir, "log")
+    measured_map = {}
+    tri_re = re.compile(r"air64_v(\d+)-apple-macosx(\d+)\.(\d+)")
+    if os.path.isdir(logdir):
+        for name in os.listdir(logdir):
+            if not name.endswith((".err", ".stdout")):
+                continue
+            try:
+                text = open(os.path.join(logdir, name), errors="ignore").read()
+            except OSError:
+                continue
+            for ver, maj, minor in tri_re.findall(text):
+                measured_map[(int(maj), int(minor))] = int(ver)
+
+    air_cpp = read("clang/lib/Basic/Targets/AIR.cpp")
+    body = air_cpp.split("getAIRVersionForMacOSVersion")[-1]
+    # The function has two switches: the first is on Minor inside `if
+    # (Major == 10)`, the second is on Major.
+    minor_part, major_part = body.split("switch (Major)", 1)
+    impl_10x = dict(re.findall(r"case (\d+):\s*\n\s*return (\d+);", minor_part))
+    impl_major = dict(re.findall(r"case (\d+):\s*\n\s*return (\d+);", major_part))
+    bad_air = []
+    for (maj, minor), want in sorted(measured_map.items()):
+        if maj == 10:
+            got = impl_10x.get(str(minor))
+        elif maj >= 26:
+            got = "28"
+        else:
+            got = impl_major.get(str(maj))
+        if got is None or int(got) != want:
+            bad_air.append(((maj, minor), want, got))
+    check("AIR version table matches driver measurements (%d targets)"
+          % len(measured_map), not bad_air, str(bad_air[:5]))
+
     print("\n%d checks, %d failures" % (checks, len(failures)))
     return 1 if failures else 0
 

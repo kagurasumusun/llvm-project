@@ -3493,6 +3493,56 @@ static void RenderHLSLOptions(const ArgList &Args, ArgStringList &CmdArgs,
     CmdArgs.push_back("-finclude-default-header");
 }
 
+/// Add the cc1 arguments that Apple's `metal` driver always passes.
+///
+/// Transcribed from a real invocation captured with `-###` and recorded in
+/// reference/metal-ast-macos-air64/meta/metal-cc1-invocations.txt.gz. The
+/// relevant portion of that command line is:
+///
+///   -cc1 -triple air64_v21-apple-macosx10.14.0 -finclude-default-header
+///   -menable-no-infs -menable-no-nans -fapprox-func
+///   -menable-unsafe-fp-math -fno-signed-zeros -mreassociate
+///   -freciprocal-math -ffp-contract=fast -ffast-math -ffinite-math-only
+///   -fmetal-math-fp32-functions=fast -fno-verbose-asm -no-integrated-as
+///   -std=osx-metal1.2 -fmodules
+///   -fmodule-map-file=.../lib/clang/32023.883/include/metal/module.modulemap
+///   -no-opaque-pointers -x metal
+///
+/// Note that Apple compiles Metal with typed pointers. The bitcode in every
+/// captured .air and .metallib is in typed pointer form, so this driver keeps
+/// that default for source compatibility with the shipping runtime libraries.
+static void RenderMetalOptions(const Driver &D, const ArgList &Args,
+                               types::ID InputType, ArgStringList &CmdArgs) {
+  if (!types::isMetal(InputType))
+    return;
+
+  // Pull in <metal_stdlib> the way `metal` does unless asked not to.
+  if (!Args.hasArg(options::OPT_nostdinc))
+    CmdArgs.push_back("-finclude-default-header");
+
+  // Apple's default for Metal is fast math with the single precision math
+  // functions routed to the metal::fast namespace.
+  if (Arg *A = Args.getLastArg(options::OPT_fmetal_math_fp32_functions_EQ)) {
+    StringRef Val = A->getValue();
+    if (Val != "fast" && Val != "precise") {
+      D.Diag(diag::err_drv_invalid_value) << A->getAsString(Args) << Val;
+      return;
+    }
+    A->render(Args, CmdArgs);
+  } else {
+    CmdArgs.push_back("-fmetal-math-fp32-functions=fast");
+  }
+
+  if (Arg *A = Args.getLastArg(options::OPT_fmetal_math_mode_EQ))
+    A->render(Args, CmdArgs);
+
+  if (Args.hasArg(options::OPT_fmetal_enable_logging))
+    CmdArgs.push_back("-fmetal-enable-logging");
+
+  // Apple emits typed pointers for AIR.
+  CmdArgs.push_back("-no-opaque-pointers");
+}
+
 static void RenderARCMigrateToolOptions(const Driver &D, const ArgList &Args,
                                         ArgStringList &CmdArgs) {
   bool ARCMTEnabled = false;
@@ -6384,6 +6434,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Forward hlsl options to -cc1
   RenderHLSLOptions(Args, CmdArgs, InputType);
+
+  RenderMetalOptions(D, Args, InputType, CmdArgs);
 
   if (IsHIP) {
     if (Args.hasFlag(options::OPT_fhip_new_launch_api,

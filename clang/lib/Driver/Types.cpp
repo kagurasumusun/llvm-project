@@ -245,6 +245,9 @@ bool types::isCXX(ID Id) {
   case TY_HIP:
   case TY_PP_HIP:
   case TY_HIP_DEVICE:
+  // The Metal Shading Language is a C++ dialect; every MSL version is based
+  // on C++11, C++14 or C++17 (docs-metal/01-ANALYSIS.md section 1.9).
+  case TY_Metal:
     return true;
   }
 }
@@ -287,6 +290,8 @@ bool types::isHIP(ID Id) {
 }
 
 bool types::isHLSL(ID Id) { return Id == TY_HLSL; }
+
+bool types::isMetal(ID Id) { return Id == TY_Metal; }
 
 bool types::isSrcFile(ID Id) {
   return Id != TY_Object && getPreprocessedType(Id) != TY_INVALID;
@@ -356,6 +361,7 @@ types::ID types::lookupTypeForExtension(llvm::StringRef Ext) {
       .Case("cppm", TY_CXXModule)
       .Case("cxxm", TY_CXXModule)
       .Case("hlsl", TY_HLSL)
+      .Case("metal", TY_Metal)
       .Default(TY_INVALID);
 }
 

@@ -26,6 +26,7 @@
 #ifndef LLVM_CLANG_LIB_BASIC_TARGETS_AIR_H
 #define LLVM_CLANG_LIB_BASIC_TARGETS_AIR_H
 
+#include "clang/Basic/AIRVersion.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/Support/Compiler.h"
@@ -81,10 +82,6 @@ static const unsigned AIRAddrSpaceMap[] = {
     7, // metal_object_data
     9, // metal_ray_data
 };
-
-/// Map a deployment target macOS version to the AIR version that Apple's
-/// driver encodes in the `_vNN` triple suffix. Defined in AIR.cpp.
-unsigned getAIRVersionForMacOSVersion(unsigned Major, unsigned Minor);
 
 class LLVM_LIBRARY_VISIBILITY AIRTargetInfo : public TargetInfo {
 public:

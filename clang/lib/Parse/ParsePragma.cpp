@@ -98,6 +98,24 @@ struct PragmaFPContractHandler : public PragmaHandler {
                     Token &FirstToken) override;
 };
 
+/// Handles `#pragma METAL internals : enable|disable` and
+/// `#pragma METAL fp math_mode(safe|fast|precise)`.
+///
+/// Both are required to parse Apple's own standard library: a scan of
+/// reference-apple/clang/32023.883/include/metal finds
+/// `#pragma METAL internals : enable` and its matching `disable` 52 times
+/// each, and `#pragma METAL fp math_mode(safe)` 90 times. Without these the
+/// unmodified Apple headers cannot be compiled.
+struct PragmaMetalHandler : public PragmaHandler {
+  PragmaMetalHandler(Sema &Actions)
+      : PragmaHandler("METAL"), Actions(Actions) {}
+  void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
+                    Token &FirstToken) override;
+
+private:
+  Sema &Actions;
+};
+
 // Pragma STDC implementations.
 
 /// PragmaSTDC_FENV_ACCESSHandler - "\#pragma STDC FENV_ACCESS ...".
@@ -416,6 +434,11 @@ void Parser::initializePragmaHandlers() {
 
     PP.AddPragmaHandler("OPENCL", FPContractHandler.get());
   }
+
+  if (getLangOpts().Metal) {
+    MetalHandler = std::make_unique<PragmaMetalHandler>(Actions);
+    PP.AddPragmaHandler(MetalHandler.get());
+  }
   if (getLangOpts().OpenMP)
     OpenMPHandler = std::make_unique<PragmaOpenMPHandler>();
   else
@@ -537,6 +560,11 @@ void Parser::resetPragmaHandlers() {
     PP.RemovePragmaHandler("OPENCL", OpenCLExtensionHandler.get());
     OpenCLExtensionHandler.reset();
     PP.RemovePragmaHandler("OPENCL", FPContractHandler.get());
+  }
+
+  if (getLangOpts().Metal) {
+    PP.RemovePragmaHandler(MetalHandler.get());
+    MetalHandler.reset();
   }
   PP.RemovePragmaHandler(OpenMPHandler.get());
   OpenMPHandler.reset();
@@ -4035,3 +4063,97 @@ void PragmaRISCVHandler::HandlePragma(Preprocessor &PP,
 
   Actions.DeclareRISCVVBuiltins = true;
 }
+
+/// Parse `#pragma METAL ...`.
+///
+/// Two directives are recognised, both taken from Apple's shipping headers:
+///
+///   #pragma METAL internals : enable
+///   #pragma METAL internals : disable
+///     Toggles visibility of the standard library's internal declarations.
+///
+///   #pragma METAL fp math_mode(safe)
+///     Selects the floating point evaluation mode for the remainder of the
+///     translation unit. `safe` disables the fast math relaxations that the
+///     driver otherwise turns on by default.
+void PragmaMetalHandler::HandlePragma(Preprocessor &PP,
+                                      PragmaIntroducer Introducer,
+                                      Token &FirstToken) {
+  Token Tok;
+  PP.Lex(Tok);
+
+  if (Tok.isNot(tok::identifier)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier) << "METAL";
+    return;
+  }
+
+  IdentifierInfo *II = Tok.getIdentifierInfo();
+
+  if (II->isStr("internals")) {
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::colon)) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_colon) << "METAL";
+      return;
+    }
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::identifier)) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+          << "METAL";
+      return;
+    }
+    IdentifierInfo *State = Tok.getIdentifierInfo();
+    if (!State->isStr("enable") && !State->isStr("disable")) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+          << "METAL";
+      return;
+    }
+    // The toggle only affects name visibility inside Apple's own headers,
+    // which this frontend does not restrict, so it is accepted and ignored.
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::eod))
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+          << "METAL";
+    return;
+  }
+
+  if (II->isStr("fp")) {
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::identifier) ||
+        !Tok.getIdentifierInfo()->isStr("math_mode")) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+          << "METAL";
+      return;
+    }
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::l_paren)) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_lparen) << "METAL";
+      return;
+    }
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::identifier)) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+          << "METAL";
+      return;
+    }
+    IdentifierInfo *Mode = Tok.getIdentifierInfo();
+    if (!Mode->isStr("safe") && !Mode->isStr("fast") &&
+        !Mode->isStr("precise")) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+          << "METAL";
+      return;
+    }
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::r_paren)) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_rparen) << "METAL";
+      return;
+    }
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::eod))
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+          << "METAL";
+    return;
+  }
+
+  PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier) << "METAL";
+}
+

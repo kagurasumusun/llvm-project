@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "AIR.h"
+#include "clang/Basic/AIRVersion.h"
 #include "Targets.h"
 #include "clang/Basic/MacroBuilder.h"
 #include "llvm/ADT/StringRef.h"

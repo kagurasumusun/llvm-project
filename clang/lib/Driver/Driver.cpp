@@ -53,6 +53,7 @@
 #include "ToolChains/XCore.h"
 #include "ToolChains/ZOS.h"
 #include "clang/Basic/TargetID.h"
+#include "clang/Basic/AIRVersion.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Action.h"
@@ -523,6 +524,65 @@ DerivedArgList *Driver::TranslateInputArgs(const InputArgList &Args) const {
 ///
 /// This routine provides the logic to compute a target triple from various
 /// args passed to the driver and the default triple string.
+/// Fill in the `_vNN` AIR version suffix of an AIR triple from its deployment
+/// target, if the user did not spell one out.
+///
+/// The AIR version is a function of the deployment target alone. It is *not*
+/// affected by `-std=`; that selects `!air.language_version` instead. This was
+/// established by sweeping the reference driver over every supported
+/// deployment target and reading back the triple it chose (the `-###` and
+/// `-ccc-print-bindings` logs in reference/metal-ast-macos-air64/log):
+///
+///   macOS 10.11 -> air64_v18     macOS 12.x -> air64_v24
+///   macOS 10.12 -> air64_v111    macOS 13.x -> air64_v25
+///   macOS 10.13 -> air64_v20     macOS 14.x -> air64_v26
+///   macOS 10.14 -> air64_v21     macOS 15.x -> air64_v27
+///   macOS 10.15 -> air64_v22     macOS 26.x -> air64_v28
+///   macOS 11.x  -> air64_v23
+///
+/// The same `-std=metal3.1` therefore yields air64_v27 against macOS 15 and
+/// air64_v28 against macOS 26.
+static void setAIRVersionFromDeploymentTarget(llvm::Triple &Target) {
+  if (!Target.isAIR())
+    return;
+
+  // Respect an explicitly spelled version such as `air64_v28`.
+  StringRef ArchName = Target.getArchName();
+  if (ArchName.contains("_v"))
+    return;
+
+  VersionTuple OSVersion = Target.getOSVersion();
+  unsigned Major = OSVersion.getMajor();
+  unsigned Minor = OSVersion.getMinor().value_or(0);
+  if (!Major)
+    return;
+
+  unsigned AIRVersion;
+  if (Target.isMacOSX()) {
+    AIRVersion = clang::targets::getAIRVersionForMacOSVersion(Major, Minor);
+  } else {
+    // iOS, tvOS, watchOS and visionOS follow their own release numbering. The
+    // observed correspondence (research/datasets/os_triple_map.csv) pairs each
+    // AIR version with the same generation as macOS, e.g. air64_v23 appears as
+    // air64_v23-apple-ios14.0.0 alongside air64_v23-apple-macosx11.0.0.
+    if (Target.isWatchOS())
+      AIRVersion = Major >= 10 ? 26 : (Major >= 9 ? 25 : (Major >= 7 ? 23 : 22));
+    else if (Target.isDriverKit())
+      return;
+    else
+      AIRVersion = Major >= 26 ? 28
+                   : Major >= 18 ? 27
+                   : Major >= 17 ? 26
+                   : Major >= 16 ? 25
+                   : Major >= 15 ? 24
+                   : Major >= 14 ? 23
+                                 : 22;
+  }
+
+  Target.setArchName(
+      (Twine(Target.getArchName()) + "_v" + Twine(AIRVersion)).str());
+}
+
 static llvm::Triple computeTargetTriple(const Driver &D,
                                         StringRef TargetTriple,
                                         const ArgList &Args,
@@ -686,6 +746,9 @@ static llvm::Triple computeTargetTriple(const Driver &D,
         Target.setArch(llvm::Triple::riscv64);
     }
   }
+
+  // Fill in the AIR version suffix from the deployment target.
+  setAIRVersionFromDeploymentTarget(Target);
 
   return Target;
 }
