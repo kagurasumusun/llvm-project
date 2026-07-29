@@ -6102,6 +6102,12 @@ public:
   /// new/delete, virtual functions, unions, goto, ...).
   bool DiagnoseMetalUnsupported(SourceLocation Loc, StringRef Construct);
 
+  /// Reject a declaration that uses a C++ construct MSL does not support.
+  bool DiagnoseMetalUnsupportedDecl(Decl *D);
+
+  /// Reject a type MSL does not provide (double, long long, ...).
+  bool DiagnoseMetalUnsupportedType(QualType Ty, SourceLocation Loc);
+
   /// Verify that an attribute is available in the active MSL version, emitting
   /// err_metal_attribute_requires_std if it is not.
   bool CheckMetalAttributeVersion(const ParsedAttr &AL, unsigned MinVersion);

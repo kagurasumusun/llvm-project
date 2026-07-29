@@ -1228,6 +1228,83 @@ void ScalarExprEmitter::EmitIntegerSignChangeCheck(Value *Src, QualType SrcType,
                 {Src, Dst});
 }
 
+/// Spell an LLVM type the way AIR intrinsic suffixes do: `f32`, `f16`, `i32`,
+/// `v4f32`, `v3i32`, ...
+static std::string getAIRTypeSuffix(llvm::Type *Ty) {
+  std::string Prefix;
+  if (auto *VT = dyn_cast<llvm::FixedVectorType>(Ty)) {
+    Prefix = ("v" + llvm::Twine(VT->getNumElements())).str();
+    Ty = VT->getElementType();
+  }
+  if (Ty->isHalfTy())
+    return Prefix + "f16";
+  if (Ty->isFloatTy())
+    return Prefix + "f32";
+  if (Ty->isDoubleTy())
+    return Prefix + "f64";
+  if (Ty->isBFloatTy())
+    return Prefix + "bf16";
+  if (auto *IT = dyn_cast<llvm::IntegerType>(Ty))
+    return Prefix + "i" + std::to_string(IT->getBitWidth());
+  return std::string();
+}
+
+/// Emit a Metal numeric conversion as a call to the matching `air.convert.*`
+/// intrinsic, or return null if this conversion is not one of them.
+///
+/// Apple lowers ordinary C++ numeric conversions to a named intrinsic rather
+/// than to the corresponding LLVM cast instruction. research/golden/P02
+/// contains, for the expression `float(vid)` where `vid` is a `uint`:
+///
+///   %6 = tail call fast float @air.convert.f.f32.u.i32(i32 %5)
+///
+/// The naming is `air.convert.<dstKind>.<dstType>.<srcKind>.<srcType>` where
+/// the kind is `f` for floating point, `s` for signed integer and `u` for
+/// unsigned integer. All 57 variants observed across the reference corpus
+/// follow this rule; see docs-metal/data/air_convert_variants.txt.
+///
+/// Only float/int conversions go through this path. Integer-to-integer
+/// conversions are emitted as plain `trunc`/`zext`/`sext` by Apple as well, so
+/// they are left to the generic code below.
+static Value *emitMetalConvert(CodeGenFunction &CGF, CGBuilderTy &Builder,
+                               Value *Src, llvm::Type *SrcTy, llvm::Type *DstTy,
+                               bool SrcIsSigned, bool DstIsSigned) {
+  auto elementOf = [](llvm::Type *T) -> llvm::Type * {
+    if (auto *VT = dyn_cast<llvm::FixedVectorType>(T))
+      return VT->getElementType();
+    return T;
+  };
+  llvm::Type *SrcElem = elementOf(SrcTy);
+  llvm::Type *DstElem = elementOf(DstTy);
+
+  bool SrcIsFP = SrcElem->isFloatingPointTy();
+  bool DstIsFP = DstElem->isFloatingPointTy();
+  // Integer to integer is not an air.convert.
+  if (!SrcIsFP && !DstIsFP)
+    return nullptr;
+
+  std::string SrcSuffix = getAIRTypeSuffix(SrcTy);
+  std::string DstSuffix = getAIRTypeSuffix(DstTy);
+  if (SrcSuffix.empty() || DstSuffix.empty())
+    return nullptr;
+
+  StringRef SrcKind = SrcIsFP ? "f" : (SrcIsSigned ? "s" : "u");
+  StringRef DstKind = DstIsFP ? "f" : (DstIsSigned ? "s" : "u");
+
+  std::string Name = ("air.convert." + DstKind + "." + DstSuffix + "." +
+                      SrcKind + "." + SrcSuffix)
+                         .str();
+
+  llvm::FunctionType *FTy =
+      llvm::FunctionType::get(DstTy, {SrcTy}, /*isVarArg=*/false);
+  llvm::FunctionCallee Callee = CGF.CGM.CreateRuntimeFunction(FTy, Name);
+  llvm::CallInst *Call = Builder.CreateCall(Callee, {Src});
+  Call->setTailCall();
+  if (DstTy->isFPOrFPVectorTy())
+    Call->setFastMathFlags(Builder.getFastMathFlags());
+  return Call;
+}
+
 Value *ScalarExprEmitter::EmitScalarCast(Value *Src, QualType SrcType,
                                          QualType DstType, llvm::Type *SrcTy,
                                          llvm::Type *DstTy,
@@ -1259,6 +1336,13 @@ Value *ScalarExprEmitter::EmitScalarCast(Value *Src, QualType SrcType,
 
     if (isa<llvm::IntegerType>(DstElementTy))
       return Builder.CreateIntCast(Src, DstTy, InputSigned, "conv");
+
+    // Metal routes integer to floating point through air.convert.
+    if (CGF.getLangOpts().Metal)
+      if (Value *V = emitMetalConvert(CGF, Builder, Src, SrcTy, DstTy,
+                                      InputSigned, /*DstIsSigned=*/false))
+        return V;
+
     if (InputSigned)
       return Builder.CreateSIToFP(Src, DstTy, "conv");
     return Builder.CreateUIToFP(Src, DstTy, "conv");
@@ -1267,6 +1351,12 @@ Value *ScalarExprEmitter::EmitScalarCast(Value *Src, QualType SrcType,
   if (isa<llvm::IntegerType>(DstElementTy)) {
     assert(SrcElementTy->isFloatingPointTy() && "Unknown real conversion");
     bool IsSigned = DstElementType->isSignedIntegerOrEnumerationType();
+
+    // Metal routes floating point to integer through air.convert.
+    if (CGF.getLangOpts().Metal)
+      if (Value *V = emitMetalConvert(CGF, Builder, Src, SrcTy, DstTy,
+                                      /*SrcIsSigned=*/false, IsSigned))
+        return V;
 
     // If we can't recognize overflow as undefined behavior, assume that
     // overflow saturates. This protects against normal optimizations if we are
@@ -1281,6 +1371,15 @@ Value *ScalarExprEmitter::EmitScalarCast(Value *Src, QualType SrcType,
       return Builder.CreateFPToSI(Src, DstTy, "conv");
     return Builder.CreateFPToUI(Src, DstTy, "conv");
   }
+
+  // Metal routes floating point width changes (half <-> float) through
+  // air.convert as well; the corpus contains e.g.
+  // air.convert.f.v4f32.f.v4f16 for a half4 to float4 conversion.
+  if (CGF.getLangOpts().Metal)
+    if (Value *V = emitMetalConvert(CGF, Builder, Src, SrcTy, DstTy,
+                                    /*SrcIsSigned=*/false,
+                                    /*DstIsSigned=*/false))
+      return V;
 
   if (DstElementTy->getTypeID() < SrcElementTy->getTypeID())
     return Builder.CreateFPTrunc(Src, DstTy, "conv");

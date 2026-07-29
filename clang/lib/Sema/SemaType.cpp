@@ -5575,6 +5575,41 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
                                         : ASIdx);
           EPI.TypeQuals.addAddressSpace(AS);
         }
+
+        // Metal allows a member function to name the address space its object
+        // must live in, written after the parameter list:
+        //
+        //   sampler(const device sampler &) thread = default;
+        //   thread sampler &operator=(const device sampler &) thread;
+        //
+        // Apple's standard library relies on this heavily: a scan of
+        // reference-apple/clang/32023.883/include/metal counts 7,668 such
+        // qualifiers (2,370 `thread`, 1,931 `device`, 1,285 `ray_data`, ...),
+        // so without this the unmodified headers cannot be parsed. The AST
+        // dumps confirm the resulting QualType, e.g. `void () thread` and
+        // `void (device Uniforms &&) thread`
+        // (reference/metal-ast-macos-air64/meta/builtin-signatures.csv.gz).
+        //
+        // Unlike OpenCL C++ there is no generic address space to fall back on:
+        // an unqualified Metal member function operates on a `thread` object,
+        // which is the default address space, so nothing is added in that case.
+        if (state.getSema().getLangOpts().Metal && IsClassMember()) {
+          LangAS ASIdx = LangAS::Default;
+          if (FTI.MethodQualifiers)
+            for (ParsedAttr &attr : FTI.MethodQualifiers->getAttributes()) {
+              LangAS ASIdxNew = attr.asMetalLangAS();
+              if (ASIdxNew == LangAS::Default)
+                continue;
+              if (DiagnoseMultipleAddrSpaceAttributes(S, ASIdx, ASIdxNew,
+                                                      attr.getLoc()))
+                D.setInvalidType(true);
+              else
+                ASIdx = ASIdxNew;
+            }
+          if (ASIdx != LangAS::Default && ASIdx != LangAS::metal_thread)
+            EPI.TypeQuals.addAddressSpace(ASIdx);
+        }
+
         T = Context.getFunctionType(T, ParamTys, EPI);
       }
       break;

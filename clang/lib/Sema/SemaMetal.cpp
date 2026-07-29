@@ -178,6 +178,148 @@ static bool isMetalResourceType(QualType Ty) {
   return Ty->isMetalOpaqueType();
 }
 
+/// Is \p Ty (or the class it wraps) one of the texture handles?
+static bool isMetalTextureType(QualType Ty) {
+  if (const auto *BT = Ty->getAs<BuiltinType>()) {
+    switch (BT->getKind()) {
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  case BuiltinType::Id:                                                        \
+    return StringRef(IRName).contains("texture") ||                            \
+           StringRef(IRName).contains("depth");
+#include "clang/Basic/MetalTypes.def"
+    default:
+      return false;
+    }
+  }
+  // metal::texture2d<T> and friends are class templates wrapping the handle.
+  if (const auto *RD = Ty->getAsCXXRecordDecl())
+    return RD->getName().startswith("texture") ||
+           RD->getName().startswith("depth") ||
+           RD->getName().startswith("_texture") ||
+           RD->getName().startswith("_depth");
+  return false;
+}
+
+/// Is \p Ty the sampler handle (or metal::sampler wrapping it)?
+static bool isMetalSamplerType(QualType Ty) {
+  if (const auto *BT = Ty->getAs<BuiltinType>())
+    return BT->getKind() == BuiltinType::MetalSampler;
+  if (const auto *RD = Ty->getAsCXXRecordDecl())
+    return RD->getName() == "sampler";
+  return false;
+}
+
+/// Non-zero if \p PVD carries any stage-input attribute (so it is not a
+/// resource binding and needs no buffer/texture/sampler attribute).
+static unsigned getAIRStageInputKind(const ParmVarDecl *PVD) {
+  return PVD->hasAttr<MetalThreadPosGridAttr>() ||
+         PVD->hasAttr<MetalThreadPosGroupAttr>() ||
+         PVD->hasAttr<MetalThreadGroupPosGridAttr>() ||
+         PVD->hasAttr<MetalThreadsPerGridAttr>() ||
+         PVD->hasAttr<MetalThreadsPerGroupAttr>() ||
+         PVD->hasAttr<MetalThreadGroupsPerGridAttr>() ||
+         PVD->hasAttr<MetalThreadIndexGroupAttr>() ||
+         PVD->hasAttr<MetalThreadIndexSIMDGroupAttr>() ||
+         PVD->hasAttr<MetalSIMDGroupIndexGroupAttr>() ||
+         PVD->hasAttr<MetalSIMDGroupsPerGroupAttr>() ||
+         PVD->hasAttr<MetalVertexIdAttr>() ||
+         PVD->hasAttr<MetalInstanceIdAttr>() ||
+         PVD->hasAttr<MetalBaseVertexAttr>() ||
+         PVD->hasAttr<MetalBaseInstanceAttr>() ||
+         PVD->hasAttr<MetalAmplificationIdAttr>() ||
+         PVD->hasAttr<MetalPositionAttr>() ||
+         PVD->hasAttr<MetalFrontFacingAttr>() ||
+         PVD->hasAttr<MetalPointCoordAttr>() ||
+         PVD->hasAttr<MetalSampleIdAttr>() ||
+         PVD->hasAttr<MetalSampleMaskAttr>() ||
+         PVD->hasAttr<MetalPrimitiveIdAttr>() ||
+         PVD->hasAttr<MetalBarycentricCoordAttr>() ||
+         PVD->hasAttr<MetalPayloadAttr>();
+}
+
+/// Reject the C++ constructs the Metal specification lists as unavailable.
+///
+/// The list is MSL 4.1 section 1.6.1, which enumerates twelve items; the
+/// wording of each diagnostic is the one Apple's compiler emits, harvested
+/// from the reference logs (see docs-metal/data/metal_diagnostics.csv).
+/// `lambda expressions` carries a version condition: the specification says
+/// "prior to Metal 3.2", and the reference AST dumps confirm that LambdaExpr
+/// only appears from -std=metal3.2 onwards.
+bool Sema::DiagnoseMetalUnsupportedDecl(Decl *D) {
+  if (!getLangOpts().Metal || !D)
+    return false;
+
+  if (auto *MD = dyn_cast<CXXMethodDecl>(D)) {
+    if (MD->isVirtual()) {
+      Diag(MD->getLocation(), diag::err_metal_unsupported_feature) << 0;
+      return true;
+    }
+    // A kernel cannot be a member function.
+    if (MD->hasAttr<MetalKernelAttr>()) {
+      Diag(MD->getLocation(), diag::err_metal_kernel_member_function);
+      return true;
+    }
+  }
+
+  if (auto *RD = dyn_cast<CXXRecordDecl>(D)) {
+    if (RD->isUnion()) {
+      Diag(RD->getLocation(), diag::err_metal_unsupported_feature) << 2;
+      return true;
+    }
+    if (RD->hasDefinition() && RD->getNumBases() > 0) {
+      Diag(RD->getLocation(), diag::err_metal_unsupported_feature) << 1;
+      return true;
+    }
+  }
+
+  if (auto *FD = dyn_cast<FunctionDecl>(D)) {
+    // Variadic Metal entry points and qualified functions are rejected.
+    if (FD->isVariadic() && getMetalShaderStage(FD) != MSS_None) {
+      Diag(FD->getLocation(), diag::err_metal_variadic);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/// Is \p Ty a type MSL does not provide at all?
+///
+/// Measured: Apple emits "'double' is not supported in Metal" and the same for
+/// 'long long'. The specification agrees: "Metal does not support the double,
+/// long long, unsigned long long, and long double data types" (MSL 4.1 table
+/// 2.1 commentary).
+bool Sema::DiagnoseMetalUnsupportedType(QualType Ty, SourceLocation Loc) {
+  if (!getLangOpts().Metal || Ty.isNull())
+    return false;
+
+  const Type *T = Ty->getUnqualifiedDesugaredType();
+  const auto *BT = dyn_cast<BuiltinType>(T);
+  if (!BT)
+    return false;
+
+  StringRef Name;
+  switch (BT->getKind()) {
+  case BuiltinType::Double:
+    Name = "double";
+    break;
+  case BuiltinType::LongDouble:
+    Name = "long double";
+    break;
+  case BuiltinType::LongLong:
+    Name = "long long";
+    break;
+  case BuiltinType::ULongLong:
+    Name = "unsigned long long";
+    break;
+  default:
+    return false;
+  }
+
+  Diag(Loc, diag::err_metal_unsupported) << ("'" + Name + "'").str();
+  return true;
+}
+
 void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
   if (!getLangOpts().Metal || !FD)
     return;
@@ -242,6 +384,39 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
       } else if (isMetalResourceType(PTy)) {
         Diag(PVD->getLocation(), diag::err_metal_invalid_buffer_pointee) << PTy;
         Diag(PVD->getLocation(), diag::note_metal_valid_addrspace);
+        PVD->setInvalidDecl();
+      }
+    }
+
+    // Every resource parameter of an entry point must carry an explicit
+    // binding attribute. Apple names the parameter itself in the message:
+    //   error: t parameter must have texture attribute
+    //   error: s parameter must have sampler attribute
+    //   error: tg parameter must have threadgroup attribute
+    //   error: p parameter must have buffer attribute
+    bool HasBinding = PVD->hasAttr<MetalBufferIndexAttr>() ||
+                      PVD->hasAttr<MetalTextureIndexAttr>() ||
+                      PVD->hasAttr<MetalSamplerIndexAttr>() ||
+                      PVD->hasAttr<MetalLocalIndexAttr>() ||
+                      PVD->hasAttr<MetalStageInAttr>();
+    if (!HasBinding && !PVD->isInvalidDecl() &&
+        getAIRStageInputKind(PVD) == 0) {
+      // Which attribute is required follows from the parameter's type.
+      std::optional<unsigned> Which;
+      if (isMetalTextureType(PTy))
+        Which = 1; // texture
+      else if (isMetalSamplerType(PTy))
+        Which = 2; // sampler
+      else if ((PTy->isPointerType() || PTy->isReferenceType()) &&
+               PTy->getPointeeType().getAddressSpace() ==
+                   LangAS::metal_threadgroup)
+        Which = 3; // threadgroup
+      else if (PTy->isPointerType() || PTy->isReferenceType())
+        Which = 0; // buffer
+
+      if (Which) {
+        Diag(PVD->getLocation(), diag::err_metal_param_needs_attr)
+            << PVD->getName() << *Which;
         PVD->setInvalidDecl();
       }
     }

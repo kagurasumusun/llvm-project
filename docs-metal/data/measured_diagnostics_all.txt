@@ -1,0 +1,132 @@
+ from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size
+'X' and 'X' attributes are not compatible
+'X' attribute only applies to fragment functions
+'X' attribute only applies to functions
+'X' attribute only applies to parameters and global builtin variables
+'X' attribute parameter is out of bounds: must be between N and N
+'X' attribute requires Metal language standard ios-metalN.N or higher
+'X' attribute requires Metal language standard macos-metalN.N or higher
+'X' attribute requires Metal language standard metalN.N or higher
+'X' attribute takes one argument
+'X' declared as a pointer to 'X'
+'X' declared as an array with a negative size
+'X' declared as array of 'X'
+'X' does not refer to a value
+'X' is a private member of 'X'
+'X' is a protected member of 'X'
+'X' is not supported in Metal
+C-style cast from 'X' to 'X' converts between mismatching address spaces
+Metal does not support the 'X' storage class specifier
+__intN is not supported on this target
+an attribute list cannot appear here
+anonymous structs and classes must be class members
+as_type cast from 'X' to 'X' (aka 'X') is not allowed
+as_type cast from scalar 'X' to vector 'X' (vector of N 'X' values) of different size
+as_type cast from vector 'X' (vector of N 'X' values) to scalar 'X' of different size
+assigning to 'X' from incompatible type 'X'
+automatic variable qualified with an address space
+call to deleted constructor of 'X'
+cannot convert 'X' to 'X' (aka 'X') without a conversion operator
+cannot convert between vector and non-scalar values ('X' (vector of N 'X' values) and 'X')
+cannot initialize a parameter of type 'X' (aka 'X') with an lvalue of type 'X' (vector of N 'X' values)
+cannot initialize a parameter of type 'X' (aka 'X') with an rvalue of type 'X' (vector of N 'X' values)
+cannot initialize a variable of type 'X' (aka 'X') with an lvalue of type 'X' (aka 'X')
+cannot initialize a variable of type 'X' (aka 'X') with an rvalue of type 'X' (aka 'X')
+cannot initialize a variable of type 'X' (vector of N 'X' values) with an rvalue of type 'X' (vector of N 'X' values)
+cannot initialize a variable of type 'X' with an lvalue of type 'X'
+cannot initialize a variable of type 'X' with an rvalue of type 'X'
+cannot reserve 'X' resource location at index N
+constexpr function'X'void' is not a literal type
+declaration with attribute 'X' already specified
+derived classes are not supported in Metal
+duplicate case value 'X'
+expected 'X'
+expected 'X' after top level declarator
+expected 'X' at end of declaration list
+expected 'X' for function-style cast or type construction
+expected expression
+expected namespace name
+extern variable must reside in constant address space
+flexible array members are a CN feature
+function definition is not allowed here
+functional-style cast from 'X' to 'X' (vector of N 'X' values) is not allowed
+illegal asm statement
+illegal vector component name 'X'
+implicit instantiation of undefined template 'X'
+invalid 'X' attribute for input declaration in a fragment function
+invalid 'X' attribute for input declaration in a kernel function
+invalid 'X' attribute for input declaration in a triangle intersection function
+invalid 'X' attribute for input declaration in a vertex function
+invalid address space qualification for buffer pointee type 'X'
+invalid address space qualification for buffer pointee type 'X' (aka 'X')
+invalid application of 'X' to a function type
+invalid application of 'X' to an incomplete type 'X'
+invalid operands to binary expression ('X' and 'X')
+invalid prototype, variadic arguments are not allowed in Metal qualified functions
+invalid return type 'X' (vector of N 'X' values) for kernel function
+invalid return type 'X' for fragment function
+invalid return type 'X' for kernel function
+invalid return type 'X' for vertex function
+invalid string literal value for 'X' attribute
+invalid type 'X' (aka 'X') for input declaration in a kernel function
+invalid type 'X' (vector of N 'X' values) for input declaration in a vertex function
+invalid type 'X' for input declaration in a kernel function
+invalid type 'X' for input declaration with attribute 'X' in a mesh function
+invalid type 'X' of input declaration with attribute 'X' in a fragment function
+invalid type 'X' of input declaration with attribute 'X' in a kernel function
+kernel function cannot be a member function
+labeled statements are not supported in Metal
+lambda expressions are not supported in Metal
+member reference base type 'X' is not a structure or union
+no matching constructor for initialization of 'X'
+no matching function for call to 'X'
+no matching member function for call to 'X'
+no member named 'X' in 'X'
+no member named 'X' in 'X'; did you mean 'X'?
+no member named 'X' in namespace 'X'
+no template named 'X'
+no template named 'X' in namespace 'X'
+no type named 'X' in namespace 'X'
+no viable constructor or deduction guide for deduction of template arguments of 'X'
+no viable conversion from 'X' to 'X'
+no viable overloaded 'X'
+non-qualified function cannot be called 'X'
+only virtual member functions can be marked 'X'
+out parameter must have buffer attribute
+overload resolution selected deleted operator 'X'
+p parameter must have buffer attribute
+parameter may not be qualified with an address space
+pointer type must have explicit address space qualifier
+pointers to functions are not allowed
+program scope variable must reside in constant address space
+read-only variable is not assignable
+redefinition of 'X'
+reference type must have explicit address space qualifier
+reinterpret_cast from 'X' to 'X' is not allowed
+s parameter must have sampler attribute
+subscripted value is not an array, pointer, or vector
+t parameter must have texture attribute
+taking address of function is not allowed
+template argument for template type parameter must be a type
+tg parameter must have threadgroup attribute
+too few arguments to function call, expected N, have N
+too few arguments to function call, expected at least N, have N
+too many arguments to function call, expected N, have N
+type 'X' (aka 'X') is not valid for attribute 'X'
+type 'X' (packed vector of N 'X' values) is not valid for attribute 'X'
+type 'X' cannot be narrowed to 'X' in initializer list [-Wc++N-narrowing]
+type 'X' is not valid for attribute 'X'
+unions are not supported in Metal
+unknown type name 'X'
+unknown type name 'X'; did you mean 'X'?
+use of class template 'X' requires template arguments
+use of class template 'X' requires template arguments; argument deduction not allowed in function prototype
+use of undeclared identifier 'X'
+use of undeclared identifier 'X'; did you mean 'X'?
+variable has incomplete type 'X'
+variable has incomplete type 'X' (aka 'X')
+variable in constant address space must be initialized
+variable type 'X' is an abstract class
+variables in function scope cannot be declared static
+virtual member functions are not supported in Metal
+zero-length arrays are not permitted in C++

@@ -105,6 +105,26 @@ static CCMangling getCallingConvMangling(const ASTContext &Context,
 bool MangleContext::shouldMangleDeclName(const NamedDecl *D) {
   const ASTContext &ASTContext = getASTContext();
 
+  // Metal shader entry points and externally visible functions keep their
+  // source name. Apple's output shows this unambiguously: across 400 entry
+  // points in the reference corpus not one is mangled, while ordinary helpers
+  // in the very same module are. For example
+  // reference/metal-ast-macos-air64/ir/...multi_entry_with_helpers... contains
+  //
+  //   define float @_Z10helper_mulff(float, float)   ; helper: mangled
+  //   define i32   @visible_fn(i32)                  ; [[visible]]: plain
+  //   define void  @k_using_add(...)                 ; kernel:      plain
+  //
+  // The metallib loader looks entry points up by this name, so mangling them
+  // would make the produced library unusable.
+  if (ASTContext.getLangOpts().Metal) {
+    if (D->hasAttr<MetalKernelAttr>() || D->hasAttr<MetalVertexAttr>() ||
+        D->hasAttr<MetalFragmentAttr>() || D->hasAttr<MetalMeshAttr>() ||
+        D->hasAttr<MetalObjectAttr>() || D->hasAttr<MetalVisibleAttr>() ||
+        D->hasAttr<MetalStitchableAttr>() || D->hasAttr<MetalIntersectionAttr>())
+      return false;
+  }
+
   CCMangling CC = getCallingConvMangling(ASTContext, D);
   if (CC != CCM_Other)
     return true;

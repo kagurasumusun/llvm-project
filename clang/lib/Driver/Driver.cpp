@@ -565,18 +565,19 @@ static void setAIRVersionFromDeploymentTarget(llvm::Triple &Target) {
     // observed correspondence (research/datasets/os_triple_map.csv) pairs each
     // AIR version with the same generation as macOS, e.g. air64_v23 appears as
     // air64_v23-apple-ios14.0.0 alongside air64_v23-apple-macosx11.0.0.
+    // watchOS numbering runs ahead of the AIR version by 16 (watchOS 10 => v26,
+    // 11 => v27, 26 => v28), measured across
+    // reference/metal-ast-watchos-air64/ir.
     if (Target.isWatchOS())
-      AIRVersion = Major >= 10 ? 26 : (Major >= 9 ? 25 : (Major >= 7 ? 23 : 22));
+      AIRVersion = Major >= 26 ? 28 : (Major >= 10 ? Major + 16 : 25);
     else if (Target.isDriverKit())
       return;
     else
-      AIRVersion = Major >= 26 ? 28
-                   : Major >= 18 ? 27
-                   : Major >= 17 ? 26
-                   : Major >= 16 ? 25
-                   : Major >= 15 ? 24
-                   : Major >= 14 ? 23
-                                 : 22;
+      // iOS and tvOS share a numbering that runs 9 ahead of the AIR version
+      // from iOS 11 onwards (11 => v20, 12 => v21, ... 18 => v27), with
+      // iOS 26 mapping to v28. Measured across reference/metal-ast-ios-air64
+      // and reference/metal-ast-tvos-air64.
+      AIRVersion = Major >= 26 ? 28 : (Major >= 11 ? Major + 9 : 111);
   }
 
   Target.setArchName(

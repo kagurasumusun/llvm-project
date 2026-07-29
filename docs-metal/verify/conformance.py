@@ -98,8 +98,8 @@ for kind,ks in sorted(shapes.items()):
 
 # ---- 7. Known defects ------------------------------------------------------
 rec('defect','air.arg_type_name uses pointee + MSL spelling',
-    'MISMATCH' if 'Ty.getAsString' in cg else 'MATCH',
-    'Apple emits "float" for device float*; impl emits "device float *"')
+    'MATCH' if ('getMetalTypeName' in cg and 'getPointeeType' in cg) else 'MISMATCH',
+    'pointee named, MSL spelling via getMetalTypeName')
 rec('defect','air.compile.framebuffer_fetch platform/std rule',
     'MISMATCH' if 'framebuffer_fetch_enable");' in cg and 'metal2.3' not in cg else 'MATCH',
     'macOS <=2.2 must be disable')
@@ -107,9 +107,31 @@ drv=read('clang/lib/Driver/Driver.cpp')
 rec('defect','watchOS AIR version mapping',
     'MISMATCH' if 'Major >= 10 ? 26' in drv else 'MATCH',
     'watchOS 11.4 must be v27')
+mangle = read('clang/lib/AST/Mangle.cpp')
 rec('defect','entry functions must not be mangled',
-    'MISSING' if 'setMangled' not in cg else 'MATCH',
+    'MATCH' if ('getLangOpts().Metal' in mangle and
+                'MetalKernelAttr' in mangle) else 'MISSING',
     'Apple: 400/400 entry points unmangled')
+
+# New observables introduced by the Phase 10 fixes.
+sematype = read('clang/lib/Sema/SemaType.cpp')
+rec('sema','member function address-space qualifier',
+    'MATCH' if 'getLangOpts().Metal && IsClassMember' in sematype else 'MISSING',
+    'stdlib uses 7,668 of these')
+scalar = read('clang/lib/CodeGen/CGExprScalar.cpp')
+rec('codegen','air.convert.* numeric conversion lowering',
+    'MATCH' if 'emitMetalConvert' in scalar else 'MISSING',
+    '57 measured variants')
+semametal = read('clang/lib/Sema/SemaMetal.cpp')
+rec('sema','unsupported C++ constructs rejected',
+    'MATCH' if 'DiagnoseMetalUnsupportedDecl' in semametal else 'MISSING',
+    'MSL 4.1 section 1.6.1')
+rec('sema','unsupported types rejected (double, long long)',
+    'MATCH' if 'DiagnoseMetalUnsupportedType' in semametal else 'MISSING',
+    'measured + spec')
+rec('sema','entry parameters require a binding attribute',
+    'MATCH' if 'err_metal_param_needs_attr' in semametal else 'MISSING',
+    'measured: "t parameter must have texture attribute"')
 
 # ---- report ----------------------------------------------------------------
 by=collections.Counter(s for _,_,s,_ in results)

@@ -11812,6 +11812,29 @@ def err_metal_unsupported : Error<
 def err_metal_unsupported_feature : Error<
   "%select{virtual member functions|derived classes|unions|lambda expressions|"
   "labeled statements}0 are not supported in Metal">;
+def err_metal_storage_class : Error<
+  "Metal does not support the '%0' storage class specifier">;
+def err_metal_static_local : Error<
+  "variables in function scope cannot be declared static">;
+def err_metal_kernel_member_function : Error<
+  "kernel function cannot be a member function">;
+def err_metal_variadic : Error<
+  "invalid prototype, variadic arguments are not allowed in Metal qualified "
+  "functions">;
+def err_metal_function_pointer : Error<
+  "pointers to functions are not allowed">;
+def err_metal_address_of_function : Error<
+  "taking address of function is not allowed">;
+def err_metal_param_addrspace : Error<
+  "parameter may not be qualified with an address space">;
+def err_metal_param_needs_attr : Error<
+  "%0 parameter must have "
+  "%select{buffer|texture|sampler|threadgroup}1 attribute">;
+def err_metal_invalid_input_type : Error<
+  "invalid type %0 for input declaration in a "
+  "%select{kernel|vertex|fragment|mesh|object}1 function">;
+def err_metal_cstyle_cast_addrspace : Error<
+  "C-style cast from %0 to %1 converts between mismatching address spaces">;
 
 // Address spaces.
 def err_metal_pointer_needs_addrspace : Error<

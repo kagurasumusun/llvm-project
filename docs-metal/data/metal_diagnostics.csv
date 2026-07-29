@@ -1,0 +1,36 @@
+diag_id,severity,text,evidence
+err_metal_unsupported,error,"'%0' is not supported in Metal","measured; %0 in {delete,double,dynamic_cast,goto,long long,new,noexcept,thread_local,throw,try}"
+err_metal_unsupported_feature,error,"%select{virtual member functions|derived classes|unions|lambda expressions|labeled statements}0 are not supported in Metal",measured
+err_metal_storage_class,error,"Metal does not support the '%0' storage class specifier",measured (register)
+err_metal_static_local,error,variables in function scope cannot be declared static,measured
+err_metal_pointer_needs_addrspace,error,"%select{pointer|reference}0 type must have explicit address space qualifier",measured
+err_metal_program_scope_addrspace,error,program scope variable must reside in constant address space,measured
+err_metal_extern_addrspace,error,extern variable must reside in constant address space,measured
+err_metal_constant_needs_init,error,variable in constant address space must be initialized,measured
+err_metal_automatic_addrspace,error,automatic variable qualified with an address space,measured
+err_metal_param_addrspace,error,parameter may not be qualified with an address space,measured
+err_metal_cstyle_cast_addrspace,error,"C-style cast from %0 to %1 converts between mismatching address spaces",measured
+note_metal_valid_addrspace,note,valid address space qualifications are device and constant,measured
+err_metal_invalid_return_type,error,"invalid return type %0 for %select{kernel|vertex|fragment|mesh|object}1 function",measured
+err_metal_invalid_buffer_pointee,error,invalid address space qualification for buffer pointee type %0,measured
+err_metal_kernel_member_function,error,kernel function cannot be a member function,measured
+err_metal_variadic,error,"invalid prototype, variadic arguments are not allowed in Metal qualified functions",measured
+err_metal_invalid_input_attr,error,"invalid %0 attribute for input declaration in a %select{kernel|vertex|fragment|mesh|object|triangle intersection}1 function",measured
+err_metal_invalid_input_type,error,"invalid type %0 for input declaration in a %select{kernel|vertex|fragment|mesh|object}1 function",measured
+err_metal_invalid_stage_in_type,error,"invalid type %0 of input declaration with attribute %1 in a %select{kernel|vertex|fragment|mesh|object}2 function",measured
+err_metal_param_needs_attr,error,"%0 parameter must have %select{buffer|texture|sampler|threadgroup}1 attribute","measured; %0 is the parameter's own name"
+err_metal_attribute_requires_std,error,%0 attribute requires Metal language standard %1 or higher,measured
+err_metal_attr_only_applies_to,error,"%0 attribute only applies to %select{functions|fragment functions|parameters and global builtin variables}1",measured
+err_metal_incompatible_attrs,error,%0 and %1 attributes are not compatible,measured
+err_metal_attr_takes_one_arg,error,%0 attribute takes one argument,measured
+err_metal_attr_out_of_bounds,error,"%0 attribute parameter is out of bounds: must be between %1 and %2",measured
+err_metal_attr_already_specified,error,declaration with attribute %0 already specified,measured
+err_metal_resource_index_reserved,error,cannot reserve %0 resource location at index %1,measured
+err_metal_invalid_attr_type,error,type %0 is not valid for attribute %1,measured
+err_metal_invalid_string_attr,error,invalid string literal value for %0 attribute,measured
+err_metal_function_pointer,error,pointers to functions are not allowed,measured
+err_metal_address_of_function,error,taking address of function is not allowed,measured
+err_metal_as_type_size,error,"as_type cast from %select{scalar %1 to vector %2|vector %1 to scalar %2}0 of different size",measured
+err_metal_as_type_invalid,error,as_type cast from %0 to %1 is not allowed,measured
+err_metal_illegal_swizzle,error,illegal vector component name %0,measured
+err_metal_illegal_asm,error,illegal asm statement,measured

@@ -1655,6 +1655,9 @@ private:
   /// Constant fold a Metal resource index attribute argument.
   unsigned getMetalAttrIndex(const Expr *E);
 
+  /// Spell a type the way Apple records it in `air.arg_type_name`.
+  std::string getMetalTypeName(QualType Ty);
+
   /// Try to emit external vtables as available_externally if they have emitted
   /// all inlined virtual functions.  It runs after EmitDeferred() and therefore
   /// is not allowed to create new references to things that need to be emitted

@@ -1,0 +1,121 @@
+   5599 uint
+   4472 float
+   2374 float4
+   1555 int
+   1477 sampler
+    570 half
+    475 bool
+    471 texture2d<float, sample>
+    456 ushort
+    456 uchar
+    456 short
+    456 char
+    329 float2
+    272 float3
+    253 half4
+    227 texture2d<float, read>
+    216 AddressBox
+    209 half3
+    190 uint3
+    190 int3
+    190 half2
+    189 texturecube<float, sample>
+    183 texture3d<float, read>
+    171 uint4
+    171 uint2
+    171 int4
+    171 int2
+    170 texture2d<float, write>
+    152 texture2d<half, sample>
+    145 texture2d_array<float, read>
+    144 metal::_atomic
+    133 texture2d<uint, sample>
+    133 texture2d<int, sample>
+    132 depth2d<float, sample>
+    126 texture3d<float, sample>
+    126 texture1d<float, read>
+    113 texture2d_ms<float, read>
+     88 texture3d<float, write>
+     76 texturecube<float, read>
+     69 texture1d<float, write>
+     69 texture1d<float, sample>
+     63 Uniforms
+     57 texturecube<uint, sample>
+     57 texturecube<int, sample>
+     57 texturecube<half, sample>
+     57 texture3d<uint, sample>
+     57 texture3d<int, sample>
+     57 texture3d<half, sample>
+     57 texture2d<uint, read>
+     57 texture2d<int, read>
+     50 texturecube_array<float, sample>
+     50 texture_buffer<float, read>
+     50 texture3d<float, read_write>
+     50 texture2d_array<float, write>
+     50 texture2d_array<float, sample>
+     50 texture2d_array<float, read_write>
+     50 texture2d<float, read_write>
+     50 texture1d_array<float, sample>
+     50 texture1d<float, read_write>
+     50 depthcube_array<float, sample>
+     50 depthcube<float, sample>
+     50 depth2d_array<float, sample>
+     49 NestedLayout
+     38 texture3d<uint, read>
+     38 texture3d<int, read>
+     38 texture3d<half, read>
+     38 texture2d<half, read>
+     38 texture1d<uint, read>
+     38 texture1d<int, read>
+     38 texture1d<half, read>
+     19 texturecube<uint, read>
+     19 texturecube<int, read>
+     19 texturecube<half, read>
+     19 texture3d<uint, write>
+     19 texture3d<int, write>
+     19 texture3d<half, write>
+     19 texture2d_array<uint, read>
+     19 texture2d_array<int, read>
+     19 texture2d_array<half, read>
+     19 texture2d<uint, write>
+     19 texture2d<int, write>
+     19 texture2d<half, write>
+     19 texture1d<uint, write>
+     19 texture1d<uint, sample>
+     19 texture1d<int, write>
+     19 texture1d<int, sample>
+     19 texture1d<half, write>
+     19 texture1d<half, sample>
+     19 packed_ushort4
+     19 packed_ushort3
+     19 packed_ushort2
+     19 packed_uint4
+     19 packed_uint3
+     19 packed_uint2
+     19 packed_uchar4
+     19 packed_uchar3
+     19 packed_uchar2
+     19 packed_short4
+     19 packed_short3
+     19 packed_short2
+     19 packed_int4
+     19 packed_int3
+     19 packed_int2
+     19 packed_half4
+     19 packed_half3
+     19 packed_half2
+     19 packed_float4
+     19 packed_float3
+     19 packed_float2
+     19 packed_char4
+     19 packed_char3
+     19 packed_char2
+     15 SharedArgs
+     15 Args
+     13 Ps
+     13 Pi
+     13 Ph
+      9 acceleration_structure<instancing>
+      5 Pay2
+      1 ulong
+      1 float [2]

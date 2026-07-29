@@ -222,7 +222,17 @@ void CodeGenModule::EmitMetalModuleMetadata() {
     addOption("air.compile.denorms_disable");
     addOption(getLangOpts().FastMath ? "air.compile.fast_math_enable"
                                      : "air.compile.fast_math_disable");
-    addOption("air.compile.framebuffer_fetch_enable");
+
+    // Framebuffer fetch is reported as enabled on the tile-based platforms and
+    // on macOS only from MSL 2.3 onwards. Measured by partitioning the
+    // reference IR corpus: iOS and tvOS emit `enable` in all 24,376 modules,
+    // while macOS emits `disable` for -std <= macos-metal2.2 (5,014 modules)
+    // and `enable` for -std >= macos-metal2.3 (5,831 modules).
+    bool FramebufferFetch = true;
+    if (getTarget().getTriple().isMacOSX())
+      FramebufferFetch = getLangOpts().MetalVersion >= 230;
+    addOption(FramebufferFetch ? "air.compile.framebuffer_fetch_enable"
+                               : "air.compile.framebuffer_fetch_disable");
   }
 
   // !air.source_file_name is the absolute path of the primary source file.
@@ -349,6 +359,67 @@ static llvm::StringRef getAIRAccess(QualType Ty) {
   return "air.read_write";
 }
 
+/// Spell \p Ty the way Apple records it in `air.arg_type_name`.
+///
+/// Three rules, all read off the reference corpus (the 121 distinct spellings
+/// observed in reference/metal-ast-macos-air64 are listed in
+/// docs-metal/data/air_arg_type_names.txt):
+///
+///  * For a pointer or reference argument the *pointee* is named, with the
+///    address space and cv-qualifiers stripped: `device float *` is "float".
+///  * Vectors use the MSL name, so `float4` rather than `vector<float,4>` and
+///    `packed_float3` for the packed form.
+///  * Class types keep their written name, including template arguments, so a
+///    `texture2d<float>` argument records "texture2d<float, sample>" with the
+///    defaulted access argument spelled out.
+std::string CodeGenModule::getMetalTypeName(QualType Ty) {
+  // Name the pointee for buffer-like arguments.
+  if (Ty->isPointerType() || Ty->isReferenceType())
+    Ty = Ty->getPointeeType();
+
+  // Address space and cv-qualifiers are recorded separately (or not at all).
+  Ty = Ty.getUnqualifiedType();
+
+  ASTContext &C = getContext();
+
+  // Vectors are spelled with the MSL element-plus-count convention.
+  if (const auto *VT = Ty->getAs<VectorType>()) {
+    QualType Elem = VT->getElementType();
+    StringRef Base =
+        llvm::StringSwitch<StringRef>(Elem.getAsString(C.getPrintingPolicy()))
+            .Case("float", "float")
+            .Case("half", "half")
+            .Case("__bf16", "bfloat")
+            .Case("int", "int")
+            .Case("unsigned int", "uint")
+            .Case("short", "short")
+            .Case("unsigned short", "ushort")
+            .Case("char", "char")
+            .Case("signed char", "char")
+            .Case("unsigned char", "uchar")
+            .Case("long", "long")
+            .Case("unsigned long", "ulong")
+            .Case("bool", "bool")
+            .Default(StringRef());
+    if (!Base.empty()) {
+      std::string Name = (Base + Twine(VT->getNumElements())).str();
+      // A packed vector keeps the element alignment and is named accordingly.
+      if (VT->getVectorKind() == VectorType::GenericVector &&
+          C.getTypeAlignInChars(Ty) == C.getTypeAlignInChars(Elem))
+        return "packed_" + Name;
+      return Name;
+    }
+  }
+
+  // Everything else keeps its source spelling. Suppress the `metal::` scope
+  // because Apple records "texture2d<float, sample>", not
+  // "metal::texture2d<...>".
+  PrintingPolicy Policy = C.getPrintingPolicy();
+  Policy.SuppressScope = true;
+  Policy.SuppressTagKeyword = true;
+  return Ty.getAsString(Policy);
+}
+
 void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
                                                 llvm::Function *Fn) {
   if (!getLangOpts().Metal || !FD)
@@ -442,8 +513,15 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
     }
 
     // Every argument ends with its MSL type name and its source name.
+    //
+    // The type recorded here is the *pointee* for buffer-like arguments, not
+    // the parameter type: research/golden/P01 declares
+    //   device float *b, constant Params &p, threadgroup float *shm
+    // and records "float", "Params" and "float" respectively. It is also
+    // spelled the MSL way ("float4", "texture2d<float, sample>"), never the
+    // C++ way ("vector<float,4>"); see getMetalTypeName.
     B.addStr("air.arg_type_name");
-    B.addStr(Ty.getAsString(getContext().getPrintingPolicy()));
+    B.addStr(getMetalTypeName(PVD->getType()));
     B.addStr("air.arg_name");
     B.addStr(PVD->getName());
 
