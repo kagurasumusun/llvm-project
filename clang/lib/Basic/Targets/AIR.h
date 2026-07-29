@@ -40,19 +40,39 @@ namespace targets {
 /// The target values are the `addrspace(N)` numbers observed in Apple
 /// generated AIR:
 ///
-///   0  thread (default)            research/spec/IR_GROUND_TRUTH.md 2.4
-///   1  device                      idem; also carries texture handles
-///   2  constant                    idem; also carries sampler handles
-///   3  threadgroup                 idem
-///   4  threadgroup_imageblock      golden: %struct._imageblock_t addrspace(4)*
-///   7  object_data (mesh payload)  golden: %struct._mesh_t addrspace(7)*
-///   9  ray_data                    golden: %struct._intersection_result_t
-///                                  addrspace(9)*
+/// Established by scanning every `.ll` in the reference set (129,266 files);
+/// the counts below are the total occurrences of each space.
 ///
-/// Address spaces 5, 6 and 8 are not part of the source language surface.
-/// Address space 5 is used internally by the raytracing intrinsics but is never
-/// spelled by the user, and 6 and 8 have not been observed at all, so they are
-/// deliberately not mapped here.
+///   0  thread (the default)        unqualified `ptr`
+///   1  device                      1,393,063; also carries texture handles
+///   2  constant                      199,446; also carries sampler handles
+///   3  threadgroup                    24,284
+///   4  threadgroup_imageblock             44  the imageblock handle lives here:
+///                                            %"struct.metal::_imageblock_base"
+///                                            = type { %struct._imageblock_t
+///                                                     addrspace(4)* }
+///   6  object_data                       112  measured from the object shader
+///                                            probe `object_payload.metal`,
+///                                            whose `object_data Pay2 &p
+///                                            [[payload]]` parameter becomes
+///                                            `%struct.Pay2 addrspace(6)*`
+///
+/// Three further spaces appear in generated code but are not reachable from a
+/// source-level address space keyword, so they are not mapped here:
+///
+///   5   80 occurrences, an i8 pointer returned alongside the intersection
+///        result by `air.intersect_direct_access.*`
+///   7   20 occurrences, only ever `%struct._mesh_t addrspace(7)*`, i.e. the
+///        mesh handle type rather than an address space a user can name
+///   9  177 occurrences, only ever `%struct._intersection_result_t
+///        addrspace(9)*`
+///
+/// `ray_data` is therefore an OPEN question: the keyword exists and mangles as
+/// U10MTLraydata, but no probe in the corpus produces a function that takes a
+/// `ray_data` parameter, so its numeric value has never been observed. It is
+/// mapped to 9 here because that is the space the intersection result (the
+/// only ray payload the corpus shows) lives in, but this is the one entry in
+/// this table that is inferred rather than measured.
 static const unsigned AIRAddrSpaceMap[] = {
     0, // Default (thread)
     1, // opencl_global
@@ -79,7 +99,7 @@ static const unsigned AIRAddrSpaceMap[] = {
     3, // metal_threadgroup
     0, // metal_thread
     4, // metal_threadgroup_imageblock
-    7, // metal_object_data
+    6, // metal_object_data
     9, // metal_ray_data
 };
 

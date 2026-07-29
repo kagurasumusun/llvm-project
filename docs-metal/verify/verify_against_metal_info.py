@@ -64,10 +64,15 @@ def main(info):
     block = air_h.split("static const unsigned AIRAddrSpaceMap[] = {")[1].split("};")[0]
     asmap = dict(re.findall(r"(\d+), // (\w+)", block))
     asmap = {v: int(k) for k, v in asmap.items()}
+    # The expected values are the ones measured from generated IR:
+    #   device/constant/threadgroup/thread from address_spaces_extended_all,
+    #   threadgroup_imageblock from _imageblock_base's member pointer,
+    #   object_data from the object shader payload probe.
+    # ray_data has never been observed as a parameter; see AIR.h.
     for name, want in [("metal_device", 1), ("metal_constant", 2),
                        ("metal_threadgroup", 3), ("metal_thread", 0),
                        ("metal_threadgroup_imageblock", 4),
-                       ("metal_object_data", 7), ("metal_ray_data", 9)]:
+                       ("metal_object_data", 6), ("metal_ray_data", 9)]:
         check("addrspace %s == %d" % (name, want), asmap.get(name) == want,
               "got %r" % asmap.get(name))
 
@@ -168,6 +173,35 @@ def main(info):
         got = int(m2.group(1)) if m2 else None
         check("%s == %s" % (key, want), want is not None and want == got,
               "got %r" % got)
+
+    print("== Address spaces, re-derived from IR ==")
+    # Rather than trusting the table above, re-measure the two spaces that were
+    # wrong before by finding the probe IR that exercises them.
+    import glob as _glob
+    ib_as = obj_as = None
+    for f in _glob.glob(os.path.join(info, "reference/metal-ast-*/ir/*.ll")):
+        if ib_as and obj_as:
+            break
+        try:
+            text = open(f, errors="ignore").read()
+        except OSError:
+            continue
+        if ib_as is None:
+            m = re.search(r'_imageblock_base" = type \{ %struct\._imageblock_t '
+                          r'addrspace\((\d+)\)', text)
+            if m:
+                ib_as = int(m.group(1))
+        if obj_as is None:
+            m = re.search(r'define void @ofn\(%struct\.\w+ addrspace\((\d+)\)', text)
+            if m:
+                obj_as = int(m.group(1))
+    if ib_as is not None:
+        check("threadgroup_imageblock re-derived from IR",
+              asmap.get("metal_threadgroup_imageblock") == ib_as,
+              "IR says %s" % ib_as)
+    if obj_as is not None:
+        check("object_data re-derived from the object payload probe",
+              asmap.get("metal_object_data") == obj_as, "IR says %s" % obj_as)
 
     print("== Attributes ==")
     import csv as _csv

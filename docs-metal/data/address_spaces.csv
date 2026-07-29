@@ -1,0 +1,11 @@
+langas,target_value,status,occurrences_in_corpus,evidence
+metal_thread,0,measured,n/a,"unqualified ptr; address_spaces_extended_all.metal thread AddressBox* -> %struct.AddressBox*"
+metal_device,1,measured,1393063,"address_spaces_extended_all.metal device AddressBox* -> addrspace(1); also texture handles"
+metal_constant,2,measured,199446,"same probe, constant AddressBox* -> addrspace(2); also sampler handles"
+metal_threadgroup,3,measured,24284,"same probe, threadgroup AddressBox* -> addrspace(3)"
+metal_threadgroup_imageblock,4,measured,44,"%\"struct.metal::_imageblock_base\" = type { %struct._imageblock_t addrspace(4)* }"
+metal_object_data,6,measured,112,"object_payload.metal: [[object]] void ofn(object_data Pay2& p [[payload]]) -> define void @ofn(%struct.Pay2 addrspace(6)*"
+metal_ray_data,9,INFERRED,177,"OPEN: no probe in the corpus produces a ray_data parameter. 9 is where %struct._intersection_result_t lives, which is the only ray payload observed."
+,5,not-a-language-AS,80,"i8* returned beside the result by air.intersect_direct_access.*"
+,7,not-a-language-AS,20,"only ever %struct._mesh_t addrspace(7)*, i.e. the mesh handle type"
+,8,unobserved,0,"never appears anywhere in 129,266 .ll files"
