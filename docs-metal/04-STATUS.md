@@ -128,6 +128,30 @@ typed-pointer writer を自作**している。隠しモードがあればこの
 **本 fork の typed pointer 出力という判断は変更不要。**
 詳細は `07-OPAQUE-EVIDENCE.md`。
 
+## Phase 9: LLVM 公式 RFC / 参照実装との突き合わせ
+
+`08-RFC-CROSSCHECK.md` に詳細。主な収穫:
+
+1. **metallib コンテナ仕様を実測で確定** — RFC の `AIRLibFormat.rst` の
+   タグ構造 (NAME/TYPE/HASH/MDSZ/OFFT/VERS/ENDT) は golden P01 の実バイトと
+   完全一致。ただし**ヘッダのフィールド位置は RFC 文書が誤り**で、
+   FileSize は +20 ではなく **+16**、セクション表は +28 ではなく **+24** から。
+   Apple 純正 10 本すべてで検証済み。これで S18 が着手可能になった。
+
+2. **`air.convert.*` という設計漏れを発見（重要）** — 純正 golden P02 に
+   `air.convert.f.f32.u.i32` が実在し、コーパス全体で **57 種**。
+   これは `__metal_*` builtin 経由ではなく、通常の型変換
+   (`float(vid)` など) が CodeGen で落ちる層。686 builtin の対応表にも
+   本 fork にも無く、**設計から完全に漏れていた**。影響範囲が広い。
+
+3. `double` / `long long` / `long double` の拒否が三者一致
+   （公式 PDF「Metal does not support the double, long long, ...」/
+   実測診断 `'double' is not supported in Metal` / RFC の AIRDemoteF64）。
+
+4. RFC は本 fork の判断（typed pointer / triple / AS 0-3 / bitcode ラッパ）を
+   すべて追認。逆に本 fork は AS 7 種・MSL 全 13 版・グラフィックス・
+   Clang FE で RFC より広い。両者は相補的。
+
 ## AIR との一致度
 
 `docs-metal/verify/conformance.py` による静的照合で **35/39 (89.7%)**。
