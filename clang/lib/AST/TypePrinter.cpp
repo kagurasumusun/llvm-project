@@ -674,6 +674,12 @@ void TypePrinter::printVectorBefore(const VectorType *T, raw_ostream &OS) {
     printBefore(T->getElementType(), OS);
     break;
   }
+  case VectorType::MetalPackedVector: {
+    OS << "__attribute__((__packed_vector_type__(" << T->getNumElements()
+       << "))) ";
+    printBefore(T->getElementType(), OS);
+    break;
+  }
   case VectorType::SveFixedLengthDataVector:
   case VectorType::SveFixedLengthPredicateVector:
     // FIXME: We prefer to print the size directly here, but have no way
@@ -736,6 +742,14 @@ void TypePrinter::printDependentVectorBefore(
     OS << " * sizeof(";
     print(T->getElementType(), OS, StringRef());
     OS << ")))) ";
+    printBefore(T->getElementType(), OS);
+    break;
+  }
+  case VectorType::MetalPackedVector: {
+    OS << "__attribute__((__packed_vector_type__(";
+    if (T->getSizeExpr())
+      T->getSizeExpr()->printPretty(OS, nullptr, Policy);
+    OS << "))) ";
     printBefore(T->getElementType(), OS);
     break;
   }

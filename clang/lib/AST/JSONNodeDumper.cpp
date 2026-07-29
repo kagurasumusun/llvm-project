@@ -662,6 +662,9 @@ void JSONNodeDumper::VisitVectorType(const VectorType *VT) {
   case VectorType::SveFixedLengthPredicateVector:
     JOS.attribute("vectorKind", "fixed-length sve predicate vector");
     break;
+  case VectorType::MetalPackedVector:
+    JOS.attribute("vectorKind", "metal packed vector");
+    break;
   }
 }
 

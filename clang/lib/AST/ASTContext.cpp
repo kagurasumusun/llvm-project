@@ -2013,6 +2013,17 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     TypeInfo EltInfo = getTypeInfo(VT->getElementType());
     Width = VT->isExtVectorBoolType() ? VT->getNumElements()
                                       : EltInfo.Width * VT->getNumElements();
+
+    // A Metal packed vector occupies exactly its elements and is aligned like
+    // one element, so a three-element packed vector is neither padded out to
+    // four nor over-aligned. The Metal Shading Language specification gives
+    // the table directly: packed_float3 is 12 bytes with alignment 4, against
+    // 16 and 16 for float3; packed_uchar3 is 3 bytes with alignment 1.
+    if (VT->getVectorKind() == VectorType::MetalPackedVector) {
+      Align = EltInfo.Align;
+      break;
+    }
+
     // Enforce at least byte alignment.
     Align = std::max<unsigned>(8, Width);
 

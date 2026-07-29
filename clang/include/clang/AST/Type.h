@@ -3392,7 +3392,18 @@ public:
     SveFixedLengthDataVector,
 
     /// is AArch64 SVE fixed-length predicate vector
-    SveFixedLengthPredicateVector
+    SveFixedLengthPredicateVector,
+
+    /// is a Metal packed vector, spelled
+    /// `__attribute__((__packed_vector_type__(N)))`.
+    ///
+    /// A packed vector has the same element count and storage order as the
+    /// corresponding ext_vector, but its alignment is that of the element
+    /// type rather than the whole vector, and a three-element packed vector
+    /// occupies exactly three elements rather than four. The Metal Shading
+    /// Language specification tabulates this: packed_float3 is 12 bytes with
+    /// alignment 4, while float3 is 16 bytes with alignment 16.
+    MetalPackedVector
   };
 
 protected:

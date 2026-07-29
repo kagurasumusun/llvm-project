@@ -8995,6 +8995,9 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_ExtVectorType:
     handleExtVectorTypeAttr(S, D, AL);
     break;
+  case ParsedAttr::AT_MetalPackedVectorType:
+    handleExtVectorTypeAttr(S, D, AL);
+    break;
   case ParsedAttr::AT_ExternalSourceSymbol:
     handleExternalSourceSymbolAttr(S, D, AL);
     break;

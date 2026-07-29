@@ -129,6 +129,11 @@ rec('sema','unsupported C++ constructs rejected',
 rec('sema','unsupported types rejected (double, long long)',
     'MATCH' if 'DiagnoseMetalUnsupportedType' in semametal else 'MISSING',
     'measured + spec')
+astctx = read('clang/lib/AST/ASTContext.cpp')
+rec('types','packed vector layout (element aligned)',
+    'MATCH' if 'MetalPackedVector' in astctx else 'MISSING',
+    'spec table: packed_float3 = 12/4')
+
 rec('sema','entry parameters require a binding attribute',
     'MATCH' if 'err_metal_param_needs_attr' in semametal else 'MISSING',
     'measured: "t parameter must have texture attribute"')

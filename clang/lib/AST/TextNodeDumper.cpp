@@ -1495,6 +1495,9 @@ void TextNodeDumper::VisitVectorType(const VectorType *T) {
   case VectorType::SveFixedLengthPredicateVector:
     OS << " fixed-length sve predicate vector";
     break;
+  case VectorType::MetalPackedVector:
+    OS << " metal packed vector";
+    break;
   }
   OS << " " << T->getNumElements();
 }

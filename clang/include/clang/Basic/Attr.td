@@ -1424,6 +1424,19 @@ def ExtVectorType : Attr {
   let PragmaAttributeSupport = 0;
 }
 
+// Metal's packed vector type attribute. Apple's standard library uses this 82
+// times (metal_packed_vector and metal_packed_numeric); it has no upstream
+// equivalent. See VectorType::MetalPackedVector for the layout rule.
+def MetalPackedVectorType : Attr {
+  let Spellings = [GNU<"packed_vector_type">, GNU<"__packed_vector_type__">];
+  let Subjects = SubjectList<[TypedefName], ErrorDiag>;
+  let Args = [ExprArgument<"NumElements">];
+  let ASTNode = 0;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+  let PragmaAttributeSupport = 0;
+}
+
 def FallThrough : StmtAttr {
   let Spellings = [CXX11<"", "fallthrough", 201603>,
                    C2x<"", "fallthrough", 201910>,

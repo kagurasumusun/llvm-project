@@ -8054,6 +8054,33 @@ static void HandleExtVectorTypeAttr(QualType &CurType, const ParsedAttr &Attr,
     CurType = T;
 }
 
+/// Handle `__attribute__((__packed_vector_type__(N)))`.
+///
+/// Builds the same vector as ext_vector_type but tagged MetalPackedVector so
+/// that ASTContext lays it out with element alignment. Apple's standard
+/// library declares the whole packed_* family this way, for example
+///   typedef __attribute__((__packed_vector_type__(3))) float packed_float3;
+static void HandleMetalPackedVectorTypeAttr(QualType &CurType,
+                                            const ParsedAttr &Attr, Sema &S) {
+  if (!Attr.isArgExpr(0)) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_argument_type)
+        << Attr << AANT_ArgumentIntegerConstant;
+    Attr.setInvalid();
+    return;
+  }
+
+  Expr *SizeExpr = Attr.getArgAsExpr(0);
+  QualType T = S.BuildExtVectorType(CurType, SizeExpr, Attr.getLoc());
+  if (T.isNull())
+    return;
+
+  // Re-tag the freshly built vector as packed.
+  if (const auto *VT = T->getAs<VectorType>())
+    T = S.Context.getVectorType(VT->getElementType(), VT->getNumElements(),
+                                VectorType::MetalPackedVector);
+  CurType = T;
+}
+
 static bool isPermittedNeonBaseType(QualType &Ty,
                                     VectorType::VectorKind VecKind, Sema &S) {
   const BuiltinType *BTy = Ty->getAs<BuiltinType>();
@@ -8485,6 +8512,10 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       break;
     case ParsedAttr::AT_ExtVectorType:
       HandleExtVectorTypeAttr(type, attr, state.getSema());
+      attr.setUsedAsTypeAttr();
+      break;
+    case ParsedAttr::AT_MetalPackedVectorType:
+      HandleMetalPackedVectorTypeAttr(type, attr, state.getSema());
       attr.setUsedAsTypeAttr();
       break;
     case ParsedAttr::AT_NeonVectorType:
