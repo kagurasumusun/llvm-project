@@ -70,6 +70,32 @@ python3 docs-metal/verify/verify_against_metal_info.py /tmp/metal-info
 5. **builtin の型は捏造しない**。情報源が F-4 で「型付けは未実測」と
    明記しているため custom typechecking とした。
 
+## バイナリ監査で判明した実装バグ (未修正)
+
+`05-AUDIT.md` で生バイト検証を行った結果、自分の実装に 3 件の誤りが見つかった。
+いずれも未修正。
+
+1. **`air.arg_type_name` が pointee 型でなく全体型** (`CGMetal.cpp:446`)
+   純正は `device float*` に対し `"float"` を出すが、実装は `"device float *"`。
+   加えて型名は MSL 表記 (`float4`, `texture2d<float, sample>`) が必要で、
+   C++ 表記ではない。MSL 型名プリンタが別途要る。
+2. **`air.compile.framebuffer_fetch_*` を常に enable にしている**
+   実測では iOS/tvOS は常時 enable、macOS は `-std >= macos-metal2.3` で
+   enable、それ未満は disable。
+3. **watchOS の AIR 版マッピングが誤り** (`Driver.cpp`)
+   watchOS 11.4 は v27 が正しいが v26 を返す。正しい規則は
+   iOS/tvOS が `major+9`、watchOS が `major+16`。
+
+## 監査で判明した未実装の重要仕様
+
+1. **エントリ関数はマングルしてはならない。** 純正 400 件すべてで
+   `[[kernel]]/[[vertex]]/[[fragment]]/[[visible]]` の関数は非マングル
+   (`k_using_add`)、同一モジュール内のヘルパーはマングル (`_Z10helper_mulff`)。
+2. **`air.fast_*` は op ごとに存在有無が異なる** (fast 形のみ 24 種、
+   両形あり 3 種)。単純に接頭辞を合成してはならない。
+3. **metallib の fat header はビッグエンディアン**、MTLB 内部はリトル
+   エンディアン。`METALLIB_WRITER_SPEC.md` には明記がない。
+
 ## 未完了・制約
 
 ### ビルド検証ができていない (重要)
