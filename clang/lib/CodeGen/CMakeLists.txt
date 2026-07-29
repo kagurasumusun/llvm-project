@@ -56,6 +56,7 @@ add_clang_library(clangCodeGen
   CGGPUBuiltin.cpp
   CGHLSLRuntime.cpp
   CGLoopInfo.cpp
+  CGMetal.cpp
   CGNonTrivialStruct.cpp
   CGObjC.cpp
   CGObjCGNU.cpp

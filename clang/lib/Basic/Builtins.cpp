@@ -119,6 +119,9 @@ static bool builtinIsSupported(const Builtin::Info &BuiltinInfo,
   /* CPlusPlus Unsupported */
   if (!LangOpts.CPlusPlus && BuiltinInfo.Langs == CXX_LANG)
     return false;
+  /* Metal Unsupported */
+  if (!LangOpts.Metal && (BuiltinInfo.Langs & METAL_LANG))
+    return false;
   return true;
 }
 

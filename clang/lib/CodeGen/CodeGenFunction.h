@@ -4129,6 +4129,15 @@ public:
   RValue EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                          const CallExpr *E, ReturnValueSlot ReturnValue);
 
+  /// Lower a Metal `__metal_*` builtin to its AIR intrinsic call. Returns
+  /// std::nullopt if \p BuiltinID is not a Metal builtin.
+  std::optional<RValue> EmitMetalBuiltinExpr(unsigned BuiltinID,
+                                             const CallExpr *E);
+
+  /// Lower the few Metal builtins that have no AIR intrinsic behind them.
+  std::optional<RValue> EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
+                                                     const CallExpr *E);
+
   RValue emitRotate(const CallExpr *E, bool IsRotateRight);
 
   /// Emit IR for __builtin_os_log_format.

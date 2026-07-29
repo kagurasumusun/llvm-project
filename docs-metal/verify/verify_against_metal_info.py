@@ -228,6 +228,74 @@ def main(info):
     check("version gates match measured diagnostics (%d checked)"
           % len(measured_gates), not bad_gates, str(bad_gates[:5]))
 
+    print("== Builtins ==")
+    # Every __metal_* name used by the real Apple standard library headers must
+    # be declared, either as a function builtin or as an opaque handle type.
+    hdr_dir = os.path.join(info, "reference-apple/clang/32023.883/include/metal")
+    header_names = set()
+    for root, _dirs, files in os.walk(hdr_dir):
+        for fn in files:
+            try:
+                text = open(os.path.join(root, fn), errors="ignore").read()
+            except OSError:
+                continue
+            header_names.update(re.findall(r"__metal_[A-Za-z0-9_]+", text))
+
+    bi_def = read("clang/include/clang/Basic/BuiltinsMetal.def")
+    declared_fns = set(re.findall(r"^METAL_BUILTIN\((\w+),", bi_def, re.M))
+    declared_types = set(re.findall(r"^METAL_TYPE\((\w+),",
+                                    read("clang/include/clang/Basic/MetalTypes.def"),
+                                    re.M))
+    declared = declared_fns | declared_types
+    check("all %d __metal_* names used by the Apple stdlib are declared"
+          % len(header_names), header_names <= declared,
+          "missing %s" % sorted(header_names - declared)[:5])
+
+    # The AIR intrinsic recorded for each builtin must match the mapping table.
+    want_air = {}
+    with open(os.path.join(ds_dir, "builtin_to_air_map.v2.csv"),
+              encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            want_air[row["__metal_builtin"]] = row["air_intrinsic_candidate"].strip()
+    got_air = dict(re.findall(r'^METAL_BUILTIN\((\w+), "[^"]*", "[^"]*", "([^"]*)"\)',
+                              bi_def, re.M))
+    bad_air = [(k, want_air[k], v) for k, v in got_air.items()
+               if k in want_air and want_air[k] != v]
+    check("AIR intrinsic names match the mapping table (%d builtins)"
+          % len(got_air), not bad_air, str(bad_air[:3]))
+
+    print("== Entry point metadata ==")
+    # Cross-check the metadata key vocabulary CGMetal.cpp emits against the keys
+    # actually observed in Apple's output.
+    # The vocabulary is drawn from three measurements: the metadata key census
+    # of Apple generated IR, the golden corpus, and the string dictionary
+    # extracted from the compiler binaries themselves (15,643 air.* strings,
+    # research/datasets/air_dictionary_from_binaries.txt). Stage inputs such as
+    # air.sample_id only appear in the last of these, because no probe in the
+    # captured corpus happens to use them.
+    observed_keys = set()
+    with open(os.path.join(ast_dir, "meta/air-metadata-keys.csv"),
+              encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            observed_keys.add(row["metadata_key"])
+    dict_path = os.path.join(ds_dir, "air_dictionary_from_binaries.txt")
+    if os.path.exists(dict_path):
+        observed_keys.update(
+            re.findall(r"\bair\.[a-z_0-9]+(?:\.[a-z_0-9]+)*",
+                       open(dict_path, errors="ignore").read()))
+    cg = read("clang/lib/CodeGen/CGMetal.cpp")
+    emitted_keys = set(re.findall(r'"(air\.[a-z_.]+)"', cg))
+    unknown = {k for k in emitted_keys if k not in observed_keys}
+    # Named metadata (air.kernel etc.) lives in a different census.
+    named = set()
+    with open(os.path.join(ast_dir, "meta/air-named-metadata.csv"),
+              encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            named.add(row["metadata_name"])
+    unknown -= named
+    check("every air.* key CGMetal emits was observed in Apple output",
+          not unknown, "unknown %s" % sorted(unknown))
+
     print("\n%d checks, %d failures" % (checks, len(failures)))
     return 1 if failures else 0
 

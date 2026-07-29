@@ -937,6 +937,13 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     EmitKernelMetadata(FD, Fn);
   }
 
+  // Metal entry points are identified purely by metadata: the calling
+  // convention stays the default C one. This was established by disassembling
+  // all 701 modules of Apple's shipping runtime, none of which uses a special
+  // convention (research/spec/IR_GROUND_TRUTH.md section 2.5).
+  if (FD && getLangOpts().Metal)
+    CGM.EmitMetalEntryPointMetadata(FD, Fn);
+
   // If we are checking function types, emit a function type signature as
   // prologue data.
   if (FD && getLangOpts().CPlusPlus && SanOpts.has(SanitizerKind::Function)) {

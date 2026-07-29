@@ -1643,6 +1643,18 @@ private:
   /// Emit any needed decls for which code generation was deferred.
   void EmitDeferred();
 
+  /// Emit the module level `!air.*` metadata (version, language version,
+  /// compile options, source file name) and the AIR resource limit module
+  /// flags. Implemented in CGMetal.cpp.
+  void EmitMetalModuleMetadata();
+
+  /// Emit the `!air.kernel` / `!air.vertex` / `!air.fragment` entry describing
+  /// \p FD and its arguments. Implemented in CGMetal.cpp.
+  void EmitMetalEntryPointMetadata(const FunctionDecl *FD, llvm::Function *Fn);
+
+  /// Constant fold a Metal resource index attribute argument.
+  unsigned getMetalAttrIndex(const Expr *E);
+
   /// Try to emit external vtables as available_externally if they have emitted
   /// all inlined virtual functions.  It runs after EmitDeferred() and therefore
   /// is not allowed to create new references to things that need to be emitted

@@ -2214,6 +2214,14 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   const unsigned BuiltinIDIfNoAsmLabel =
       FD->hasAttr<AsmLabelAttr>() ? 0 : BuiltinID;
 
+  // Metal builtins lower to AIR intrinsic calls. They are handled up front
+  // because the mapping is a pure table lookup and none of the generic
+  // handling below applies to them.
+  if (getLangOpts().Metal) {
+    if (std::optional<RValue> R = EmitMetalBuiltinExpr(BuiltinID, E))
+      return *R;
+  }
+
   // There are LLVM math intrinsics/instructions corresponding to math library
   // functions except the LLVM op will never set errno while the math library
   // might. Also, math builtins have the same semantics as their math library

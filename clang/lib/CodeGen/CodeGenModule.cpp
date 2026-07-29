@@ -927,6 +927,10 @@ void CodeGenModule::Release() {
   if (getCodeGenOpts().EmitVersionIdentMetadata)
     EmitVersionIdentMetadata();
 
+  // Metal module level metadata: !air.version, !air.language_version,
+  // !air.compile_options, !air.source_file_name and the AIR resource limits.
+  EmitMetalModuleMetadata();
+
   if (!getCodeGenOpts().RecordCommandLine.empty())
     EmitCommandLineMetadata();
 

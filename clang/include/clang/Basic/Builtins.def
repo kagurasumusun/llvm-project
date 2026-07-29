@@ -1721,6 +1721,11 @@ BUILTIN(__builtin_ms_va_copy, "vc*&c*&", "n")
 // Arithmetic Fence: to prevent FP reordering and reassociation optimizations
 LANGBUILTIN(__arithmetic_fence, "v.", "tE", ALL_LANGUAGES)
 
+// Metal Shading Language builtins. Apple's <metal_stdlib> routes every public
+// API through one of these, so all 650 must exist for the unmodified standard
+// library to compile. See BuiltinsMetal.def for provenance.
+#include "clang/Basic/BuiltinsMetal.def"
+
 #undef BUILTIN
 #undef LIBBUILTIN
 #undef LANGBUILTIN
