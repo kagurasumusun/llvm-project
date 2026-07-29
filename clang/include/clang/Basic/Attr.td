@@ -4099,6 +4099,33 @@ def HLSLGroupSharedAddressSpace : TypeAttr {
   let Documentation = [HLSLGroupSharedAddressSpaceDocs];
 }
 
+// Metal address space qualifiers. These are keywords rather than macros; the
+// Apple standard library headers use them thousands of times without ever
+// defining them (docs-metal/01-ANALYSIS.md section 1.10).
+class MetalAddressSpaceAttr<string keyword> : TypeAttr {
+  let Spellings = [Keyword<keyword>];
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
+def MetalDeviceAddressSpace : MetalAddressSpaceAttr<"device">;
+def MetalConstantAddressSpace : MetalAddressSpaceAttr<"constant">;
+def MetalThreadgroupAddressSpace : MetalAddressSpaceAttr<"threadgroup">;
+def MetalThreadAddressSpace : MetalAddressSpaceAttr<"thread">;
+def MetalThreadgroupImageblockAddressSpace
+    : MetalAddressSpaceAttr<"threadgroup_imageblock">;
+def MetalRayDataAddressSpace : MetalAddressSpaceAttr<"ray_data">;
+def MetalObjectDataAddressSpace : MetalAddressSpaceAttr<"object_data">;
+
+// Memory coherence qualifier, spelled `coherent(device)` or
+// `coherent(threadgroup)`. Mangled as the U18MTLcoherent extended qualifier.
+def MetalCoherent : TypeAttr {
+  let Spellings = [Keyword<"coherent">];
+  let Args = [IdentifierArgument<"Scope", 1>];
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
 def RandomizeLayout : InheritableAttr {
   let Spellings = [GCC<"randomize_layout">];
   let Subjects = SubjectList<[Record]>;

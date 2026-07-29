@@ -2940,6 +2940,7 @@ private:
   void ParseCUDAFunctionAttributes(ParsedAttributes &attrs);
   bool isHLSLQualifier(const Token &Tok) const;
   void ParseHLSLQualifiers(ParsedAttributes &Attrs);
+  void ParseMetalQualifiers(ParsedAttributes &Attrs);
 
   VersionTuple ParseVersionTuple(SourceRange &Range);
   void ParseAvailabilityAttribute(IdentifierInfo &Availability,

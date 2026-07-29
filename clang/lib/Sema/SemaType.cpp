@@ -6805,6 +6805,14 @@ static void HandleAddressSpaceTypeAttribute(QualType &Type,
                                          : Attr.asOpenCLLangAS();
     if (S.getLangOpts().HLSL)
       ASIdx = Attr.asHLSLLangAS();
+    if (S.getLangOpts().Metal)
+      ASIdx = Attr.asMetalLangAS();
+
+    // `thread` names the default address space, so it is a no-op rather than
+    // an error. Apple's mangling confirms this: `_Z11read_threadP10AddressBox`
+    // carries no qualifier at all, while `device` produces U9MTLdevice.
+    if (S.getLangOpts().Metal && ASIdx == LangAS::metal_thread)
+      return;
 
     if (ASIdx == LangAS::Default)
       llvm_unreachable("Invalid address space");
@@ -8420,6 +8428,13 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     case ParsedAttr::AT_OpenCLConstantAddressSpace:
     case ParsedAttr::AT_OpenCLGenericAddressSpace:
     case ParsedAttr::AT_HLSLGroupSharedAddressSpace:
+    case ParsedAttr::AT_MetalDeviceAddressSpace:
+    case ParsedAttr::AT_MetalConstantAddressSpace:
+    case ParsedAttr::AT_MetalThreadgroupAddressSpace:
+    case ParsedAttr::AT_MetalThreadAddressSpace:
+    case ParsedAttr::AT_MetalThreadgroupImageblockAddressSpace:
+    case ParsedAttr::AT_MetalRayDataAddressSpace:
+    case ParsedAttr::AT_MetalObjectDataAddressSpace:
     case ParsedAttr::AT_AddressSpace:
       HandleAddressSpaceTypeAttribute(type, attr, state);
       attr.setUsedAsTypeAttr();

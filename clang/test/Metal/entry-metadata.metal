@@ -1,0 +1,45 @@
+// Entry point metadata schema.
+//
+// The expected shapes are transcribed from Apple's own output for an
+// equivalent shader: research/golden/P01/metal32_macosx26/probe.ll for the
+// kernel form and P02 for vertex and fragment.
+//
+// RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
+// RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
+
+kernel void probe_kernel(device float *b [[buffer(0)]],
+                         uint i [[thread_position_in_grid]]) {
+  b[i] = 1.0f;
+}
+
+// Entry points keep the default C calling convention. All 701 modules of
+// Apple's shipping runtime use it; no special convention exists.
+// CHECK: define void @probe_kernel(
+
+// CHECK: !air.kernel = !{![[FN:[0-9]+]]}
+
+// The function node is {function, <empty>, <arguments>}.
+// CHECK: ![[FN]] = !{{{.*}}@probe_kernel, ![[EMPTY:[0-9]+]], ![[ARGS:[0-9]+]]}
+// CHECK: ![[EMPTY]] = !{}
+
+// A device buffer argument carries a location index, an access mode, an
+// address space and its size and alignment.
+// CHECK: !"air.buffer", !"air.location_index", i32 0, i32 1
+// CHECK-SAME: !"air.address_space", i32 1
+// CHECK-SAME: !"air.arg_type_name"
+// CHECK-SAME: !"air.arg_name", !"b"
+
+// A stage builtin carries no location index.
+// CHECK: !"air.thread_position_in_grid", !"air.arg_type_name"
+// CHECK-SAME: !"air.arg_name", !"i"
+
+// Module level metadata. air.version follows the deployment target, while
+// air.language_version follows -std=.
+// CHECK: !air.version = !{![[VER:[0-9]+]]}
+// CHECK: ![[VER]] = !{i32 2, i32 8, i32 0}
+// CHECK: !{!"Metal", i32 3, i32 2, i32 0}
+
+// Resource limits, emitted as module flags.
+// CHECK-DAG: !{i32 7, !"air.max_device_buffers", i32 31}
+// CHECK-DAG: !{i32 7, !"air.max_textures", i32 128}
+// CHECK-DAG: !{i32 7, !"air.max_samplers", i32 16}

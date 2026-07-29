@@ -923,6 +923,43 @@ void Parser::ParseHLSLQualifiers(ParsedAttributes &Attrs) {
                ParsedAttr::AS_Keyword);
 }
 
+/// Parse a Metal address space or coherence qualifier.
+///
+/// These are plain keywords in MSL rather than macros; Apple's standard
+/// library relies on them being built in (see docs-metal/01-ANALYSIS.md
+/// section 1.10, which counts 9,596 uses of `device` and 3,441 of `ray_data`
+/// in the reference headers with no #define anywhere).
+///
+/// `coherent` differs from the rest in taking a parenthesised argument, as in
+/// `device coherent(device) T *`. The AST dumps print the resulting type as
+/// `const device coherent(device) Uniforms &`.
+void Parser::ParseMetalQualifiers(ParsedAttributes &Attrs) {
+  IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+  SourceLocation AttrNameLoc = ConsumeToken();
+
+  if (AttrName->isStr("coherent") && Tok.is(tok::l_paren)) {
+    BalancedDelimiterTracker T(*this, tok::l_paren);
+    T.consumeOpen();
+    IdentifierInfo *Scope = nullptr;
+    SourceLocation ScopeLoc;
+    if (Tok.is(tok::identifier) ||
+        Tok.isOneOf(tok::kw_device, tok::kw_threadgroup)) {
+      Scope = Tok.getIdentifierInfo();
+      ScopeLoc = ConsumeToken();
+    }
+    T.consumeClose();
+    if (Scope) {
+      ArgsUnion Args[] = {Scope};
+      Attrs.addNew(AttrName, SourceRange(AttrNameLoc, T.getCloseLocation()),
+                   nullptr, ScopeLoc, Args, 1, ParsedAttr::AS_Keyword);
+      return;
+    }
+  }
+
+  Attrs.addNew(AttrName, AttrNameLoc, nullptr, AttrNameLoc, nullptr, 0,
+               ParsedAttr::AS_Keyword);
+}
+
 void Parser::ParseNullabilityTypeSpecifiers(ParsedAttributes &attrs) {
   // Treat these like attributes, even though they're type specifiers.
   while (true) {
@@ -4345,6 +4382,19 @@ void Parser::ParseDeclarationSpecifiers(
       ParseHLSLQualifiers(DS.getAttributes());
       continue;
 
+    // Metal address space and coherence qualifiers.
+    case tok::kw_device:
+    case tok::kw_constant:
+    case tok::kw_threadgroup:
+    case tok::kw_thread:
+    case tok::kw_threadgroup_imageblock:
+    case tok::kw_ray_data:
+    case tok::kw_object_data:
+    case tok::kw_coherent:
+      // NOTE: ParseMetalQualifiers will consume the qualifier token.
+      ParseMetalQualifiers(DS.getAttributes());
+      continue;
+
     case tok::less:
       // GCC ObjC supports types like "<SomeProtocol>" as a synonym for
       // "id<SomeProtocol>".  This is hopelessly old fashioned and dangerous,
@@ -5863,6 +5913,19 @@ void Parser::ParseTypeQualifierListOpt(
     case tok::kw_groupshared:
       // NOTE: ParseHLSLQualifiers will consume the qualifier token.
       ParseHLSLQualifiers(DS.getAttributes());
+      continue;
+
+    // Metal address space and coherence qualifiers.
+    case tok::kw_device:
+    case tok::kw_constant:
+    case tok::kw_threadgroup:
+    case tok::kw_thread:
+    case tok::kw_threadgroup_imageblock:
+    case tok::kw_ray_data:
+    case tok::kw_object_data:
+    case tok::kw_coherent:
+      // NOTE: ParseMetalQualifiers will consume the qualifier token.
+      ParseMetalQualifiers(DS.getAttributes());
       continue;
 
     case tok::kw___unaligned:
