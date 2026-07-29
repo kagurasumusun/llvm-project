@@ -930,6 +930,7 @@ void CodeGenModule::Release() {
   // Metal module level metadata: !air.version, !air.language_version,
   // !air.compile_options, !air.source_file_name and the AIR resource limits.
   EmitMetalModuleMetadata();
+  EmitMetalFunctionConstants();
 
   if (!getCodeGenOpts().RecordCommandLine.empty())
     EmitCommandLineMetadata();
@@ -4993,6 +4994,38 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
   GV->setInitializer(Init);
   if (emitter)
     emitter->finalize(GV);
+
+  // A Metal `[[function_constant(N)]]` gains an externally initialized
+  // placeholder that the pipeline writes at build time; the variable itself
+  // is filled in from it by the `air.static_init` constructor. Modelled on
+  // the reference output, where
+  //   constant bool use_path_a [[function_constant(0)]];
+  // produces `@_Z10use_path_a.MTL_FC_INIT_0_b` alongside `@_ZL10use_path_a`.
+  if (LangOpts.Metal && D->hasAttr<MetalFunctionConstantAttr>()) {
+    const auto *FCA = D->getAttr<MetalFunctionConstantAttr>();
+    std::string Suffix;
+    {
+      llvm::raw_string_ostream Out(Suffix);
+      getCXXABI().getMangleContext().mangleTypeName(D->getType(), Out);
+    }
+    StringRef S(Suffix);
+    if (S.startswith("_ZTS"))
+      S = S.drop_front(4);
+    std::string PName =
+        (Twine("_Z") + Twine(D->getName().size()) + D->getName() +
+         ".MTL_FC_INIT_" + Twine(getMetalAttrIndex(FCA->getIndex())) + "_" + S)
+            .str();
+    auto *Placeholder = new llvm::GlobalVariable(
+        getModule(), GV->getValueType(), /*isConstant=*/true,
+        llvm::GlobalValue::LinkOnceODRLinkage,
+        llvm::UndefValue::get(GV->getValueType()), PName, nullptr,
+        llvm::GlobalValue::NotThreadLocal, GV->getAddressSpace());
+    Placeholder->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    Placeholder->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Local);
+    Placeholder->setExternallyInitialized(true);
+    Placeholder->setAlignment(GV->getAlign());
+    AddMetalFunctionConstant(D, Placeholder);
+  }
 
   // If it is safe to mark the global 'constant', do so now.
   GV->setConstant(!NeedsGlobalCtor && !NeedsGlobalDtor &&

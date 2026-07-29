@@ -1,0 +1,74 @@
+function,signature
+___metal_fract_v4float,"x float> (<4 x float>, i32)"
+air.atomic.global.add.s.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.add.u.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.cmpxchg.weak.i32," (i32 addrspace(1)* nocapture, i32* nocapture, i32, i32, i32, i32, i1)"
+air.atomic.global.load.i32," (i32 addrspace(1)* nocapture, i32, i32, i1)"
+air.atomic.global.max.s.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.max.u.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.min.s.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.min.u.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.store.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.sub.u.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.atomic.global.xchg.i32," (i32 addrspace(1)* nocapture, i32, i32, i32, i1)"
+air.convert.f.f32.s.i32, (i32)
+air.convert.f.f32.u.i32, (i32)
+air.convert.u.i1.f.f32, (float)
+air.convert.u.i32.f.f32, (float)
+air.dot.v4f32," (<4 x float>, <4 x float>)"
+air.fast_acos.v4f32,x float> (<4 x float>)
+air.fast_asin.v4f32,x float> (<4 x float>)
+air.fast_atan.v4f32,x float> (<4 x float>)
+air.fast_ceil.v4f32,x float> (<4 x float>)
+air.fast_clamp.v4f32,"x float> (<4 x float>, <4 x float>, <4 x float>)"
+air.fast_cos.v4f32,x float> (<4 x float>)
+air.fast_cosh.v4f32,x float> (<4 x float>)
+air.fast_exp.v4f32,x float> (<4 x float>)
+air.fast_exp2.v4f32,x float> (<4 x float>)
+air.fast_fabs.v4f32,x float> (<4 x float>)
+air.fast_floor.v4f32,x float> (<4 x float>)
+air.fast_fract.v4f32,x float> (<4 x float>)
+air.fast_log.v4f32,x float> (<4 x float>)
+air.fast_log2.v4f32,x float> (<4 x float>)
+air.fast_rint.v4f32,x float> (<4 x float>)
+air.fast_round.v4f32,x float> (<4 x float>)
+air.fast_rsqrt.f32, (float)
+air.fast_rsqrt.v4f32,x float> (<4 x float>)
+air.fast_sin.v4f32,x float> (<4 x float>)
+air.fast_sinh.v4f32,x float> (<4 x float>)
+air.fast_sqrt.v4f32,x float> (<4 x float>)
+air.fast_tan.v4f32,x float> (<4 x float>)
+air.fast_tanh.v4f32,x float> (<4 x float>)
+air.fast_trunc.v4f32,x float> (<4 x float>)
+air.get_descriptor_size_tensor," (i16, i16)"
+air.get_null_global_tensor,addrspace(1)* ()
+air.get_read_sampler,addrspace(2)* ()
+air.init_strided_private_tensor.i16.private," (%struct._tensor_t* nocapture writeonly, i16, i8* readnone, i8* nocapture readonly, i8* nocapture readonly, i8)"
+air.is_null_global_tensor, (%struct._tensor_t addrspace(1)* nocapture readonly)
+air.mix.v4f32,"x float> (<4 x float>, <4 x float>, <4 x float>)"
+air.read_texture_2d.v4f32,"<4 x float>, i8 } (%struct._texture_2d_t addrspace(1)* nocapture readonly, %struct._sampler_t addrspace(2)*, <2 x i32>, <2 x i32>, i32, i32)"
+air.read_texture_2d.v4f32,"<4 x float>, i8 } (%struct._texture_2d_t addrspace(1)* nocapture readonly, <2 x i32>, i32, i32)"
+air.read_texture_2d_ms.v4f32,"<4 x float>, i8 } (%struct._texture_2d_ms_t addrspace(1)* nocapture readonly, %struct._sampler_t addrspace(2)*, <2 x i32>, i32, i32)"
+air.read_texture_2d_ms.v4f32,"<4 x float>, i8 } (%struct._texture_2d_ms_t addrspace(1)* nocapture readonly, <2 x i32>, i32, i32)"
+air.sample_depth_2d.f32,"float, i8 } (%struct._depth_2d_t addrspace(1)* nocapture readonly, %struct._sampler_t addrspace(2)* nocapture readonly, i32, <2 x float>, i1, <2 x i32>, i1, float, float, i32)"
+air.sample_texture_2d.v4f32,"<4 x float>, i8 } (%struct._texture_2d_t addrspace(1)* nocapture readonly, %struct._sampler_t addrspace(2)* nocapture readonly, <2 x float>, i1, <2 x i32>, i1, float, float, i32)"
+air.sample_texture_3d.v4f32,"<4 x float>, i8 } (%struct._texture_3d_t addrspace(1)* nocapture readonly, %struct._sampler_t addrspace(2)* nocapture readonly, <3 x float>, i1, <3 x i32>, i1, float, float, i32)"
+air.sample_texture_cube.v4f32,"<4 x float>, i8 } (%struct._texture_cube_t addrspace(1)* nocapture readonly, %struct._sampler_t addrspace(2)* nocapture readonly, <3 x float>, i1, float, float, i32)"
+air.wg.barrier," (i32, i32)"
+air.write_texture_2d.v4f32," (%struct._texture_2d_t addrspace(1)* nocapture, <2 x i32>, <4 x float>, i32, i32)"
+llvm.assume, (i1 noundef)
+llvm.dbg.declare," (metadata, metadata, metadata)"
+llvm.dbg.value," (metadata, metadata, metadata)"
+llvm.lifetime.end.p0i8," (i64 immarg, i8* nocapture)"
+llvm.lifetime.start.p0i8," (i64 immarg, i8* nocapture)"
+llvm.memcpy.p0i8.p0i8.i32," (i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i32, i1 immarg)"
+llvm.memcpy.p0i8.p0i8.i64," (i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg)"
+llvm.memcpy.p0i8.p1i8.i32," (i8* noalias nocapture writeonly, i8 addrspace(1)* noalias nocapture readonly, i32, i1 immarg)"
+llvm.memcpy.p0i8.p1i8.i64," (i8* noalias nocapture writeonly, i8 addrspace(1)* noalias nocapture readonly, i64, i1 immarg)"
+llvm.memcpy.p1.p0.i64," (ptr addrspace(1) noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg)"
+llvm.memcpy.p1.p1.i64," (ptr addrspace(1) noalias nocapture writeonly, ptr addrspace(1) noalias nocapture readonly, i64, i1 immarg)"
+llvm.memcpy.p1.p2.i64," (ptr addrspace(1) noalias nocapture writeonly, ptr addrspace(2) noalias nocapture readonly, i64, i1 immarg)"
+llvm.memcpy.p1.p3.i64," (ptr addrspace(1) noalias nocapture writeonly, ptr addrspace(3) noalias nocapture readonly, i64, i1 immarg)"
+llvm.sadd.with.overflow.i32,"i32, i1 } (i32, i32)"
+llvm.smul.with.overflow.i32,"i32, i1 } (i32, i32)"
+llvm.ubsantrap, (i8 immarg)

@@ -1,0 +1,22 @@
+{
+  "files": 129323,
+  "lines": 10831381,
+  "bytes": 652603945,
+  "mdstr": 10086,
+  "named_md": 16,
+  "triple": 56,
+  "datalayout": 2,
+  "addrspace": 8,
+  "declared_fn": 715,
+  "called_fn": 829,
+  "defined_fn": 2205,
+  "fn_attr": 38,
+  "typedef": 162,
+  "instr": 40,
+  "cc": 1,
+  "linkage": 5,
+  "global_kw": 51,
+  "misc_toplevel": 0,
+  "airmd_pattern": 570,
+  "decl_signatures": 73
+}

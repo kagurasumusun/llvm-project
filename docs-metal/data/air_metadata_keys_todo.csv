@@ -1,47 +1,89 @@
-key,area,status,evidence
-air.vertex_output,vertex output,NOT_EMITTED,"golden P02: !{!\"air.vertex_output\", !\"generated(2uvDv2_f)\", ...}"
-air.render_target,fragment output,NOT_EMITTED,"golden P02: !{!\"air.render_target\", i32 0, i32 0, ...}"
-air.position,vertex output,PARTIAL,"emitted for inputs; output side not yet"
-air.point_size,vertex output,NOT_EMITTED,airconv + corpus
-air.clip_distance,vertex output,NOT_EMITTED,airconv + corpus
-air.clip_distance_array_size,vertex output,NOT_EMITTED,airconv
-air.render_target_array_index,vertex output,NOT_EMITTED,airconv + corpus
-air.viewport_array_index,vertex output,NOT_EMITTED,airconv + corpus
-air.center,interpolation,NOT_EMITTED,"corpus: 1574 x air.center+air.no_perspective, 888 x air.center+air.perspective"
-air.centroid,interpolation,NOT_EMITTED,corpus: 886 each with perspective / no_perspective
-air.sample,interpolation,PARTIAL,"used as texture access; also an interpolation qualifier"
-air.perspective,interpolation,NOT_EMITTED,corpus
-air.no_perspective,interpolation,NOT_EMITTED,corpus
-air.flat,interpolation,NOT_EMITTED,corpus + airconv
-air.invariant,vertex output,NOT_EMITTED,airconv
-air.depth,fragment output,NOT_EMITTED,airconv
-air.depth_qualifier,fragment output,NOT_EMITTED,"corpus: air.greater / air.less accompany it"
-air.greater,depth qualifier,NOT_EMITTED,corpus
-air.less,depth qualifier,NOT_EMITTED,corpus
-air.stencil,fragment output,NOT_EMITTED,airconv
-air.sample_mask_in,fragment input,NOT_EMITTED,airconv
-air.buffer_size,buffer arg,PARTIAL,"golden P01 emits it for constant refs; impl does not"
-air.struct_type_info,buffer arg,NOT_EMITTED,"golden P01: 5-element repeat (index, offset, ?, type, name)"
-air.indirect_argument,argument buffer,NOT_EMITTED,airconv + metadata census
-air.indirect_buffer,argument buffer,NOT_EMITTED,airconv + metadata census
-air.indirect_constant,argument buffer,NOT_EMITTED,airconv
-air.raster_order_group,fragment,NOT_EMITTED,airconv; attribute is parsed but metadata not emitted
-air.patch,tessellation,NOT_EMITTED,airconv
-air.triangle,tessellation/intersection,NOT_EMITTED,airconv
-air.line,tessellation,NOT_EMITTED,airconv
-air.point,tessellation,NOT_EMITTED,airconv
-air.payload,object/intersection,NOT_EMITTED,airconv
-air.mesh,mesh,NOT_EMITTED,airconv
-air.mesh_grid_properties,mesh,NOT_EMITTED,airconv
-air.mesh_primitive_data,mesh,NOT_EMITTED,airconv
-air.mesh_vertex_data,mesh,NOT_EMITTED,airconv
-air.mesh_type_info,mesh,NOT_EMITTED,airconv
-air.max_mesh_work_groups,mesh,NOT_EMITTED,airconv
-air.max_work_group_size,kernel,NOT_EMITTED,airconv
-air.set_vertex_data_mesh,mesh intrinsic,NOT_EMITTED,airconv
-air.set_primitive_data_mesh,mesh intrinsic,NOT_EMITTED,airconv
-air.set_clip_distance_mesh,mesh intrinsic,NOT_EMITTED,airconv
-air.set_point_size_mesh,mesh intrinsic,NOT_EMITTED,airconv
-air.set_render_target_array_index_mesh,mesh intrinsic,NOT_EMITTED,airconv
-air.set_viewport_array_index_mesh,mesh intrinsic,NOT_EMITTED,airconv
-air.interpolation_function,fragment,NOT_EMITTED,airconv
+key,count,kind,status,example
+air.arg_type_name,272801,operand_string,EMITTED,
+air.arg_name,270285,operand_string,EMITTED,
+air.location_index,234699,operand_string,EMITTED,"!{!""air.location_index"", i32 0, i32 1, !""air.arg_type_name"", !""float4"", !""air.arg_name"", !""p"", !""air.arg_unused""}"
+air.arg_type_align_size,172136,operand_string,EMITTED,
+air.arg_type_size,172133,operand_string,EMITTED,
+air.buffer,171765,operand_string,EMITTED,"!{i32 0, !""air.buffer"", !""air.location_index"", i32 0, i32 1, !""air.read_write"", !""air.address_space"", i32 1, !""air.arg_type_size"", i32 4, !""air.arg_type_align_size"", i32 4, !""air.arg_type_name"", !""float"", !""air.arg_name"", !""out""}"
+air.read_write,165893,operand_string,EMITTED,
+air.address_space,136449,operand_string,EMITTED,
+air.compile_options,129322,named_md,EMITTED,
+air.source_file_name,129322,named_md,EMITTED,
+air.compile.denorms_disable,129322,operand_string,EMITTED,"!{!""air.compile.denorms_disable""}"
+air.language_version,129322,named_md,EMITTED,
+air.compile.fast_math_enable,129322,operand_string,EMITTED,"!{!""air.compile.fast_math_enable""}"
+air.version,129322,named_md,EMITTED,
+air.kernel,125194,named_md,EMITTED,
+air.compile.framebuffer_fetch_enable,117293,operand_string,EMITTED,"!{!""air.compile.framebuffer_fetch_enable""}"
+air.max_read_write_textures,113575,operand_string,EMITTED,"!{i32 7, !""air.max_read_write_textures"", i32 8}"
+air.max_threadgroup_buffers,113575,operand_string,EMITTED,"!{i32 7, !""air.max_threadgroup_buffers"", i32 31}"
+air.max_device_buffers,113575,operand_string,EMITTED,"!{i32 7, !""air.max_device_buffers"", i32 31}"
+air.max_samplers,113575,operand_string,EMITTED,"!{i32 7, !""air.max_samplers"", i32 16}"
+air.max_textures,113575,operand_string,EMITTED,"!{i32 7, !""air.max_textures"", i32 128}"
+air.max_constant_buffers,113575,operand_string,EMITTED,"!{i32 7, !""air.max_constant_buffers"", i32 31}"
+air.texture,44163,operand_string,EMITTED,"!{i32 0, !""air.texture"", !""air.location_index"", i32 0, i32 1, !""air.sample"", !""air.arg_type_name"", !""texture2d<float, sample>"", !""air.arg_name"", !""tex""}"
+air.sample,23535,operand_string,EMITTED,
+air.read,23028,operand_string,EMITTED,
+air.arg_unused,19419,operand_string,EMITTED,
+air.sampler,15843,operand_string,EMITTED,"!{i32 1, !""air.sampler"", !""air.location_index"", i32 0, i32 1, !""air.arg_type_name"", !""sampler"", !""air.arg_name"", !""s""}"
+air.compile.framebuffer_fetch_disable,12029,operand_string,EMITTED,"!{!""air.compile.framebuffer_fetch_disable""}"
+air.thread_position_in_grid,10810,operand_string,EMITTED,"!{i32 1, !""air.thread_position_in_grid"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""id""}"
+air.fragment_input,6411,operand_string,EMITTED,"!{i32 2, !""air.fragment_input"", !""generated(4v_cpDv4_f)"", !""air.center"", !""air.perspective"", !""air.arg_type_name"", !""float4"", !""air.arg_name"", !""v_cp""}"
+air.write,5652,operand_string,EMITTED,
+air.vertex_output,5225,operand_string,EMITTED,"!{!""air.vertex_output"", !""generated(6v_flatDv4_f)"", !""air.arg_type_name"", !""float4"", !""air.arg_name"", !""v_flat""}"
+air.function_constants,5057,named_md,EMITTED,
+air.struct_type_info,4853,operand_string,EMITTED,
+air.render_target,4182,operand_string,EMITTED,"!{!""air.render_target"", i32 0, i32 0, !""air.arg_type_name"", !""float4""}"
+air.no_perspective,3346,operand_string,EMITTED,
+air.thread_index_in_threadgroup,3092,operand_string,EMITTED,"!{i32 1, !""air.thread_index_in_threadgroup"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""tid""}"
+air.perspective,2660,operand_string,EMITTED,
+air.center,2462,operand_string,EMITTED,
+air.position,2234,operand_string,EMITTED,"!{!""air.position"", !""air.arg_type_name"", !""float4"", !""air.arg_name"", !""position""}"
+air.vertex_input,2186,operand_string,EMITTED,"!{i32 0, !""air.vertex_input"", !""air.location_index"", i32 0, i32 1, !""air.arg_type_name"", !""float4"", !""air.arg_name"", !""position""}"
+air.fragment,1994,named_md,EMITTED,
+air.centroid,1772,operand_string,EMITTED,
+air.depth,1638,operand_string,EMITTED,"!{!""air.depth"", !""air.depth_qualifier"", !""air.any"", !""air.arg_type_name"", !""float"", !""air.arg_name"", !""d""}"
+air.depth_qualifier,1638,operand_string,EMITTED,
+air.thread_index_in_simdgroup,1600,operand_string,EMITTED,"!{i32 5, !""air.thread_index_in_simdgroup"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""lane"", !""air.arg_unused""}"
+air.vertex,1545,named_md,EMITTED,
+air.buffer_size,1482,operand_string,EMITTED,
+air.flat,1092,operand_string,EMITTED,
+air.indirect_argument,936,operand_string,NOT_EMITTED,"!{i32 0, i32 8, i32 0, !""float"", !""data"", !""air.indirect_argument"", !N, i32 8, i32 4, i32 0, !""uint"", !""count"", !""air.indirect_argument"", !N}"
+air.point_size,760,operand_string,EMITTED,"!{!""air.point_size"", !""air.arg_type_name"", !""float"", !""air.arg_name"", !""v_ps""}"
+air.sampler_states,548,named_md,NOT_EMITTED,
+air.sampler_state,548,operand_string,NOT_EMITTED,"!{!""air.sampler_state"", [2 x i64] addrspace(2)* @__air_sampler_state}"
+air.less,546,operand_string,EMITTED,
+air.greater,546,operand_string,EMITTED,
+air.any,546,operand_string,EMITTED,
+air.visible_output,520,operand_string,EMITTED,"!{!""air.visible_output"", !""air.arg_type_name"", !""uint""}"
+air.visible,520,named_md,EMITTED,
+air.visible_input,520,operand_string,EMITTED,"!{i32 0, !""air.visible_input"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""v""}"
+air.visible_function_references,352,named_md,NOT_EMITTED,
+air.visible_function_reference,352,operand_string,NOT_EMITTED,"!{!""air.visible_function_reference"", i32 (i32)* @ld_visible_fn.MTL_VISIBLE_FN_REF, !""ld_visible_fn""}"
+air.indirect_buffer,312,operand_string,NOT_EMITTED,"!{i32 0, !""air.indirect_buffer"", !""air.buffer_size"", i32 16, !""air.location_index"", i32 0, i32 1, !""air.read"", !""air.address_space"", i32 2, !""air.struct_type_info"", !N, !""air.arg_type_size"", i32 16, !""air.arg_type_align_size"", i32 8, !""air.arg_type_name"", !""Args"", !""air.arg_name"", !""args""}"
+air.render_target_array_index,280,operand_string,EMITTED,"!{!""air.render_target_array_index"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""rta""}"
+air.viewport_array_index,280,operand_string,EMITTED,"!{!""air.viewport_array_index"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""vpa""}"
+air.vertex_id,215,operand_string,EMITTED,"!{i32 0, !""air.vertex_id"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""vid""}"
+air.clip_distance,214,operand_string,EMITTED,"!{!""air.clip_distance"", !""air.clip_distance_array_size"", i32 2, !""air.arg_type_name"", !""float"", !""air.arg_name"", !""cd""}"
+air.clip_distance_array_size,178,operand_string,EMITTED,
+air.stage_in,176,operand_string,NOT_EMITTED,"!{i32 0, !""air.stage_in"", !""air.location_index"", i32 0, i32 1, !""air.arg_type_name"", !""float4"", !""air.arg_name"", !""p"", !""air.arg_unused""}"
+air.indirect_constant,156,operand_string,NOT_EMITTED,"!{i32 1, !""air.indirect_constant"", !""air.location_index"", i32 1, i32 1, !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""count""}"
+air.instance_acceleration_structure,96,operand_string,NOT_EMITTED,"!{i32 0, !""air.instance_acceleration_structure"", !""air.location_index"", i32 0, i32 1, !""air.read"", !""air.arg_type_name"", !""acceleration_structure<instancing>"", !""air.arg_name"", !""accel""}"
+air.object,57,named_md,EMITTED,
+air.threadgroup_position_in_grid,56,operand_string,EMITTED,"!{i32 1, !""air.threadgroup_position_in_grid"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""tig"", !""air.arg_unused""}"
+air.payload,56,operand_string,EMITTED,"!{i32 0, !""air.payload"", !""air.struct_type_info"", !N, !""air.arg_type_size"", i32 32, !""air.arg_type_align_size"", i32 16, !""air.arg_type_name"", !""Pay2"", !""air.arg_name"", !""p"", !""air.arg_unused""}"
+air.thread_position_in_threadgroup,4,operand_string,EMITTED,"!{i32 2, !""air.thread_position_in_threadgroup"", !""air.arg_type_name"", !""ushort2"", !""air.arg_name"", !""__lid"", !""air.arg_unused""}"
+air.imageblock,3,operand_string,NOT_EMITTED,"!{i32 0, !""air.imageblock"", !""implicit"", !""air.struct_type_info"", !N, !""air.arg_type_align_size"", i32 16, !""air.arg_type_name"", !""imageblock<IB25C, layout_implicit>"", !""air.arg_name"", !""__ib""}"
+air.patch_id,2,operand_string,NOT_EMITTED,"!{i32 1, !""air.patch_id"", !""air.arg_type_name"", !""ushort"", !""air.arg_name"", !""__pid""}"
+air.patch_control_point_function,2,operand_string,NOT_EMITTED,"!{!""air.patch_control_point_function"", null}"
+air.patch_control_point,2,operand_string,NOT_EMITTED,
+air.patch_control_point_input,2,operand_string,NOT_EMITTED,"!{i32 0, !""air.patch_control_point_input"", !N, !N, !""air.arg_unused""}"
+air.patch,2,operand_string,NOT_EMITTED,"!{!""air.patch"", !""triangle"", !""air.patch_control_point"", i32 3}"
+air.vertex_value,1,operand_string,NOT_EMITTED,
+air.instance_id,1,operand_string,EMITTED,"!{i32 3, !""air.instance_id"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""iid""}"
+air.mesh_grid_properties,1,operand_string,NOT_EMITTED,"!{i32 0, !""air.mesh_grid_properties"", !""air.arg_type_name"", !""mesh_grid_properties"", !""air.arg_name"", !""__gp""}"
+air.mesh_type_info,1,operand_string,NOT_EMITTED,"!{!""air.mesh_type_info"", !N, !N, i32 8, i32 4, !""air.triangle""}"
+air.primitive_id,1,operand_string,EMITTED,"!{!""air.primitive_id"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""primid""}"
+air.triangle,1,operand_string,NOT_EMITTED,
+air.imageblock_data_size,1,operand_string,NOT_EMITTED,
+air.mesh,1,named_md,NOT_EMITTED,"!{i32 0, !""air.mesh"", !N, !""air.arg_type_name"", !""mesh<MeshV, MeshP, 8, 4, triangle>"", !""air.arg_name"", !""__m""}"

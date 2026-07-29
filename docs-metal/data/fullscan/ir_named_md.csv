@@ -1,0 +1,17 @@
+value,count
+llvm.module.flags,129322
+air.compile_options,129322
+llvm.ident,129322
+air.version,129322
+air.language_version,129322
+air.source_file_name,129322
+air.kernel,125194
+air.function_constants,5057
+air.fragment,1994
+llvm.dbg.cu,1694
+air.vertex,1545
+air.sampler_states,548
+air.visible,520
+air.visible_function_references,352
+air.object,57
+air.mesh,1

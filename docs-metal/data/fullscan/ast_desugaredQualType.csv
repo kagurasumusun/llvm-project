@@ -1,0 +1,355 @@
+value,count
+unsigned int,476912
+float __attribute__((ext_vector_type(4))),308508
+float __attribute__((ext_vector_type(2))),93186
+float __attribute__((ext_vector_type(3))),71356
+device unsigned int,70172
+unsigned int __attribute__((ext_vector_type(4))),46600
+unsigned int __attribute__((ext_vector_type(2))),45058
+half __attribute__((ext_vector_type(4))),24578
+unsigned int __attribute__((ext_vector_type(3))),23124
+int __attribute__((ext_vector_type(2))),22498
+unsigned short,20396
+unsigned char,18110
+"metal::texture2d<float, metal::access::sample>",14570
+float,14394
+int __attribute__((ext_vector_type(4))),13316
+int,13196
+"metal::matrix<float, 4, 4, void>",9668
+half __attribute__((ext_vector_type(2))),7726
+int __attribute__((ext_vector_type(3))),7372
+float device __attribute__((ext_vector_type(4))),6656
+half __attribute__((ext_vector_type(3))),6074
+bool __attribute__((ext_vector_type(4))),5664
+half,5590
+"metal::texture2d<float, metal::access::read>",5264
+device unsigned short,4792
+device unsigned char,4720
+"metal::texture2d<float, metal::access::sample, metal::memory_coherence_threadgroup>",3720
+float __attribute__((packed_vector_type(3))),3124
+"ArrayBox<float __attribute__((ext_vector_type(4))), 2>",2832
+"metal::texture3d<float, metal::access::sample>",2538
+"metal::texture2d<float, metal::access::write>",2444
+"metal::texture2d_array<float, metal::access::sample>",2444
+float device __attribute__((ext_vector_type(2))),2360
+float device __attribute__((ext_vector_type(3))),2360
+half device __attribute__((ext_vector_type(2))),2360
+half device __attribute__((ext_vector_type(3))),2360
+half device __attribute__((ext_vector_type(4))),2360
+"metal::texture2d<half, metal::access::sample>",2256
+"metal::depth2d<float, metal::access::sample>",2256
+"metal::texture2d_array<float, metal::access::read>",2162
+"metal::texture3d<float, metal::access::read>",2162
+"metal::texturecube<float, metal::access::sample>",2162
+threadgroup unsigned int,2124
+int device __attribute__((ext_vector_type(2))),2124
+int device __attribute__((ext_vector_type(3))),2124
+int device __attribute__((ext_vector_type(4))),2124
+unsigned int device __attribute__((ext_vector_type(2))),2124
+unsigned int device __attribute__((ext_vector_type(3))),2124
+unsigned int device __attribute__((ext_vector_type(4))),2124
+metal::raytracing::ray,2040
+"metal::texture2d<int, metal::access::sample>",1974
+"metal::texture2d<unsigned int, metal::access::sample>",1974
+"metal::texture2d_array<half, metal::access::sample>",1974
+"metal::texture2d_array<int, metal::access::sample>",1974
+"metal::texture2d_array<unsigned int, metal::access::sample>",1974
+"metal::texture1d<float, metal::access::sample>",1880
+"metal::texture1d<float, metal::access::read>",1880
+"metal::texturecube<float, metal::access::read>",1692
+"metal::texture1d<half, metal::access::sample>",1410
+"metal::texture1d<int, metal::access::sample>",1410
+"metal::texture1d<unsigned int, metal::access::sample>",1410
+"metal::texture3d<half, metal::access::sample>",1410
+"metal::texture3d<int, metal::access::sample>",1410
+"metal::texture3d<unsigned int, metal::access::sample>",1410
+"metal::texture2d<float, metal::access::read, metal::memory_coherence_threadgroup>",1344
+half __attribute__((packed_vector_type(4))),1236
+"metal::texturecube<half, metal::access::sample>",1128
+"metal::texturecube<int, metal::access::sample>",1128
+"metal::texturecube<unsigned int, metal::access::sample>",1128
+half __attribute__((packed_vector_type(2))),1118
+const constant unsigned int,1048
+"metal::texture2d_ms<float, metal::access::read>",1034
+"const constant metal::matrix<float, 4, 4, void>",1002
+metal::raytracing::_acceleration_structure<metal::raytracing::instancing>,960
+threadgroup metal::_atomic<unsigned int>,944
+float __attribute__((packed_vector_type(2))),882
+float __attribute__((packed_vector_type(4))),882
+half __attribute__((packed_vector_type(3))),882
+short __attribute__((ext_vector_type(3))),882
+unsigned short __attribute__((ext_vector_type(2))),882
+unsigned short __attribute__((ext_vector_type(4))),882
+char __attribute__((ext_vector_type(3))),882
+unsigned char __attribute__((ext_vector_type(2))),882
+unsigned char __attribute__((ext_vector_type(4))),882
+char __attribute__((ext_vector_type(2))),882
+char __attribute__((ext_vector_type(4))),882
+unsigned char __attribute__((ext_vector_type(3))),882
+short __attribute__((ext_vector_type(2))),882
+short __attribute__((ext_vector_type(4))),882
+unsigned short __attribute__((ext_vector_type(3))),882
+"metal::texture2d<unsigned int, metal::access::read>",846
+"metal::texture2d<int, metal::access::read>",846
+"metal::texture1d<float, metal::access::write>",752
+"metal::texture2d_array<float, metal::access::write>",752
+"metal::texture3d<float, metal::access::write>",752
+float threadgroup __attribute__((ext_vector_type(4))),708
+float threadgroup __attribute__((packed_vector_type(3))),708
+unsigned long,648
+"metal::texture3d<float, metal::access::sample, metal::memory_coherence_threadgroup>",648
+"metal::matrix<float, 2, 3, void>",646
+"metal::matrix<float, 3, 2, void>",646
+"metal::matrix<float, 3, 4, void>",646
+"metal::matrix<float, 4, 3, void>",646
+"metal::matrix<half, 2, 2, void>",646
+"metal::matrix<half, 2, 4, void>",646
+"metal::matrix<half, 3, 3, void>",646
+"metal::matrix<half, 4, 2, void>",646
+"metal::matrix<half, 4, 4, void>",646
+"metal::matrix<float, 2, 2, void>",646
+"metal::matrix<float, 2, 4, void>",646
+"metal::matrix<float, 3, 3, void>",646
+"metal::matrix<float, 4, 2, void>",646
+"metal::matrix<half, 2, 3, void>",646
+"metal::matrix<half, 3, 2, void>",646
+"metal::matrix<half, 3, 4, void>",646
+"metal::matrix<half, 4, 3, void>",646
+"metal::texture2d<float, metal::access::write, metal::memory_coherence_threadgroup>",624
+"metal::texture2d_array<float, metal::access::sample, metal::memory_coherence_threadgroup>",624
+"metal::depth2d<float, metal::access::sample, metal::memory_coherence_threadgroup>",576
+"metal::texture2d<half, metal::access::sample, metal::memory_coherence_threadgroup>",576
+"metal::texture2d<half, metal::access::read>",564
+"metal::texture2d_array<half, metal::access::read>",564
+"metal::texture2d_array<int, metal::access::read>",564
+"metal::texture2d_array<unsigned int, metal::access::read>",564
+"metal::texture1d<half, metal::access::read>",564
+"metal::texture1d<int, metal::access::read>",564
+"metal::texture1d<unsigned int, metal::access::read>",564
+"metal::texture3d<half, metal::access::read>",564
+"metal::texture3d<int, metal::access::read>",564
+"metal::texture3d<unsigned int, metal::access::read>",564
+"metal::texturecube<half, metal::access::read>",564
+"metal::texturecube<int, metal::access::read>",564
+"metal::texturecube<unsigned int, metal::access::read>",564
+"metal::texture2d_array<float, metal::access::read, metal::memory_coherence_threadgroup>",552
+"metal::texture3d<float, metal::access::read, metal::memory_coherence_threadgroup>",552
+"metal::texturecube<float, metal::access::sample, metal::memory_coherence_threadgroup>",552
+"metal::mesh<MeshVertexOut, MeshPrimOut, 64, 128, metal::topology::triangle>",528
+"FixedArray<unsigned int, 4>",528
+float const constant __attribute__((ext_vector_type(4))),516
+"metal::texture2d<int, metal::access::sample, metal::memory_coherence_threadgroup>",504
+"metal::texture2d<unsigned int, metal::access::sample, metal::memory_coherence_threadgroup>",504
+"metal::texture2d_array<half, metal::access::sample, metal::memory_coherence_threadgroup>",504
+"metal::texture2d_array<int, metal::access::sample, metal::memory_coherence_threadgroup>",504
+"metal::texture2d_array<unsigned int, metal::access::sample, metal::memory_coherence_threadgroup>",504
+metal::raytracing::intersector<>,480
+"metal::texture1d<float, metal::access::read, metal::memory_coherence_threadgroup>",480
+"metal::texture1d<float, metal::access::sample, metal::memory_coherence_threadgroup>",480
+bool __attribute__((ext_vector_type(2))),472
+bool __attribute__((ext_vector_type(3))),472
+const unsigned int,472
+"metal::depthcube<float, metal::access::sample>",470
+uint (*)(uint),440
+"metal::texturecube<float, metal::access::read, metal::memory_coherence_threadgroup>",432
+"metal::texture_buffer<float, metal::access::read>",416
+metal::mesh_grid_properties,396
+"metal::raytracing::intersector<metal::raytracing::instancing, metal::raytracing::triangle_data>",360
+"metal::texture1d<half, metal::access::sample, metal::memory_coherence_threadgroup>",360
+"metal::texture1d<int, metal::access::sample, metal::memory_coherence_threadgroup>",360
+"metal::texture1d<unsigned int, metal::access::sample, metal::memory_coherence_threadgroup>",360
+"metal::texture3d<half, metal::access::sample, metal::memory_coherence_threadgroup>",360
+"metal::texture3d<int, metal::access::sample, metal::memory_coherence_threadgroup>",360
+"metal::texture3d<unsigned int, metal::access::sample, metal::memory_coherence_threadgroup>",360
+half threadgroup __attribute__((packed_vector_type(2))),354
+"metal::texturecube_array<float, metal::access::sample>",350
+metal::raytracing::intersection_result<metal::raytracing::instancing>,336
+"const constant metal::texture2d<float, metal::access::sample>",310
+"metal::texturecube<half, metal::access::sample, metal::memory_coherence_threadgroup>",288
+"metal::texturecube<int, metal::access::sample, metal::memory_coherence_threadgroup>",288
+"metal::texturecube<unsigned int, metal::access::sample, metal::memory_coherence_threadgroup>",288
+"metal::depth2d<float, metal::access::read>",282
+"metal::texturecube<float, metal::access::write>",282
+"metal::texturecube<int, metal::access::write>",282
+"metal::texture2d<half, metal::access::write>",282
+"metal::texture2d<int, metal::access::write>",282
+"metal::texture2d<unsigned int, metal::access::write>",282
+"metal::texture2d_array<half, metal::access::write>",282
+"metal::texture2d_array<int, metal::access::write>",282
+"metal::texture2d_array<unsigned int, metal::access::write>",282
+"metal::texture1d<half, metal::access::write>",282
+"metal::texture1d<int, metal::access::write>",282
+"metal::texture1d<unsigned int, metal::access::write>",282
+"metal::texture3d<half, metal::access::write>",282
+"metal::texture3d<int, metal::access::write>",282
+"metal::texture3d<unsigned int, metal::access::write>",282
+"metal::texturecube<half, metal::access::write>",282
+"metal::texturecube<unsigned int, metal::access::write>",282
+long,280
+"metal::mesh<MeshVertex, void, 64, 32, metal::topology::triangle>",264
+"metal::texture2d_ms<float, metal::access::read, metal::memory_coherence_threadgroup>",264
+ray_data unsigned int,240
+metal::raytracing::intersector<metal::raytracing::instancing>,240
+_opaque_pthread_attr_t,236
+_opaque_pthread_cond_t,236
+_opaque_pthread_condattr_t,236
+_opaque_pthread_mutex_t,236
+_opaque_pthread_mutexattr_t,236
+_opaque_pthread_once_t,236
+_opaque_pthread_rwlock_t,236
+_opaque_pthread_rwlockattr_t,236
+float const device __attribute__((ext_vector_type(3))),236
+float const device __attribute__((packed_vector_type(3))),236
+const device unsigned int,236
+float const constant __attribute__((packed_vector_type(3))),236
+half const constant __attribute__((packed_vector_type(2))),236
+half const constant __attribute__((packed_vector_type(4))),236
+int __attribute__((packed_vector_type(3))),236
+int const constant __attribute__((packed_vector_type(3))),236
+unsigned int __attribute__((packed_vector_type(4))),236
+unsigned int const constant __attribute__((packed_vector_type(4))),236
+const constant bool,236
+int __attribute__((packed_vector_type(2))),236
+int const constant __attribute__((packed_vector_type(2))),236
+float const constant __attribute__((packed_vector_type(2))),236
+float const constant __attribute__((packed_vector_type(4))),236
+half const constant __attribute__((packed_vector_type(3))),236
+half threadgroup __attribute__((packed_vector_type(4))),236
+float const __attribute__((ext_vector_type(4))),220
+"metal::texture2d<int, metal::access::read, metal::memory_coherence_threadgroup>",216
+"metal::texture2d<unsigned int, metal::access::read, metal::memory_coherence_threadgroup>",216
+"metal::texture2d_array<float, metal::access::write, metal::memory_coherence_threadgroup>",192
+"metal::texture3d<float, metal::access::write, metal::memory_coherence_threadgroup>",192
+"metal::texture_buffer<float, metal::access::read, metal::memory_coherence_threadgroup>",192
+"metal::texture1d<float, metal::access::write, metal::memory_coherence_threadgroup>",192
+"metal::texture1d_array<float, metal::access::sample>",188
+"metal::depth2d_array<float, metal::access::sample>",188
+metal::lod_clamp,160
+"metal::texture_buffer<float, metal::access::write>",156
+bfloat __attribute__((ext_vector_type(4))),144
+"metal::texture2d<half, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture2d_array<half, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture2d_array<int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture2d_array<unsigned int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture1d<half, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture1d<int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture1d<unsigned int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture3d<half, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture3d<int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texture3d<unsigned int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texturecube<half, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texturecube<int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::texturecube<unsigned int, metal::access::read, metal::memory_coherence_threadgroup>",144
+"metal::depthcube_array<float, metal::access::sample>",140
+"metal::array<metal::texture2d<float, metal::access::sample>, 2>",136
+"metal::texture1d<float, metal::access::read_write>",132
+"metal::texture2d<float, metal::access::read_write>",132
+"metal::texture2d_array<float, metal::access::read_write>",132
+"metal::texture3d<float, metal::access::read_write>",132
+"const constant metal::array<metal::texture2d<float, metal::access::sample>, 2>",124
+metal::visible_function_table<void>,120
+metal::raytracing::intersection_function_table<void>,120
+"const constant metal::texture2d<float, metal::access::sample, metal::memory_coherence_threadgroup>",120
+"metal::depthcube<float, metal::access::sample, metal::memory_coherence_threadgroup>",120
+"metal::texturecube_array<float, metal::access::sample, metal::memory_coherence_threadgroup>",120
+unsigned int __attribute__((packed_vector_type(2))),118
+unsigned int const constant __attribute__((packed_vector_type(2))),118
+short __attribute__((packed_vector_type(3))),118
+short const constant __attribute__((packed_vector_type(3))),118
+unsigned short __attribute__((packed_vector_type(2))),118
+unsigned short const constant __attribute__((packed_vector_type(2))),118
+unsigned short __attribute__((packed_vector_type(4))),118
+unsigned short const constant __attribute__((packed_vector_type(4))),118
+char __attribute__((packed_vector_type(3))),118
+char const constant __attribute__((packed_vector_type(3))),118
+unsigned char __attribute__((packed_vector_type(2))),118
+unsigned char const constant __attribute__((packed_vector_type(2))),118
+unsigned char __attribute__((packed_vector_type(4))),118
+unsigned char const constant __attribute__((packed_vector_type(4))),118
+bool,118
+int __attribute__((packed_vector_type(4))),118
+int const constant __attribute__((packed_vector_type(4))),118
+unsigned int __attribute__((packed_vector_type(3))),118
+unsigned int const constant __attribute__((packed_vector_type(3))),118
+short __attribute__((packed_vector_type(2))),118
+short const constant __attribute__((packed_vector_type(2))),118
+short __attribute__((packed_vector_type(4))),118
+short const constant __attribute__((packed_vector_type(4))),118
+unsigned short __attribute__((packed_vector_type(3))),118
+unsigned short const constant __attribute__((packed_vector_type(3))),118
+char __attribute__((packed_vector_type(2))),118
+char const constant __attribute__((packed_vector_type(2))),118
+char __attribute__((packed_vector_type(4))),118
+char const constant __attribute__((packed_vector_type(4))),118
+unsigned char __attribute__((packed_vector_type(3))),118
+unsigned char const constant __attribute__((packed_vector_type(3))),118
+const metal::raytracing::intersection_result<metal::raytracing::instancing>,96
+MeshVertexOut,88
+object_data unsigned int,88
+device unsigned long,84
+metal::raytracing::intersection_result<>,72
+"metal::texture2d<half, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture2d<int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture2d<unsigned int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture2d_array<half, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture2d_array<int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture2d_array<unsigned int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture1d<half, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture1d<int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture1d<unsigned int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture3d<half, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture3d<int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture3d<unsigned int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texturecube<half, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texturecube<unsigned int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texture_buffer<float, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::depth2d<float, metal::access::read, metal::memory_coherence_threadgroup>",72
+"metal::texturecube<float, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::texturecube<int, metal::access::write, metal::memory_coherence_threadgroup>",72
+"metal::array<metal::texture2d<float, metal::access::sample, metal::memory_coherence_threadgroup>, 2>",48
+"const constant metal::array<metal::texture2d<float, metal::access::sample, metal::memory_coherence_threadgroup>, 2>",48
+"metal::texture1d_array<float, metal::access::sample, metal::memory_coherence_threadgroup>",48
+"metal::depth2d_array<float, metal::access::sample, metal::memory_coherence_threadgroup>",48
+"metal::depthcube_array<float, metal::access::sample, metal::memory_coherence_threadgroup>",48
+"metal::texture1d<float, metal::access::read_write, metal::memory_coherence_threadgroup>",48
+"metal::texture2d<float, metal::access::read_write, metal::memory_coherence_threadgroup>",48
+"metal::texture2d_array<float, metal::access::read_write, metal::memory_coherence_threadgroup>",48
+"metal::texture3d<float, metal::access::read_write, metal::memory_coherence_threadgroup>",48
+MeshVertex,44
+void,24
+(lambda at /tmp/metal-ast-ios-air64/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-ios-sim-air64/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-macos-air32/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-macos-air64/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-tvos-air32/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-tvos-air64/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-tvos-sim-air32/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-tvos-sim-air64/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-watchos-air32/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-watchos-air64/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-watchos-sim-air32/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-watchos-sim-air64/src/codegen_all.metal:18:12),16
+(lambda at /tmp/metal-ast-ios-air64/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-ios-air64/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-ios-sim-air64/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-ios-sim-air64/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-macos-air32/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-macos-air32/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-macos-air64/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-macos-air64/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-tvos-air32/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-tvos-air32/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-tvos-air64/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-tvos-air64/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-tvos-sim-air32/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-tvos-sim-air32/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-tvos-sim-air64/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-tvos-sim-air64/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-watchos-air32/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-watchos-air64/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-watchos-sim-air32/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-watchos-sim-air64/src/cx/cxx_010_lambda_generic.metal:4:12),8
+(lambda at /tmp/metal-ast-watchos-air32/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-watchos-air64/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-watchos-sim-air32/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8
+(lambda at /tmp/metal-ast-watchos-sim-air64/src/cx/cxx_009_lambda_capture_by_ref.metal:5:12),8

@@ -1,0 +1,571 @@
+value,count
+air.compile.denorms_disable,129322
+air.compile.fast_math_enable,129322
+air.compile.framebuffer_fetch_enable,117293
+air.max_device_buffers,113575
+air.max_constant_buffers,113575
+air.max_threadgroup_buffers,113575
+air.max_textures,113575
+air.max_read_write_textures,113575
+air.max_samplers,113575
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|out,30000
+air.sampler|air.location_index|air.arg_type_name|sampler|air.arg_name|s,15067
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|out,12816
+air.compile.framebuffer_fetch_disable,12029
+air.thread_position_in_grid|air.arg_type_name|uint|air.arg_name|id,10004
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|o,8606
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|out,7608
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|o,6480
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|o,3924
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|out,3714
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|out,3554
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|out,2804
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<float, sample>|air.arg_name|tex",2772
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|o,2672
+air.thread_index_in_threadgroup|air.arg_type_name|uint|air.arg_name|tid,2062
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half|air.arg_name|out,1870
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half|air.arg_name|o,1870
+air.render_target|air.arg_type_name|float4,1780
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<half, sample>|air.arg_name|tex",1712
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|o,1704
+air.position|air.arg_type_name|float4|air.arg_name|position,1543
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|bool|air.arg_name|o,1530
+"air.texture|air.location_index|air.read|air.arg_type_name|texture3d<float, read>|air.arg_name|tex",1498
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<int, sample>|air.arg_name|tex",1498
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<uint, sample>|air.arg_name|tex",1498
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|uout,1416
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|char|air.arg_name|out,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|bool|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uchar|air.arg_name|out,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|short|air.arg_name|out,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|ushort|air.arg_name|out,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|bool|air.arg_name|out,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|char|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uchar|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|short|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|ushort|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|inp,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|char|air.arg_name|o,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|short|air.arg_name|o,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uchar|air.arg_name|o,1360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|ushort|air.arg_name|o,1360
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d<float, read>|air.arg_name|tex",1284
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_array<float, read>|air.arg_name|tex",1070
+air.thread_index_in_threadgroup|air.arg_type_name|uint|air.arg_name|lid,1030
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|o,1000
+air.thread_index_in_simdgroup|air.arg_type_name|uint|air.arg_name|lane|air.arg_unused,960
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|out,924
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture3d<float, sample>|air.arg_name|tex",856
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube<float, sample>|air.arg_name|tex",856
+"air.texture|air.location_index|air.read|air.arg_type_name|texture1d<float, read>|air.arg_name|tex",856
+"air.texture|air.location_index|air.read|air.arg_type_name|texturecube<float, read>|air.arg_name|tex",806
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|out,750
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|b,682
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float2|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float2|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float3|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float3|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half2|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half2|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half3|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half3|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half4|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half4|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int2|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int2|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int3|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int3|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int4|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int4|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint2|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint2|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint3|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint3|air.arg_name|inp,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint4|air.arg_name|out,680
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint4|air.arg_name|inp,680
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<float, write>|air.arg_name|tex",642
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d<int, read>|air.arg_name|tex",642
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d<uint, read>|air.arg_name|tex",642
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture3d<half, sample>|air.arg_name|tex",642
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture3d<int, sample>|air.arg_name|tex",642
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture3d<uint, sample>|air.arg_name|tex",642
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube<half, sample>|air.arg_name|tex",642
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube<int, sample>|air.arg_name|tex",642
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube<uint, sample>|air.arg_name|tex",642
+air.thread_index_in_simdgroup|air.arg_type_name|uint|air.arg_name|lane,640
+air.thread_position_in_grid|air.arg_type_name|uint|air.arg_name|t,626
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<float, sample>|air.arg_name|tex|air.arg_unused",600
+air.sampler|air.location_index|air.arg_type_name|sampler|air.arg_name|smp|air.arg_unused,600
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<float, sample>|air.arg_name|t",585
+air.sampler_state,548
+air.vertex_output|generated(6v_flatDv4_f)|air.arg_type_name|float4|air.arg_name|v_flat,546
+air.vertex_output|generated(4v_cpDv4_f)|air.arg_type_name|float4|air.arg_name|v_cp,546
+air.vertex_output|generated(5v_cnpDv4_f)|air.arg_type_name|float4|air.arg_name|v_cnp,546
+air.vertex_output|generated(5v_ctpDv4_f)|air.arg_type_name|float4|air.arg_name|v_ctp,546
+air.vertex_output|generated(6v_ctnpDv4_f)|air.arg_type_name|float4|air.arg_name|v_ctnp,546
+air.vertex_output|generated(4v_spDv4_f)|air.arg_type_name|float4|air.arg_name|v_sp,546
+air.vertex_output|generated(5v_snpDv4_f)|air.arg_type_name|float4|air.arg_name|v_snp,546
+air.vertex_output|user(uid)|air.arg_type_name|uint|air.arg_name|v_user,546
+air.point_size|air.arg_type_name|float|air.arg_name|v_ps,546
+air.render_target|air.arg_type_name|float4|air.arg_name|c0,546
+air.render_target|air.arg_type_name|float4|air.arg_name|c1,546
+air.render_target|air.arg_type_name|float4|air.arg_name|c2,546
+air.render_target|air.arg_type_name|float4|air.arg_name|c3,546
+air.depth|air.depth_qualifier|air.any|air.arg_type_name|float|air.arg_name|d,546
+air.fragment_input|generated(4v_cpDv4_f)|air.center|air.perspective|air.arg_type_name|float4|air.arg_name|v_cp,546
+air.fragment_input|generated(5v_cnpDv4_f)|air.center|air.no_perspective|air.arg_type_name|float4|air.arg_name|v_cnp,546
+air.fragment_input|generated(5v_ctpDv4_f)|air.centroid|air.perspective|air.arg_type_name|float4|air.arg_name|v_ctp,546
+air.fragment_input|generated(6v_ctnpDv4_f)|air.centroid|air.no_perspective|air.arg_type_name|float4|air.arg_name|v_ctnp,546
+air.fragment_input|generated(4v_spDv4_f)|air.sample|air.perspective|air.arg_type_name|float4|air.arg_name|v_sp,546
+air.fragment_input|generated(5v_snpDv4_f)|air.sample|air.no_perspective|air.arg_type_name|float4|air.arg_name|v_snp,546
+air.depth|air.depth_qualifier|air.greater|air.arg_type_name|float|air.arg_name|d,546
+air.depth|air.depth_qualifier|air.less|air.arg_type_name|float|air.arg_name|d,546
+"air.texture|air.location_index|air.sample|air.arg_type_name|depth2d<float, sample>|air.arg_name|d",546
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube<float, sample>|air.arg_name|c",546
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_ms<float, read>|air.arg_name|ms",546
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d<float, read>|air.arg_name|t",546
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<float, write>|air.arg_name|t",546
+air.vertex_input|air.location_index|air.arg_type_name|float4|air.arg_name|position,532
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|o|air.arg_unused,510
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float3|air.arg_name|o,510
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half3|air.arg_name|o,510
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half|air.arg_name|out,484
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half|air.arg_name|o,484
+air.buffer|air.location_index|air.read_write|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|metal::_atomic|air.arg_name|counter,480
+air.buffer|air.location_index|air.read_write|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|metal::_atomic|air.arg_name|icounter,480
+air.buffer|air.location_index|air.read_write|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|AddressBox|air.arg_name|dev,480
+air.buffer|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|AddressBox|air.arg_name|con,480
+air.buffer|air.location_index|air.read_write|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|AddressBox|air.arg_name|tg,480
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<float, sample>|air.arg_name|t2",472
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture3d<float, sample>|air.arg_name|t7",472
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d<float, read>|air.arg_name|t14",472
+air.position|air.center|air.no_perspective|air.arg_type_name|float4|air.arg_name|position|air.arg_unused,470
+"air.texture|air.location_index|air.write|air.arg_type_name|texture3d<float, write>|air.arg_name|tex",428
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d<half, read>|air.arg_name|tex",428
+"air.texture|air.location_index|air.read|air.arg_type_name|texture1d<half, read>|air.arg_name|tex",428
+"air.texture|air.location_index|air.read|air.arg_type_name|texture1d<int, read>|air.arg_name|tex",428
+"air.texture|air.location_index|air.read|air.arg_type_name|texture1d<uint, read>|air.arg_name|tex",428
+"air.texture|air.location_index|air.read|air.arg_type_name|texture3d<half, read>|air.arg_name|tex",428
+"air.texture|air.location_index|air.read|air.arg_type_name|texture3d<int, read>|air.arg_name|tex",428
+"air.texture|air.location_index|air.read|air.arg_type_name|texture3d<uint, read>|air.arg_name|tex",428
+air.buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Uniforms|air.arg_name|u,420
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|bool|air.arg_name|o,396
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|dev,360
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|con,360
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|tg,360
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|char|air.arg_name|out,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|bool|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uchar|air.arg_name|out,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|short|air.arg_name|out,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|ushort|air.arg_name|out,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|bool|air.arg_name|out,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|char|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uchar|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|short|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|ushort|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|inp,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|char|air.arg_name|o,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|short|air.arg_name|o,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uchar|air.arg_name|o,352
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|ushort|air.arg_name|o,352
+air.visible_output|air.arg_type_name|uint,352
+air.visible_input|air.arg_type_name|uint|air.arg_name|v,352
+air.visible_function_reference|ld_visible_fn,352
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int3|air.arg_name|o,340
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint3|air.arg_name|o,340
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float2|air.arg_name|o,340
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|o,340
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half2|air.arg_name|o,340
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half4|air.arg_name|o,340
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|o|air.arg_unused,340
+air.vertex_input|air.location_index|air.arg_type_name|float3|air.arg_name|normal|air.arg_unused,340
+air.vertex_input|air.location_index|air.arg_type_name|float2|air.arg_name|uv|air.arg_unused,340
+air.vertex_input|air.location_index|air.arg_type_name|half4|air.arg_name|color|air.arg_unused,340
+air.fragment_input|generated(6v_flatDv4_f)|air.flat|air.arg_type_name|float4|air.arg_name|v_flat|air.arg_unused,340
+air.fragment_input|generated(4v_spDv4_f)|air.sample|air.perspective|air.arg_type_name|float4|air.arg_name|v_sp|air.arg_unused,340
+air.fragment_input|generated(5v_snpDv4_f)|air.sample|air.no_perspective|air.arg_type_name|float4|air.arg_name|v_snp|air.arg_unused,340
+air.fragment_input|user(uid)|air.flat|air.arg_type_name|uint|air.arg_name|v_user|air.arg_unused,340
+air.fragment_input|generated(4v_cpDv4_f)|air.center|air.perspective|air.arg_type_name|float4|air.arg_name|v_cp|air.arg_unused,340
+air.fragment_input|generated(5v_cnpDv4_f)|air.center|air.no_perspective|air.arg_type_name|float4|air.arg_name|v_cnp|air.arg_unused,340
+air.fragment_input|generated(5v_ctpDv4_f)|air.centroid|air.perspective|air.arg_type_name|float4|air.arg_name|v_ctp|air.arg_unused,340
+air.fragment_input|generated(6v_ctnpDv4_f)|air.centroid|air.no_perspective|air.arg_type_name|float4|air.arg_name|v_ctnp|air.arg_unused,340
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|fout,324
+air.render_target_array_index|air.arg_type_name|uint|air.arg_name|rta,280
+air.viewport_array_index|air.arg_type_name|uint|air.arg_name|vpa,280
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d<float, sample>|air.arg_name|t0|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d_array<float, sample>|air.arg_name|t1|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d_array<float, sample>|air.arg_name|t3|air.arg_unused",280
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_ms<float, read>|air.arg_name|t4|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube<float, sample>|air.arg_name|t5|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube_array<float, sample>|air.arg_name|t6|air.arg_unused",280
+"air.texture|air.location_index|air.read|air.arg_type_name|texture_buffer<float, read>|air.arg_name|t8|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|depth2d<float, sample>|air.arg_name|t9|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|depth2d_array<float, sample>|air.arg_name|t10|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|depthcube<float, sample>|air.arg_name|t11|air.arg_unused",280
+"air.texture|air.location_index|air.sample|air.arg_type_name|depthcube_array<float, sample>|air.arg_name|t12|air.arg_unused",280
+"air.texture|air.location_index|air.read|air.arg_type_name|texture1d<float, read>|air.arg_name|t13|air.arg_unused",280
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_array<float, read>|air.arg_name|t15|air.arg_unused",280
+"air.texture|air.location_index|air.read|air.arg_type_name|texture3d<float, read>|air.arg_name|t16|air.arg_unused",280
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d<float, write>|air.arg_name|t17|air.arg_unused",280
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<float, write>|air.arg_name|t18|air.arg_unused",280
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d_array<float, write>|air.arg_name|t19|air.arg_unused",280
+"air.texture|air.location_index|air.write|air.arg_type_name|texture3d<float, write>|air.arg_name|t20|air.arg_unused",280
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture1d<float, read_write>|air.arg_name|t21|air.arg_unused",280
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture2d<float, read_write>|air.arg_name|t22|air.arg_unused",280
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture2d_array<float, read_write>|air.arg_name|t23|air.arg_unused",280
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture3d<float, read_write>|air.arg_name|t24|air.arg_unused",280
+air.buffer|air.location_index|air.read_write|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|NestedLayout|air.arg_name|data,280
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|scratch,280
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|data,264
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|uout,226
+air.position|air.center|air.no_perspective|air.arg_type_name|float4|air.arg_name|position,216
+air.vertex_id|air.arg_type_name|uint|air.arg_name|vid,215
+air.render_target|air.arg_type_name|int,214
+"air.texture|air.location_index|air.sample|air.arg_type_name|depth2d<float, sample>|air.arg_name|t",214
+air.point_size|air.arg_type_name|float|air.arg_name|ps,214
+air.vertex_output|user(locn0)|air.arg_type_name|float2|air.arg_name|l0,214
+air.vertex_output|user(locn1)|air.arg_type_name|float2|air.arg_name|l1,214
+air.vertex_output|user(locn2)|air.arg_type_name|float2|air.arg_name|l2,214
+air.vertex_output|user(locn3)|air.arg_type_name|float2|air.arg_name|l3,214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<half, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<int, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<uint, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_array<half, read>|air.arg_name|tex",214
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_array<int, read>|air.arg_name|tex",214
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_array<uint, read>|air.arg_name|tex",214
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d<float, sample>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d<float, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d<half, sample>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d<half, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d<int, sample>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d<int, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d<uint, sample>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d<uint, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture3d<half, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture3d<int, write>|air.arg_name|tex",214
+"air.texture|air.location_index|air.write|air.arg_type_name|texture3d<uint, write>|air.arg_name|tex",214
+air.fragment_input|generated(6v_flatDv4_f)|air.flat|air.arg_type_name|float4|air.arg_name|v_flat,206
+air.fragment_input|user(uid)|air.flat|air.arg_type_name|uint|air.arg_name|v_user,206
+air.vertex_input|air.location_index|air.arg_type_name|float2|air.arg_name|uv,193
+air.vertex_input|air.location_index|air.arg_type_name|float3|air.arg_name|normal,192
+air.vertex_input|air.location_index|air.arg_type_name|half4|air.arg_name|color,192
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d<float, sample>|air.arg_name|t0",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture1d_array<float, sample>|air.arg_name|t1",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d_array<float, sample>|air.arg_name|t3",192
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_ms<float, read>|air.arg_name|t4",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube<float, sample>|air.arg_name|t5",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|texturecube_array<float, sample>|air.arg_name|t6",192
+"air.texture|air.location_index|air.read|air.arg_type_name|texture_buffer<float, read>|air.arg_name|t8",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|depth2d<float, sample>|air.arg_name|t9",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|depth2d_array<float, sample>|air.arg_name|t10",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|depthcube<float, sample>|air.arg_name|t11",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|depthcube_array<float, sample>|air.arg_name|t12",192
+"air.texture|air.location_index|air.read|air.arg_type_name|texture1d<float, read>|air.arg_name|t13",192
+"air.texture|air.location_index|air.read|air.arg_type_name|texture2d_array<float, read>|air.arg_name|t15",192
+"air.texture|air.location_index|air.read|air.arg_type_name|texture3d<float, read>|air.arg_name|t16",192
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d<float, write>|air.arg_name|t17",192
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<float, write>|air.arg_name|t18",192
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d_array<float, write>|air.arg_name|t19",192
+"air.texture|air.location_index|air.write|air.arg_type_name|texture3d<float, write>|air.arg_name|t20",192
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture1d<float, read_write>|air.arg_name|t21",192
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture2d<float, read_write>|air.arg_name|t22",192
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture2d_array<float, read_write>|air.arg_name|t23",192
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture3d<float, read_write>|air.arg_name|t24",192
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<float, sample>|air.arg_name|t|air.arg_unused",178
+air.clip_distance|air.clip_distance_array_size|air.arg_type_name|float|air.arg_name|cd,178
+air.thread_position_in_grid|air.arg_type_name|uint|air.arg_name|t|air.arg_unused,178
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float2|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float2|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float3|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float3|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half2|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half2|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half3|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half3|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half4|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half4|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int2|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int2|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int3|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int3|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int4|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int4|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint2|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint2|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint3|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint3|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint4|air.arg_name|out,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint4|air.arg_name|inp,176
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|b,176
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_float2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_float3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_float4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_half2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_half3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_half4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_int2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_int3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_int4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uint2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uint3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uint4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_short2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_short3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_short4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_ushort2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_ushort3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_ushort4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_char2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_char3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_char4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uchar2|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uchar3|air.arg_name|inp,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uchar4|air.arg_name|inp,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|data,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b0,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b1|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b2|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b3|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b4|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b5|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b6|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b7|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b8|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b9|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b10|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b11|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b12|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b13|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b14|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b15|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b16|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b17|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b18|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b19|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b20|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b21|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b22|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b23|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b24|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b25|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b26|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b27|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b28|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b29|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b30|air.arg_unused,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|a,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|in,170
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|b,170
+air.buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|n,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int2|air.arg_name|o,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int4|air.arg_name|o,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint2|air.arg_name|o,170
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint4|air.arg_name|o,170
+air.visible_output|air.arg_type_name|int,168
+air.visible_input|air.arg_type_name|int|air.arg_name|v,168
+"air.texture|air.location_index|air.read|air.arg_type_name|texturecube<half, read>|air.arg_name|tex",164
+"air.texture|air.location_index|air.read|air.arg_type_name|texturecube<int, read>|air.arg_name|tex",164
+"air.texture|air.location_index|air.read|air.arg_type_name|texturecube<uint, read>|air.arg_name|tex",164
+air.indirect_constant|air.location_index|air.arg_type_name|uint|air.arg_name|count,156
+air.stage_in|air.location_index|air.arg_type_name|float4|air.arg_name|p|air.arg_unused,152
+air.buffer|air.location_index|air.read_write|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|metal::_atomic|air.arg_name|counter,144
+air.buffer|air.location_index|air.read_write|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|metal::_atomic|air.arg_name|icounter,144
+air.buffer|air.location_index|air.read_write|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|AddressBox|air.arg_name|dev,144
+air.buffer|air.location_index|air.read|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|AddressBox|air.arg_name|con,144
+air.buffer|air.location_index|air.read_write|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|AddressBox|air.arg_name|tg,144
+air.sampler|air.location_index|air.arg_type_name|sampler|air.arg_name|smp,144
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float3|air.arg_name|o,132
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half3|air.arg_name|o,132
+air.indirect_buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Args|air.arg_name|args,132
+air.indirect_buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|SharedArgs|air.arg_name|args,132
+air.buffer|air.location_index|air.read|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|params,132
+air.buffer|air.buffer_size|air.location_index|air.read|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Uniforms|air.arg_name|u,126
+air.buffer|air.location_index|air.read_write|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|NestedLayout|air.arg_name|data,126
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|scratch,126
+air.buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Ph|air.arg_name|p,120
+air.buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Pi|air.arg_name|p,120
+air.buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Ps|air.arg_name|p,120
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|dev,108
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|con,108
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|tg,108
+air.instance_acceleration_structure|air.location_index|air.read|air.arg_type_name|acceleration_structure<instancing>|air.arg_name|accel,96
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int3|air.arg_name|o,88
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint3|air.arg_name|o,88
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float2|air.arg_name|o,88
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|o,88
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half2|air.arg_name|o,88
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|half4|air.arg_name|o,88
+air.payload|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Pay2|air.arg_name|p|air.arg_unused,56
+air.threadgroup_position_in_grid|air.arg_type_name|uint|air.arg_name|tig|air.arg_unused,56
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|data,48
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_float2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_float3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_float4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_half2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_half3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_half4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_int2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_int3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_int4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uint2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uint3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uint4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_short2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_short3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_short4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_ushort2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_ushort3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_ushort4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_char2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_char3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_char4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uchar2|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uchar3|air.arg_name|inp,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|packed_uchar4|air.arg_name|inp,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|data,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b0,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|a,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|in,44
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|b,44
+air.buffer|air.buffer_size|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|n,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int2|air.arg_name|o,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int4|air.arg_name|o,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint2|air.arg_name|o,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint4|air.arg_name|o,44
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b1,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b2,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b3,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b4,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b5,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b6,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b7,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b8,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b9,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b10,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b11,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b12,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b13,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b14,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b15,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b16,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b17,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b18,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b19,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b20,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b21,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b22,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b23,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b24,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b25,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b26,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b27,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b28,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b29,36
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b30,36
+air.sampler|air.location_index|air.arg_type_name|sampler|air.arg_name|s|air.arg_unused,32
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|fout,28
+air.clip_distance|air.arg_type_name|float|air.arg_name|cd,24
+air.indirect_buffer|air.buffer_size|air.location_index|air.read|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Args|air.arg_name|args,24
+air.indirect_buffer|air.buffer_size|air.location_index|air.read|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|SharedArgs|air.arg_name|args,24
+air.buffer|air.location_index|air.read|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|params,24
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|o|air.arg_unused,24
+air.stage_in|air.location_index|generated(__air_placeholder__)|air.arg_type_name|float4|air.arg_name|p,16
+air.buffer|air.buffer_size|air.location_index|air.read|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Ph|air.arg_name|p,16
+air.buffer|air.buffer_size|air.location_index|air.read|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Pi|air.arg_name|p,16
+air.buffer|air.buffer_size|air.location_index|air.read|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Ps|air.arg_name|p,16
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|int|air.arg_name|o|air.arg_unused,16
+air.vertex_input|air.location_index|generated(__air_placeholder__)|air.arg_type_name|float4|air.arg_name|position,14
+air.vertex_input|air.location_index|generated(__air_placeholder__)|air.arg_type_name|float3|air.arg_name|normal,14
+air.vertex_input|air.location_index|generated(__air_placeholder__)|air.arg_type_name|float2|air.arg_name|uv,14
+air.vertex_input|air.location_index|generated(__air_placeholder__)|air.arg_type_name|half4|air.arg_name|color,14
+air.clip_distance|air.arg_type_name|float [2]|air.arg_name|cd,12
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|ulong|air.arg_name|o,12
+air.stage_in|air.location_index|air.arg_type_name|float4|air.arg_name|p,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b1|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b2|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b3|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b4|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b5|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b6|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b7|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b8|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b9|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b10|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b11|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b12|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b13|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b14|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b15|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b16|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b17|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b18|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b19|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b20|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b21|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b22|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b23|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b24|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b25|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b26|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b27|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b28|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b29|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|b30|air.arg_unused,8
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|__out,3
+air.buffer|air.buffer_size|air.location_index|air.read|air.address_space|air.struct_type_info|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|Params|air.arg_name|p,2
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|shm,2
+air.thread_position_in_grid|air.arg_type_name|uint|air.arg_name|i,2
+air.position|air.arg_type_name|float4,2
+air.patch_control_point_function,2
+air.patch_id|air.arg_type_name|ushort|air.arg_name|__pid,2
+air.patch|triangle|air.patch_control_point,2
+air.thread_position_in_threadgroup|air.arg_type_name|ushort2|air.arg_name|__lid|air.arg_unused,2
+air.thread_position_in_threadgroup|air.arg_type_name|ushort2|air.arg_name|__lid,2
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float4|air.arg_name|__in,2
+"air.texture|air.location_index|air.sample|air.arg_type_name|texture2d<float, sample>|air.arg_name|__t",2
+air.position|air.arg_type_name|float4|air.arg_name|pos,1
+air.vertex_output|generated(2uvDv2_f)|air.arg_type_name|float2|air.arg_name|uv,1
+air.vertex_input|air.location_index|air.arg_type_name|float4|air.arg_name|pos,1
+air.instance_id|air.arg_type_name|uint|air.arg_name|iid,1
+air.position|air.center|air.no_perspective|air.arg_type_name|float4|air.arg_name|pos|air.arg_unused,1
+air.fragment_input|generated(2uvDv2_f)|air.center|air.perspective|air.arg_type_name|float2|air.arg_name|uv,1
+air.position|air.center|air.no_perspective|air.arg_type_name|float4|air.arg_name|pos,1
+air.fragment_input|generated(2uvDv2_f)|air.center|air.perspective|air.arg_type_name|float2|air.arg_name|uv|air.arg_unused,1
+"air.mesh|air.arg_type_name|mesh<MeshV, MeshP, 8, 4, triangle>|air.arg_name|__m",1
+air.mesh_type_info|air.triangle,1
+air.primitive_id|air.arg_type_name|uint|air.arg_name|primid,1
+air.mesh_grid_properties|air.arg_type_name|mesh_grid_properties|air.arg_name|__gp,1
+air.fragment_input|generated(4__vvf)|air.vertex_value|air.arg_type_name|float|air.arg_name|__vv,1
+air.patch_control_point_input|air.arg_unused,1
+air.location_index|air.arg_type_name|float4|air.arg_name|p|air.arg_unused,1
+air.patch_control_point_input,1
+air.location_index|air.arg_type_name|float4|air.arg_name|p,1
+"air.imageblock|implicit|air.struct_type_info|air.arg_type_align_size|air.arg_type_name|imageblock<IB25C, layout_implicit>|air.arg_name|__ib",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d<float, write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texture1d_array<float, write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<float, write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d_array<float, write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texture3d<float, write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texturecube<float, write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texturecube_array<float, write>|air.arg_name|__t",1
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|uint|air.arg_name|__out,1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture1d<ulong, read_write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture1d_array<ulong, read_write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture2d<ulong, read_write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture2d_array<ulong, read_write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture3d<ulong, read_write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texture_buffer<ulong, read_write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texturecube<ulong, read_write>|air.arg_name|__t",1
+"air.texture|air.location_index|air.read_write|air.arg_type_name|texturecube_array<ulong, read_write>|air.arg_name|__t",1
+"air.imageblock|implicit|air.struct_type_info|air.arg_type_align_size|air.arg_type_name|imageblock<FooImp, layout_implicit>|air.arg_name|__ib",1
+air.buffer|air.location_index|air.read_write|air.address_space|air.arg_type_size|air.arg_type_align_size|air.arg_type_name|float|air.arg_name|__out,1
+"air.imageblock|explicit|air.imageblock_data_size|air.struct_type_info|air.arg_type_align_size|air.arg_type_name|imageblock<FooExp, layout_explicit>|air.arg_name|__ib",1
+"air.texture|air.location_index|air.write|air.arg_type_name|texture2d<float, write>|air.arg_name|__t|air.arg_unused",1

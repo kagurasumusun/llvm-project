@@ -20,8 +20,10 @@
 
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/SmallVector.h"
@@ -403,6 +405,133 @@ public:
 
 } // namespace
 
+/// The `air.*` access mode string for a texture, read off its recorded type
+/// name. `texture2d<float, write>` gives `air.write`, and so on; the corpus
+/// never disagrees between the two spellings. Defaults to `air.sample`, which
+/// is what MSL defaults the access template argument to.
+static llvm::StringRef getMetalTextureAccess(llvm::StringRef TypeName) {
+  if (TypeName.contains("read_write"))
+    return "air.read_write";
+  if (TypeName.contains("write"))
+    return "air.write";
+  if (TypeName.contains("read"))
+    return "air.read";
+  return "air.sample";
+}
+
+/// Does this target emit the `air.address_space` operand on buffer arguments?
+///
+/// Established by sweeping every reference `.ll` on all four platforms and
+/// grouping by the AIR version in the triple. The operand is absent for
+/// air*_v20 through air*_v24 and present from air*_v25 onwards, without a
+/// single exception:
+///
+///   macOS   v20 10.13 no  v24 12.7 no  v25 13.7 YES  v28 26.0 YES
+///   iOS     v20 11.4 no  v24 15.8 no  v25 16.7 YES  v28 26.0 YES
+///   tvOS    v20 11.4 no  v24 15.8 no  v25 16.7 YES  v28 26.0 YES
+///   watchOS v26 10.3 YES v27 11.4 YES v28 26.0 YES
+///
+/// It tracks the deployment target, not `-std`: the same source compiled for
+/// macos-metal1.1 gains the operand when the deployment target moves from
+/// 10.13 to 26.0. The `_v111` legacy encoding (iOS 10.3) is below the cut.
+static bool metalEmitsAddressSpaceOperand(const llvm::Triple &T) {
+  unsigned V = T.getAIRVersion();
+  // v111 is the legacy spelling for the 10.12/10.3 era, far below the cut.
+  return V >= 25 && V != 111;
+}
+
+/// Append the interpolation qualifier operands for a stage-connected value.
+///
+/// Determined by a full sweep of every `.ll` in the reference corpus
+/// (129,323 files, 10,831,381 lines). `air.fragment_input` carries the
+/// sampling position and the perspective mode as two separate strings, and
+/// `air.flat` replaces both:
+///
+///   !{i32 2, !"air.fragment_input", !"generated(4v_cpDv4_f)",
+///     !"air.center",   !"air.perspective",    ...}   [[center_perspective]]
+///   !{i32 3, ... !"air.center",   !"air.no_perspective", ...}
+///   !{i32 4, ... !"air.centroid", !"air.perspective",    ...}
+///   !{i32 5, ... !"air.centroid", !"air.no_perspective", ...}
+///   !{i32 6, ... !"air.sample",   !"air.perspective",    ...}
+///   !{i32 7, ... !"air.sample",   !"air.no_perspective", ...}
+///   !{i32 1, ... !"air.flat", ...}                        [[flat]]
+///
+/// Observed counts: air.center 2462, air.centroid 1772, air.sample 23535
+/// (the sampler access mode shares the spelling), air.perspective 2660,
+/// air.no_perspective 3346, air.flat 1092.
+///
+/// The same pair also appears on `air.position` when the fragment stage
+/// declares `float4 position [[position]]` as an input:
+///
+///   !{i32 0, !"air.position", !"air.center", !"air.no_perspective", ...}
+///
+/// which is why the helper is shared. Nothing is appended when the
+/// declaration carries no interpolation attribute; the corpus shows the
+/// operands simply absent in that case.
+template <typename DeclT>
+static void addMetalInterpolation(MetalArgMetadataBuilder &B, const DeclT *D) {
+  if (D->template hasAttr<MetalFlatAttr>()) {
+    B.addStr("air.flat");
+    return;
+  }
+  if (D->template hasAttr<MetalCenterPerspectiveAttr>()) {
+    B.addStr("air.center");
+    B.addStr("air.perspective");
+  } else if (D->template hasAttr<MetalCenterNoPerspectiveAttr>()) {
+    B.addStr("air.center");
+    B.addStr("air.no_perspective");
+  } else if (D->template hasAttr<MetalCentroidPerspectiveAttr>()) {
+    B.addStr("air.centroid");
+    B.addStr("air.perspective");
+  } else if (D->template hasAttr<MetalCentroidNoPerspectiveAttr>()) {
+    B.addStr("air.centroid");
+    B.addStr("air.no_perspective");
+  } else if (D->template hasAttr<MetalSamplePerspectiveAttr>()) {
+    B.addStr("air.sample");
+    B.addStr("air.perspective");
+  } else if (D->template hasAttr<MetalSampleNoPerspectiveAttr>()) {
+    B.addStr("air.sample");
+    B.addStr("air.no_perspective");
+  }
+}
+
+/// Build the `air.struct_type_info` operand for a record type.
+///
+/// The corpus records one five element group per field, repeated inline:
+///
+///   !52 = !{i32 0, i32 4, i32 0, !"int", !"value"}
+///
+/// which is {byte offset, byte size, 0, MSL type name, field name}. Verified
+/// against `address_spaces_extended_all` (struct AddressBox { int value; }
+/// giving exactly the node above) and against the four field argument buffer
+/// probes, where the offsets 0/8/16/24 and sizes 8/8/8/8 reproduce the C++
+/// layout of the struct. The third element is 0 in every one of the 4,853
+/// occurrences.
+llvm::MDNode *CodeGenModule::EmitMetalStructTypeInfo(QualType Ty) {
+  llvm::LLVMContext &Ctx = getLLVMContext();
+  ASTContext &C = getContext();
+
+  const RecordDecl *RD = Ty->getAsRecordDecl();
+  if (!RD || !RD->isCompleteDefinition())
+    return nullptr;
+
+  const ASTRecordLayout &Layout = C.getASTRecordLayout(RD);
+  MetalArgMetadataBuilder B(Ctx);
+  unsigned FieldNo = 0;
+  for (const FieldDecl *FD : RD->fields()) {
+    QualType FTy = FD->getType();
+    B.addInt(C.toCharUnitsFromBits(Layout.getFieldOffset(FieldNo)).getQuantity());
+    B.addInt(FTy->isIncompleteType()
+                 ? 0
+                 : (unsigned)C.getTypeSizeInChars(FTy).getQuantity());
+    B.addInt(0);
+    B.addStr(getMetalTypeName(FTy));
+    B.addStr(FD->getName());
+    ++FieldNo;
+  }
+  return B.finish();
+}
+
 /// Return the `air.*` string naming the stage input a parameter represents,
 /// or an empty string if the parameter is not a stage builtin.
 ///
@@ -583,6 +712,7 @@ std::string CodeGenModule::getMetalGeneratedID(StringRef Name, QualType Ty) {
 llvm::MDNode *
 CodeGenModule::EmitMetalStageOutputs(const FunctionDecl *FD, bool IsVertex) {
   llvm::LLVMContext &Ctx = getLLVMContext();
+  ASTContext &C = getContext();
   llvm::SmallVector<llvm::Metadata *, 8> Outs;
 
   QualType RetTy = FD->getReturnType();
@@ -614,8 +744,32 @@ CodeGenModule::EmitMetalStageOutputs(const FunctionDecl *FD, bool IsVertex) {
       B.addStr("air.position");
     } else if (FD2->hasAttr<MetalPointSizeAttr>()) {
       B.addStr("air.point_size");
+    } else if (const auto *DA = FD2->getAttr<MetalDepthAttr>()) {
+      // A fragment depth output always states its qualifier, defaulting to
+      // `air.any` when the source writes a bare [[depth]]. All three forms
+      // occur 546 times each in the corpus:
+      //   !{!"air.depth", !"air.depth_qualifier", !"air.any",
+      //     !"air.arg_type_name", !"float", !"air.arg_name", !"d"}
+      B.addStr("air.depth");
+      B.addStr("air.depth_qualifier");
+      StringRef Q = DA->getQualifier() ? DA->getQualifier()->getName() : "any";
+      B.addStr(Q == "greater"  ? "air.greater"
+               : Q == "less"   ? "air.less"
+                               : "air.any");
+    } else if (FD2->hasAttr<MetalStencilAttr>()) {
+      B.addStr("air.stencil");
+    } else if (FD2->hasAttr<MetalSampleMaskAttr>()) {
+      B.addStr("air.sample_mask");
     } else if (FD2->hasAttr<MetalClipDistanceAttr>()) {
+      // An array valued clip distance records its extent; a scalar one does
+      // not. Both appear:
+      //   !{!"air.clip_distance", !"air.clip_distance_array_size", i32 2, ...}
+      //   !{!"air.clip_distance", !"air.arg_type_name", !"float", ...}
       B.addStr("air.clip_distance");
+      if (const auto *CAT = C.getAsConstantArrayType(FTy)) {
+        B.addStr("air.clip_distance_array_size");
+        B.addInt(CAT->getSize().getZExtValue());
+      }
     } else if (FD2->hasAttr<MetalRenderTargetArrayIndexAttr>()) {
       B.addStr("air.render_target_array_index");
     } else if (FD2->hasAttr<MetalViewportArrayIndexAttr>()) {
@@ -630,9 +784,16 @@ CodeGenModule::EmitMetalStageOutputs(const FunctionDecl *FD, bool IsVertex) {
       B.addInt(ColorIndex++);
       B.addInt(0);
     } else {
-      // A user-defined vertex output, connected by its generated id.
+      // A user-defined vertex output, connected by its id. A field spelled
+      // `[[user(uid)]]` uses the source-provided name verbatim, everything
+      // else gets the compiler-generated id:
+      //   !{!"air.vertex_output", !"user(uid)",  ...}
+      //   !{!"air.vertex_output", !"generated(4v_cpDv4_f)", ...}
       B.addStr("air.vertex_output");
-      B.addStr("generated(" + getMetalGeneratedID(FD2->getName(), FTy) + ")");
+      if (const auto *UA = FD2->getAttr<MetalUserDefinedAttr>())
+        B.addStr((Twine("user(") + UA->getName() + ")").str());
+      else
+        B.addStr("generated(" + getMetalGeneratedID(FD2->getName(), FTy) + ")");
     }
 
     B.addStr("air.arg_type_name");
@@ -682,11 +843,18 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       // Stage builtins: no location index, no address space.
       B.addStr(Stage);
     } else if (const auto *TexA = PVD->getAttr<MetalTextureIndexAttr>()) {
+      // A texture states its access mode, which is the second template
+      // argument of the texture type and is always echoed in the recorded
+      // type name. All four modes occur:
+      //   !"air.sample", !"texture2d<float, sample>"      (50 variants)
+      //   !"air.read",   !"texture3d<float, read>"        (42)
+      //   !"air.write",  !"texture2d<float, write>"       (29)
+      //   !"air.read_write", !"texture2d<float, read_write>" (16)
       B.addStr("air.texture");
       B.addStr("air.location_index");
       B.addInt(getMetalAttrIndex(TexA->getIndex()));
       B.addInt(1);
-      B.addStr("air.sample");
+      B.addStr(getMetalTextureAccess(getMetalTypeName(Ty)));
     } else if (const auto *SmpA = PVD->getAttr<MetalSamplerIndexAttr>()) {
       B.addStr("air.sampler");
       B.addStr("air.location_index");
@@ -694,18 +862,41 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       B.addInt(1);
     } else if (const auto *BufA = PVD->getAttr<MetalBufferIndexAttr>()) {
       B.addStr("air.buffer");
+      // A reference bound buffer states its extent up front; a pointer bound
+      // one does not, because its length is not known. Every probe declaring
+      // `constant T &x [[buffer(N)]]` records it and no pointer probe does:
+      //
+      //   constant uint& n   -> !"air.buffer_size", i32 4
+      //   constant Uniforms& u -> !"air.buffer_size", i32 96
+      //   device float* out  -> (no operand)
+      //
+      // The value is the size of the referent, matching air.arg_type_size.
+      if (Ty->isReferenceType() &&
+          !Ty->getPointeeType()->isIncompleteType()) {
+        B.addStr("air.buffer_size");
+        B.addInt(
+            C.getTypeSizeInChars(Ty->getPointeeType()).getQuantity());
+      }
       B.addStr("air.location_index");
       B.addInt(getMetalAttrIndex(BufA->getIndex()));
       B.addInt(1);
       B.addStr(getAIRAccess(Ty));
-      B.addStr("air.address_space");
-      B.addInt(C.getTargetAddressSpace(Ty->isPointerType() ||
-                                               Ty->isReferenceType()
-                                           ? Ty->getPointeeType().getAddressSpace()
-                                           : Ty.getAddressSpace()));
       QualType Pointee = (Ty->isPointerType() || Ty->isReferenceType())
                              ? Ty->getPointeeType()
                              : Ty;
+      if (metalEmitsAddressSpaceOperand(getTarget().getTriple())) {
+        B.addStr("air.address_space");
+        B.addInt(C.getTargetAddressSpace(
+            Ty->isPointerType() || Ty->isReferenceType()
+                ? Ty->getPointeeType().getAddressSpace()
+                : Ty.getAddressSpace()));
+      }
+      // A record pointee also carries its field layout. Only records do;
+      // scalar buffers such as `device float *out` never have the operand.
+      if (llvm::MDNode *STI = EmitMetalStructTypeInfo(Pointee)) {
+        B.addStr("air.struct_type_info");
+        B.addNode(STI);
+      }
       if (!Pointee->isIncompleteType()) {
         B.addStr("air.arg_type_size");
         B.addInt(C.getTypeSizeInChars(Pointee).getQuantity());
@@ -720,8 +911,10 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       B.addInt(getMetalAttrIndex(TgA->getIndex()));
       B.addInt(1);
       B.addStr("air.read_write");
-      B.addStr("air.address_space");
-      B.addInt(3);
+      if (metalEmitsAddressSpaceOperand(getTarget().getTriple())) {
+        B.addStr("air.address_space");
+        B.addInt(3);
+      }
       QualType Pointee = (Ty->isPointerType() || Ty->isReferenceType())
                              ? Ty->getPointeeType()
                              : Ty;
@@ -732,8 +925,97 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
         B.addInt(C.getTypeAlignInChars(Pointee).getQuantity());
       }
     } else if (PVD->hasAttr<MetalStageInAttr>()) {
-      B.addStr(FD->hasAttr<MetalVertexAttr>() ? "air.vertex_input"
-                                              : "air.fragment_input");
+      // A `[[stage_in]]` struct is flattened: the corpus records one node per
+      // field, not one for the aggregate, and the argument index keeps
+      // counting across the fields. From a matched vertex/fragment pair:
+      //
+      //   !{i32 0, !"air.vertex_input", !"air.location_index", i32 0, i32 1,
+      //     !"air.arg_type_name", !"float4", !"air.arg_name", !"position"}
+      //   !{i32 1, !"air.vertex_input", !"air.location_index", i32 1, i32 1,
+      //     ... !"normal", !"air.arg_unused"}
+      //
+      //   !{i32 2, !"air.fragment_input", !"generated(4v_cpDv4_f)",
+      //     !"air.center", !"air.perspective",
+      //     !"air.arg_type_name", !"float4", !"air.arg_name", !"v_cp"}
+      //   !{i32 0, !"air.position", !"air.center", !"air.no_perspective",
+      //     ... !"position"}
+      //
+      // A non-record `[[stage_in]]` keeps the single node shape, which is
+      // what the 176 `air.stage_in` occurrences record.
+      bool IsVertexIn = FD->hasAttr<MetalVertexAttr>();
+      if (const RecordDecl *SIRD = Ty->getAsRecordDecl()) {
+        unsigned Location = 0;
+        for (const FieldDecl *SIF : SIRD->fields()) {
+          MetalArgMetadataBuilder FB(Ctx);
+          QualType FTy = SIF->getType();
+          FB.addInt(Index++);
+          if (SIF->hasAttr<MetalPositionAttr>()) {
+            // A fragment stage always states how [[position]] is sampled;
+            // the vertex side never does.
+            FB.addStr("air.position");
+            if (!IsVertexIn) {
+              FB.addStr("air.center");
+              FB.addStr("air.no_perspective");
+            }
+          } else if (IsVertexIn) {
+            FB.addStr("air.vertex_input");
+            FB.addStr("air.location_index");
+            FB.addInt(SIF->hasAttr<MetalAttributeIndexAttr>()
+                          ? getMetalAttrIndex(
+                                SIF->getAttr<MetalAttributeIndexAttr>()
+                                    ->getIndex())
+                          : Location);
+            FB.addInt(1);
+          } else {
+            FB.addStr("air.fragment_input");
+            if (const auto *UA = SIF->getAttr<MetalUserDefinedAttr>())
+              FB.addStr((Twine("user(") + UA->getName() + ")").str());
+            else
+              FB.addStr("generated(" +
+                        getMetalGeneratedID(SIF->getName(), FTy) + ")");
+            addMetalInterpolation(FB, SIF);
+          }
+          ++Location;
+          FB.addStr("air.arg_type_name");
+          FB.addStr(getMetalTypeName(FTy));
+          FB.addStr("air.arg_name");
+          FB.addStr(SIF->getName());
+          if (!SIF->isReferenced())
+            FB.addStr("air.arg_unused");
+          ArgNodes.push_back(FB.finish());
+        }
+        continue;
+      }
+      B.addStr(IsVertexIn ? "air.vertex_input" : "air.fragment_input");
+    } else if (FD->hasAttr<MetalVisibleAttr>()) {
+      // A `[[visible]]` function takes plain values, recorded as
+      // `air.visible_input`, and returns one `air.visible_output`:
+      //   !9  = !{i32 (i32)* @visible_fn, !10, !12}
+      //   !11 = !{!"air.visible_output", !"air.arg_type_name", !"int"}
+      //   !13 = !{i32 0, !"air.visible_input",
+      //           !"air.arg_type_name", !"int", !"air.arg_name", !"v"}
+      B.addStr("air.visible_input");
+    } else if (PVD->hasAttr<MetalPayloadAttr>()) {
+      // An object stage payload. Observed once per probe, always with the
+      // struct layout attached:
+      //   !{i32 0, !"air.payload", !"air.struct_type_info", !N,
+      //     !"air.arg_type_size", i32 32, !"air.arg_type_align_size", i32 16,
+      //     !"air.arg_type_name", !"Pay2", !"air.arg_name", !"p",
+      //     !"air.arg_unused"}
+      B.addStr("air.payload");
+      QualType Pointee = (Ty->isPointerType() || Ty->isReferenceType())
+                             ? Ty->getPointeeType()
+                             : Ty;
+      if (llvm::MDNode *STI = EmitMetalStructTypeInfo(Pointee)) {
+        B.addStr("air.struct_type_info");
+        B.addNode(STI);
+      }
+      if (!Pointee->isIncompleteType()) {
+        B.addStr("air.arg_type_size");
+        B.addInt(C.getTypeSizeInChars(Pointee).getQuantity());
+        B.addStr("air.arg_type_align_size");
+        B.addInt(C.getTypeAlignInChars(Pointee).getQuantity());
+      }
     } else {
       ++Index;
       continue;
@@ -765,10 +1047,20 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
   // golden P01); vertex and fragment stages describe theirs.
   bool IsVertexStage = FD->hasAttr<MetalVertexAttr>();
   bool IsFragmentStage = FD->hasAttr<MetalFragmentAttr>();
-  llvm::Metadata *Outputs =
-      (IsVertexStage || IsFragmentStage)
-          ? cast<llvm::Metadata>(EmitMetalStageOutputs(FD, IsVertexStage))
-          : cast<llvm::Metadata>(llvm::MDNode::get(Ctx, std::nullopt));
+  llvm::Metadata *Outputs;
+  if (IsVertexStage || IsFragmentStage) {
+    Outputs = EmitMetalStageOutputs(FD, IsVertexStage);
+  } else if (FD->hasAttr<MetalVisibleAttr>() &&
+             !FD->getReturnType()->isVoidType()) {
+    // The single unnamed return value of a visible function.
+    MetalArgMetadataBuilder OB(Ctx);
+    OB.addStr("air.visible_output");
+    OB.addStr("air.arg_type_name");
+    OB.addStr(getMetalTypeName(FD->getReturnType()));
+    Outputs = llvm::MDNode::get(Ctx, {cast<llvm::Metadata>(OB.finish())});
+  } else {
+    Outputs = llvm::MDNode::get(Ctx, std::nullopt);
+  }
   llvm::Metadata *Args = llvm::MDNode::get(Ctx, ArgNodes);
 
   llvm::SmallVector<llvm::Metadata *, 4> FnNodeOps{FnMD, Outputs, Args};
@@ -790,4 +1082,66 @@ unsigned CodeGenModule::getMetalAttrIndex(const Expr *E) {
   if (E->EvaluateAsInt(Result, getContext()))
     return Result.Val.getInt().getZExtValue();
   return 0;
+}
+
+//===----------------------------------------------------------------------===//
+// Function constants
+//===----------------------------------------------------------------------===//
+
+/// Emit `!air.function_constants`.
+///
+/// `INFO_SET.md` A-6 lists the IR representation of `[[function_constant]]`
+/// as OPEN. It is settled here by the corpus: 5,057 modules carry the named
+/// node, and every one has the same shape. For
+///
+///   constant bool use_path_a [[function_constant(0)]];
+///
+/// Apple emits
+///
+///   @_ZL10use_path_a = internal unnamed_addr addrspace(2) global i8 undef,
+///                      align 1
+///   @_Z10use_path_a.MTL_FC_INIT_0_b = linkonce_odr hidden local_unnamed_addr
+///                      addrspace(2) externally_initialized constant i8 undef,
+///                      align 1
+///   define internal void @_GLOBAL__sub_I_<file>() section "air.static_init" {
+///     %1 = load i8, i8 addrspace(2)* @_Z10use_path_a.MTL_FC_INIT_0_b
+///     store i8 %1, i8 addrspace(2)* @_ZL10use_path_a
+///     ret void
+///   }
+///   !air.function_constants = !{!10}
+///   !10 = !{i8 addrspace(2)* @_Z10use_path_a.MTL_FC_INIT_0_b,
+///           !"bool", !"use_path_a", i32 0}
+///
+/// so the node is {externally initialized placeholder, MSL type name, source
+/// name, function constant index}. The placeholder's name is the Itanium
+/// mangling of the variable with `.MTL_FC_INIT_<index>_<type mangling>`
+/// appended; the corpus shows `_b` for bool, `_i` for int, `_j` for uint and
+/// `_f` for float, i.e. the Itanium code for the constant's type. The pipeline
+/// reads the placeholder at pipeline build time and the static initialiser
+/// copies it into the constant proper.
+void CodeGenModule::AddMetalFunctionConstant(const VarDecl *VD,
+                                             llvm::GlobalVariable *Init) {
+  if (getLangOpts().Metal && VD->hasAttr<MetalFunctionConstantAttr>())
+    MetalFunctionConstants.emplace_back(VD, Init);
+}
+
+void CodeGenModule::EmitMetalFunctionConstants() {
+  if (!getLangOpts().Metal || MetalFunctionConstants.empty())
+    return;
+
+  llvm::LLVMContext &Ctx = getLLVMContext();
+  auto *I32 = llvm::Type::getInt32Ty(Ctx);
+  llvm::NamedMDNode *N =
+      getModule().getOrInsertNamedMetadata("air.function_constants");
+
+  for (auto &[VD, Init] : MetalFunctionConstants) {
+    const auto *A = VD->getAttr<MetalFunctionConstantAttr>();
+    llvm::SmallVector<llvm::Metadata *, 4> Ops;
+    Ops.push_back(llvm::ConstantAsMetadata::get(Init));
+    Ops.push_back(llvm::MDString::get(Ctx, getMetalTypeName(VD->getType())));
+    Ops.push_back(llvm::MDString::get(Ctx, VD->getName()));
+    Ops.push_back(llvm::ConstantAsMetadata::get(
+        llvm::ConstantInt::get(I32, getMetalAttrIndex(A->getIndex()))));
+    N->addOperand(llvm::MDNode::get(Ctx, Ops));
+  }
 }

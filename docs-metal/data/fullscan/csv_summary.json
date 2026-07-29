@@ -1,0 +1,827 @@
+{
+  "air_golden_names.csv": {
+    "rows": 545,
+    "cols": 2,
+    "col_cardinality": {
+      "air_name": 545,
+      "example_source": 33
+    }
+  },
+  "air_ops_definitive.csv": {
+    "rows": 375,
+    "cols": 3,
+    "col_cardinality": {
+      "air_op_stem": 375,
+      "n_declares": 25,
+      "example_declare": 375
+    }
+  },
+  "air_strings_binaries.csv": {
+    "rows": 8132,
+    "cols": 4,
+    "col_cardinality": {
+      "token": 8132,
+      "in_rtlib": 6,
+      "in_metallib": 2,
+      "in_a": 12
+    }
+  },
+  "airconv_air_ops.csv": {
+    "rows": 291,
+    "cols": 5,
+    "col_cardinality": {
+      "air_name_or_rule": 130,
+      "kind": 2,
+      "context_method": 51,
+      "file": 8,
+      "line": 250
+    }
+  },
+  "builtin_to_air_map.csv": {
+    "rows": 686,
+    "cols": 7,
+    "col_cardinality": {
+      "__metal_builtin": 686,
+      "used_via": 3,
+      "n_call_sites": 21,
+      "air_intrinsic_candidate": 673,
+      "evidence": 3,
+      "status": 3,
+      "stdlib_sample": 685
+    }
+  },
+  "builtin_to_air_map.v2.csv": {
+    "rows": 686,
+    "cols": 18,
+    "col_cardinality": {
+      "__metal_builtin": 686,
+      "used_via": 3,
+      "n_call_sites": 21,
+      "air_intrinsic_candidate": 637,
+      "evidence": 4,
+      "status": 16,
+      "stdlib_sample": 685,
+      "evidence_source": 3,
+      "evidence_ref": 553,
+      "protocol": 7,
+      "confidence": 2,
+      "grammar_eligible": 2,
+      "probe_cell": 570,
+      "observed_at": 2,
+      "verified_at": 1,
+      "verified_by": 1,
+      "last_change": 26,
+      "changed_by": 3
+    }
+  },
+  "callgraph_air_impl.csv": {
+    "rows": 3,
+    "cols": 3,
+    "col_cardinality": {
+      "air_impl_symbol": 2,
+      "air_callee": 3,
+      "n_variants_note": 1
+    }
+  },
+  "callgraph_edges.csv": {
+    "rows": 31134,
+    "cols": 4,
+    "col_cardinality": {
+      "archive": 74,
+      "member": 238,
+      "caller": 10606,
+      "callee": 8326
+    }
+  },
+  "clang_frontend_impl_map.csv": {
+    "rows": 1210,
+    "cols": 11,
+    "col_cardinality": {
+      "feature_id": 1210,
+      "layer": 7,
+      "feature": 1210,
+      "syntax_example": 1201,
+      "clang_impl_point": 42,
+      "upstream_analog": 10,
+      "evidence": 6,
+      "source_ref": 20,
+      "msl_since": 2,
+      "implement_status": 5,
+      "notes": 21
+    }
+  },
+  "construct_probe_coverage.csv": {
+    "rows": 24,
+    "cols": 3,
+    "col_cardinality": {
+      "builtin": 24,
+      "status": 1,
+      "class": 8
+    }
+  },
+  "free_probe_coverage.csv": {
+    "rows": 10,
+    "cols": 2,
+    "col_cardinality": {
+      "builtin": 10,
+      "status": 3
+    }
+  },
+  "have_matrix.csv": {
+    "rows": 216,
+    "cols": 25,
+    "col_cardinality": {
+      "macro": 216,
+      "ios_100": 2,
+      "ios_110": 2,
+      "ios_120": 2,
+      "ios_200": 2,
+      "ios_210": 2,
+      "ios_220": 2,
+      "ios_230": 2,
+      "ios_240": 2,
+      "ios_300": 2,
+      "ios_310": 2,
+      "ios_320": 2,
+      "ios_400": 2,
+      "macos_100": 1,
+      "macos_110": 2,
+      "macos_120": 2,
+      "macos_200": 2,
+      "macos_210": 2,
+      "macos_220": 2,
+      "macos_230": 2,
+      "macos_240": 2,
+      "macos_300": 2,
+      "macos_310": 2,
+      "macos_320": 2,
+      "macos_400": 2
+    }
+  },
+  "header_attributes.csv": {
+    "rows": 25,
+    "cols": 2,
+    "col_cardinality": {
+      "attribute_spelling": 25,
+      "uses": 4
+    }
+  },
+  "ir_air_signatures.csv": {
+    "rows": 8199,
+    "cols": 4,
+    "col_cardinality": {
+      "air_intrinsic_declare": 8199,
+      "n_os": 6,
+      "os_list": 7,
+      "example_module": 36
+    }
+  },
+  "ir_all_os_unique.csv": {
+    "rows": 1764,
+    "cols": 7,
+    "col_cardinality": {
+      "module_hash": 1764,
+      "n_defines": 3,
+      "n_air_decls": 23,
+      "oses": 11,
+      "os_count": 1,
+      "archives_sample": 99,
+      "triple": 39
+    }
+  },
+  "ir_module_index.csv": {
+    "rows": 701,
+    "cols": 8,
+    "col_cardinality": {
+      "unit": 701,
+      "archive": 10,
+      "member": 664,
+      "triple": 6,
+      "n_defines": 19,
+      "n_air_declares": 23,
+      "n_air_calls": 36,
+      "named_metadata_keys": 64
+    }
+  },
+  "ir_named_metadata.csv": {
+    "rows": 132,
+    "cols": 2,
+    "col_cardinality": {
+      "metadata_key": 132,
+      "n_modules": 67
+    }
+  },
+  "ir_runtime_functions.csv": {
+    "rows": 24481,
+    "cols": 4,
+    "col_cardinality": {
+      "archive": 10,
+      "member": 640,
+      "define_line": 13067,
+      "cc_set": 16
+    }
+  },
+  "legacy_metal_support_map.csv": {
+    "rows": 13,
+    "cols": 6,
+    "col_cardinality": {
+      "std_flag": 13,
+      "lang_version": 12,
+      "min_os_triple": 11,
+      "default_air_ver": 9,
+      "guards_enabled": 6,
+      "description": 13
+    }
+  },
+  "llvm_clang_metal_14chapters_complete_map.csv": {
+    "rows": 25,
+    "cols": 7,
+    "col_cardinality": {
+      "chapter_num": 14,
+      "chapter_name": 14,
+      "sub_topic": 25,
+      "target_feature_or_symbol": 25,
+      "apple_clang_observed_behavior": 25,
+      "cleanroom_implementation_rule": 25,
+      "source_reference": 22
+    }
+  },
+  "metal_ast_attribute_matrix.csv": {
+    "rows": 31,
+    "cols": 6,
+    "col_cardinality": {
+      "syntax_example": 31,
+      "ast_cxx_class_name": 30,
+      "attachment_target": 17,
+      "argument_requirement": 7,
+      "air_metadata_or_codegen_effect": 31,
+      "cleanroom_notes": 31
+    }
+  },
+  "metal_ast_generation_map.csv": {
+    "rows": 11,
+    "cols": 6,
+    "col_cardinality": {
+      "ast_node_name": 11,
+      "node_category": 6,
+      "internal_structure_and_fields": 11,
+      "serialization_bitcode_id": 11,
+      "apple_ast_dump_observed": 11,
+      "cleanroom_implementation_notes": 11
+    }
+  },
+  "metal_builtins.csv": {
+    "rows": 686,
+    "cols": 6,
+    "col_cardinality": {
+      "builtin": 686,
+      "n_files": 3,
+      "n_occurrences": 21,
+      "sample1": 685,
+      "sample2": 462,
+      "sample3": 414
+    }
+  },
+  "metal_codegen_impl_map.csv": {
+    "rows": 7,
+    "cols": 6,
+    "col_cardinality": {
+      "codegen_phase": 6,
+      "rule_id": 7,
+      "target_ast_or_builtin": 7,
+      "llvm_ir_output_pattern": 7,
+      "apple_ir_observed": 7,
+      "cleanroom_implementation_notes": 7
+    }
+  },
+  "metal_cxx_features_detailed_matrix.csv": {
+    "rows": 16,
+    "cols": 10,
+    "col_cardinality": {
+      "feature_id": 16,
+      "feature_name": 16,
+      "cxx_generation": 6,
+      "controlling_macro_or_flag": 16,
+      "metal1_x_behavior": 11,
+      "metal2_x_behavior": 8,
+      "metal3_x_behavior": 7,
+      "metal4_0_behavior": 8,
+      "metal4_1_cleanroom_behavior": 7,
+      "cleanroom_implementation_rule": 16
+    }
+  },
+  "metal_cxx_generations_map.csv": {
+    "rows": 13,
+    "cols": 8,
+    "col_cardinality": {
+      "std_flag": 13,
+      "cxx_generation": 3,
+      "cplusplus_macro_val": 3,
+      "cpp_constexpr_val": 3,
+      "cpp_if_constexpr_val": 2,
+      "cpp_concepts_val": 1,
+      "major_cxx_features_enabled": 13,
+      "cleanroom_compiler_rule": 7
+    }
+  },
+  "metal_cxx_master_atlas.csv": {
+    "rows": 48,
+    "cols": 11,
+    "col_cardinality": {
+      "section": 3,
+      "id": 48,
+      "name_or_standard": 48,
+      "cxx_generation_or_kind": 17,
+      "controlling_macro_or_ver": 21,
+      "metal1_x_or_early_tc": 19,
+      "metal2_x_or_mid_tc": 11,
+      "metal3_x_or_master_tc": 9,
+      "metal4_0_or_cryptex_tc": 10,
+      "metal4_1_or_cleanroom_tc": 9,
+      "cleanroom_implementation_rule": 29
+    }
+  },
+  "metal_cxx_stdlib_traits_matrix.csv": {
+    "rows": 15,
+    "cols": 10,
+    "col_cardinality": {
+      "trait_id": 15,
+      "trait_name": 15,
+      "header_module": 3,
+      "cxx_generation": 4,
+      "metal1_x_behavior": 7,
+      "metal2_x_behavior": 4,
+      "metal3_x_behavior": 3,
+      "metal4_0_behavior": 3,
+      "metal4_1_cleanroom_behavior": 2,
+      "cleanroom_implementation_rule": 15
+    }
+  },
+  "metal_driver_impl_map.csv": {
+    "rows": 6,
+    "cols": 6,
+    "col_cardinality": {
+      "driver_phase": 6,
+      "command_flag": 6,
+      "driver_action": 6,
+      "invoked_tool_or_lib": 6,
+      "apple_behavior_observed": 6,
+      "cleanroom_implementation_notes": 6
+    }
+  },
+  "metal_external_toolchains_matrix.csv": {
+    "rows": 17,
+    "cols": 9,
+    "col_cardinality": {
+      "toolchain_id": 17,
+      "toolchain_path": 17,
+      "toolchain_kind": 4,
+      "compiler_version_string": 6,
+      "cxx_std_macro_val": 2,
+      "cxx17_backports_active": 2,
+      "cxx20_concepts_active": 2,
+      "metallib_slice_magic": 2,
+      "verification_status": 8
+    }
+  },
+  "metal_parser_impl_map.csv": {
+    "rows": 7,
+    "cols": 6,
+    "col_cardinality": {
+      "category": 7,
+      "token_or_syntax": 7,
+      "parser_action": 7,
+      "ast_node_created": 7,
+      "apple_clang_impl_point": 7,
+      "cleanroom_implementation_notes": 7
+    }
+  },
+  "metal_sema_impl_map.csv": {
+    "rows": 8,
+    "cols": 7,
+    "col_cardinality": {
+      "category": 7,
+      "rule_id": 8,
+      "target_syntax_or_type": 8,
+      "sema_checking_logic": 8,
+      "error_diagnostic_or_behavior": 8,
+      "apple_clang_impl_point": 8,
+      "cleanroom_implementation_notes": 8
+    }
+  },
+  "metal_targetinfo_impl_map.csv": {
+    "rows": 11,
+    "cols": 5,
+    "col_cardinality": {
+      "target_aspect": 5,
+      "property_name": 11,
+      "apple_air64_value": 11,
+      "llvm_datalayout_string": 11,
+      "cleanroom_implementation_notes": 11
+    }
+  },
+  "metal_toolchain_xcode_matrix.csv": {
+    "rows": 17,
+    "cols": 7,
+    "col_cardinality": {
+      "xcode_path": 17,
+      "xcode_version": 17,
+      "metalfe_compiler_version": 6,
+      "supported_stds": 4,
+      "cxx_generations_supported": 2,
+      "airconv_linker_behavior": 8,
+      "verification_status": 7
+    }
+  },
+  "metal_toolchains_exhaustive_verification_matrix.csv": {
+    "rows": 18,
+    "cols": 11,
+    "col_cardinality": {
+      "toolchain_id": 18,
+      "toolchain_path": 18,
+      "xcode_ver": 18,
+      "metalfe_ver": 6,
+      "supported_stds": 3,
+      "cxx_std_macro_val": 2,
+      "cxx17_backports_active": 2,
+      "cxx20_concepts_active": 2,
+      "metallib_slice_magic": 2,
+      "datalayout_string": 1,
+      "verification_status": 9
+    }
+  },
+  "metal_version_target_specific_map.csv": {
+    "rows": 22,
+    "cols": 7,
+    "col_cardinality": {
+      "category": 2,
+      "feature_name": 22,
+      "introduced_in_std": 13,
+      "required_target_triple": 15,
+      "guard_macro": 22,
+      "affected_builtins_or_types": 22,
+      "cleanroom_codegen_rule": 22
+    }
+  },
+  "metallib_structure.csv": {
+    "rows": 2583,
+    "cols": 5,
+    "col_cardinality": {
+      "file": 10,
+      "slice": 3,
+      "kind": 19,
+      "pos_or_param": 340,
+      "data": 116
+    }
+  },
+  "method_probe_coverage.csv": {
+    "rows": 154,
+    "cols": 4,
+    "col_cardinality": {
+      "builtin": 154,
+      "status": 3,
+      "method": 7,
+      "class": 19
+    }
+  },
+  "msl_stage1_api_to_builtin.csv": {
+    "rows": 3810,
+    "cols": 8,
+    "col_cardinality": {
+      "msl_api_signature": 3084,
+      "namespace": 1,
+      "guard": 81,
+      "class": 4,
+      "metal_builtins": 95,
+      "clang_builtins": 2,
+      "file": 9,
+      "line": 3075
+    }
+  },
+  "msl_stage1_methods.csv": {
+    "rows": 7058,
+    "cols": 6,
+    "col_cardinality": {
+      "member_signature": 5763,
+      "class": 178,
+      "guard": 491,
+      "metal_builtins": 645,
+      "file": 40,
+      "line": 3627
+    }
+  },
+  "os_triple_map.csv": {
+    "rows": 11,
+    "cols": 2,
+    "col_cardinality": {
+      "os": 11,
+      "triples_observed": 11
+    }
+  },
+  "pack_probe_coverage.csv": {
+    "rows": 20,
+    "cols": 3,
+    "col_cardinality": {
+      "builtin": 20,
+      "status": 1,
+      "class": 10
+    }
+  },
+  "probe_cells.csv": {
+    "rows": 579,
+    "cols": 5,
+    "col_cardinality": {
+      "cell": 576,
+      "air_candidate": 579,
+      "used_via": 4,
+      "what_to_determine": 11,
+      "probe_method": 578
+    }
+  },
+  "reference_tree_inventory.csv": {
+    "rows": 145,
+    "cols": 15,
+    "col_cardinality": {
+      "path": 145,
+      "kind": 4,
+      "size_bytes": 127,
+      "sha256_16": 145,
+      "magic": 4,
+      "platform": 11,
+      "n_lines": 71,
+      "n_metal_func": 43,
+      "n_unique___metal_builtins": 22,
+      "n_class_struct_decls": 26,
+      "n_guards_have": 19,
+      "guards_have": 48,
+      "sample_builtins": 44,
+      "ar_members": 9,
+      "evidence": 1
+    }
+  },
+  "rtlib_cleanroom_map.csv": {
+    "rows": 13067,
+    "cols": 8,
+    "col_cardinality": {
+      "symbol_name": 13067,
+      "callgraph_status": 1,
+      "pallette_callers": 1,
+      "pallette_callees_leaf": 1,
+      "pallette_callees_air": 1,
+      "pallette_callees_noair": 1,
+      "target_os_list": 11,
+      "source_modules": 640
+    }
+  },
+  "rtlib_layer_map.csv": {
+    "rows": 25,
+    "cols": 6,
+    "col_cardinality": {
+      "air_impl_symbol": 25,
+      "impl_base": 2,
+      "metal_builtin": 2,
+      "msl_api_example": 2,
+      "impl_calls_air_direct": 2,
+      "impl_calls_air_2hop": 12
+    }
+  },
+  "rtlib_members.csv": {
+    "rows": 1736,
+    "cols": 3,
+    "col_cardinality": {
+      "archive": 56,
+      "member": 662,
+      "size_bytes": 253
+    }
+  },
+  "rtlib_metal_only_map.csv": {
+    "rows": 13067,
+    "cols": 6,
+    "col_cardinality": {
+      "symbol_name": 13067,
+      "symbol_layer": 2,
+      "cleanroom_implementation_strategy": 2,
+      "target_os_availability": 11,
+      "source_reference": 640,
+      "notes": 663
+    }
+  },
+  "rtlib_pairing.csv": {
+    "rows": 51,
+    "cols": 3,
+    "col_cardinality": {
+      "archive": 27,
+      "impl_object": 21,
+      "public_symbols_before_next_impl": 28
+    }
+  },
+  "scene_cell_coverage.csv": {
+    "rows": 579,
+    "cols": 5,
+    "col_cardinality": {
+      "cell": 576,
+      "scene": 11,
+      "air_candidate": 579,
+      "stage1_source": 2,
+      "probe_method": 578
+    }
+  },
+  "spec_attributes.csv": {
+    "rows": 88,
+    "cols": 4,
+    "col_cardinality": {
+      "attribute": 88,
+      "occurrences": 25,
+      "first_page": 42,
+      "arg_examples": 20
+    }
+  },
+  "spec_attrs_matrix.csv": {
+    "rows": 93,
+    "cols": 13,
+    "col_cardinality": {
+      "attribute": 93,
+      "intro_version": 9,
+      "1.2": 16,
+      "2.0": 19,
+      "2.1": 20,
+      "2.2": 22,
+      "2.3": 23,
+      "2.4": 22,
+      "3.0": 23,
+      "3.1": 23,
+      "3.2": 25,
+      "4.0": 25,
+      "4.1": 26
+    }
+  },
+  "spec_chapters_matrix.csv": {
+    "rows": 16,
+    "cols": 13,
+    "col_cardinality": {
+      "chapter": 16,
+      "intro_version": 5,
+      "1.2": 2,
+      "2.0": 2,
+      "2.1": 2,
+      "2.2": 2,
+      "2.3": 2,
+      "2.4": 2,
+      "3.0": 2,
+      "3.1": 2,
+      "3.2": 2,
+      "4.0": 2,
+      "4.1": 2
+    }
+  },
+  "spec_os_availability_forms.csv": {
+    "rows": 49,
+    "cols": 2,
+    "col_cardinality": {
+      "form": 49,
+      "count": 6
+    }
+  },
+  "spec_table_index.csv": {
+    "rows": 13,
+    "cols": 2,
+    "col_cardinality": {
+      "table": 13,
+      "caption": 13
+    }
+  },
+  "stdlib_cleanroom_complete_map.csv": {
+    "rows": 113,
+    "cols": 6,
+    "col_cardinality": {
+      "entity_path": 113,
+      "entity_type": 2,
+      "cleanroom_target_name": 111,
+      "primary_builtins_or_symbols": 49,
+      "feature_guards": 19,
+      "cleanroom_implementation_spec": 81
+    }
+  },
+  "stdlib_exhaustive_behavioral_map.csv": {
+    "rows": 7744,
+    "cols": 11,
+    "col_cardinality": {
+      "entity_id": 7744,
+      "module_or_class": 181,
+      "signature_or_prototype": 6449,
+      "target_builtin": 712,
+      "air_intrinsic_candidate": 1287,
+      "feature_guards": 491,
+      "abi_register_convention": 11,
+      "behavioral_algorithm_logic": 1103,
+      "ulp_accuracy_bound": 14,
+      "hardware_lowering_instruction": 1291,
+      "cleanroom_compatibility_notes": 1
+    }
+  },
+  "stdlib_header_inventory.csv": {
+    "rows": 43,
+    "cols": 10,
+    "col_cardinality": {
+      "header": 43,
+      "n_stage1_decls": 33,
+      "n_distinct_builtins": 23,
+      "n_classes": 10,
+      "n_public_type_decls": 19,
+      "n_typedefs": 5,
+      "guards_used": 37,
+      "sample_builtins": 41,
+      "evidence": 1,
+      "source_ref": 43
+    }
+  },
+  "stdlib_rtlib_behavioral_logic_map.csv": {
+    "rows": 63,
+    "cols": 8,
+    "col_cardinality": {
+      "category": 11,
+      "symbol_or_family": 63,
+      "layer_and_container": 15,
+      "abi_signature_compatibility_spec": 40,
+      "behavioral_logic_algorithm": 15,
+      "ulp_or_accuracy_requirement": 15,
+      "hardware_lowering_concurrency_semantics": 15,
+      "cleanroom_implementation_notes": 15
+    }
+  },
+  "stdlib_runtime_impl_map.csv": {
+    "rows": 1380,
+    "cols": 10,
+    "col_cardinality": {
+      "layer": 5,
+      "component": 121,
+      "item": 358,
+      "kind": 7,
+      "n_items": 54,
+      "ir_vocab": 41,
+      "evidence": 4,
+      "source_ref": 1378,
+      "implement_status": 2,
+      "notes": 92
+    }
+  },
+  "stdlib_runtime_module_inventory.csv": {
+    "rows": 1257,
+    "cols": 11,
+    "col_cardinality": {
+      "archive": 74,
+      "module_member": 238,
+      "n_functions": 19,
+      "n_air_intrinsics": 23,
+      "n_llvm_intrinsics": 8,
+      "n_internal_callees": 1,
+      "n_other_callees": 10,
+      "air_stems": 38,
+      "sample_internal": 1,
+      "evidence": 1,
+      "source_ref": 1257
+    }
+  },
+  "tensor_probe_coverage.csv": {
+    "rows": 11,
+    "cols": 3,
+    "col_cardinality": {
+      "builtin": 11,
+      "status": 7,
+      "class": 1
+    }
+  },
+  "type_layout_map.csv": {
+    "rows": 35,
+    "cols": 9,
+    "col_cardinality": {
+      "ir_struct": 35,
+      "builtin_row": 35,
+      "ir_form": 1,
+      "n_corpus_occurrences": 9,
+      "addrspaces_observed": 7,
+      "pointer_size_bytes": 1,
+      "header_decl_context": 35,
+      "evidence_files": 19,
+      "status": 1
+    }
+  },
+  "type_map.csv": {
+    "rows": 19,
+    "cols": 6,
+    "col_cardinality": {
+      "msl_type": 19,
+      "category": 10,
+      "clang_header_representation": 14,
+      "llvm_ir_form": 19,
+      "evidence": 17,
+      "status": 10
+    }
+  },
+  "_totals": {
+    "files": 64,
+    "air_names": 10307,
+    "have_guards": 225,
+    "metal_builtins": 694
+  }
+}

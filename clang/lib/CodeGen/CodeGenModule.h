@@ -1665,6 +1665,21 @@ private:
   /// Build the output operand list for a Metal vertex or fragment entry point.
   llvm::MDNode *EmitMetalStageOutputs(const FunctionDecl *FD, bool IsVertex);
 
+  /// Build the `air.struct_type_info` field layout node for a record type,
+  /// or null if \p Ty is not a complete record.
+  llvm::MDNode *EmitMetalStructTypeInfo(QualType Ty);
+
+  /// Record a `[[function_constant(N)]]` variable so that it is listed in
+  /// `!air.function_constants` at end of module.
+  void AddMetalFunctionConstant(const VarDecl *VD, llvm::GlobalVariable *Init);
+
+  /// Emit `!air.function_constants` from the recorded declarations.
+  void EmitMetalFunctionConstants();
+
+  /// The `[[function_constant]]` variables seen so far, in declaration order.
+  llvm::SmallVector<std::pair<const VarDecl *, llvm::GlobalVariable *>, 4>
+      MetalFunctionConstants;
+
   /// Try to emit external vtables as available_externally if they have emitted
   /// all inlined virtual functions.  It runs after EmitDeferred() and therefore
   /// is not allowed to create new references to things that need to be emitted
