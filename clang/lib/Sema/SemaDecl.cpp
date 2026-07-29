@@ -7713,6 +7713,14 @@ NamedDecl *Sema::ActOnVariableDeclarator(
 
   bool EmitTLSUnsupportedError = false;
   if (DeclSpec::TSCS TSCS = D.getDeclSpec().getThreadStorageClassSpec()) {
+    // MSL has no thread local storage at all. Apple reports this as
+    //   error: 'thread_local' is not supported in Metal
+    if (getLangOpts().Metal) {
+      DiagnoseMetalUnsupported(D.getDeclSpec().getThreadStorageClassSpecLoc(),
+                               DeclSpec::getSpecifierName(TSCS));
+      NewVD->setInvalidDecl();
+      return NewVD;
+    }
     // C++11 [dcl.stc]p4:
     //   When thread_local is applied to a variable of block scope the
     //   storage-class-specifier static is implied if it does not appear
@@ -10174,6 +10182,12 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
       NewFD->setInvalidDecl();
     }
   }
+
+  // Metal entry point signature checking. Unlike HLSL there is no single
+  // designated entry symbol: every function carrying [[kernel]], [[vertex]],
+  // [[fragment]], [[mesh]] or [[object]] is an entry point.
+  if (getLangOpts().Metal && !NewFD->isInvalidDecl())
+    CheckMetalEntryPoint(NewFD);
 
   if (getLangOpts().HLSL) {
     auto &TargetInfo = getASTContext().getTargetInfo();
@@ -13896,6 +13910,14 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
   if (var->isInvalidDecl()) return;
 
   MaybeAddCUDAConstantAttr(var);
+
+  // Metal restricts which address space a variable may live in, and requires
+  // pointers and references to name their address space explicitly.
+  if (getLangOpts().Metal) {
+    CheckMetalVarDeclAddressSpace(var);
+    if (var->isInvalidDecl())
+      return;
+  }
 
   if (getLangOpts().OpenCL) {
     // OpenCL v2.0 s6.12.5 - Every block variable declaration must have an

@@ -169,6 +169,65 @@ def main(info):
         check("%s == %s" % (key, want), want is not None and want == got,
               "got %r" % got)
 
+    print("== Attributes ==")
+    import csv as _csv
+    attr_rows = list(_csv.DictReader(
+        open(os.path.join(LLVM_ROOT, "docs-metal/data/metal_attributes.csv"),
+             encoding="utf-8")))
+    attr_td = read("clang/include/clang/Basic/Attr.td")
+
+    # Every spelling mined from the MSL specification must be implemented.
+    spec_spellings = set()
+    with open(os.path.join(ds_dir, "spec_attributes.csv"), encoding="utf-8") as f:
+        for row in _csv.DictReader(f):
+            spec_spellings.add(row["attribute"])
+    impl_spellings = set(re.findall(r'CXX11<"", "(\w+)">', attr_td))
+    check("all %d MSL spec attributes implemented" % len(spec_spellings),
+          spec_spellings <= impl_spellings,
+          "missing %s" % sorted(spec_spellings - impl_spellings))
+
+    # Every AST class Apple was observed to create must exist, spelled the same.
+    observed_classes = set()
+    with open(os.path.join(ast_dir, "meta/attr-class-topology.csv"),
+              encoding="utf-8") as f:
+        for row in _csv.DictReader(f):
+            if row["class"].startswith("Metal"):
+                observed_classes.add(row["class"])
+    impl_classes = {r["ast_class"] for r in attr_rows}
+    check("all %d observed Metal*Attr classes present" % len(observed_classes),
+          observed_classes <= impl_classes,
+          "missing %s" % sorted(observed_classes - impl_classes))
+
+    # The version gates must match the diagnostics Apple emits.
+    gate_re = re.compile(
+        r"'([a-z_0-9]+)' attribute requires Metal language standard "
+        r"([a-z0-9.-]+) or higher")
+    measured_gates = {}
+    logdir = os.path.join(ast_dir, "log")
+    if os.path.isdir(logdir):
+        for name in os.listdir(logdir):
+            if not name.endswith(".err"):
+                continue
+            try:
+                text = open(os.path.join(logdir, name), errors="ignore").read()
+            except OSError:
+                continue
+            for attr, std in gate_re.findall(text):
+                # Keep the lowest standard seen for an attribute.
+                prev = measured_gates.get(attr)
+                if prev is None or std < prev:
+                    measured_gates[attr] = std
+    declared = {r["spelling"]: r["min_std"] for r in attr_rows}
+    bad_gates = []
+    for attr, std in measured_gates.items():
+        got = declared.get(attr)
+        if got is None:
+            bad_gates.append((attr, std, "not implemented"))
+        elif got != std:
+            bad_gates.append((attr, std, got))
+    check("version gates match measured diagnostics (%d checked)"
+          % len(measured_gates), not bad_gates, str(bad_gates[:5]))
+
     print("\n%d checks, %d failures" % (checks, len(failures)))
     return 1 if failures else 0
 

@@ -371,6 +371,8 @@ def ObjCNonFragileRuntime
 
 def HLSL : LangOpt<"HLSL">;
 
+def Metal : LangOpt<"Metal">;
+
 // Language option for CMSE extensions
 def Cmse : LangOpt<"Cmse">;
 
@@ -4126,4 +4128,598 @@ def ReadOnlyPlacement : InheritableAttr {
   let Spellings = [Clang<"enforce_read_only_placement">];
   let Subjects = SubjectList<[Record]>;
   let Documentation = [ReadOnlyPlacementDocs];
+}
+
+// ---------------------------------------------------------------------------
+// Metal Shading Language attributes
+//
+// Every attribute below is backed by a measurement of Apple's toolchain that
+// is recorded in docs-metal/data/metal_attributes.csv, which carries the
+// evidence for each row. The three sources are:
+//
+//  * reference/metal-ast-macos-air64/meta/attr-class-topology.csv
+//    the AST attribute class names Apple's compiler actually creates, with
+//    the number of times each was seen on a function, on a parameter, or on
+//    neither (i.e. on a field).
+//  * reference/metal-ast-macos-air64/meta/attr-parameter-mapping.csv.gz
+//    which pairs a class with the parameter it was attached to, letting the
+//    [[spelling]] to Metal*Attr mapping be derived rather than guessed. This
+//    is how, for instance, [[threadgroup(N)]] was found to produce
+//    MetalLocalIndexAttr and not MetalBufferIndexAttr.
+//  * research/datasets/spec_attributes.csv
+//    the 88 [[...]] spellings mined from the MSL 4.1 specification, including
+//    the argument examples that determine each attribute's argument list.
+//
+// The `metal_min_version` field carries the minimum MSL version an attribute
+// is accepted in, transcribed from the diagnostics Apple's compiler emits
+// ("'X' attribute requires Metal language standard <std> or higher"), which
+// were harvested from reference/metal-ast-macos-air64/log. A value of 0 means
+// the attribute is available in every MSL version.
+// ---------------------------------------------------------------------------
+
+class MetalAttr : InheritableAttr {
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
+class MetalParamAttr : InheritableParamAttr {
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
+def MetalKernel : MetalAttr {
+  let Spellings = [CXX11<"", "kernel">];
+  let Subjects = SubjectList<[Function]>;
+}
+
+def MetalVertex : MetalAttr {
+  let Spellings = [CXX11<"", "vertex">];
+  let Subjects = SubjectList<[Function]>;
+}
+
+def MetalFragment : MetalAttr {
+  let Spellings = [CXX11<"", "fragment">];
+  let Subjects = SubjectList<[Function]>;
+}
+
+def MetalMesh : MetalAttr {
+  let Spellings = [CXX11<"", "mesh">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 300; }
+  }];
+}
+
+def MetalObject : MetalAttr {
+  let Spellings = [CXX11<"", "object">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 300; }
+  }];
+}
+
+def MetalVisible : MetalAttr {
+  let Spellings = [CXX11<"", "visible">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalStitchable : MetalAttr {
+  let Spellings = [CXX11<"", "stitchable">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalIntersection : MetalAttr {
+  let Spellings = [CXX11<"", "intersection">];
+  let Args = [VariadicStringArgument<"Tags">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalEarlyFragmentTests : MetalAttr {
+  let Spellings = [CXX11<"", "early_fragment_tests">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 120; }
+  }];
+}
+
+def MetalHostName : MetalAttr {
+  let Spellings = [CXX11<"", "host_name">];
+  let Args = [StringArgument<"Name">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 220; }
+  }];
+}
+
+def MetalMaxTotalThreadsPerThreadgroup : MetalAttr {
+  let Spellings = [CXX11<"", "max_total_threads_per_threadgroup">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 210; }
+  }];
+}
+
+def MetalMaxTotalThreadgroupsPerMeshGrid : MetalAttr {
+  let Spellings = [CXX11<"", "max_total_threadgroups_per_mesh_grid">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 300; }
+  }];
+}
+
+def MetalRequiredThreadsPerThreadgroup : MetalAttr {
+  let Spellings = [CXX11<"", "required_threads_per_threadgroup">];
+  let Args = [ExprArgument<"X">, ExprArgument<"Y">, ExprArgument<"Z">];
+  let Subjects = SubjectList<[Function]>;
+}
+
+def MetalPatch : MetalAttr {
+  let Spellings = [CXX11<"", "patch">];
+  let Args = [IdentifierArgument<"PatchType">, ExprArgument<"ControlPoints", 1>];
+  let Subjects = SubjectList<[Function]>;
+}
+
+def MetalBufferIndex : MetalAttr {
+  let Spellings = [CXX11<"", "buffer">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalTextureIndex : MetalAttr {
+  let Spellings = [CXX11<"", "texture">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalSamplerIndex : MetalAttr {
+  let Spellings = [CXX11<"", "sampler">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalLocalIndex : MetalAttr {
+  let Spellings = [CXX11<"", "threadgroup">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalStageIn : MetalParamAttr {
+  let Spellings = [CXX11<"", "stage_in">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalAttributeIndex : MetalAttr {
+  let Spellings = [CXX11<"", "attribute">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalFunctionConstant : MetalAttr {
+  let Spellings = [CXX11<"", "function_constant">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[Var, Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 120; }
+  }];
+}
+
+def MetalThreadPosGrid : MetalParamAttr {
+  let Spellings = [CXX11<"", "thread_position_in_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadPosGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "thread_position_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadGroupPosGrid : MetalParamAttr {
+  let Spellings = [CXX11<"", "threadgroup_position_in_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadsPerGrid : MetalParamAttr {
+  let Spellings = [CXX11<"", "threads_per_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadsPerGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "threads_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadGroupsPerGrid : MetalParamAttr {
+  let Spellings = [CXX11<"", "threadgroups_per_grid">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadIndexGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "thread_index_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadIndexSIMDGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "thread_index_in_simdgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 200; }
+  }];
+}
+
+def MetalSIMDGroupIndexGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "simdgroup_index_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 200; }
+  }];
+}
+
+def MetalSIMDGroupsPerGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "simdgroups_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 200; }
+  }];
+}
+
+def MetalThreadsPerSIMDGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "threads_per_simdgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 200; }
+  }];
+}
+
+def MetalThreadIndexQuadGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "thread_index_in_quadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalQuadGroupIndexGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "quadgroup_index_in_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalQuadGroupsPerGroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "quadgroups_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalDispatchThreadsPerThreadgroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "dispatch_threads_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalDispatchSIMDGroupsPerThreadgroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "dispatch_simdgroups_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalDispatchQuadGroupsPerThreadgroup : MetalParamAttr {
+  let Spellings = [CXX11<"", "dispatch_quadgroups_per_threadgroup">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalThreadExecutionWidth : MetalParamAttr {
+  let Spellings = [CXX11<"", "thread_execution_width">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalVertexId : MetalParamAttr {
+  let Spellings = [CXX11<"", "vertex_id">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalInstanceId : MetalParamAttr {
+  let Spellings = [CXX11<"", "instance_id">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalBaseVertex : MetalParamAttr {
+  let Spellings = [CXX11<"", "base_vertex">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalBaseInstance : MetalParamAttr {
+  let Spellings = [CXX11<"", "base_instance">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalAmplificationId : MetalParamAttr {
+  let Spellings = [CXX11<"", "amplification_id">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 220; }
+  }];
+}
+
+def MetalAmplificationCount : MetalParamAttr {
+  let Spellings = [CXX11<"", "amplification_count">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 220; }
+  }];
+}
+
+def MetalFrontFacing : MetalAttr {
+  let Spellings = [CXX11<"", "front_facing">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalPointCoord : MetalAttr {
+  let Spellings = [CXX11<"", "point_coord">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalSampleId : MetalAttr {
+  let Spellings = [CXX11<"", "sample_id">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalSampleMask : MetalAttr {
+  let Spellings = [CXX11<"", "sample_mask">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalPrimitiveId : MetalAttr {
+  let Spellings = [CXX11<"", "primitive_id">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 220; }
+  }];
+}
+
+def MetalBarycentricCoord : MetalAttr {
+  let Spellings = [CXX11<"", "barycentric_coord">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 220; }
+  }];
+}
+
+def MetalPayload : MetalParamAttr {
+  let Spellings = [CXX11<"", "payload">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalPosition : MetalAttr {
+  let Spellings = [CXX11<"", "position">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalPointSize : MetalAttr {
+  let Spellings = [CXX11<"", "point_size">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalColor : MetalAttr {
+  let Spellings = [CXX11<"", "color">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalDepth : MetalAttr {
+  let Spellings = [CXX11<"", "depth">];
+  let Args = [IdentifierArgument<"Qualifier", 1>];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalStencil : MetalAttr {
+  let Spellings = [CXX11<"", "stencil">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalClipDistance : MetalAttr {
+  let Spellings = [CXX11<"", "clip_distance">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalRenderTargetArrayIndex : MetalAttr {
+  let Spellings = [CXX11<"", "render_target_array_index">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalViewportArrayIndex : MetalAttr {
+  let Spellings = [CXX11<"", "viewport_array_index">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 200; }
+  }];
+}
+
+def MetalId : MetalAttr {
+  let Spellings = [CXX11<"", "id">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 200; }
+  }];
+}
+
+def MetalUserDefined : MetalAttr {
+  let Spellings = [CXX11<"", "user">];
+  let Args = [StringArgument<"Name">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalUserAnnotation : MetalAttr {
+  let Spellings = [CXX11<"", "user_annotation">];
+  let Args = [StringArgument<"Name">];
+  let Subjects = SubjectList<[Var, Field, Function]>;
+}
+
+def MetalFlat : MetalAttr {
+  let Spellings = [CXX11<"", "flat">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalCenterPerspective : MetalAttr {
+  let Spellings = [CXX11<"", "center_perspective">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalCenterNoPerspective : MetalAttr {
+  let Spellings = [CXX11<"", "center_no_perspective">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalCentroidPerspective : MetalAttr {
+  let Spellings = [CXX11<"", "centroid_perspective">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalCentroidNoPerspective : MetalAttr {
+  let Spellings = [CXX11<"", "centroid_no_perspective">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalSamplePerspective : MetalAttr {
+  let Spellings = [CXX11<"", "sample_perspective">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalSampleNoPerspective : MetalAttr {
+  let Spellings = [CXX11<"", "sample_no_perspective">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalInvariant : MetalAttr {
+  let Spellings = [CXX11<"", "invariant">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalRasterOrderGroup : MetalAttr {
+  let Spellings = [CXX11<"", "raster_order_group">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 200; }
+  }];
+}
+
+def MetalImageblockData : MetalAttr {
+  let Spellings = [CXX11<"", "imageblock_data">];
+  let Args = [TypeArgument<"DataType", 1>];
+  let Subjects = SubjectList<[ParmVar, Field]>;
+}
+
+def MetalAliasImplicitImageblock : MetalAttr {
+  let Spellings = [CXX11<"", "alias_implicit_imageblock">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalAliasImplicitImageblockColor : MetalAttr {
+  let Spellings = [CXX11<"", "alias_implicit_imageblock_color">];
+  let Args = [ExprArgument<"Index">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalPixelPositionInTile : MetalParamAttr {
+  let Spellings = [CXX11<"", "pixel_position_in_tile">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalPixelsPerTile : MetalParamAttr {
+  let Spellings = [CXX11<"", "pixels_per_tile">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalTileIndex : MetalParamAttr {
+  let Spellings = [CXX11<"", "tile_index">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalShared : MetalAttr {
+  let Spellings = [CXX11<"", "shared">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalSizeAs : MetalAttr {
+  let Spellings = [CXX11<"", "sizeas">];
+  let Args = [TypeArgument<"DataType">];
+  let Subjects = SubjectList<[Field]>;
+}
+
+def MetalPrimitiveCulled : MetalAttr {
+  let Spellings = [CXX11<"", "primitive_culled">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 300; }
+  }];
+}
+
+def MetalFunctionGroups : MetalAttr {
+  let Spellings = [CXX11<"", "function_groups">];
+  let Args = [VariadicStringArgument<"Groups">];
+  let Subjects = SubjectList<[Function]>;
+}
+
+def MetalAcceptIntersection : MetalAttr {
+  let Spellings = [CXX11<"", "accept_intersection">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalContinueSearch : MetalAttr {
+  let Spellings = [CXX11<"", "continue_search">];
+  let Subjects = SubjectList<[Function]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalOrigin : MetalAttr {
+  let Spellings = [CXX11<"", "origin">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalDirection : MetalAttr {
+  let Spellings = [CXX11<"", "direction">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalMinDistance : MetalAttr {
+  let Spellings = [CXX11<"", "min_distance">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalMaxDistance : MetalAttr {
+  let Spellings = [CXX11<"", "max_distance">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
+}
+
+def MetalDistance : MetalAttr {
+  let Spellings = [CXX11<"", "distance">];
+  let Subjects = SubjectList<[Field]>;
+  let AdditionalMembers = [{
+    static constexpr unsigned getMetalMinVersion() { return 230; }
+  }];
 }

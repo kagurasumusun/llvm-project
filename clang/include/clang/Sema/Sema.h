@@ -6075,6 +6075,46 @@ public:
                              SourceLocation IdentLoc, SourceLocation LBrace);
   void ActOnFinishHLSLBuffer(Decl *Dcl, SourceLocation RBrace);
 
+  //===---------------------------- Metal Features ------------------------===//
+
+  /// The shader stage an entry point belongs to. The order matches the
+  /// %select{} in err_metal_invalid_return_type and friends.
+  enum MetalShaderStage {
+    MSS_Kernel = 0,
+    MSS_Vertex = 1,
+    MSS_Fragment = 2,
+    MSS_Mesh = 3,
+    MSS_Object = 4,
+    MSS_None = 5,
+  };
+
+  /// Return the shader stage \p FD is an entry point for, or MSS_None.
+  MetalShaderStage getMetalShaderStage(const FunctionDecl *FD) const;
+
+  /// Check the signature of a Metal entry point: return type, parameter
+  /// address spaces and stage input/output attributes.
+  void CheckMetalEntryPoint(FunctionDecl *FD);
+
+  /// Diagnose a declaration that violates one of MSL's address space rules.
+  void CheckMetalVarDeclAddressSpace(VarDecl *VD);
+
+  /// Reject the C++ constructs MSL does not support (exceptions, RTTI,
+  /// new/delete, virtual functions, unions, goto, ...).
+  bool DiagnoseMetalUnsupported(SourceLocation Loc, StringRef Construct);
+
+  /// Verify that an attribute is available in the active MSL version, emitting
+  /// err_metal_attribute_requires_std if it is not.
+  bool CheckMetalAttributeVersion(const ParsedAttr &AL, unsigned MinVersion);
+
+  /// Validate a [[buffer(N)]] / [[texture(N)]] / [[sampler(N)]] index against
+  /// the target's resource limits.
+  bool CheckMetalResourceIndexBounds(const ParsedAttr &AL, llvm::StringRef Kind,
+                                     uint32_t Index);
+
+  /// Spell the active Metal language standard the way Apple's diagnostics do
+  /// (`macos-metal2.3` for MSL 1.x and 2.x, `metal3.0` and later prefixless).
+  std::string getMetalStandardName(unsigned Version) const;
+
   //===---------------------------- C++ Features --------------------------===//
 
   // Act on C++ namespaces

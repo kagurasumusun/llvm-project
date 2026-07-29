@@ -11794,4 +11794,76 @@ def note_unsafe_buffer_operation : Note<
   "used%select{| in pointer arithmetic| in buffer access}0 here">;
 def err_loongarch_builtin_requires_la32 : Error<
   "this builtin requires target: loongarch32">;
+// Metal Shading Language diagnostics.
+//
+// The wording of every diagnostic below is transcribed verbatim from Apple's
+// compiler. The strings were harvested from the failure logs in
+// reference/metal-ast-macos-air64/log and catalogued in
+// reference/metal-ast-macos-air64/meta/diagnostic-catalog.csv, so that this
+// fork is source compatible with build systems and tests that match on the
+// exact text.
+
+// Language restrictions. Apple emits a uniform "'X' is not supported in Metal"
+// for each construct MSL forbids. Observed values of %0 include 'thread_local',
+// 'new', 'delete', 'throw', 'try', 'goto', 'dynamic_cast', 'noexcept',
+// 'double' and 'long long'.
+def err_metal_unsupported : Error<
+  "%0 is not supported in Metal">;
+def err_metal_unsupported_feature : Error<
+  "%select{virtual member functions|derived classes|unions|lambda expressions|"
+  "labeled statements}0 are not supported in Metal">;
+
+// Address spaces.
+def err_metal_pointer_needs_addrspace : Error<
+  "%select{pointer|reference}0 type must have explicit address space qualifier">;
+def err_metal_program_scope_addrspace : Error<
+  "program scope variable must reside in constant address space">;
+def err_metal_extern_addrspace : Error<
+  "extern variable must reside in constant address space">;
+def err_metal_constant_needs_init : Error<
+  "variable in constant address space must be initialized">;
+def err_metal_automatic_addrspace : Error<
+  "automatic variable qualified with an address space">;
+def note_metal_valid_addrspace : Note<
+  "valid address space qualifications are device and constant">;
+
+// Entry point signatures.
+def err_metal_invalid_return_type : Error<
+  "invalid return type %0 for %select{kernel|vertex|fragment|mesh|object}1 "
+  "function">;
+def err_metal_invalid_buffer_pointee : Error<
+  "invalid address space qualification for buffer pointee type %0">;
+
+// Stage input and output attributes.
+def err_metal_invalid_input_attr : Error<
+  "invalid %0 attribute for input declaration in a "
+  "%select{kernel|vertex|fragment|mesh|object}1 function">;
+def err_metal_invalid_output_attr : Error<
+  "invalid %0 attribute for output declaration">;
+def err_metal_invalid_stage_in_type : Error<
+  "invalid type %0 of input declaration with attribute 'stage_in' in a "
+  "%select{kernel|vertex|fragment|mesh|object}1 function">;
+
+// Attribute availability. Apple names the OS prefixed standard in the message
+// for MSL 1.x and 2.x and the prefixless one for 3.0 and later, e.g.
+//   'visible' attribute requires Metal language standard macos-metal2.3 or higher
+//   'mesh' attribute requires Metal language standard metal3.0 or higher
+def err_metal_attribute_requires_std : Error<
+  "%0 attribute requires Metal language standard %1 or higher">;
+
+// Attribute placement and compatibility.
+def err_metal_attr_only_applies_to : Error<
+  "%0 attribute only applies to "
+  "%select{functions|fragment functions|vertex functions|kernel functions}1">;
+def err_metal_incompatible_attrs : Error<
+  "%0 and %1 attributes are not compatible">;
+
+// Resource binding.
+def err_metal_resource_index_reserved : Error<
+  "cannot reserve %0 resource location at index %1">;
+def err_metal_resource_index_exceeds_max : Error<
+  "%0 index %1 exceeds maximum allowed index %2">;
+def err_metal_duplicate_resource_index : Error<
+  "%0 index %1 is used more than once">;
+
 } // end of sema component.

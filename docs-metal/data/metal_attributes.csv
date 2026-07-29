@@ -1,0 +1,90 @@
+spelling,ast_class,subjects,args,min_std,evidence
+kernel,MetalKernelAttr,Function,,,attr-class-topology(26370 on functions); AST dump
+vertex,MetalVertexAttr,Function,,,attr-class-topology(234 on functions); AST dump
+fragment,MetalFragmentAttr,Function,,,attr-class-topology(300 on functions); AST dump
+mesh,MetalMeshAttr,Function,,metal3.0,attr-class-topology(24 on functions); diag 'mesh attribute requires ... metal3.0'
+object,MetalObjectAttr,Function,,metal3.0,attr-class-topology(16 on functions); diag 'object attribute requires ... metal3.0'
+visible,MetalVisibleAttr,Function,,macos-metal2.3,attr-class-topology(32 on functions); diag
+stitchable,MetalStitchableAttr,Function,,macos-metal2.3,diag 'stitchable attribute requires ... macos-metal2.3'
+intersection,MetalIntersectionAttr,Function,StringArgList,macos-metal2.3,attr-class-topology(6 on functions); spec args 'triangle, triangle_data, instancing'
+early_fragment_tests,MetalEarlyFragmentTestsAttr,Function,,macos-metal1.2,attr-class-topology(22 on functions); diag; golden P02 emits the 'early_fragment_tests' md operand
+host_name,MetalHostNameAttr,Function,String,macos-metal2.2,attr-class-topology(7 on functions); diag; spec args '"abc"'
+max_total_threads_per_threadgroup,MetalMaxTotalThreadsPerThreadgroupAttr,Function,Int,macos-metal2.1,diag; spec args 'x'
+max_total_threadgroups_per_mesh_grid,MetalMaxTotalThreadgroupsPerMeshGridAttr,Function,Int,metal3.0,spec args 'size'
+required_threads_per_threadgroup,MetalRequiredThreadsPerThreadgroupAttr,Function,Int3,,spec attribute list
+patch,MetalPatchAttr,Function,PatchTypeAndCount,,spec args 'quad, 16'
+buffer,MetalBufferIndexAttr,"ParmVar,Field",Int,,attr-parameter-mapping: 1717 buffer params; golden P01 !air.buffer
+texture,MetalTextureIndexAttr,"ParmVar,Field",Int,,attr-parameter-mapping: 266 texture params; golden P01 !air.texture
+sampler,MetalSamplerIndexAttr,"ParmVar,Field",Int,,attr-parameter-mapping: 137 sampler params; golden P01 !air.sampler
+threadgroup,MetalLocalIndexAttr,"ParmVar,Field",Int,,attr-parameter-mapping maps [[threadgroup(N)]] to MetalLocalIndexAttr
+stage_in,MetalStageInAttr,ParmVar,,,attr-parameter-mapping: 12 stage_in params
+attribute,MetalAttributeIndexAttr,"ParmVar,Field",Int,,attr-parameter-mapping; golden P02 !air.vertex_input location_index
+function_constant,MetalFunctionConstantAttr,"Var,Field",IdentifierOrInt,macos-metal1.2,attr-class-topology(1212); diag
+thread_position_in_grid,MetalThreadPosGridAttr,ParmVar,,,attr-parameter-mapping: 63 params; golden P01 !air.thread_position_in_grid
+thread_position_in_threadgroup,MetalThreadPosGroupAttr,ParmVar,,,attr-parameter-mapping
+threadgroup_position_in_grid,MetalThreadGroupPosGridAttr,ParmVar,,,attr-parameter-mapping
+threads_per_grid,MetalThreadsPerGridAttr,ParmVar,,,attr-parameter-mapping
+threads_per_threadgroup,MetalThreadsPerGroupAttr,ParmVar,,,attr-parameter-mapping
+threadgroups_per_grid,MetalThreadGroupsPerGridAttr,ParmVar,,,attr-parameter-mapping
+thread_index_in_threadgroup,MetalThreadIndexGroupAttr,ParmVar,,,attr-parameter-mapping: 9 params
+thread_index_in_simdgroup,MetalThreadIndexSIMDGroupAttr,ParmVar,,macos-metal2.0,attr-parameter-mapping: 28 params; diag
+simdgroup_index_in_threadgroup,MetalSIMDGroupIndexGroupAttr,ParmVar,,macos-metal2.0,attr-parameter-mapping; diag
+simdgroups_per_threadgroup,MetalSIMDGroupsPerGroupAttr,ParmVar,,macos-metal2.0,attr-parameter-mapping; diag
+threads_per_simdgroup,MetalThreadsPerSIMDGroupAttr,ParmVar,,macos-metal2.0,spec attribute list
+thread_index_in_quadgroup,MetalThreadIndexQuadGroupAttr,ParmVar,,,spec attribute list
+quadgroup_index_in_threadgroup,MetalQuadGroupIndexGroupAttr,ParmVar,,,spec attribute list
+quadgroups_per_threadgroup,MetalQuadGroupsPerGroupAttr,ParmVar,,,spec attribute list
+dispatch_threads_per_threadgroup,MetalDispatchThreadsPerThreadgroupAttr,ParmVar,,,spec attribute list
+dispatch_simdgroups_per_threadgroup,MetalDispatchSIMDGroupsPerThreadgroupAttr,ParmVar,,,spec attribute list
+dispatch_quadgroups_per_threadgroup,MetalDispatchQuadGroupsPerThreadgroupAttr,ParmVar,,,spec attribute list
+thread_execution_width,MetalThreadExecutionWidthAttr,ParmVar,,,spec attribute list
+vertex_id,MetalVertexIdAttr,ParmVar,,,attr-parameter-mapping: 4 params; golden P02 !air.vertex_id
+instance_id,MetalInstanceIdAttr,ParmVar,,,attr-parameter-mapping; golden P02 !air.instance_id
+base_vertex,MetalBaseVertexAttr,ParmVar,,,attr-parameter-mapping
+base_instance,MetalBaseInstanceAttr,ParmVar,,,attr-parameter-mapping
+amplification_id,MetalAmplificationIdAttr,ParmVar,,macos-metal2.2,attr-parameter-mapping; diag
+amplification_count,MetalAmplificationCountAttr,ParmVar,,macos-metal2.2,spec attribute list
+front_facing,MetalFrontFacingAttr,"ParmVar,Field",,,attr-parameter-mapping
+point_coord,MetalPointCoordAttr,"ParmVar,Field",,,attr-parameter-mapping
+sample_id,MetalSampleIdAttr,"ParmVar,Field",,,attr-parameter-mapping
+sample_mask,MetalSampleMaskAttr,"ParmVar,Field",,,attr-parameter-mapping
+primitive_id,MetalPrimitiveIdAttr,"ParmVar,Field",,macos-metal2.2,attr-parameter-mapping; diag
+barycentric_coord,MetalBarycentricCoordAttr,"ParmVar,Field",,macos-metal2.2,attr-class-topology(6); diag
+payload,MetalPayloadAttr,ParmVar,,macos-metal2.3,attr-class-topology(26 on params); diag
+position,MetalPositionAttr,"ParmVar,Field",,,attr-parameter-mapping; golden P01/P02 !air.position
+point_size,MetalPointSizeAttr,Field,,,attr-class-topology(618)
+color,MetalColorAttr,Field,Int,,attr-class-topology(958); spec args '0 | 1 | m'
+depth,MetalDepthAttr,Field,DepthArgument,,attr-class-topology(70); spec args 'depth_argument'
+stencil,MetalStencilAttr,Field,,,spec attribute list
+clip_distance,MetalClipDistanceAttr,Field,,,attr-class-topology(14)
+render_target_array_index,MetalRenderTargetArrayIndexAttr,Field,,,attr-class-topology(604)
+viewport_array_index,MetalViewportArrayIndexAttr,Field,,macos-metal2.0,attr-class-topology(452); diag
+id,MetalIdAttr,Field,Int,macos-metal2.0,attr-class-topology(150); diag; spec args '1 | 3 | n'
+user,MetalUserDefinedAttr,Field,String,,attr-class-topology(70); spec args 'name'
+user_annotation,MetalUserAnnotationAttr,"Var,Field,Function",String,,spec args 'string'
+flat,MetalFlatAttr,Field,,,attr-class-topology(14)
+center_perspective,MetalCenterPerspectiveAttr,Field,,,attr-class-topology(14); golden P02 air.center+air.perspective
+center_no_perspective,MetalCenterNoPerspectiveAttr,Field,,,attr-class-topology(14); golden P02 air.center+air.no_perspective
+centroid_perspective,MetalCentroidPerspectiveAttr,Field,,,attr-class-topology(14)
+centroid_no_perspective,MetalCentroidNoPerspectiveAttr,Field,,,attr-class-topology(14)
+sample_perspective,MetalSamplePerspectiveAttr,Field,,,attr-class-topology(14)
+sample_no_perspective,MetalSampleNoPerspectiveAttr,Field,,,attr-class-topology(14)
+invariant,MetalInvariantAttr,Field,,,spec attribute list
+raster_order_group,MetalRasterOrderGroupAttr,"ParmVar,Field",Int,macos-metal2.0,diag; golden P02 uses [[stage_in, raster_order_group(0)]]
+imageblock_data,MetalImageblockDataAttr,"ParmVar,Field",OptionalType,,spec args 'IM | M | type'
+alias_implicit_imageblock,MetalAliasImplicitImageblockAttr,Field,,,spec attribute list
+alias_implicit_imageblock_color,MetalAliasImplicitImageblockColorAttr,Field,Int,,spec args 'n'
+pixel_position_in_tile,MetalPixelPositionInTileAttr,ParmVar,,,spec attribute list
+pixels_per_tile,MetalPixelsPerTileAttr,ParmVar,,,spec attribute list
+tile_index,MetalTileIndexAttr,ParmVar,,,spec attribute list
+shared,MetalSharedAttr,Field,,,spec attribute list
+sizeas,MetalSizeAsAttr,Field,Type,,spec attribute list; golden run12 'MTL_SIZEAS -> air.get_descriptor_size_tensor'
+primitive_culled,MetalPrimitiveCulledAttr,Field,,metal3.0,spec attribute list
+function_groups,MetalFunctionGroupsAttr,Function,StringList,,spec args '"group1" | "group2","group3"'
+accept_intersection,MetalAcceptIntersectionAttr,Function,,macos-metal2.3,spec attribute list
+continue_search,MetalContinueSearchAttr,Function,,macos-metal2.3,spec attribute list
+origin,MetalOriginAttr,Field,,macos-metal2.3,spec attribute list
+direction,MetalDirectionAttr,Field,,macos-metal2.3,spec attribute list
+min_distance,MetalMinDistanceAttr,Field,,macos-metal2.3,spec attribute list
+max_distance,MetalMaxDistanceAttr,Field,,macos-metal2.3,spec attribute list
+distance,MetalDistanceAttr,Field,,macos-metal2.3,spec attribute list
