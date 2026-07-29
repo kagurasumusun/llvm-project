@@ -1,0 +1,47 @@
+key,area,status,evidence
+air.vertex_output,vertex output,NOT_EMITTED,"golden P02: !{!\"air.vertex_output\", !\"generated(2uvDv2_f)\", ...}"
+air.render_target,fragment output,NOT_EMITTED,"golden P02: !{!\"air.render_target\", i32 0, i32 0, ...}"
+air.position,vertex output,PARTIAL,"emitted for inputs; output side not yet"
+air.point_size,vertex output,NOT_EMITTED,airconv + corpus
+air.clip_distance,vertex output,NOT_EMITTED,airconv + corpus
+air.clip_distance_array_size,vertex output,NOT_EMITTED,airconv
+air.render_target_array_index,vertex output,NOT_EMITTED,airconv + corpus
+air.viewport_array_index,vertex output,NOT_EMITTED,airconv + corpus
+air.center,interpolation,NOT_EMITTED,"corpus: 1574 x air.center+air.no_perspective, 888 x air.center+air.perspective"
+air.centroid,interpolation,NOT_EMITTED,corpus: 886 each with perspective / no_perspective
+air.sample,interpolation,PARTIAL,"used as texture access; also an interpolation qualifier"
+air.perspective,interpolation,NOT_EMITTED,corpus
+air.no_perspective,interpolation,NOT_EMITTED,corpus
+air.flat,interpolation,NOT_EMITTED,corpus + airconv
+air.invariant,vertex output,NOT_EMITTED,airconv
+air.depth,fragment output,NOT_EMITTED,airconv
+air.depth_qualifier,fragment output,NOT_EMITTED,"corpus: air.greater / air.less accompany it"
+air.greater,depth qualifier,NOT_EMITTED,corpus
+air.less,depth qualifier,NOT_EMITTED,corpus
+air.stencil,fragment output,NOT_EMITTED,airconv
+air.sample_mask_in,fragment input,NOT_EMITTED,airconv
+air.buffer_size,buffer arg,PARTIAL,"golden P01 emits it for constant refs; impl does not"
+air.struct_type_info,buffer arg,NOT_EMITTED,"golden P01: 5-element repeat (index, offset, ?, type, name)"
+air.indirect_argument,argument buffer,NOT_EMITTED,airconv + metadata census
+air.indirect_buffer,argument buffer,NOT_EMITTED,airconv + metadata census
+air.indirect_constant,argument buffer,NOT_EMITTED,airconv
+air.raster_order_group,fragment,NOT_EMITTED,airconv; attribute is parsed but metadata not emitted
+air.patch,tessellation,NOT_EMITTED,airconv
+air.triangle,tessellation/intersection,NOT_EMITTED,airconv
+air.line,tessellation,NOT_EMITTED,airconv
+air.point,tessellation,NOT_EMITTED,airconv
+air.payload,object/intersection,NOT_EMITTED,airconv
+air.mesh,mesh,NOT_EMITTED,airconv
+air.mesh_grid_properties,mesh,NOT_EMITTED,airconv
+air.mesh_primitive_data,mesh,NOT_EMITTED,airconv
+air.mesh_vertex_data,mesh,NOT_EMITTED,airconv
+air.mesh_type_info,mesh,NOT_EMITTED,airconv
+air.max_mesh_work_groups,mesh,NOT_EMITTED,airconv
+air.max_work_group_size,kernel,NOT_EMITTED,airconv
+air.set_vertex_data_mesh,mesh intrinsic,NOT_EMITTED,airconv
+air.set_primitive_data_mesh,mesh intrinsic,NOT_EMITTED,airconv
+air.set_clip_distance_mesh,mesh intrinsic,NOT_EMITTED,airconv
+air.set_point_size_mesh,mesh intrinsic,NOT_EMITTED,airconv
+air.set_render_target_array_index_mesh,mesh intrinsic,NOT_EMITTED,airconv
+air.set_viewport_array_index_mesh,mesh intrinsic,NOT_EMITTED,airconv
+air.interpolation_function,fragment,NOT_EMITTED,airconv

@@ -534,6 +534,35 @@ std::string CodeGenModule::getMetalTypeName(QualType Ty) {
   return Ty.getAsString(Policy);
 }
 
+/// Build the `generated(...)` connection identifier that links a vertex output
+/// to the matching fragment input.
+///
+/// Apple encodes it as the length of the variable name, the name itself, and
+/// the Itanium mangling of its type. Every instance in the reference corpus
+/// decomposes exactly this way:
+///
+///   generated(2uvDv2_f)      uv     : float2   (Dv2_f)
+///   generated(4v_cpDv4_f)    v_cp   : float4   (Dv4_f)
+///   generated(6v_flatDv4_f)  v_flat : float4
+///   generated(4__vvf)        __vv   : float    (f)
+///
+/// The names are the source-level variable names, confirmed against the probe
+/// sources (`float4 v_cp [[center_perspective]]` produces `4v_cp`). Both sides
+/// of the pipeline emit the same string, which is what lets the runtime match
+/// them up.
+std::string CodeGenModule::getMetalGeneratedID(StringRef Name, QualType Ty) {
+  std::string MangledTy;
+  {
+    llvm::raw_string_ostream Out(MangledTy);
+    getCXXABI().getMangleContext().mangleTypeName(Ty, Out);
+  }
+  // mangleTypeName emits the "_Z...TS" wrapper form; keep only the type part.
+  StringRef T(MangledTy);
+  if (T.startswith("_ZTS"))
+    T = T.drop_front(4);
+  return (Twine(Name.size()) + Name + T).str();
+}
+
 void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
                                                 llvm::Function *Fn) {
   if (!getLangOpts().Metal || !FD)

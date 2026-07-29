@@ -100,6 +100,21 @@ def main(info):
                 bad.append((b, want, ir_names[b]))
     check("IR struct names match golden type_layout_map", not bad, str(bad[:3]))
 
+    # Independent cross-check: the -ast-dump-lookups output lists every name the
+    # compiler injects into the translation unit, which must agree with
+    # MetalTypes.def exactly.
+    lookup = os.path.join(
+        ast_dir, "log",
+        "macos_air64_versioned_none_metal4.0_probe_min_26_0_ast-dump-lookups.stdout")
+    if os.path.exists(lookup):
+        looked = set(re.findall(r"DeclarationName '(__metal_\w+)'",
+                                open(lookup, errors="ignore").read()))
+        check("opaque types agree with -ast-dump-lookups (%d)" % len(looked),
+              looked == set(got_types),
+              "only in lookups %s / only in impl %s"
+              % (sorted(looked - set(got_types))[:3],
+                 sorted(set(got_types) - looked)[:3]))
+
     print("== Predefined macros ==")
     measured = {}
     for line in open(os.path.join(ast_dir, "meta/metal-predefined-macros.txt"),

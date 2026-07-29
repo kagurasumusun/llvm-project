@@ -9465,6 +9465,14 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     if (checkMetalAttrCommon(S, AL))
       handleSimpleAttribute<MetalThreadExecutionWidthAttr>(S, D, AL);
     break;
+  case ParsedAttr::AT_MetalGridOrigin:
+    if (checkMetalAttrCommon(S, AL))
+      handleSimpleAttribute<MetalGridOriginAttr>(S, D, AL);
+    break;
+  case ParsedAttr::AT_MetalGridSize:
+    if (checkMetalAttrCommon(S, AL))
+      handleSimpleAttribute<MetalGridSizeAttr>(S, D, AL);
+    break;
   case ParsedAttr::AT_MetalVertexId:
     if (checkMetalAttrCommon(S, AL))
       handleSimpleAttribute<MetalVertexIdAttr>(S, D, AL);

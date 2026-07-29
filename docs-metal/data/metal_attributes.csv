@@ -8,7 +8,7 @@ visible,MetalVisibleAttr,Function,,macos-metal2.3,attr-class-topology(32 on func
 stitchable,MetalStitchableAttr,Function,,macos-metal2.3,diag 'stitchable attribute requires ... macos-metal2.3'
 intersection,MetalIntersectionAttr,Function,StringArgList,macos-metal2.3,attr-class-topology(6 on functions); spec args 'triangle, triangle_data, instancing'
 early_fragment_tests,MetalEarlyFragmentTestsAttr,Function,,macos-metal1.2,attr-class-topology(22 on functions); diag; golden P02 emits the 'early_fragment_tests' md operand
-host_name,MetalHostNameAttr,Function,String,macos-metal2.2,attr-class-topology(7 on functions); diag; spec args '"abc"'
+host_name,MetalHostNameAttr,Function,String,macos-metal2.2,"attr-class-topology(7 on functions); diag; spec args '""abc""'"
 max_total_threads_per_threadgroup,MetalMaxTotalThreadsPerThreadgroupAttr,Function,Int,macos-metal2.1,diag; spec args 'x'
 max_total_threadgroups_per_mesh_grid,MetalMaxTotalThreadgroupsPerMeshGridAttr,Function,Int,metal3.0,spec args 'size'
 required_threads_per_threadgroup,MetalRequiredThreadsPerThreadgroupAttr,Function,Int3,,spec attribute list
@@ -80,7 +80,7 @@ tile_index,MetalTileIndexAttr,ParmVar,,,spec attribute list
 shared,MetalSharedAttr,Field,,,spec attribute list
 sizeas,MetalSizeAsAttr,Field,Type,,spec attribute list; golden run12 'MTL_SIZEAS -> air.get_descriptor_size_tensor'
 primitive_culled,MetalPrimitiveCulledAttr,Field,,metal3.0,spec attribute list
-function_groups,MetalFunctionGroupsAttr,Function,StringList,,spec args '"group1" | "group2","group3"'
+function_groups,MetalFunctionGroupsAttr,Function,StringList,,"spec args '""group1"" | ""group2""",group3'
 accept_intersection,MetalAcceptIntersectionAttr,Function,,macos-metal2.3,spec attribute list
 continue_search,MetalContinueSearchAttr,Function,,macos-metal2.3,spec attribute list
 origin,MetalOriginAttr,Field,,macos-metal2.3,spec attribute list
@@ -88,3 +88,5 @@ direction,MetalDirectionAttr,Field,,macos-metal2.3,spec attribute list
 min_distance,MetalMinDistanceAttr,Field,,macos-metal2.3,spec attribute list
 max_distance,MetalMaxDistanceAttr,Field,,macos-metal2.3,spec attribute list
 distance,MetalDistanceAttr,Field,,macos-metal2.3,spec attribute list
+grid_origin,MetalGridOriginAttr,ParmVar,,,"measured: ""grid_origin attribute only applies to parameters and global builtin variables"" (16 occurrences); used as uint base [[grid_origin]]"
+grid_size,MetalGridSizeAttr,ParmVar,,,measured: same diagnostic (16 occurrences); used as uint size [[grid_size]]

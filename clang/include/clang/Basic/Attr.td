@@ -4451,6 +4451,16 @@ def MetalDispatchQuadGroupsPerThreadgroup : MetalParamAttr {
   let Subjects = SubjectList<[ParmVar]>;
 }
 
+def MetalGridOrigin : MetalParamAttr {
+  let Spellings = [CXX11<"", "grid_origin">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
+def MetalGridSize : MetalParamAttr {
+  let Spellings = [CXX11<"", "grid_size">];
+  let Subjects = SubjectList<[ParmVar]>;
+}
+
 def MetalThreadExecutionWidth : MetalParamAttr {
   let Spellings = [CXX11<"", "thread_execution_width">];
   let Subjects = SubjectList<[ParmVar]>;
