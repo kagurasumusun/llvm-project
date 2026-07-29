@@ -96,6 +96,26 @@ python3 docs-metal/verify/verify_against_metal_info.py /tmp/metal-info
 3. **metallib の fat header はビッグエンディアン**、MTLB 内部はリトル
    エンディアン。`METALLIB_WRITER_SPEC.md` には明記がない。
 
+## Phase 7 の突き合わせで判明した最優先の欠落
+
+`06-CROSSCHECK.md` に詳細。純正 StdLib / 公式 PDF / gz 資料を全て読み込んだ結果:
+
+1. **メンバ関数の末尾アドレス空間修飾が未実装（最優先）**
+   `sampler(const device coherent(device) sampler &) thread = default;` のように
+   MSL は仮引数リストの後ろにアドレス空間を置く。純正 StdLib で 7,668 箇所。
+   これが無いと純正 StdLib は一行もパースできない。
+2. `__packed_vector_type__` 未実装（StdLib 82 箇所、公式にサイズ表あり）
+3. 公式が禁止する C++ 機能 12 項目のうち 11 項目が未実装
+4. lambda は Metal 3.2 以降のみ許可（公式・実測・AST の三者で確認）
+5. 実測 Metal 固有診断 28 種のうち 10 種が未カバー
+
+## AIR との一致度
+
+`docs-metal/verify/conformance.py` による静的照合で **35/39 (89.7%)**。
+不一致 4 件はいずれも Phase 6 で検出した既知欠陥。
+なおこれは静的に照合できる範囲の値であり、ビルド検証ができていない以上
+真の出力一致率ではない。
+
 ## 未完了・制約
 
 ### ビルド検証ができていない (重要)
