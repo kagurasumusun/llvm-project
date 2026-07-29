@@ -36,6 +36,10 @@ LLVM+Clang のビルドは物理的に不可能 (最小構成でも RAM 8 GB・�
 | S17 | 検証 | `docs-metal/verify/` | golden 突合 |
 | S18 | metallib | `Object/` | `METALLIB_WRITER_SPEC.md` (一部 OPEN) |
 
+## 実施結果
+
+各段階の完了状況と検証結果は `04-STATUS.md` を参照。
+
 ## 検証方法
 
 ビルド不可のため、以下で代替する:
