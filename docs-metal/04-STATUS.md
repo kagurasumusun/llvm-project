@@ -96,6 +96,50 @@ python3 docs-metal/verify/verify_against_metal_info.py /tmp/metal-info
 3. **metallib の fat header はビッグエンディアン**、MTLB 内部はリトル
    エンディアン。`METALLIB_WRITER_SPEC.md` には明記がない。
 
+## Phase 11: 生ファイル悉皆走査とアドレス空間の再確定 (2026-07-29)
+
+CSV 化されていない生ファイルまで含めて走査した。検証は
+**conformance 50/50 / verify 28/28 で全緑**。
+
+### アドレス空間を全 .ll 走査で再確定 — 誤りを 1 件修正
+
+129,266 個の `.ll` から `addrspace(N)` を悉皆調査した。
+
+| AS | 意味 | 出現回数 | 根拠 |
+|---:|---|---:|---|
+| 0 | thread | — | 無修飾 `ptr` |
+| 1 | device | 1,393,063 | `address_spaces_extended_all` probe |
+| 2 | constant | 199,446 | 同上 |
+| 3 | threadgroup | 24,284 | 同上 |
+| 4 | threadgroup_imageblock | 44 | `_imageblock_base` のメンバポインタ |
+| **6** | **object_data** | **112** | **object shader の `[[payload]]` probe** |
+| 5 / 7 / 9 | 言語の AS ではない | 80/20/177 | intrinsic 戻り値・mesh ハンドル・intersection result |
+| 8 | 未出現 | 0 | — |
+
+**`object_data` は 6 であり、従来の 7 は誤りだった。** 7 は
+`%struct._mesh_t` 専用でユーザが名前で指定できる空間ではない。
+
+`ray_data` は正直に **INFERRED** とした。キーワードは存在し
+`U10MTLraydata` としてマングルされるが、`ray_data` 引数を持つ関数を生成する
+probe がコーパスに無く、数値は未観測である。
+
+### 生ファイルから得た他の成果
+
+- **属性 2 種を追加** — 生 `.metal` 3,415 個(ユニーク)が使う属性 62 種を
+  悉皆抽出し、診断ログと突合。`grid_origin` / `grid_size` は実在
+  （属性エラーが 16 回ずつ = 認識されている）と判明。
+  `lid` / `patch_control_point` / `simd_index_in_threadgroup` / `export_name`
+  は `unknown attribute` となり存在しない（拒否を試す negative probe）。
+- **`generated(...)` の規則を解読** — 生 `air-opcodes.txt` から
+  `generated(<strlen(name)><name><Itanium型>)` と判明し、全 10 実例で検証。
+  vertex 出力と fragment 入力の接続に必要。
+- **`-ast-dump-lookups` による独立検証** — コンパイラが注入する名前の一覧が
+  取れ、`__metal_*` 37 個が `MetalTypes.def` と完全一致した。
+- **airconv との照合** — 第三者実装の air 語彙 123 件と突合し、
+  未実装 46 件（出力側・補間・mesh・argument buffer の metadata）を
+  `docs-metal/data/air_metadata_keys_todo.csv` に台帳化。
+- **vertex/fragment 出力 metadata を実装** — 台帳の最優先分。
+
 ## Phase 10: 修正作業の結果 (2026-07-29)
 
 情報源の読み込みをさらに進め、判明した欠陥を修正した。
