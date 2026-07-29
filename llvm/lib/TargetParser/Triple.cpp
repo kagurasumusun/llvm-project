@@ -30,6 +30,8 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case amdgcn:         return "amdgcn";
   case amdil64:        return "amdil64";
   case amdil:          return "amdil";
+  case air32:          return "air32";
+  case air64:          return "air64";
   case arc:            return "arc";
   case arm:            return "arm";
   case armeb:          return "armeb";
@@ -173,6 +175,9 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
   case loongarch64: return "loongarch";
 
   case dxil:        return "dx";
+
+  case air32:
+  case air64:       return "air";
 
   case xtensa:      return "xtensa";
   }
@@ -378,6 +383,10 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("loongarch64", loongarch64)
     .Case("dxil", dxil)
     .Case("xtensa", xtensa)
+    // AIR (Apple Metal). Versioned spellings such as "air64_v28" carry the
+    // AIR version in the arch component, so match on the prefix.
+    .StartsWith("air32", air32)
+    .StartsWith("air64", air64)
     .Default(UnknownArch);
 }
 
@@ -520,6 +529,8 @@ static Triple::ArchType parseArch(StringRef ArchName) {
     .Case("loongarch64", Triple::loongarch64)
     .Case("dxil", Triple::dxil)
     .Case("xtensa", Triple::xtensa)
+    .StartsWith("air32", Triple::air32)
+    .StartsWith("air64", Triple::air64)
     .Default(Triple::UnknownArch);
 
   // Some architectures require special parsing logic just to compute the
@@ -878,6 +889,14 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
 
   case Triple::dxil:
     return Triple::DXContainer;
+
+  case Triple::air32:
+  case Triple::air64:
+    // AIR is only ever emitted as LLVM bitcode (wrapped in the Darwin bitcode
+    // wrapper and then in a .metallib / fat container). There is no native
+    // object format; report MachO to stay consistent with the Apple vendor and
+    // the Mach-O-derived fat container used by .metallib.
+    return Triple::MachO;
   }
   llvm_unreachable("unknown architecture");
 }
@@ -1402,6 +1421,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
     return 16;
 
   case llvm::Triple::aarch64_32:
+  case llvm::Triple::air32:
   case llvm::Triple::amdil:
   case llvm::Triple::arc:
   case llvm::Triple::arm:
@@ -1440,6 +1460,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
 
   case llvm::Triple::aarch64:
   case llvm::Triple::aarch64_be:
+  case llvm::Triple::air64:
   case llvm::Triple::amdgcn:
   case llvm::Triple::amdil64:
   case llvm::Triple::bpfeb:
@@ -1493,6 +1514,7 @@ Triple Triple::get32BitArchVariant() const {
     break;
 
   case Triple::aarch64_32:
+  case Triple::air32:
   case Triple::amdil:
   case Triple::arc:
   case Triple::arm:
@@ -1548,6 +1570,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::renderscript64: T.setArch(Triple::renderscript32); break;
   case Triple::riscv64:        T.setArch(Triple::riscv32); break;
   case Triple::sparcv9:        T.setArch(Triple::sparc);   break;
+  case Triple::air64:          T.setArch(Triple::air32);   break;
   case Triple::spir64:         T.setArch(Triple::spir);    break;
   case Triple::spirv64:
     T.setArch(Triple::spirv32, getSubArch());
@@ -1583,6 +1606,7 @@ Triple Triple::get64BitArchVariant() const {
 
   case Triple::aarch64:
   case Triple::aarch64_be:
+  case Triple::air64:
   case Triple::amdgcn:
   case Triple::amdil64:
   case Triple::bpfeb:
@@ -1632,6 +1656,7 @@ Triple Triple::get64BitArchVariant() const {
     break;
   case Triple::thumb:           T.setArch(Triple::aarch64);    break;
   case Triple::thumbeb:         T.setArch(Triple::aarch64_be); break;
+  case Triple::air32:           T.setArch(Triple::air64);      break;
   case Triple::wasm32:          T.setArch(Triple::wasm64);     break;
   case Triple::x86:             T.setArch(Triple::x86_64);     break;
   }
@@ -1742,10 +1767,28 @@ Triple Triple::getLittleEndianArchVariant() const {
   return T;
 }
 
+unsigned Triple::getAIRVersion() const {
+  if (!isAIR())
+    return 0;
+  // The arch component is spelled "air32"/"air64" optionally followed by
+  // "_v<NN>", e.g. "air64_v28". Observed on Apple toolchains for
+  // air64_v20..air64_v28 plus the pre-10.13 forms air64_v18 / air64_v111.
+  StringRef ArchName = getArchName();
+  size_t Pos = ArchName.find("_v");
+  if (Pos == StringRef::npos)
+    return 0;
+  unsigned Version = 0;
+  if (ArchName.substr(Pos + 2).getAsInteger(10, Version))
+    return 0;
+  return Version;
+}
+
 bool Triple::isLittleEndian() const {
   switch (getArch()) {
   case Triple::aarch64:
   case Triple::aarch64_32:
+  case Triple::air32:
+  case Triple::air64:
   case Triple::amdgcn:
   case Triple::amdil64:
   case Triple::amdil:

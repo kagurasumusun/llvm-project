@@ -59,6 +59,20 @@ enum class LangAS : unsigned {
   // HLSL specific address spaces.
   hlsl_groupshared,
 
+  // Metal Shading Language specific address spaces.
+  //
+  // The numeric target values are measured from Apple's generated AIR; see
+  // research/spec/IR_GROUND_TRUTH.md section 2.4 and the golden corpus in
+  // research/golden. `thread` is the default address space and therefore maps
+  // to target address space 0, matching `LangAS::Default`.
+  metal_device,
+  metal_constant,
+  metal_threadgroup,
+  metal_thread,
+  metal_threadgroup_imageblock,
+  metal_object_data,
+  metal_ray_data,
+
   // This denotes the count of language-specific address spaces and also
   // the offset added to the target-specific address spaces, which are usually
   // specified by address space attributes __attribute__(address_space(n))).

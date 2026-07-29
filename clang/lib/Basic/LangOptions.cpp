@@ -78,6 +78,61 @@ std::string LangOptions::getOpenCLVersionString() const {
   return Result;
 }
 
+/// Map a Metal language standard to the numeric Metal Shading Language version.
+///
+/// The values are exactly Apple's `__METAL_VERSION__`; see
+/// reference/metal-ast-*/meta/metal-predefined-macros.txt for the measured
+/// value of the current toolchain (`__METAL_VERSION__ 400` for -std=metal4.0).
+static LangOptions::MetalLangStd
+getMetalVersionForLangStandard(LangStandard::Kind LangStd) {
+  switch (LangStd) {
+  case LangStandard::lang_macos_metal1_0:
+  case LangStandard::lang_osx_metal1_0:
+  case LangStandard::lang_ios_metal1_0:
+    return LangOptions::Metal_1_0;
+  case LangStandard::lang_macos_metal1_1:
+  case LangStandard::lang_osx_metal1_1:
+  case LangStandard::lang_ios_metal1_1:
+    return LangOptions::Metal_1_1;
+  case LangStandard::lang_macos_metal1_2:
+  case LangStandard::lang_osx_metal1_2:
+  case LangStandard::lang_ios_metal1_2:
+    return LangOptions::Metal_1_2;
+  case LangStandard::lang_macos_metal2_0:
+  case LangStandard::lang_osx_metal2_0:
+  case LangStandard::lang_ios_metal2_0:
+    return LangOptions::Metal_2_0;
+  case LangStandard::lang_macos_metal2_1:
+  case LangStandard::lang_osx_metal2_1:
+  case LangStandard::lang_ios_metal2_1:
+    return LangOptions::Metal_2_1;
+  case LangStandard::lang_macos_metal2_2:
+  case LangStandard::lang_osx_metal2_2:
+  case LangStandard::lang_ios_metal2_2:
+    return LangOptions::Metal_2_2;
+  case LangStandard::lang_macos_metal2_3:
+  case LangStandard::lang_osx_metal2_3:
+  case LangStandard::lang_ios_metal2_3:
+    return LangOptions::Metal_2_3;
+  case LangStandard::lang_macos_metal2_4:
+  case LangStandard::lang_osx_metal2_4:
+  case LangStandard::lang_ios_metal2_4:
+    return LangOptions::Metal_2_4;
+  case LangStandard::lang_metal3_0:
+    return LangOptions::Metal_3_0;
+  case LangStandard::lang_metal3_1:
+    return LangOptions::Metal_3_1;
+  case LangStandard::lang_metal3_2:
+    return LangOptions::Metal_3_2;
+  case LangStandard::lang_metal4_0:
+    return LangOptions::Metal_4_0;
+  case LangStandard::lang_metal4_1:
+    return LangOptions::Metal_4_1;
+  default:
+    return LangOptions::Metal_Unset;
+  }
+}
+
 void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
                                   const llvm::Triple &T,
                                   std::vector<std::string> &Includes,
@@ -149,6 +204,13 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
   else if (LangStd == LangStandard::lang_hlsl202x)
     Opts.HLSLVersion = (unsigned)LangOptions::HLSL_202x;
 
+  // Set the Metal Shading Language version. The numeric value matches Apple's
+  // `__METAL_VERSION__` predefined macro.
+  Opts.Metal = Std.isMetal();
+  if (Opts.Metal) {
+    Opts.MetalVersion = (unsigned)getMetalVersionForLangStandard(LangStd);
+  }
+
   // OpenCL has some additional defaults.
   if (Opts.OpenCL) {
     Opts.AltiVec = 0;
@@ -190,13 +252,40 @@ void LangOptions::setLangDefaults(LangOptions &Opts, Language Lang,
     Opts.setDefaultFPContractMode(LangOptions::FPM_Fast);
   }
 
+  // Metal has some additional defaults. Evidence for each of these is the
+  // reference cc1 invocation recorded in
+  // reference/metal-ast-*/meta/metal-cc1-invocations.txt.gz together with the
+  // MSL specification restrictions catalogued in
+  // research/spec/METAL_CXX_MASTER_ATLAS.md section 2.
+  if (Opts.Metal) {
+    // MSL forbids exceptions and RTTI in every language version
+    // (METAL_CXX_MASTER_ATLAS.md FEAT-12 / FEAT-13).
+    Opts.Exceptions = 0;
+    Opts.CXXExceptions = 0;
+    Opts.RTTI = 0;
+    Opts.RTTIData = 0;
+
+    // `half` is a first class scalar type in MSL.
+    Opts.NativeHalfType = 1;
+    Opts.NativeHalfArgsAndReturns = 1;
+
+    // Apple's driver always passes -ffp-contract=fast for Metal.
+    Opts.setDefaultFPContractMode(LangOptions::FPM_Fast);
+
+    // Pull in the Metal standard library headers when asked to, matching the
+    // observed `-finclude-default-header` behaviour.
+    if (Opts.IncludeDefaultHeader)
+      Includes.push_back("metal_stdlib");
+  }
+
   Opts.RenderScript = Lang == Language::RenderScript;
 
   // OpenCL, C++ and C2x have bool, true, false keywords.
   Opts.Bool = Opts.OpenCL || Opts.CPlusPlus || Opts.C2x;
 
   // OpenCL and HLSL have half keyword
-  Opts.Half = Opts.OpenCL || Opts.HLSL;
+  // OpenCL, HLSL and Metal have the half keyword.
+  Opts.Half = Opts.OpenCL || Opts.HLSL || Opts.Metal;
 }
 
 FPOptions FPOptions::defaultWithoutTrailingStorage(const LangOptions &LO) {

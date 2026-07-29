@@ -281,6 +281,7 @@ PUNCTUATOR(caretcaret,            "^^")
 //   HALFSUPPORT - This is a keyword if 'half' is a built-in type
 //   WCHARSUPPORT - This is a keyword if 'wchar_t' is a built-in type
 //   CHAR8SUPPORT - This is a keyword if 'char8_t' is a built-in type
+//   KEYMETAL - This is a keyword in the Metal Shading Language
 //
 KEYWORD(auto                        , KEYALL)
 KEYWORD(break                       , KEYALL)
@@ -617,6 +618,36 @@ KEYWORD(__noinline__                , KEYCUDA)
 KEYWORD(cbuffer                     , KEYHLSL)
 KEYWORD(tbuffer                     , KEYHLSL)
 KEYWORD(groupshared                 , KEYHLSL)
+
+// Metal Shading Language keywords.
+//
+// These are compiler builtin keywords rather than macros: Apple's Metal
+// standard library headers use `device`, `constant`, `threadgroup`, `thread`,
+// `ray_data`, `object_data` and `threadgroup_imageblock` thousands of times
+// without ever #define-ing them (see research/spec/INFO_SET.md item F-2 and the
+// header scan in docs-metal/01-ANALYSIS.md section 1.10).
+//
+// Address space qualifiers.
+KEYWORD(device                      , KEYMETAL)
+KEYWORD(constant                    , KEYMETAL)
+KEYWORD(threadgroup                 , KEYMETAL)
+KEYWORD(thread                      , KEYMETAL)
+KEYWORD(threadgroup_imageblock      , KEYMETAL)
+KEYWORD(ray_data                    , KEYMETAL)
+KEYWORD(object_data                 , KEYMETAL)
+
+// Memory coherence qualifier, spelled `coherent(device)` / `coherent(threadgroup)`.
+// Observed in AST dumps as `const device coherent(device) Uniforms &` and in
+// mangled names as the `U18MTLcoherent` extended qualifier.
+KEYWORD(coherent                    , KEYMETAL)
+
+// Function class qualifiers. These introduce a shader entry point or an
+// externally visible function.
+KEYWORD(kernel                      , KEYMETAL)
+KEYWORD(vertex                      , KEYMETAL)
+KEYWORD(fragment                    , KEYMETAL)
+KEYWORD(visible                     , KEYMETAL)
+KEYWORD(stitchable                  , KEYMETAL)
 
 // OpenMP Type Traits
 UNARY_EXPR_OR_TYPE_TRAIT(__builtin_omp_required_simd_align, OpenMPRequiredSimdAlign, KEYALL)

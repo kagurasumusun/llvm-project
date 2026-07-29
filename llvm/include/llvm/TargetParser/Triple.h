@@ -51,6 +51,8 @@ public:
     aarch64,        // AArch64 (little endian): aarch64
     aarch64_be,     // AArch64 (big endian): aarch64_be
     aarch64_32,     // AArch64 (little endian) ILP32: aarch64_32
+    air32,          // AIR (Apple Intermediate Representation) 32-bit: Metal
+    air64,          // AIR (Apple Intermediate Representation) 64-bit: Metal
     arc,            // ARC: Synopsys ARC
     avr,            // AVR: Atmel AVR microcontroller
     bpfel,          // eBPF or extended BPF or 64-bit BPF (little endian)
@@ -747,6 +749,21 @@ public:
   bool isDXIL() const {
     return getArch() == Triple::dxil;
   }
+
+  /// Tests whether the target is AIR (Apple Metal, 32- or 64-bit).
+  ///
+  /// AIR triples take the forms `air64-apple-macosx10.14.0` (legacy,
+  /// unversioned) and `air64_v28-apple-macosx26.0.0` (versioned). The `_vNN`
+  /// suffix encodes the AIR version and is carried in the SubArch string.
+  bool isAIR() const {
+    return getArch() == Triple::air32 || getArch() == Triple::air64;
+  }
+
+  /// Parse the AIR version out of the arch component of an AIR triple.
+  ///
+  /// `air64_v28-apple-macosx26.0.0` yields 28. Legacy unversioned triples such
+  /// as `air64-apple-macosx10.14.0` yield 0. Returns 0 for non-AIR triples.
+  unsigned getAIRVersion() const;
 
   /// Tests whether the target is SPIR (32- or 64-bit).
   bool isSPIR() const {

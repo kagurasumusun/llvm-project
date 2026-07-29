@@ -1030,6 +1030,7 @@ void PrintPreambleAction::ExecuteAction() {
   case Language::CUDA:
   case Language::HIP:
   case Language::HLSL:
+  case Language::Metal:
     break;
 
   case Language::Unknown:

@@ -46,6 +46,13 @@ static const unsigned X86AddrSpaceMap[] = {
     271, // ptr32_uptr
     272, // ptr64
     0,   // hlsl_groupshared
+    0,   // metal_device
+    0,   // metal_constant
+    0,   // metal_threadgroup
+    0,   // metal_thread
+    0,   // metal_threadgroup_imageblock
+    0,   // metal_object_data
+    0,   // metal_ray_data
 };
 
 // X86 target abstract base class; x86-32 and x86-64 are very close, so

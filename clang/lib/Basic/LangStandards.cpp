@@ -75,6 +75,11 @@ LangStandard::Kind clang::getDefaultLanguageStandard(clang::Language Lang,
     return LangStandard::lang_hip;
   case Language::HLSL:
     return LangStandard::lang_hlsl2021;
+  case Language::Metal:
+    // The reference toolchain (metalfe-32023.883) defaults to MSL 3.2; see
+    // research/spec/IR_GROUND_TRUTH.md section 6.1, where the default output
+    // carries `!air.language_version = !{!"Metal", i32 3, i32 2, i32 0}`.
+    return LangStandard::lang_metal3_2;
   }
   llvm_unreachable("unhandled Language kind!");
 }

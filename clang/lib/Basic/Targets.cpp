@@ -14,6 +14,7 @@
 #include "Targets.h"
 
 #include "Targets/AArch64.h"
+#include "Targets/AIR.h"
 #include "Targets/AMDGPU.h"
 #include "Targets/ARC.h"
 #include "Targets/ARM.h"
@@ -657,6 +658,12 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
 
   case llvm::Triple::dxil:
     return new DirectXTargetInfo(Triple,Opts);
+
+  case llvm::Triple::air32:
+  case llvm::Triple::air64:
+    // AIR is Apple's Metal target. Only the Apple vendor is meaningful; the
+    // observed triples are all of the form air{32,64}[_vNN]-apple-<os>.
+    return new AIRTargetInfo(Triple, Opts);
   case llvm::Triple::renderscript32:
     return new LinuxTargetInfo<RenderScript32TargetInfo>(Triple, Opts);
   case llvm::Triple::renderscript64:

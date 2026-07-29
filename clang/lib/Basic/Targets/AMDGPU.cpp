@@ -58,6 +58,13 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsGenMap = {
     Generic,  // ptr32_uptr
     Generic,  // ptr64
     Generic,  // hlsl_groupshared
+    Generic,  // metal_device
+    Generic,  // metal_constant
+    Generic,  // metal_threadgroup
+    Generic,  // metal_thread
+    Generic,  // metal_threadgroup_imageblock
+    Generic,  // metal_object_data
+    Generic,  // metal_ray_data
 };
 
 const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
@@ -82,6 +89,13 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
     Generic, // ptr32_uptr
     Generic, // ptr64
     Generic, // hlsl_groupshared
+    Generic, // metal_device
+    Generic, // metal_constant
+    Generic, // metal_threadgroup
+    Generic, // metal_thread
+    Generic, // metal_threadgroup_imageblock
+    Generic, // metal_object_data
+    Generic, // metal_ray_data
 
 };
 } // namespace targets

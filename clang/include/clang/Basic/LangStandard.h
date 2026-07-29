@@ -41,6 +41,7 @@ enum class Language : uint8_t {
   RenderScript,
   HIP,
   HLSL,
+  Metal,
   ///@}
 };
 
@@ -60,7 +61,8 @@ enum LangFeatures {
   GNUMode = (1 << 12),
   HexFloat = (1 << 13),
   OpenCL = (1 << 14),
-  HLSL = (1 << 15)
+  HLSL = (1 << 15),
+  Metal = (1 << 16)
 };
 
 /// LangStandard - Information about the properties of a particular language
@@ -132,6 +134,9 @@ public:
 
   /// isOpenCL - Language is a OpenCL variant.
   bool isOpenCL() const { return Flags & OpenCL; }
+
+  /// isMetal - Language is a Metal Shading Language variant.
+  bool isMetal() const { return Flags & Metal; }
 
   static Kind getLangKind(StringRef Name);
   static const LangStandard &getLangStandardForKind(Kind K);

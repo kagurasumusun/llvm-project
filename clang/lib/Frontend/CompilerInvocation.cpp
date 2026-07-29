@@ -2689,6 +2689,9 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
     case Language::HLSL:
       Lang = "hlsl";
       break;
+    case Language::Metal:
+      Lang = "metal";
+      break;
     }
 
     GenerateArg(Args, OPT_x,
@@ -2876,6 +2879,7 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
                 .Case("objective-c++", Language::ObjCXX)
                 .Case("renderscript", Language::RenderScript)
                 .Case("hlsl", Language::HLSL)
+                .Case("metal", Language::Metal)
                 .Default(Language::Unknown);
 
     // "objc[++]-cpp-output" is an acceptable synonym for
@@ -3263,6 +3267,9 @@ static bool IsInputCompatibleWithStandard(InputKind IK,
 
   case Language::HLSL:
     return S.getLanguage() == Language::HLSL;
+
+  case Language::Metal:
+    return S.getLanguage() == Language::Metal;
   }
 
   llvm_unreachable("unexpected input language");
@@ -3297,6 +3304,9 @@ static StringRef GetInputKindName(InputKind IK) {
 
   case Language::HLSL:
     return "HLSL";
+
+  case Language::Metal:
+    return "Metal";
 
   case Language::Unknown:
     break;

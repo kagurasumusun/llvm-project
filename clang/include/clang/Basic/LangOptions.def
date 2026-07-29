@@ -262,6 +262,12 @@ LANGOPT(RenderScript      , 1, 0, "RenderScript")
 LANGOPT(HLSL, 1, 0, "HLSL")
 ENUM_LANGOPT(HLSLVersion, HLSLLangStd, 16, HLSL_Unset, "HLSL Version")
 
+LANGOPT(Metal, 1, 0, "Metal Shading Language")
+ENUM_LANGOPT(MetalVersion, MetalLangStd, 16, Metal_Unset, "Metal Shading Language version")
+ENUM_LANGOPT(MetalFPMath, MetalFPMathFunctions, 1, MetalFPMathFunctions::Fast,
+             "which single precision math function set the standard library selects")
+LANGOPT(MetalEnableLogging, 1, 0, "enable Metal shader logging (-fmetal-enable-logging)")
+
 LANGOPT(CUDAIsDevice      , 1, 0, "compiling for CUDA device")
 LANGOPT(CUDAAllowVariadicFunctions, 1, 0, "allowing variadic functions in CUDA device code")
 LANGOPT(CUDAHostDeviceConstexpr, 1, 1, "treating unattributed constexpr functions as __host__ __device__")

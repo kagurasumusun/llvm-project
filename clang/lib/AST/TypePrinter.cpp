@@ -2240,6 +2240,23 @@ std::string Qualifiers::getAddrSpaceAsString(LangAS AS) {
     return "__ptr64";
   case LangAS::hlsl_groupshared:
     return "groupshared";
+  // Metal address spaces are spelled with plain keywords. The spellings match
+  // the AST dumps in reference/metal-ast-*/ast (e.g. `const device Uniforms &`,
+  // `const threadgroup_imageblock Uniforms &`, `const ray_data Uniforms &`).
+  case LangAS::metal_device:
+    return "device";
+  case LangAS::metal_constant:
+    return "constant";
+  case LangAS::metal_threadgroup:
+    return "threadgroup";
+  case LangAS::metal_thread:
+    return "thread";
+  case LangAS::metal_threadgroup_imageblock:
+    return "threadgroup_imageblock";
+  case LangAS::metal_object_data:
+    return "object_data";
+  case LangAS::metal_ray_data:
+    return "ray_data";
   default:
     return std::to_string(toTargetAddressSpace(AS));
   }
