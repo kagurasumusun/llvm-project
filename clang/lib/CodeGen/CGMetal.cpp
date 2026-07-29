@@ -405,6 +405,31 @@ public:
 
 } // namespace
 
+/// Is \p Ty a binding to an argument buffer, i.e. a record whose fields carry
+/// `[[id(N)]]`? Such a binding is recorded as `air.indirect_buffer`.
+static bool isMetalArgumentBuffer(QualType Ty) {
+  if (Ty->isPointerType() || Ty->isReferenceType())
+    Ty = Ty->getPointeeType();
+  const RecordDecl *RD = Ty->getAsRecordDecl();
+  if (!RD || !RD->isCompleteDefinition())
+    return false;
+  return llvm::any_of(RD->fields(), [](const FieldDecl *FD) {
+    return FD->hasAttr<MetalIdAttr>();
+  });
+}
+
+/// Is \p TypeName one of the texture class templates?
+///
+/// The full sweep of the corpus records exactly these thirteen spellings in
+/// `air.arg_type_name` for texture bindings:
+///   texture1d texture1d_array texture2d texture2d_array texture2d_ms
+///   texture3d texture_buffer texturecube texturecube_array
+///   depth2d depth2d_array depthcube depthcube_array
+static bool isMetalTextureTypeName(llvm::StringRef TypeName) {
+  return TypeName.startswith("texture") || TypeName.startswith("depth2d") ||
+         TypeName.startswith("depthcube");
+}
+
 /// The `air.*` access mode string for a texture, read off its recorded type
 /// name. `texture2d<float, write>` gives `air.write`, and so on; the corpus
 /// never disagrees between the two spellings. Defaults to `air.sample`, which
@@ -507,6 +532,29 @@ static void addMetalInterpolation(MetalArgMetadataBuilder &B, const DeclT *D) {
 /// probes, where the offsets 0/8/16/24 and sizes 8/8/8/8 reproduce the C++
 /// layout of the struct. The third element is 0 in every one of the 4,853
 /// occurrences.
+/// When the record is an argument buffer -- that is, its fields carry
+/// `[[id(N)]]` -- each group gains two further operands, the string
+/// `air.indirect_argument` and a nested node describing the field as if it
+/// were a top level entry point argument. From the four field probe:
+///
+///   !14 = !{i32 0,  i32 8, i32 0, !"float", !"data",
+///           !"air.indirect_argument", !15,
+///           i32 8,  i32 8, i32 0, !"texture2d<float, sample>", !"tex",
+///           !"air.indirect_argument", !16,
+///           i32 16, i32 8, i32 0, !"sampler", !"s",
+///           !"air.indirect_argument", !17,
+///           i32 24, i32 8, i32 0, !"float4", !"params",
+///           !"air.indirect_argument", !18}
+///   !15 = !{i32 0, !"air.buffer",   !"air.location_index", i32 0, i32 1, ...}
+///   !16 = !{i32 1, !"air.texture",  !"air.location_index", i32 1, i32 1, ...}
+///   !17 = !{i32 2, !"air.sampler",  !"air.location_index", i32 2, i32 1, ...}
+///   !18 = !{i32 3, !"air.buffer",   !"air.location_index", i32 3, i32 1,
+///           !"air.read", !"air.address_space", i32 2, ...}
+///
+/// The nested node's index and location index are both the `[[id(N)]]` value,
+/// and a scalar `uint count [[id(1)]]` uses `air.indirect_constant` rather
+/// than `air.buffer`. Note that the size column of the outer group is the
+/// *slot* size (8 for every pointer-like binding), not the pointee size.
 llvm::MDNode *CodeGenModule::EmitMetalStructTypeInfo(QualType Ty) {
   llvm::LLVMContext &Ctx = getLLVMContext();
   ASTContext &C = getContext();
@@ -527,8 +575,69 @@ llvm::MDNode *CodeGenModule::EmitMetalStructTypeInfo(QualType Ty) {
     B.addInt(0);
     B.addStr(getMetalTypeName(FTy));
     B.addStr(FD->getName());
+    if (const auto *IdA = FD->getAttr<MetalIdAttr>()) {
+      B.addStr("air.indirect_argument");
+      B.addNode(EmitMetalIndirectArgument(FD, getMetalAttrIndex(IdA->getIndex())));
+    }
     ++FieldNo;
   }
+  return B.finish();
+}
+
+/// Describe one field of an argument buffer as if it were an entry point
+/// argument. See EmitMetalStructTypeInfo for the surrounding shape.
+llvm::MDNode *CodeGenModule::EmitMetalIndirectArgument(const FieldDecl *FD,
+                                                       unsigned Id) {
+  llvm::LLVMContext &Ctx = getLLVMContext();
+  ASTContext &C = getContext();
+  QualType Ty = FD->getType();
+  MetalArgMetadataBuilder B(Ctx);
+
+  B.addInt(Id);
+  std::string TyName = getMetalTypeName(Ty);
+  if (isMetalTextureTypeName(TyName)) {
+    B.addStr("air.texture");
+    B.addStr("air.location_index");
+    B.addInt(Id);
+    B.addInt(1);
+    B.addStr(getMetalTextureAccess(TyName));
+  } else if (TyName == "sampler") {
+    B.addStr("air.sampler");
+    B.addStr("air.location_index");
+    B.addInt(Id);
+    B.addInt(1);
+  } else if (Ty->isPointerType() || Ty->isReferenceType()) {
+    B.addStr("air.buffer");
+    B.addStr("air.location_index");
+    B.addInt(Id);
+    B.addInt(1);
+    B.addStr(getAIRAccess(Ty));
+    QualType Pointee = Ty->getPointeeType();
+    if (metalEmitsAddressSpaceOperand(getTarget().getTriple())) {
+      B.addStr("air.address_space");
+      B.addInt(C.getTargetAddressSpace(Pointee.getAddressSpace()));
+    }
+    if (!Pointee->isIncompleteType()) {
+      B.addStr("air.arg_type_size");
+      B.addInt(C.getTypeSizeInChars(Pointee).getQuantity());
+      B.addStr("air.arg_type_align_size");
+      B.addInt(C.getTypeAlignInChars(Pointee).getQuantity());
+    }
+  } else {
+    // A by-value field is an inline constant.
+    //   !9 = !{i32 1, !"air.indirect_constant", !"air.location_index",
+    //          i32 1, i32 1, !"air.arg_type_name", !"uint",
+    //          !"air.arg_name", !"count"}
+    B.addStr("air.indirect_constant");
+    B.addStr("air.location_index");
+    B.addInt(Id);
+    B.addInt(1);
+  }
+
+  B.addStr("air.arg_type_name");
+  B.addStr(TyName);
+  B.addStr("air.arg_name");
+  B.addStr(FD->getName());
   return B.finish();
 }
 
@@ -861,7 +970,38 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       B.addInt(getMetalAttrIndex(SmpA->getIndex()));
       B.addInt(1);
     } else if (const auto *BufA = PVD->getAttr<MetalBufferIndexAttr>()) {
-      B.addStr("air.buffer");
+      // An acceleration structure binds through [[buffer(N)]] but is recorded
+      // under its own key, read only, with no size:
+      //   !12 = !{i32 0, !"air.instance_acceleration_structure",
+      //           !"air.location_index", i32 0, i32 1, !"air.read",
+      //           !"air.arg_type_name",
+      //           !"acceleration_structure<instancing>",
+      //           !"air.arg_name", !"accel"}
+      if (getMetalTypeName(Ty).startswith("acceleration_structure") ||
+          getMetalTypeName(Ty) == "instance_acceleration_structure") {
+        B.addStr("air.instance_acceleration_structure");
+        B.addStr("air.location_index");
+        B.addInt(getMetalAttrIndex(BufA->getIndex()));
+        B.addInt(1);
+        B.addStr("air.read");
+        B.addStr("air.arg_type_name");
+        B.addStr(getMetalTypeName(Ty));
+        B.addStr("air.arg_name");
+        B.addStr(PVD->getName());
+        ArgNodes.push_back(B.finish());
+        ++Index;
+        continue;
+      }
+      // A struct whose fields carry `[[id(N)]]` is an argument buffer, and is
+      // recorded as `air.indirect_buffer` rather than `air.buffer`:
+      //   !12 = !{i32 0, !"air.indirect_buffer", !"air.buffer_size", i32 16,
+      //           !"air.location_index", i32 0, i32 1, !"air.read",
+      //           !"air.address_space", i32 2, !"air.struct_type_info", !13,
+      //           !"air.arg_type_size", i32 16,
+      //           !"air.arg_type_align_size", i32 8,
+      //           !"air.arg_type_name", !"Args", !"air.arg_name", !"args"}
+      B.addStr(isMetalArgumentBuffer(Ty) ? "air.indirect_buffer"
+                                         : "air.buffer");
       // A reference bound buffer states its extent up front; a pointer bound
       // one does not, because its length is not known. Every probe declaring
       // `constant T &x [[buffer(N)]]` records it and no pointer probe does:
@@ -942,7 +1082,14 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       //
       // A non-record `[[stage_in]]` keeps the single node shape, which is
       // what the 176 `air.stage_in` occurrences record.
+      // A kernel taking `[[stage_in]]` uses the neutral `air.stage_in`
+      // spelling instead of a stage specific one, and states a location index
+      // like a vertex input does:
+      //   !6 = !{i32 0, !"air.stage_in", !"air.location_index", i32 0, i32 1,
+      //          !"generated(__air_placeholder__)",
+      //          !"air.arg_type_name", !"float4", !"air.arg_name", !"p"}
       bool IsVertexIn = FD->hasAttr<MetalVertexAttr>();
+      bool IsKernelIn = FD->hasAttr<MetalKernelAttr>();
       if (const RecordDecl *SIRD = Ty->getAsRecordDecl()) {
         unsigned Location = 0;
         for (const FieldDecl *SIF : SIRD->fields()) {
@@ -957,8 +1104,8 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
               FB.addStr("air.center");
               FB.addStr("air.no_perspective");
             }
-          } else if (IsVertexIn) {
-            FB.addStr("air.vertex_input");
+          } else if (IsVertexIn || IsKernelIn) {
+            FB.addStr(IsKernelIn ? "air.stage_in" : "air.vertex_input");
             FB.addStr("air.location_index");
             FB.addInt(SIF->hasAttr<MetalAttributeIndexAttr>()
                           ? getMetalAttrIndex(
@@ -986,7 +1133,9 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
         }
         continue;
       }
-      B.addStr(IsVertexIn ? "air.vertex_input" : "air.fragment_input");
+      B.addStr(IsKernelIn    ? "air.stage_in"
+               : IsVertexIn  ? "air.vertex_input"
+                             : "air.fragment_input");
     } else if (FD->hasAttr<MetalVisibleAttr>()) {
       // A `[[visible]]` function takes plain values, recorded as
       // `air.visible_input`, and returns one `air.visible_output`:

@@ -200,18 +200,70 @@ mangledName: _ZN8UniformsC1ERU9MTLdeviceU18MTLcoherent_deviceKS_
 ## 実装到達度
 
 `!air.*` メタデータキー **88 種**（named metadata 16 + オペランド文字列 72）のうち
-**67 種を出力**。残り 21 種は `docs-metal/data/air_metadata_keys_todo.csv` に
+**72 種を出力**。残り 16 種は `docs-metal/data/air_metadata_keys_todo.csv` に
 出現回数・生の実例つきで台帳化した。
 
-残り 21 種の内訳:
+### 11. argument buffer の完全な構造
+
+`[[id(N)]]` を持つフィールドを含む struct が argument buffer で、束縛は
+`air.buffer` ではなく `air.indirect_buffer` になる。`air.struct_type_info` の各5要素組に
+さらに 2 オペランド（`air.indirect_argument` と入れ子ノード）が付き、入れ子ノードは
+そのフィールドをトップレベル引数と同じ形で記述する。
+
+```llvm
+!13 = !{i32 1, !"air.indirect_buffer", !"air.buffer_size", i32 32,
+        !"air.location_index", i32 1, i32 1, !"air.read",
+        !"air.address_space", i32 2, !"air.struct_type_info", !14, ...}
+!14 = !{i32 0,  i32 8, i32 0, !"float", !"data", !"air.indirect_argument", !15,
+        i32 8,  i32 8, i32 0, !"texture2d<float, sample>", !"tex",
+                                          !"air.indirect_argument", !16,
+        i32 16, i32 8, i32 0, !"sampler", !"s", !"air.indirect_argument", !17,
+        i32 24, i32 8, i32 0, !"float4", !"params",
+                                          !"air.indirect_argument", !18}
+!15 = !{i32 0, !"air.buffer",  !"air.location_index", i32 0, i32 1, ...}
+!16 = !{i32 1, !"air.texture", !"air.location_index", i32 1, i32 1, ...}
+!17 = !{i32 2, !"air.sampler", !"air.location_index", i32 2, i32 1, ...}
+```
+
+入れ子ノードの index と location index はどちらも `[[id(N)]]` の値。値渡しフィールドは
+`air.buffer` ではなく `air.indirect_constant` になる。外側の組のサイズ列は **スロット**
+サイズ（ポインタ系は一律 8）で、pointee サイズではない。
+
+→ **実装済み**（`isMetalArgumentBuffer` / `EmitMetalIndirectArgument`、
+`clang/test/Metal/argument-buffer.metal`）。
+
+### 12. `air.stage_in` は kernel ステージ専用の綴り
+
+`kernel void k(VI in [[stage_in]])` が `air.stage_in` を出す。vertex は
+`air.vertex_input`、fragment は `air.fragment_input` で、3者は排他。
+
+```llvm
+!6 = !{i32 0, !"air.stage_in", !"air.location_index", i32 0, i32 1,
+       !"generated(__air_placeholder__)",
+       !"air.arg_type_name", !"float4", !"air.arg_name", !"p"}
+```
+
+→ **実装済み**。
+
+### 13. `air.instance_acceleration_structure`
+
+`[[buffer(N)]]` で束縛されるが専用キーで記録され、常に read、サイズは持たない。
+
+```llvm
+!12 = !{i32 0, !"air.instance_acceleration_structure",
+        !"air.location_index", i32 0, i32 1, !"air.read",
+        !"air.arg_type_name", !"acceleration_structure<instancing>",
+        !"air.arg_name", !"accel"}
+```
+
+→ **実装済み**。
+
+残り 16 種の内訳:
 
 | 領域 | キー | 出現 |
 |---|---|---:|
-| argument buffer | `air.indirect_argument` `air.indirect_buffer` `air.indirect_constant` | 936 / 312 / 156 |
 | sampler state | `air.sampler_states` `air.sampler_state` | named / 548 |
 | visible fn table | `air.visible_function_references` `air.visible_function_reference` | named / 352 |
-| stage_in 単体形 | `air.stage_in` | 176 |
-| raytracing | `air.instance_acceleration_structure` | 96 |
 | imageblock | `air.imageblock` `air.imageblock_data_size` | 3 / 1 |
 | tessellation | `air.patch` `air.patch_id` `air.patch_control_point` `air.patch_control_point_input` `air.patch_control_point_function` | 各 2 |
 | mesh | `air.mesh` `air.mesh_type_info` `air.mesh_grid_properties` `air.triangle` | 各 1 |
@@ -222,6 +274,6 @@ mangledName: _ZN8UniformsC1ERU9MTLdeviceU18MTLcoherent_deviceKS_
 ## 検証環境の制約（変わらず）
 
 サンドボックスに cmake / ninja が無く RAM 3GB のため **LLVM のビルドは不可能**。
-本フェーズの検証も情報源との逐語照合で行った。追加した lit テスト4本
+本フェーズの検証も情報源との逐語照合で行った。追加した lit テスト5本
 （`interpolation-metadata` / `function-constants` / `address-space-operand` /
-`struct-type-info`）を含む計15本は**未実行**。
+`struct-type-info` / `argument-buffer`）を含む計16本は**未実行**。

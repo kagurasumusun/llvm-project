@@ -1669,6 +1669,10 @@ private:
   /// or null if \p Ty is not a complete record.
   llvm::MDNode *EmitMetalStructTypeInfo(QualType Ty);
 
+  /// Build the nested `air.indirect_argument` node describing one field of an
+  /// argument buffer, bound at `[[id(Id)]]`.
+  llvm::MDNode *EmitMetalIndirectArgument(const FieldDecl *FD, unsigned Id);
+
   /// Record a `[[function_constant(N)]]` variable so that it is listed in
   /// `!air.function_constants` at end of module.
   void AddMetalFunctionConstant(const VarDecl *VD, llvm::GlobalVariable *Init);
