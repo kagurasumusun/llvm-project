@@ -96,6 +96,50 @@ python3 docs-metal/verify/verify_against_metal_info.py /tmp/metal-info
 3. **metallib の fat header はビッグエンディアン**、MTLB 内部はリトル
    エンディアン。`METALLIB_WRITER_SPEC.md` には明記がない。
 
+## Phase 10: 修正作業の結果 (2026-07-29)
+
+情報源の読み込みをさらに進め、判明した欠陥を修正した。
+検証は **conformance 47/47 / verify 26/26 で全緑**。
+
+### 新たに読み込んだ情報源
+
+| 対象 | 規模 | 得たもの |
+|---|---|---|
+| `reference/**/*.err` | **191,617 ファイル全走査** | Metal 固有診断 **82 種**を重複なく確定 (`docs-metal/data/measured_diagnostics_all.txt`) |
+| `meta/intrinsics-catalog.csv` | 111 件 | 実シグネチャ付き intrinsic。照合の結果、真の欠落は `air.convert` と `air.fast_*` のみと判明 |
+| `ir/*.ll` の数学 intrinsic 全走査 | — | `fast_` 接頭の**真の条件**を発見 (下記) |
+| `src/abi_layout_all.metal` | — | ABI 検証 probe の内容 |
+
+### 修正した項目
+
+1. **メンバ関数の末尾アドレス空間修飾** — Parser は既存経路で動作しており、
+   欠けていたのは Sema 側だった。`SemaType.cpp` に Metal 分岐を追加。
+2. **`air.convert.*`** — `CGExprScalar` に `emitMetalConvert` を追加。
+   命名規則が実測 57 変種すべてを再現することを検証。
+3. **`air.arg_type_name`** — pointee を MSL 表記で出す `getMetalTypeName`。
+4. **`air.compile.framebuffer_fetch`** — iOS/tvOS は常時 enable、
+   macOS は `-std >= 2.3` のみ enable。
+5. **AIR 版マッピング** — watchOS は `major+16`、iOS/tvOS は `major+9`。実測 21 点と一致。
+6. **エントリ関数の非マングル** — `Mangle.cpp` で 8 種の属性を非マングル扱い。
+7. **禁止 C++ 構文・型の拒否** — virtual / 派生クラス / union / double / long long。
+8. **エントリ引数の binding 属性必須** — `t parameter must have texture attribute`。
+9. **`__packed_vector_type__`** — `VectorType::MetalPackedVector` を追加。
+   仕様書の size/align 表 21 件すべてを再現。
+10. **AIR 型サフィックスと `fast_` 接頭** — 下記の新発見を実装。
+
+### 新発見: `fast_` 接頭は要素型で決まる
+
+従来「fast-math が有効なら付く」と理解していたが**誤り**だった。実測:
+
+```
+air.sqrt.f16        ← f16 には決して付かない
+air.fast_sqrt.f32   ← f32 には常に付く
+```
+
+コーパス全体で `air.fast_*.f16` も素の `air.sin.f32` も存在しない。
+ドライバフラグ名 `-fmetal-math-fp32-functions=fast`（単精度のみを名指し）
+とも整合する。接頭を取る stem は実測 27 種。
+
 ## Phase 7 の突き合わせで判明した最優先の欠落
 
 `06-CROSSCHECK.md` に詳細。純正 StdLib / 公式 PDF / gz 資料を全て読み込んだ結果:
