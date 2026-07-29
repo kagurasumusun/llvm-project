@@ -109,6 +109,25 @@ python3 docs-metal/verify/verify_against_metal_info.py /tmp/metal-info
 4. lambda は Metal 3.2 以降のみ許可（公式・実測・AST の三者で確認）
 5. 実測 Metal 固有診断 28 種のうち 10 種が未カバー
 
+## opaque pointer 仮説の最終決着 (Phase 8)
+
+外部一次情報 (LLVM 公式 RFC、Metal.jl、threedots.ovh) を追跡した結果、
+**二つが同時に真**であることが判明した。これが「opaque が通った」という
+記録の正体である。
+
+| 層 | opaque の受理 |
+|---|---|
+| metal コンパイラ (frontend) | **入力としては受理する** (`metal kernel.ll` が動く) |
+| metallib ローダ (runtime) | **拒否する** |
+
+LLVM RFC の実装者は「Apple's metallib loader rejects opaque-pointer type
+records in everything I have tested」と報告し、そのために **3,500 LOC の
+typed-pointer writer を自作**している。隠しモードがあればこの労力は不要であり、
+これ自体が仮説を否定する強い傍証となる。
+
+**本 fork の typed pointer 出力という判断は変更不要。**
+詳細は `07-OPAQUE-EVIDENCE.md`。
+
 ## AIR との一致度
 
 `docs-metal/verify/conformance.py` による静的照合で **35/39 (89.7%)**。

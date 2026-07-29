@@ -72,11 +72,11 @@ def main(info):
     print(f"  distinct datalayouts    : {len(dls)}")
     print(f"  unknown block ids       : {dict(unknown_blocks) or 'none'}")
     if suspects:
-        print("\n  NOT Apple-produced (foreign bitcode mixed into the corpus):")
+        print("\n  not produced by Apple metalfe (do not use as a spec reference):")
         for f, tri, ident, o in suspects:
             print(f"    {f}\n      triple={tri} producer={ident} opaque_ptr={o}")
     else:
-        print("\n  no foreign bitcode detected")
+        print("\n  all modules produced by Apple metalfe")
 
     # Expected shape of a clean corpus:
     #  * every Apple module uses typed pointers, so the only opaque pointer
@@ -93,8 +93,9 @@ def main(info):
     print("\nRESULT:", "consistent with the documented AIR contract" if ok
           else "DISCREPANCY - investigate")
     if known_foreign:
-        print("        (the foreign modules above are known and unused by this"
-              " fork; see docs-metal/05-AUDIT.md section 2)")
+        print("        (the modules above are known, unused by this fork, and"
+              " explained in\n         docs-metal/07-OPAQUE-EVIDENCE.md"
+              " section 3)")
     return 0 if ok else 1
 
 
