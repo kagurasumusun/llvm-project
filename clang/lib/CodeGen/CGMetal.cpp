@@ -61,6 +61,116 @@ static bool isMetalBuiltin(unsigned BuiltinID) {
   }
 }
 
+/// The set of AIR math operations that gain a `fast_` infix.
+///
+/// Measured across the reference IR corpus: 27 stems appear in `air.fast_*`
+/// form. Crucially the infix is tied to the *element type*, not to a compiler
+/// flag: f32 forms are always `air.fast_<op>.f32` and f16 forms are always
+/// plain `air.<op>.f16`. The corpus contains `air.sqrt.f16` alongside
+/// `air.fast_sqrt.f32`, and no `air.fast_*.f16` or bare `air.sin.f32` exists
+/// anywhere. This matches the driver spelling
+/// `-fmetal-math-fp32-functions=fast`, which names single precision only.
+static bool airMathOpTakesFastInfix(llvm::StringRef Stem) {
+  return llvm::StringSwitch<bool>(Stem)
+      .Cases("acos", "asin", "atan", "ceil", true)
+      .Cases("clamp", "cos", "cosh", "exp", true)
+      .Cases("exp2", "fabs", "floor", "fmax", true)
+      .Cases("fmin", "fract", "log", "log2", true)
+      .Cases("pow", "rint", "round", "rsqrt", true)
+      .Cases("saturate", "sin", "sinh", "sqrt", true)
+      .Cases("tan", "tanh", "trunc", true)
+      .Default(false);
+}
+
+/// Spell an LLVM type the way AIR intrinsic suffixes do.
+static std::string airTypeSuffix(llvm::Type *Ty) {
+  std::string Prefix;
+  if (auto *VT = llvm::dyn_cast<llvm::FixedVectorType>(Ty)) {
+    Prefix = ("v" + llvm::Twine(VT->getNumElements())).str();
+    Ty = VT->getElementType();
+  }
+  if (Ty->isHalfTy())
+    return Prefix + "f16";
+  if (Ty->isFloatTy())
+    return Prefix + "f32";
+  if (Ty->isDoubleTy())
+    return Prefix + "f64";
+  if (Ty->isBFloatTy())
+    return Prefix + "bf16";
+  if (auto *IT = llvm::dyn_cast<llvm::IntegerType>(Ty))
+    return Prefix + "i" + std::to_string(IT->getBitWidth());
+  return std::string();
+}
+
+/// Adjust the AIR intrinsic name recorded in the builtin table for the types
+/// actually used at this call site.
+///
+/// The table stores one representative spelling per builtin (the first one the
+/// mapping effort observed, typically the f16 or i8 form). A single Metal
+/// builtin serves every scalar width and vector length the standard library
+/// instantiates it with, so the trailing type suffix has to be recomputed, and
+/// the `fast_` infix applied or removed according to the element type.
+static std::string adjustAIRName(llvm::StringRef TableName, llvm::Type *RetTy,
+                                 llvm::ArrayRef<llvm::Type *> ArgTys) {
+  // Split "air.<stem...>.<suffix>" into stem and suffix.
+  llvm::SmallVector<llvm::StringRef, 6> Parts;
+  TableName.split(Parts, '.');
+  if (Parts.size() < 2)
+    return TableName.str();
+
+  // Determine the type that drives the suffix: the result for a value
+  // producing operation, otherwise the first argument.
+  llvm::Type *KeyTy = RetTy;
+  if (!KeyTy || KeyTy->isVoidTy())
+    KeyTy = ArgTys.empty() ? nullptr : ArgTys[0];
+  if (!KeyTy)
+    return TableName.str();
+
+  std::string Suffix = airTypeSuffix(KeyTy);
+  if (Suffix.empty())
+    return TableName.str();
+
+  // Recover the stem, dropping a trailing type suffix if the table had one and
+  // any existing fast_ infix.
+  llvm::SmallVector<llvm::StringRef, 6> Stem(Parts.begin() + 1, Parts.end());
+  static const char *TypeSuffixes[] = {"f16", "f32", "f64", "bf16"};
+  auto looksLikeType = [&](llvm::StringRef S) {
+    llvm::StringRef Base = S;
+    if (Base.startswith("v"))
+      Base = Base.drop_front().drop_while([](char C) { return C >= '0' && C <= '9'; });
+    for (const char *T : TypeSuffixes)
+      if (Base == T)
+        return true;
+    return Base.size() > 1 && Base[0] == 'i' &&
+           llvm::all_of(Base.drop_front(), [](char C) { return C >= '0' && C <= '9'; });
+  };
+  while (!Stem.empty() && looksLikeType(Stem.back()))
+    Stem.pop_back();
+  if (Stem.empty())
+    return TableName.str();
+
+  std::string Head = Stem[0].str();
+  bool HadFast = false;
+  if (llvm::StringRef(Head).startswith("fast_")) {
+    Head = Head.substr(5);
+    HadFast = true;
+  }
+  (void)HadFast;
+
+  // f32 math takes the fast_ infix; f16 never does.
+  llvm::Type *Elem = KeyTy;
+  if (auto *VT = llvm::dyn_cast<llvm::FixedVectorType>(Elem))
+    Elem = VT->getElementType();
+  if (Elem->isFloatTy() && airMathOpTakesFastInfix(Head))
+    Head = "fast_" + Head;
+
+  std::string Out = "air." + Head;
+  for (unsigned I = 1, N = Stem.size(); I < N; ++I)
+    Out += ("." + Stem[I]).str();
+  Out += "." + Suffix;
+  return Out;
+}
+
 std::optional<RValue>
 CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   if (!isMetalBuiltin(BuiltinID))
@@ -90,7 +200,11 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   llvm::Type *RetTy = ConvertType(E->getType());
   llvm::FunctionType *FTy =
       llvm::FunctionType::get(RetTy, ArgTypes, /*isVarArg=*/false);
-  llvm::FunctionCallee Callee = CGM.CreateRuntimeFunction(FTy, AIRName);
+
+  // The table records one representative spelling; specialise it for the types
+  // at this call site (and apply the fast_ infix where it belongs).
+  std::string Name = adjustAIRName(AIRName, RetTy, ArgTypes);
+  llvm::FunctionCallee Callee = CGM.CreateRuntimeFunction(FTy, Name);
 
   llvm::CallInst *Call = Builder.CreateCall(Callee, Args);
 

@@ -119,6 +119,14 @@ rec('sema','member function address-space qualifier',
     'MATCH' if 'getLangOpts().Metal && IsClassMember' in sematype else 'MISSING',
     'stdlib uses 7,668 of these')
 scalar = read('clang/lib/CodeGen/CGExprScalar.cpp')
+cgm = read('clang/lib/CodeGen/CGMetal.cpp')
+rec('codegen','fast_ infix follows element type (f32 yes, f16 no)',
+    'MATCH' if 'airMathOpTakesFastInfix' in cgm else 'MISSING',
+    'measured: air.sqrt.f16 vs air.fast_sqrt.f32')
+rec('codegen','AIR type suffix follows call site types',
+    'MATCH' if 'adjustAIRName' in cgm else 'MISSING',
+    'table stores one representative spelling')
+
 rec('codegen','air.convert.* numeric conversion lowering',
     'MATCH' if 'emitMetalConvert' in scalar else 'MISSING',
     '57 measured variants')
