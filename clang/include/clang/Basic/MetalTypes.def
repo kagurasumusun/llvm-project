@@ -1,0 +1,75 @@
+//===--- MetalTypes.def - Metal builtin type database -----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the Metal Shading Language opaque builtin types.
+//
+// Apple's compiler injects one implicit typedef per type into every `-x metal`
+// translation unit, each naming a distinct BuiltinType. The list below is
+// transcribed, in order, from the head of the AST dumps in
+//   reference/metal-ast-macos-air64/ast/*_attributes_all_*_ast-text.txt
+// which show entries of the form
+//   TypedefDecl <invalid sloc> implicit __metal_texture_2d_t '__metal_texture_2d_t'
+//   `-BuiltinType '__metal_texture_2d_t'
+//
+// The set is identical (37 types, same order) for every MSL version from 1.1
+// through 4.0, so none of them are version gated.
+//
+// Each type lowers to an opaque LLVM struct whose name is the type name with
+// the `__metal` prefix removed, e.g. `__metal_texture_2d_t` becomes
+// `%struct._texture_2d_t = type opaque`. This is confirmed for 35 of the 37
+// types by research/datasets/type_layout_map.csv, which records the struct
+// name and the address spaces each handle was observed in across the golden
+// corpus; the remaining two (`__metal_threadgroup_event_t` and
+// `__metal_tensor_thread_t`) do not appear in the captured corpus and follow
+// the same naming rule.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef METAL_TYPE
+#define METAL_TYPE(Name, Id, SingletonId, IRName)
+#endif
+
+METAL_TYPE(__metal_texture_1d_t, MetalTexture1d, MetalTexture1dTy, "_texture_1d_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_1d_array_t, MetalTexture1dArray, MetalTexture1dArrayTy, "_texture_1d_array_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_2d_t, MetalTexture2d, MetalTexture2dTy, "_texture_2d_t")  // golden: 9 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_2d_array_t, MetalTexture2dArray, MetalTexture2dArrayTy, "_texture_2d_array_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_3d_t, MetalTexture3d, MetalTexture3dTy, "_texture_3d_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_cube_t, MetalTextureCube, MetalTextureCubeTy, "_texture_cube_t")  // golden: 7 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_cube_array_t, MetalTextureCubeArray, MetalTextureCubeArrayTy, "_texture_cube_array_t")  // golden: 7 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_2d_ms_t, MetalTexture2dMs, MetalTexture2dMsTy, "_texture_2d_ms_t")  // golden: 2 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_2d_ms_array_t, MetalTexture2dMsArray, MetalTexture2dMsArrayTy, "_texture_2d_ms_array_t")  // golden: 2 occurrences, addrspace as1
+METAL_TYPE(__metal_texture_buffer_1d_t, MetalTextureBuffer1d, MetalTextureBuffer1dTy, "_texture_buffer_1d_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_depth_2d_t, MetalDepth2d, MetalDepth2dTy, "_depth_2d_t")  // golden: 8 occurrences, addrspace as1
+METAL_TYPE(__metal_depth_2d_array_t, MetalDepth2dArray, MetalDepth2dArrayTy, "_depth_2d_array_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_depth_cube_t, MetalDepthCube, MetalDepthCubeTy, "_depth_cube_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_depth_cube_array_t, MetalDepthCubeArray, MetalDepthCubeArrayTy, "_depth_cube_array_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_depth_2d_ms_t, MetalDepth2dMs, MetalDepth2dMsTy, "_depth_2d_ms_t")  // golden: 3 occurrences, addrspace as1
+METAL_TYPE(__metal_depth_2d_ms_array_t, MetalDepth2dMsArray, MetalDepth2dMsArrayTy, "_depth_2d_ms_array_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_sampler_t, MetalSampler, MetalSamplerTy, "_sampler_t")  // golden: 9 occurrences, addrspace as2
+METAL_TYPE(__metal_threadgroup_event_t, MetalThreadgroupEvent, MetalThreadgroupEventTy, "_threadgroup_event_t")  // not present in the captured golden corpus
+METAL_TYPE(__metal_imageblock_t, MetalImageblock, MetalImageblockTy, "_imageblock_t")  // golden: 2 occurrences, addrspace as4
+METAL_TYPE(__metal_patch_control_point_t, MetalPatchControlPoint, MetalPatchControlPointTy, "_patch_control_point_t")  // golden: 2 occurrences, addrspace n/a
+METAL_TYPE(__metal_command_buffer_t, MetalCommandBuffer, MetalCommandBufferTy, "_command_buffer_t")  // golden: 7 occurrences, addrspace as1
+METAL_TYPE(__metal_render_pipeline_state_t, MetalRenderPipelineState, MetalRenderPipelineStateTy, "_render_pipeline_state_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_compute_pipeline_state_t, MetalComputePipelineState, MetalComputePipelineStateTy, "_compute_pipeline_state_t")  // golden: 7 occurrences, addrspace as1
+METAL_TYPE(__metal_interpolant_t, MetalInterpolant, MetalInterpolantTy, "_interpolant_t")  // golden: 1 occurrences, addrspace as1
+METAL_TYPE(__metal_vertex_value_t, MetalVertexValue, MetalVertexValueTy, "_vertex_value_t")  // golden: 1 occurrences, addrspace as1
+METAL_TYPE(__metal_visible_function_table_t, MetalVisibleFunctionTable, MetalVisibleFunctionTableTy, "_visible_function_table_t")  // golden: 5 occurrences, addrspace as1
+METAL_TYPE(__metal_intersection_function_table_t, MetalIntersectionFunctionTable, MetalIntersectionFunctionTableTy, "_intersection_function_table_t")  // golden: 11 occurrences, addrspace as1
+METAL_TYPE(__metal_instance_acceleration_structure_t, MetalInstanceAccelerationStructure, MetalInstanceAccelerationStructureTy, "_instance_acceleration_structure_t")  // golden: 9 occurrences, addrspace as1
+METAL_TYPE(__metal_primitive_acceleration_structure_t, MetalPrimitiveAccelerationStructure, MetalPrimitiveAccelerationStructureTy, "_primitive_acceleration_structure_t")  // golden: 2 occurrences, addrspace as1
+METAL_TYPE(__metal_mesh_t, MetalMesh, MetalMeshTy, "_mesh_t")  // golden: 1 occurrences, addrspace as7
+METAL_TYPE(__metal_mesh_grid_properties_t, MetalMeshGridProperties, MetalMeshGridPropertiesTy, "_mesh_grid_properties_t")  // golden: 1 occurrences, addrspace as3
+METAL_TYPE(__metal_intersection_query_t, MetalIntersectionQuery, MetalIntersectionQueryTy, "_intersection_query_t")  // golden: 5 occurrences, addrspace n/a
+METAL_TYPE(__metal_function_handle_t, MetalFunctionHandle, MetalFunctionHandleTy, "_function_handle_t")  // golden: 3 occurrences, addrspace as1
+METAL_TYPE(__metal_intersection_result_t, MetalIntersectionResult, MetalIntersectionResultTy, "_intersection_result_t")  // golden: 5 occurrences, addrspace as9
+METAL_TYPE(__metal_depth_stencil_state_t, MetalDepthStencilState, MetalDepthStencilStateTy, "_depth_stencil_state_t")  // golden: 6 occurrences, addrspace as1
+METAL_TYPE(__metal_tensor_t, MetalTensor, MetalTensorTy, "_tensor_t")  // golden: 3 occurrences, addrspace as1
+METAL_TYPE(__metal_tensor_thread_t, MetalTensorThread, MetalTensorThreadTy, "_tensor_thread_t")  // not present in the captured golden corpus
+
+#undef METAL_TYPE

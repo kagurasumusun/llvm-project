@@ -3150,6 +3150,10 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
   case Id:                                                                     \
     return Name;
 #include "clang/Basic/RISCVVTypes.def"
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  case Id:                                                                     \
+    return #Name;
+#include "clang/Basic/MetalTypes.def"
   }
 
   llvm_unreachable("Invalid builtin type.");
@@ -4279,6 +4283,8 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
 #include "clang/Basic/PPCTypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#define METAL_TYPE(Name, Id, SingletonId, IRName) case BuiltinType::Id:
+#include "clang/Basic/MetalTypes.def"
     case BuiltinType::BuiltinFn:
     case BuiltinType::NullPtr:
     case BuiltinType::IncompleteMatrixIdx:

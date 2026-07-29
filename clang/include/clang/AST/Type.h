@@ -2275,6 +2275,10 @@ public:
 
   bool isRVVType() const;
 
+  /// Returns true for the Metal Shading Language opaque handle types
+  /// (`__metal_texture_2d_t`, `__metal_sampler_t`, ...).
+  bool isMetalOpaqueType() const;
+
   /// Return the implicit lifetime for this type, which must not be dependent.
   Qualifiers::ObjCLifetime getObjCARCImplicitLifetime() const;
 
@@ -2640,6 +2644,9 @@ public:
 // RVV Types
 #define RVV_TYPE(Name, Id, SingletonId) Id,
 #include "clang/Basic/RISCVVTypes.def"
+// Metal opaque handle types
+#define METAL_TYPE(Name, Id, SingletonId, IRName) Id,
+#include "clang/Basic/MetalTypes.def"
 // All other builtin types
 #define BUILTIN_TYPE(Id, SingletonId) Id,
 #define LAST_BUILTIN_TYPE(Id) LastKind = Id
@@ -7150,6 +7157,14 @@ inline bool Type::isRVVType() const {
   isSpecificBuiltinType(BuiltinType::Id) ||
   return
 #include "clang/Basic/RISCVVTypes.def"
+    false; // end of boolean or operation.
+}
+
+inline bool Type::isMetalOpaqueType() const {
+#define METAL_TYPE(Name, Id, SingletonId, IRName) \
+  isSpecificBuiltinType(BuiltinType::Id) ||
+  return
+#include "clang/Basic/MetalTypes.def"
     false; // end of boolean or operation.
 }
 

@@ -744,6 +744,10 @@ void USRGenerator::VisitType(QualType T) {
         case BuiltinType::Id: \
           Out << "@BT@" << Name; break;
 #include "clang/Basic/RISCVVTypes.def"
+#define METAL_TYPE(Name, Id, SingletonId, IRName) \
+        case BuiltinType::Id: \
+          Out << "@BT@" << #Name; break;
+#include "clang/Basic/MetalTypes.def"
         case BuiltinType::ShortAccum:
           Out << "@BT@ShortAccum"; break;
         case BuiltinType::Accum:

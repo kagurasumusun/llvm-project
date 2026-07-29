@@ -397,6 +397,23 @@ llvm::Type *CodeGenTypes::ConvertFunctionTypeInternal(QualType QFT) {
   return ResultType;
 }
 
+/// Return (creating if necessary) the named opaque LLVM struct used to
+/// represent a Metal opaque handle type.
+///
+/// The struct name is the Metal builtin type name with the `__metal` prefix
+/// removed, so `__metal_texture_2d_t` becomes `%struct._texture_2d_t`. The
+/// `struct.` prefix is supplied by LLVM's struct naming, matching Apple's
+/// output exactly.
+llvm::StructType *CodeGenTypes::getMetalOpaqueType(llvm::StringRef IRName) {
+  auto It = MetalOpaqueTypes.find(IRName);
+  if (It != MetalOpaqueTypes.end())
+    return It->second;
+  llvm::StructType *Ty =
+      llvm::StructType::create(getLLVMContext(), ("struct." + IRName).str());
+  MetalOpaqueTypes[IRName] = Ty;
+  return Ty;
+}
+
 /// ConvertType - Convert the specified type to its LLVM form.
 llvm::Type *CodeGenTypes::ConvertType(QualType T) {
   T = Context.getCanonicalType(T);
@@ -633,6 +650,19 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
                                            Info.EC.getKnownMinValue() *
                                            Info.NumVectors);
     }
+
+    // Metal opaque handle types lower to named opaque LLVM structs. Apple's
+    // generated AIR declares them as, for example,
+    //   %struct._texture_2d_t = type opaque
+    // and always refers to them through a pointer in an address space that
+    // depends on the resource kind (device for textures, constant for
+    // samplers). Confirmed for 35 of the 37 handles by the golden corpus
+    // recorded in research/datasets/type_layout_map.csv.
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  case BuiltinType::Id:                                                        \
+    ResultType = getMetalOpaqueType(IRName);                                   \
+    break;
+#include "clang/Basic/MetalTypes.def"
    case BuiltinType::Dependent:
 #define BUILTIN_TYPE(Id, SingletonId)
 #define PLACEHOLDER_TYPE(Id, SingletonId) \

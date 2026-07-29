@@ -1433,6 +1433,16 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
 #include "clang/Basic/RISCVVTypes.def"
   }
 
+  // Metal opaque handle types. Apple's compiler declares all of them
+  // unconditionally for every `-x metal` translation unit, regardless of the
+  // selected MSL version; the AST dumps in reference/metal-ast-*/ast show the
+  // same 37 implicit typedefs for -std=macos-metal1.1 through -std=metal4.0.
+  if (LangOpts.Metal) {
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  InitBuiltinType(SingletonId, BuiltinType::Id);
+#include "clang/Basic/MetalTypes.def"
+  }
+
   // Builtin type for __objc_yes and __objc_no
   ObjCBuiltinBoolTy = (Target.useSignedCharForObjCBool() ?
                        SignedCharTy : BoolTy);
@@ -2255,6 +2265,16 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     Align = 8;                                                                 \
     break;
 #include "clang/Basic/RISCVVTypes.def"
+
+    // Metal opaque handles are always manipulated through a pointer; the
+    // golden corpus records `pointer_size_bytes` 8 for every one of them
+    // (research/datasets/type_layout_map.csv).
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  case BuiltinType::Id:                                                        \
+    Width = Target->getPointerWidth(LangAS::Default);                          \
+    Align = Target->getPointerAlign(LangAS::Default);                          \
+    break;
+#include "clang/Basic/MetalTypes.def"
     }
     break;
   case Type::ObjCObjectPointer:
@@ -8030,6 +8050,8 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
 #include "clang/Basic/AArch64SVEACLETypes.def"
 #define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
+#define METAL_TYPE(Name, Id, SingletonId, IRName) case BuiltinType::Id:
+#include "clang/Basic/MetalTypes.def"
       {
         DiagnosticsEngine &Diags = C->getDiagnostics();
         unsigned DiagID = Diags.getCustomDiagID(DiagnosticsEngine::Error,

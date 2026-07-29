@@ -444,6 +444,17 @@ void Sema::Initialize() {
 #include "clang/Basic/RISCVVTypes.def"
   }
 
+  // Metal declares one implicit typedef per opaque handle type. The AST dumps
+  // in reference/metal-ast-*/ast show them at the top of every translation
+  // unit, e.g.
+  //   TypedefDecl <invalid sloc> implicit __metal_texture_2d_t
+  //   `-BuiltinType '__metal_texture_2d_t'
+  if (getLangOpts().Metal) {
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  addImplicitTypedef(#Name, Context.SingletonId);
+#include "clang/Basic/MetalTypes.def"
+  }
+
   if (Context.getTargetInfo().hasBuiltinMSVaList()) {
     DeclarationName MSVaList = &Context.Idents.get("__builtin_ms_va_list");
     if (IdResolver.begin(MSVaList) == IdResolver.end())

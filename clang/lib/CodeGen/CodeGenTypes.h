@@ -17,6 +17,7 @@
 #include "clang/Basic/ABI.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/IR/Module.h"
 
 namespace llvm {
@@ -98,9 +99,16 @@ class CodeGenTypes {
 
   llvm::DenseMap<const Type *, llvm::Type *> RecordsWithOpaqueMemberPointers;
 
+  /// Named opaque LLVM structs backing the Metal opaque handle types, keyed by
+  /// their IR name (`_texture_2d_t`, `_sampler_t`, ...).
+  llvm::StringMap<llvm::StructType *> MetalOpaqueTypes;
+
   static constexpr unsigned FunctionInfosLog2InitSize = 9;
   /// Helper for ConvertType.
   llvm::Type *ConvertFunctionTypeInternal(QualType FT);
+
+  /// Get or create the opaque LLVM struct for a Metal opaque handle type.
+  llvm::StructType *getMetalOpaqueType(llvm::StringRef IRName);
 
 public:
   CodeGenTypes(CodeGenModule &cgm);

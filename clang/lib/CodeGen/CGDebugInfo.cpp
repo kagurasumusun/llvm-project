@@ -710,6 +710,15 @@ llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
 #include "clang/Basic/OpenCLImageTypes.def"
   case BuiltinType::OCLSampler:
     return getOrCreateStructPtrType("opencl_sampler_t", OCLSamplerDITy);
+  // Metal opaque handles are described as pointers to an opaque struct named
+  // after the handle, mirroring the `%struct._texture_2d_t = type opaque`
+  // representation used in the generated IR.
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  case BuiltinType::Id: {                                                      \
+    llvm::DIType *&Cache = MetalDITypes[IRName];                               \
+    return getOrCreateStructPtrType(IRName, Cache);                            \
+  }
+#include "clang/Basic/MetalTypes.def"
   case BuiltinType::OCLEvent:
     return getOrCreateStructPtrType("opencl_event_t", OCLEventDITy);
   case BuiltinType::OCLClkEvent:

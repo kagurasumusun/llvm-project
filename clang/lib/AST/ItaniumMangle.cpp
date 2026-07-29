@@ -2682,6 +2682,39 @@ void CXXNameMangler::mangleQualifiers(Qualifiers Quals, const DependentAddressSp
       case LangAS::ptr64:
         ASString = "ptr64";
         break;
+      //  <Metal-addrspace> ::= "MTL" [ "device" | "constant" | "threadgroup" |
+      //                                "threadgroupimageblock" | "raydata" |
+      //                                "objectdata" ]
+      //
+      // Measured from Apple generated AIR in
+      // reference/metal-ast-macos-air64/ir, where the extended qualifiers
+      // U9MTLdevice, U11MTLconstant, U14MTLthreadgroup, U10MTLraydata,
+      // U13MTLobjectdata and U24MTLthreadgroupimageblock appear (for example
+      // `_Z11read_devicePU9MTLdevice10AddressBox`).
+      //
+      // `thread` is the default address space and is not mangled at all; the
+      // measurement shows `_Z11read_threadP10AddressBox` with no qualifier.
+      case LangAS::metal_device:
+        ASString = "MTLdevice";
+        break;
+      case LangAS::metal_constant:
+        ASString = "MTLconstant";
+        break;
+      case LangAS::metal_threadgroup:
+        ASString = "MTLthreadgroup";
+        break;
+      case LangAS::metal_threadgroup_imageblock:
+        ASString = "MTLthreadgroupimageblock";
+        break;
+      case LangAS::metal_ray_data:
+        ASString = "MTLraydata";
+        break;
+      case LangAS::metal_object_data:
+        ASString = "MTLobjectdata";
+        break;
+      case LangAS::metal_thread:
+        // Default address space; intentionally not mangled.
+        break;
       }
     }
     if (!ASString.empty())
@@ -3138,6 +3171,18 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
     Out << 'u' << type_name.size() << type_name;                               \
     break;
 #include "clang/Basic/RISCVVTypes.def"
+    // Metal opaque handle types mangle as a plain <source-name>, i.e. as the
+    // length followed by the spelling, with no 'u' vendor prefix. Measured in
+    // reference/metal-ast-macos-air64/ir, e.g.
+    //   _ZN5metal10raytracing..._16__is_null_handleE
+    //       41__metal_instance_acceleration_structure_t
+    // where 41 is strlen("__metal_instance_acceleration_structure_t").
+#define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
+  case BuiltinType::Id:                                                        \
+    type_name = #Name;                                                         \
+    Out << type_name.size() << type_name;                                      \
+    break;
+#include "clang/Basic/MetalTypes.def"
   }
 }
 
