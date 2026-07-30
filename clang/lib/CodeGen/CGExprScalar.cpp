@@ -2159,8 +2159,8 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       // Check if this is a numeric conversion (not a bitcast)
       QualType SrcElem = SrcType->getAs<VectorType>()->getElementType();
       QualType DstElem = DestTy->getAs<VectorType>()->getElementType();
-      bool IsNumericConv = (SrcElem->isFloatingPointType() || SrcElem->isIntegerType()) &&
-                           (DstElem->isFloatingPointType() || DstElem->isIntegerType()) &&
+      bool IsNumericConv = (SrcElem->isFloatingType() || SrcElem->isIntegerType()) &&
+                           (DstElem->isFloatingType() || DstElem->isIntegerType()) &&
                            !SrcElem->isBooleanType() && !DstElem->isBooleanType();
       if (IsNumericConv && SrcElem != DstElem) {
         Value *Src = Visit(const_cast<Expr*>(E));
