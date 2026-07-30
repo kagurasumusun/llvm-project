@@ -33,21 +33,44 @@
 #     ninja target and asking for it fails the build.
 #   * llvm-config, opt, llc, and the rest of the tool suite. Nothing in
 #     clang/test/Metal shells out to them.
-#   * libclang-cpp.so. CLANG_LINK_CLANG_DYLIB pulls every clang library into
-#     one shared object, which dragged in clangStaticAnalyzer* even with
-#     CLANG_ENABLE_STATIC_ANALYZER=OFF. Linking the driver statically against
-#     only what it uses drops 244 build steps (2822 -> 2578, measured).
-# CLANG_TOOL_*_BUILD was tried and does not work here: the check-all and
-# check-clang targets list clang-format, clang-offload-bundler, apinotes-test
-# and the rest as hard dependencies, and clang/bindings/python refers to
-# libclang by target name, so switching any of them off makes cmake fail
-# during configure. They cost nothing at build time regardless, because
-# `ninja clang` never reaches them.
+#   * The two aggregate shared libraries. libLLVM.so and libclang-cpp.so each
+#     bundle *every* library of their project, so they drag in code that is
+#     switched off elsewhere: clangStaticAnalyzer* survived
+#     CLANG_ENABLE_STATIC_ANALYZER=OFF, and lib/ExecutionEngine,
+#     lib/ObjectYAML and lib/MCA were built for a compiler that never calls
+#     them. Linking statically against only what the driver references drops
+#     596 build steps (2822 -> 2226, measured), and removes those three
+#     directories entirely.
+# LLVM_INCLUDE_TESTS=OFF is what makes the CLANG_TOOL_* switches above usable.
+# It does *not* remove lit: llvm-lit is generated under LLVM_INCLUDE_UTILS,
+# and FileCheck, not and count live there too. What it removes is the
+# check-all / check-clang aggregate targets, which list clang-format,
+# clang-offload-bundler, apinotes-test and libclang as hard dependencies -- so
+# while they existed, switching any of those tools off failed at configure
+# time. With them gone the side tools can be dropped, and `ninja clang` now
+# produces exactly six binaries: clang, clang-16, clang-tblgen, llvm-tblgen,
+# not and count.
+#
+# Build-time-only overhead that is switched off. None of it changes what the
+# compiler can do; it only costs time:
+#
+#   * LLVM_ENABLE_WARNINGS / PEDANTIC / WERROR. Nineteen -W flags were being
+#     passed to every translation unit purely to produce diagnostics nobody
+#     reads in CI.
+#   * LLVM_APPEND_VC_REV. Stamps the git revision into a header, so the
+#     header changes on every commit and invalidates the objects that include
+#     it -- exactly the wrong behaviour when the point is to reuse ccache.
+#   * LLVM_ENABLE_PIC. -fPIC costs a little on every file and buys nothing
+#     once the shared libraries are gone.
+#   * ABI_BREAKING_CHECKS, EXPENSIVE_CHECKS, ENABLE_DUMP: extra code compiled
+#     into the binary for debugging.
+#   * CLANG_INCLUDE_TESTS, INSTALL_UTILS, EXPORT_COMPILE_COMMANDS,
+#     install rules: build-graph clutter that is never reached.
 #
 # What could not be dropped:
 #
-#   * lib/ExecutionEngine (95 steps). The clang driver itself links it in this
-#     release; it is not reachable only through clang-repl.
+#   * lib/DebugInfo (171 steps). clangCodeGen emits debug info, so the DWARF
+#     writers come with it.
 #
 # `not` and `count` *are* built even though no Metal test uses them: lit
 # registers them with unresolved='fatal', so it refuses to start without them.
@@ -160,13 +183,31 @@ stage_configure() {
     -DLLVM_TARGETS_TO_BUILD="" \
     -DLLVM_DEFAULT_TARGET_TRIPLE="$triple" \
     -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DLLVM_ABI_BREAKING_CHECKS=FORCE_OFF \
+    -DLLVM_ENABLE_EXPENSIVE_CHECKS=OFF \
+    -DLLVM_ENABLE_DUMP=OFF \
+    -DLLVM_ENABLE_WARNINGS=OFF \
+    -DLLVM_ENABLE_PEDANTIC=OFF \
+    -DLLVM_ENABLE_WERROR=OFF \
+    -DLLVM_ENABLE_MODULES=OFF \
+    -DLLVM_ENABLE_PIC=OFF \
+    -DLLVM_ENABLE_UNWIND_TABLES=OFF \
+    -DLLVM_ENABLE_FFI=OFF \
+    -DLLVM_BUILD_BENCHMARKS=OFF \
+    -DLLVM_BUILD_TESTS=OFF \
+    -DCLANG_PLUGIN_SUPPORT=OFF \
+    -DLLVM_APPEND_VC_REV=OFF \
+    -DLLVM_INSTALL_UTILS=OFF \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF \
+    -DCMAKE_SKIP_INSTALL_RULES=ON \
+    -DCLANG_INCLUDE_TESTS=OFF \
     -DLLVM_OPTIMIZED_TABLEGEN=ON \
     -DLLVM_USE_LINKER=mold \
     -DLLVM_PARALLEL_LINK_JOBS="$LINK_JOBS" \
-    -DLLVM_BUILD_LLVM_DYLIB=ON \
-    -DLLVM_LINK_LLVM_DYLIB=ON \
+    -DLLVM_BUILD_LLVM_DYLIB=OFF \
+    -DLLVM_LINK_LLVM_DYLIB=OFF \
     -DCLANG_LINK_CLANG_DYLIB=OFF \
-    -DLLVM_INCLUDE_TESTS=ON \
+    -DLLVM_INCLUDE_TESTS=OFF \
     -DLLVM_INCLUDE_EXAMPLES=OFF \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
     -DLLVM_INCLUDE_DOCS=OFF \
@@ -187,6 +228,18 @@ stage_configure() {
     -DLLVM_ENABLE_LIBXML2=OFF \
     -DLLVM_ENABLE_LIBEDIT=OFF \
     -DCLANG_BUILD_TOOLS=ON \
+    -DCLANG_TOOL_CLANG_LINKER_WRAPPER_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_OFFLOAD_BUNDLER_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_OFFLOAD_PACKAGER_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_REPL_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_FORMAT_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_REFACTOR_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_SCAN_DEPS_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_CHECK_BUILD=OFF \
+    -DCLANG_TOOL_DIAGTOOL_BUILD=OFF \
+    -DCLANG_TOOL_APINOTES_TEST_BUILD=OFF \
+    -DCLANG_TOOL_C_INDEX_TEST_BUILD=OFF \
+    -DCLANG_TOOL_LIBCLANG_BUILD=OFF \
     -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
     -DCLANG_ENABLE_ARCMT=OFF \
     -DCLANG_ENABLE_OBJC_REWRITER=OFF \
