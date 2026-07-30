@@ -1,0 +1,94 @@
+name: Sync workflows from ci/workflows
+
+# Copies ci/workflows/*.yml into .github/workflows/ and commits the result.
+#
+# Why this exists: a GitHub App without the `workflows` permission cannot
+# create or update anything under .github/workflows/, by any route -- git
+# push, the Contents API and the Git Data API are all refused with
+#
+#     refusing to allow a GitHub App to create or update workflow
+#     `.github/workflows/<name>.yml` without `workflows` permission
+#
+# Everything else in the tree is writable, so the agent edits ci/workflows/
+# instead and this job, which runs with the repository's own GITHUB_TOKEN and
+# therefore is not subject to that restriction, mirrors the change across.
+#
+# Install once by hand; after that workflow changes need no manual step.
+
+on:
+  push:
+    paths:
+      - 'ci/workflows/**'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-workflows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: mirror ci/workflows into .github/workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Persist the token so the push below can authenticate.
+          persist-credentials: true
+
+      - name: Copy and commit
+        run: |
+          set -euo pipefail
+
+          if [ ! -d ci/workflows ]; then
+            echo "ci/workflows does not exist; nothing to do"
+            exit 0
+          fi
+
+          mkdir -p .github/workflows
+
+          # Never let this job rewrite itself: doing so would let a change to
+          # ci/workflows silently alter the syncing rules.
+          changed=0
+          for src in ci/workflows/*.yml ci/workflows/*.yaml; do
+            [ -e "$src" ] || continue
+            name=$(basename "$src")
+            if [ "$name" = "sync-workflows.yml" ]; then
+              echo "skipping $name (this job does not update itself)"
+              continue
+            fi
+            dst=".github/workflows/$name"
+            if ! cmp -s "$src" "$dst"; then
+              cp "$src" "$dst"
+              echo "updated $dst"
+              changed=1
+            fi
+          done
+
+          if [ "$changed" -eq 0 ]; then
+            echo "already in sync"
+            exit 0
+          fi
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows
+
+          # Written to a file so the multi-line body cannot break the YAML.
+          {
+            echo "[CI] ci/workflows から .github/workflows へ同期"
+            echo
+            echo "自動生成のコミット。実体は ci/workflows/ 側にあり、そちらを編集する。"
+            echo "GitHub App は workflows 権限なしに .github/workflows/ を書き換え"
+            echo "られないため、書き込める場所を経由して反映している。"
+            echo
+            echo "source: ${GITHUB_SHA}"
+          } > /tmp/msg.txt
+          git commit -F /tmp/msg.txt
+          git push
