@@ -2,18 +2,9 @@ name: Sync workflows from ci/workflows
 
 # Copies ci/workflows/*.yml into .github/workflows/ and commits the result.
 #
-# Why this exists: a GitHub App without the `workflows` permission cannot
-# create or update anything under .github/workflows/, by any route -- git
-# push, the Contents API and the Git Data API are all refused with
-#
-#     refusing to allow a GitHub App to create or update workflow
-#     `.github/workflows/<name>.yml` without `workflows` permission
-#
-# Everything else in the tree is writable, so the agent edits ci/workflows/
-# instead and this job, which runs with the repository's own GITHUB_TOKEN and
-# therefore is not subject to that restriction, mirrors the change across.
-#
-# Install once by hand; after that workflow changes need no manual step.
+# Arena GitHub App cannot update .github/workflows without the Workflows
+# repository permission. This workflow intentionally lets Arena edit only
+# ci/workflows and uses a separate token for the final push.
 
 on:
   push:
@@ -23,17 +14,10 @@ on:
 
 concurrency:
   group: sync-workflows-${{ github.ref }}
-  # Not cancel-in-progress: this job takes seconds, and cancelling it means a
-  # workflow change silently fails to propagate. Pushes in quick succession
-  # should queue instead.
   cancel-in-progress: false
 
 permissions:
   contents: write
-  actions: write
-  checks: write
-  pull-requests: write
-
 
 jobs:
   sync:
@@ -46,8 +30,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          # Persist the token so the push below can authenticate.
-          persist-credentials: true
+          # Do not keep Arena App credentials.
+          persist-credentials: false
 
       - name: Copy and commit
         run: |
@@ -57,37 +41,45 @@ jobs:
             echo "ci/workflows does not exist; nothing to do"
             exit 0
           fi
+
           mkdir -p .github/workflows
 
-          # `find` rather than a glob: under `set -e` an unmatched glob is
-          # fatal, and ci/workflows may legitimately contain no *.yaml at all.
-          # That is what made the first attempt exit 1 without copying.
           changed=0
+
           while IFS= read -r src; do
             name=$(basename "$src")
-            # Never let this job rewrite itself: a change under ci/workflows
-            # could otherwise silently alter the syncing rules.
+
+            # Prevent this workflow from rewriting itself.
             if [ "$name" = "sync-workflows.yml" ]; then
               echo "skip  $name (this job does not update itself)"
               continue
             fi
+
             dst=".github/workflows/$name"
+
             if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
               echo "same  $name"
               continue
             fi
+
             cp "$src" "$dst"
             echo "sync  $name"
             changed=1
-          done < <(find ci/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
+
+          done < <(
+            find ci/workflows -maxdepth 1 -type f \
+              \( -name '*.yml' -o -name '*.yaml' \) |
+            sort
+          )
 
           if [ "$changed" -eq 0 ]; then
             echo "already in sync"
             exit 0
           fi
 
-          git config user.name  'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add .github/workflows
 
           if git diff --cached --quiet; then
@@ -95,5 +87,21 @@ jobs:
             exit 0
           fi
 
-          git commit -m "[CI] ci/workflows から .github/workflows へ同期 (${GITHUB_SHA})"
+          git commit \
+            -m "[CI] ci/workflows から .github/workflows へ同期 ($GITHUB_SHA)"
+
+      - name: Push with PAT
+        env:
+          GH_TOKEN: ${{ secrets.METAL_INFO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$GH_TOKEN" ]; then
+            echo "METAL_INFO_TOKEN is not set"
+            exit 1
+          fi
+
+          git remote set-url origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}"
+
           git push
