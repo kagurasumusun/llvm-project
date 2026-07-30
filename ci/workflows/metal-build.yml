@@ -86,11 +86,15 @@ jobs:
           find "${SDK}" -type f | wc -l
 
       - name: Restore ccache
-        uses: actions/cache@v4
+        # restore + save rather than the combined action. actions/cache only
+        # writes its entry in a post step, and that post step is skipped when
+        # the job fails -- so while the lit stage was red the cache was never
+        # populated and every run recompiled LLVM from scratch. Saving
+        # explicitly right after the build decouples the two.
+        id: ccache-restore
+        uses: actions/cache/restore@v4
         with:
           path: ~/.ccache
-          # The key rotates per run so that every build writes a fresh entry;
-          # restore-keys then falls back to the newest previous one.
           key: metal-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
           restore-keys: |
             metal-ccache-${{ runner.os }}-${{ runner.arch }}-
@@ -139,11 +143,35 @@ jobs:
         run: ninja -C build -j$(nproc) clang-tablegen-targets
 
       - name: Build clang and test tools
-        run: ninja -C build -j$(nproc) clang FileCheck count not llvm-config
+        # Compiler diagnostics are echoed back as annotations for the same
+        # reason as the lit stage below: the raw log is not always reachable.
+        run: |
+          set +e
+          ninja -C build -j$(nproc) clang FileCheck count not llvm-config 2>&1 \
+            | tee /tmp/build.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -ne 0 ]; then
+            echo "::group::first errors"
+            grep -nE 'error:|FAILED:' /tmp/build.log | head -40
+            echo "::endgroup::"
+            grep -E 'error:' /tmp/build.log | head -15 | while read -r l; do
+              echo "::error::${l:0:400}"
+            done
+          fi
+          exit "$rc"
 
       - name: ccache statistics
         if: always()
         run: ccache --show-stats
+
+      - name: Save ccache
+        # Runs even when a later step fails, and even when the build itself
+        # fails: a partial cache still saves most of the next run.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.ccache
+          key: metal-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
 
       - name: Smoke test the Metal frontend
         run: |
