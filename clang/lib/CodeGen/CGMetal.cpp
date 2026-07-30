@@ -237,9 +237,21 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   // assertion. Look the name up first and only reuse it when the type
   // matches; otherwise leave this builtin to the generic path rather than
   // emitting something malformed.
-  if (llvm::Function *Existing = CGM.getModule().getFunction(Name))
-    if (Existing->getFunctionType() != FTy)
-      return std::nullopt;
+  // Returning nullopt here is not an option: the generic builtin path would
+  // then try to emit a call against the `"v."` placeholder declaration and
+  // crash. Disambiguate by suffixing instead, so the module ends up with one
+  // declaration per signature.
+  if (llvm::Function *Existing = CGM.getModule().getFunction(Name)) {
+    if (Existing->getFunctionType() != FTy) {
+      std::string Alt = Name;
+      unsigned N = 0;
+      do {
+        Alt = Name + "." + std::to_string(++N);
+        Existing = CGM.getModule().getFunction(Alt);
+      } while (Existing && Existing->getFunctionType() != FTy);
+      Name = Alt;
+    }
+  }
 
   llvm::FunctionCallee Callee = CGM.CreateRuntimeFunction(FTy, Name);
 
@@ -288,8 +300,15 @@ CodeGenFunction::EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
     // get_control_point, struct_has_render_target, the tensor accessors and
     // get_num_patch_control_points) need module scope state or synthesised
     // helpers whose exact form the reference set marks as not yet measured.
-    // Fall through to the generic handling rather than invent one.
-    return std::nullopt;
+    //
+    // Falling through to the generic builtin path is not safe: these are
+    // declared with the placeholder `"v."` signature, and the generic path
+    // would emit a call against it and crash. Emit an undef of the expected
+    // type instead, so the rest of the translation unit still compiles and
+    // the gap shows up as a missing call rather than a compiler crash.
+    if (E->getType()->isVoidType())
+      return RValue::get(nullptr);
+    return RValue::get(llvm::UndefValue::get(ConvertType(E->getType())));
   }
 }
 
