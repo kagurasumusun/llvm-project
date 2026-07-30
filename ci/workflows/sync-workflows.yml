@@ -23,7 +23,10 @@ on:
 
 concurrency:
   group: sync-workflows-${{ github.ref }}
-  cancel-in-progress: true
+  # Not cancel-in-progress: this job takes seconds, and cancelling it means a
+  # workflow change silently fails to propagate. Pushes in quick succession
+  # should queue instead.
+  cancel-in-progress: false
 
 permissions:
   contents: write
