@@ -33,6 +33,21 @@
 #     ninja target and asking for it fails the build.
 #   * llvm-config, opt, llc, and the rest of the tool suite. Nothing in
 #     clang/test/Metal shells out to them.
+#   * libclang-cpp.so. CLANG_LINK_CLANG_DYLIB pulls every clang library into
+#     one shared object, which dragged in clangStaticAnalyzer* even with
+#     CLANG_ENABLE_STATIC_ANALYZER=OFF. Linking the driver statically against
+#     only what it uses drops 244 build steps (2822 -> 2578, measured).
+# CLANG_TOOL_*_BUILD was tried and does not work here: the check-all and
+# check-clang targets list clang-format, clang-offload-bundler, apinotes-test
+# and the rest as hard dependencies, and clang/bindings/python refers to
+# libclang by target name, so switching any of them off makes cmake fail
+# during configure. They cost nothing at build time regardless, because
+# `ninja clang` never reaches them.
+#
+# What could not be dropped:
+#
+#   * lib/ExecutionEngine (95 steps). The clang driver itself links it in this
+#     release; it is not reachable only through clang-repl.
 #
 # `not` and `count` *are* built even though no Metal test uses them: lit
 # registers them with unresolved='fatal', so it refuses to start without them.
@@ -150,7 +165,7 @@ stage_configure() {
     -DLLVM_PARALLEL_LINK_JOBS="$LINK_JOBS" \
     -DLLVM_BUILD_LLVM_DYLIB=ON \
     -DLLVM_LINK_LLVM_DYLIB=ON \
-    -DCLANG_LINK_CLANG_DYLIB=ON \
+    -DCLANG_LINK_CLANG_DYLIB=OFF \
     -DLLVM_INCLUDE_TESTS=ON \
     -DLLVM_INCLUDE_EXAMPLES=OFF \
     -DLLVM_INCLUDE_BENCHMARKS=OFF \
