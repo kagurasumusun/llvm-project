@@ -23,8 +23,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Builtins.h has to come before anything that pulls in Builtins.def with only
+// a subset of the callback macros defined (Expr.h does that for
+// ATOMIC_BUILTIN); otherwise the METAL_BUILTIN entries never reach the
+// Builtin::ID enum and getMetalBuiltinArity fails to compile.
+#include "clang/Basic/Builtins.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/LangOptions.h"
@@ -504,12 +510,32 @@ static int getMetalBuiltinArity(unsigned BuiltinID) {
   }
 }
 
+/// Diagnose a call whose argument count is not \p Desired.
+///
+/// SemaChecking.cpp has a `checkArgCount` for this, but it is static to that
+/// file, so the same two diagnostics are produced here. Returns true on error.
+static bool checkMetalArgCount(Sema &S, CallExpr *Call, unsigned Desired) {
+  unsigned ArgCount = Call->getNumArgs();
+  if (ArgCount == Desired)
+    return false;
+
+  if (ArgCount < Desired)
+    return S.Diag(Call->getEndLoc(), diag::err_typecheck_call_too_few_args)
+           << /*function call*/ 0 << Desired << ArgCount
+           << Call->getSourceRange();
+
+  SourceRange Excess(Call->getArg(Desired)->getBeginLoc(),
+                     Call->getArg(ArgCount - 1)->getEndLoc());
+  return S.Diag(Excess.getBegin(), diag::err_typecheck_call_too_many_args)
+         << /*function call*/ 0 << Desired << ArgCount << Excess;
+}
+
 bool Sema::CheckMetalBuiltinCall(unsigned BuiltinID, CallExpr *TheCall) {
   int Arity = getMetalBuiltinArity(BuiltinID);
   if (Arity < 0)
     return false;
 
-  if (checkArgCount(*this, TheCall, (unsigned)Arity))
+  if (checkMetalArgCount(*this, TheCall, (unsigned)Arity))
     return true;
 
   // The builtins are generic, so the result type follows the arguments rather
