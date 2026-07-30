@@ -236,10 +236,14 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   // builtin signature is "v."), derive it from the first argument's type.
   // This prevents crashes when the result is used in an assignment.
   if (RetTy->isVoidTy() && E->getNumArgs() > 0) {
-    QualType FirstArgTy = E->getArg(0)->getType();
-    llvm::Type *DerivedTy = ConvertType(FirstArgTy);
-    if (DerivedTy && !DerivedTy->isVoidTy())
-      RetTy = DerivedTy;
+    if (const Expr *FirstArg = E->getArg(0)) {
+      QualType FirstArgTy = FirstArg->getType();
+      if (!FirstArgTy.isNull()) {
+        llvm::Type *DerivedTy = ConvertType(FirstArgTy);
+        if (DerivedTy && !DerivedTy->isVoidTy())
+          RetTy = DerivedTy;
+      }
+    }
   }
   
   llvm::FunctionType *FTy =
