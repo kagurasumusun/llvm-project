@@ -194,6 +194,16 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   if (AIRName.empty())
     return EmitMetalBuiltinWithoutAIROp(BuiltinID, E);
 
+  // Four builtins do not lower to an AIR intrinsic at all. They call into the
+  // runtime library instead, and the mapping table records that with an
+  // `rtlib:` prefix -- for instance __metal_nextafter becomes a call to
+  // __air_impl_nextafter. The reference set reached this by following the
+  // call graph in Apple's shipping rtlib and notes explicitly that the
+  // plausible-looking air.nextafter.f16 does not exist. Strip the marker and
+  // call the named function; without this the prefix would end up in the
+  // symbol, emitting `@rtlib:__air_impl_nextafter`.
+  bool IsRuntimeCall = AIRName.consume_front("rtlib:");
+
   // Evaluate the arguments and call the intrinsic by name. The intrinsics are
   // declared lazily with the exact signature of the call site, matching how
   // Apple's output carries one `declare` per instantiated intrinsic.
@@ -227,7 +237,10 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
 
   // The table records one representative spelling; specialise it for the types
   // at this call site (and apply the fast_ infix where it belongs).
-  std::string Name = adjustAIRName(AIRName, RetTy, ArgTypes);
+  // A runtime library entry point is named literally; only the AIR intrinsics
+  // carry a type suffix.
+  std::string Name = IsRuntimeCall ? AIRName.str()
+                                   : adjustAIRName(AIRName, RetTy, ArgTypes);
 
   // The name is meant to encode the operand type, so two call sites with
   // different types get different intrinsics. Where the table entry does not
