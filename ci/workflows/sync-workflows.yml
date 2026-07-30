@@ -47,32 +47,35 @@ jobs:
 
       - name: Copy and commit
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
           if [ ! -d ci/workflows ]; then
             echo "ci/workflows does not exist; nothing to do"
             exit 0
           fi
-
           mkdir -p .github/workflows
 
-          # Never let this job rewrite itself: doing so would let a change to
-          # ci/workflows silently alter the syncing rules.
+          # `find` rather than a glob: under `set -e` an unmatched glob is
+          # fatal, and ci/workflows may legitimately contain no *.yaml at all.
+          # That is what made the first attempt exit 1 without copying.
           changed=0
-          for src in ci/workflows/*.yml ci/workflows/*.yaml; do
-            [ -e "$src" ] || continue
+          while IFS= read -r src; do
             name=$(basename "$src")
+            # Never let this job rewrite itself: a change under ci/workflows
+            # could otherwise silently alter the syncing rules.
             if [ "$name" = "sync-workflows.yml" ]; then
-              echo "skipping $name (this job does not update itself)"
+              echo "skip  $name (this job does not update itself)"
               continue
             fi
             dst=".github/workflows/$name"
-            if ! cmp -s "$src" "$dst"; then
-              cp "$src" "$dst"
-              echo "updated $dst"
-              changed=1
+            if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+              echo "same  $name"
+              continue
             fi
-          done
+            cp "$src" "$dst"
+            echo "sync  $name"
+            changed=1
+          done < <(find ci/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)
 
           if [ "$changed" -eq 0 ]; then
             echo "already in sync"
@@ -83,15 +86,10 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .github/workflows
 
-          # Written to a file so the multi-line body cannot break the YAML.
-          {
-            echo "[CI] ci/workflows から .github/workflows へ同期"
-            echo
-            echo "自動生成のコミット。実体は ci/workflows/ 側にあり、そちらを編集する。"
-            echo "GitHub App は workflows 権限なしに .github/workflows/ を書き換え"
-            echo "られないため、書き込める場所を経由して反映している。"
-            echo
-            echo "source: ${GITHUB_SHA}"
-          } > /tmp/msg.txt
-          git commit -F /tmp/msg.txt
+          if git diff --cached --quiet; then
+            echo "nothing staged after copy"
+            exit 0
+          fi
+
+          git commit -m "[CI] ci/workflows から .github/workflows へ同期 (${GITHUB_SHA})"
           git push
