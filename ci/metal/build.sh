@@ -135,7 +135,9 @@ stage_tablegen() {
 }
 
 stage_build() {
-  ninja -C "$BUILD_DIR" -j"$JOBS" clang FileCheck count not llvm-lit llvm-config \
+  # llvm-lit is not a ninja target: cmake writes build/bin/llvm-lit at
+  # configure time. Asking ninja for it fails with "unknown target 'llvm-lit'".
+  ninja -C "$BUILD_DIR" -j"$JOBS" clang FileCheck count not llvm-config \
     2>&1 | tee /tmp/build.log
   local rc=${PIPESTATUS[0]}
   if [ "$rc" -ne 0 ]; then
@@ -174,7 +176,14 @@ EOF
 }
 
 stage_test() {
-  "./$BUILD_DIR/bin/llvm-lit" -v --timeout=120 clang/test/Metal 2>&1 | tee /tmp/lit.log
+  local lit="./$BUILD_DIR/bin/llvm-lit"
+  if [ ! -x "$lit" ]; then
+    # Fall back to running lit straight from the source tree, pointed at the
+    # generated site config.
+    echo "::warning::${lit} missing; falling back to llvm/utils/lit/lit.py"
+    lit="python3 llvm/utils/lit/lit.py"
+  fi
+  $lit -v --timeout=120 clang/test/Metal 2>&1 | tee /tmp/lit.log
   local rc=${PIPESTATUS[0]}
   echo "::group::lit summary"
   sed -n '/Failed Tests/,$p' /tmp/lit.log
