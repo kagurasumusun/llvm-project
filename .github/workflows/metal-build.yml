@@ -29,6 +29,14 @@ on:
       - 'llvm/**'
       - 'ci/metal/**'
   workflow_dispatch:
+  # The sync job pushes .github/workflows/metal-build.yml, but a push made
+  # with GITHUB_TOKEN does not start other workflows -- GitHub suppresses that
+  # to avoid loops. workflow_run fires on the sync completing instead, so a
+  # change to ci/workflows/ still gets built.
+  workflow_run:
+    workflows: ['Sync workflows from ci/workflows']
+    types: [completed]
+    branches: ['arena/**']
 
 concurrency:
   group: metal-build-${{ github.ref }}
@@ -51,6 +59,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          # On a workflow_run trigger the default checkout is the default
+          # branch, not the branch that was synced, so name it explicitly.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       # Independent of the build, and the slowest non-build step, so it goes
       # first while nothing depends on it yet.
