@@ -277,3 +277,25 @@ mangledName: _ZN8UniformsC1ERU9MTLdeviceU18MTLcoherent_deviceKS_
 本フェーズの検証も情報源との逐語照合で行った。追加した lit テスト5本
 （`interpolation-metadata` / `function-constants` / `address-space-operand` /
 `struct-type-info` / `argument-buffer`）を含む計16本は**未実行**。
+
+## CI でのビルド検証
+
+`.github/workflows/metal-build.yml` がビルドと `clang/test/Metal` の実行を
+GitHub Actions 上で行う。ローカルのサンドボックスは 2 コアで一巡に 30 分
+以上かかるため、検証は CI 側に移した。
+
+構成の要点:
+
+| 項目 | 値 | 理由 |
+|---|---|---|
+| ランナー | `ubuntu-24.04-arm` | 無料 x86 の 2 vCPU に対し 4 vCPU |
+| リンカ | mold | clang のリンクが最も遅い単一ステップ |
+| キャッシュ | ccache 2GB / 圧縮あり | 再実行時は変更点だけ再コンパイル |
+| ターゲット | X86 のみ | `LLVM_TARGETS_TO_BUILD` は空にできない |
+| ライブラリ | `LLVM_LINK_LLVM_DYLIB` | リンク量を減らす |
+| デバッグ情報 | `-g0` | 不要 |
+| 除外 | assertions / examples / benchmarks / docs / 静的解析 / ARCMT / zlib / zstd / terminfo / libxml2 / libedit | 最小構成 |
+
+`clang-tablegen-targets` だけを先にビルドする段を置いてある。Metal の実装は
+`Attr.td` / `Builtins.def` / 診断定義を頻繁に触り、実際にここで 91 件の
+エラーが出た経緯があるため、長いコンパイルに入る前に失敗を出す。
