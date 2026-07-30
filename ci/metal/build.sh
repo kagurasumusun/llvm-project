@@ -29,8 +29,8 @@
 #   * A separate TableGen stage. `ninja clang` already orders the .inc files
 #     ahead of everything that includes them; asking for them first only added
 #     a second ninja invocation.
-#   * llvm-lit. cmake writes build/bin/llvm-lit at configure time; it is not a
-#     ninja target and asking for it fails the build.
+#   * lit, and the whole LLVM_INCLUDE_TESTS tree behind it. See
+#     ci/metal/run-tests.sh.
 #   * llvm-config, opt, llc, and the rest of the tool suite. Nothing in
 #     clang/test/Metal shells out to them.
 #   * The two aggregate shared libraries. libLLVM.so and libclang-cpp.so each
@@ -42,11 +42,16 @@
 #     596 build steps (2822 -> 2226, measured), and removes those three
 #     directories entirely.
 # The long list of LLVM_TOOL_*_BUILD / CLANG_TOOL_*_BUILD above is every tool
-# the cache reported as ON, minus llvm-config and the clang driver itself:
-# 104 of them, from llvm-objdump and opt down to the fuzzers. LLVM_BUILD_TOOLS
-# =OFF does not stop them being generated, and LLVM_INCLUDE_TOOLS=OFF cannot
-# be used because clang itself lives under tools/. Switching them off
-# individually takes the build graph from 9091 targets to 7237.
+# the cache reported as ON, minus llvm-config and the clang driver: 116 of
+# them, from llvm-objdump and opt down to the fuzzers. LLVM_BUILD_TOOLS=OFF
+# does not stop them being generated, and LLVM_INCLUDE_TOOLS=OFF cannot be
+# used because clang itself lives under tools/. Switching them off takes the
+# build graph from 9091 targets to 7237.
+#
+# This is only possible because the tests no longer go through lit: with
+# LLVM_INCLUDE_TESTS=ON, check-llvm and check-clang list BugpointPasses,
+# clang-format, clang-offload-bundler and the rest as hard dependencies, and
+# configure refuses to drop any of them.
 #
 # LLVM_OPTIMIZED_TABLEGEN is not set: it only does anything when assertions
 # are on, and then it builds a whole second host toolchain to get an
@@ -56,15 +61,11 @@
 # CMake's own target_precompile_headers is not wired up here either, so there
 # is no precompiled-header knob to turn.
 #
-# LLVM_INCLUDE_TESTS=OFF is what makes the CLANG_TOOL_* switches above usable.
-# It does *not* remove lit: llvm-lit is generated under LLVM_INCLUDE_UTILS,
-# and FileCheck, not and count live there too. What it removes is the
-# check-all / check-clang aggregate targets, which list clang-format,
-# clang-offload-bundler, apinotes-test and libclang as hard dependencies -- so
-# while they existed, switching any of those tools off failed at configure
-# time. With them gone the side tools can be dropped, and `ninja clang` now
-# produces exactly six binaries: clang, clang-16, clang-tblgen, llvm-tblgen,
-# not and count.
+# LLVM_INCLUDE_TESTS=OFF also means no tools/clang/test/lit.site.cfg.py, so
+# lit cannot run -- which is why ci/metal/run-tests.sh replaces it. That is a
+# fair trade: the only lit features these tests use are the %clang_cc1 and %s
+# substitutions, and -verify is clang's own, so a twenty-line runner covers
+# all 21 of them.
 #
 # Build-time-only overhead that is switched off. None of it changes what the
 # compiler can do; it only costs time:
@@ -103,14 +104,20 @@
 #   * lib/DebugInfo (171 steps). clangCodeGen emits debug info, so the DWARF
 #     writers come with it.
 #
-# `not` and `count` *are* built even though no Metal test uses them: lit
-# registers them with unresolved='fatal', so it refuses to start without them.
+# `not` and `count` are gone too. They were only ever built because lit
+# registers them with unresolved='fatal' and refuses to start otherwise; no
+# Metal test invokes either. Only clang and FileCheck are needed now.
 #
 set -uo pipefail
 
 BUILD_DIR=${BUILD_DIR:-build}
 STDLIB_DIR=${STDLIB_DIR:-/tmp/metal-info}
-JOBS=${JOBS:-$(nproc)}
+# Oversubscribe the compile jobs. A C++ compile is not CPU-bound the whole
+# time -- it waits on the filesystem for headers, and on a ccache hit it does
+# almost nothing but read and write -- so running more jobs than cores keeps
+# all four busy. 16 GB across 6 jobs leaves well over 2 GB each, which is
+# ample for clang translation units at -g0.
+JOBS=${JOBS:-$(( $(nproc) + 2 ))}
 # Compiles run at full width; links are throttled separately. The SIGSEGV that
 # forced this was caused by linking several *shared* LLVM libraries at once,
 # and those are no longer built at all.
@@ -261,31 +268,31 @@ stage_configure() {
     -DLLVM_ENABLE_LIBXML2=OFF \
     -DLLVM_ENABLE_LIBEDIT=OFF \
     -DCLANG_BUILD_TOOLS=ON \
+    -DCLANG_TOOL_AMDGPU_ARCH_BUILD=OFF \
     -DCLANG_TOOL_APINOTES_TEST_BUILD=OFF \
+    -DCLANG_TOOL_ARCMT_TEST_BUILD=OFF \
     -DCLANG_TOOL_CLANG_CHECK_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_DIFF_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_EXTDEF_MAPPING_BUILD=OFF \
     -DCLANG_TOOL_CLANG_FORMAT_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_FORMAT_VS_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_FUZZER_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_IMPORT_TEST_BUILD=OFF \
     -DCLANG_TOOL_CLANG_LINKER_WRAPPER_BUILD=OFF \
     -DCLANG_TOOL_CLANG_OFFLOAD_BUNDLER_BUILD=OFF \
     -DCLANG_TOOL_CLANG_OFFLOAD_PACKAGER_BUILD=OFF \
     -DCLANG_TOOL_CLANG_REFACTOR_BUILD=OFF \
+    -DCLANG_TOOL_CLANG_RENAME_BUILD=OFF \
     -DCLANG_TOOL_CLANG_REPL_BUILD=OFF \
     -DCLANG_TOOL_CLANG_SCAN_DEPS_BUILD=OFF \
-    -DCLANG_TOOL_C_INDEX_TEST_BUILD=OFF \
-    -DCLANG_TOOL_DIAGTOOL_BUILD=OFF \
-    -DCLANG_TOOL_LIBCLANG_BUILD=OFF \
-    -DCLANG_TOOL_AMDGPU_ARCH_BUILD=OFF \
-    -DCLANG_TOOL_ARCMT_TEST_BUILD=OFF \
-    -DCLANG_TOOL_CLANG_DIFF_BUILD=OFF \
-    -DCLANG_TOOL_CLANG_EXTDEF_MAPPING_BUILD=OFF \
-    -DCLANG_TOOL_CLANG_FORMAT_VS_BUILD=OFF \
-    -DCLANG_TOOL_CLANG_FUZZER_BUILD=OFF \
-    -DCLANG_TOOL_CLANG_IMPORT_TEST_BUILD=OFF \
-    -DCLANG_TOOL_CLANG_RENAME_BUILD=OFF \
     -DCLANG_TOOL_CLANG_SHLIB_BUILD=OFF \
     -DCLANG_TOOL_C_ARCMT_TEST_BUILD=OFF \
+    -DCLANG_TOOL_C_INDEX_TEST_BUILD=OFF \
+    -DCLANG_TOOL_DIAGTOOL_BUILD=OFF \
     -DCLANG_TOOL_DICTIONARY_BUILD=OFF \
     -DCLANG_TOOL_HANDLE_CXX_BUILD=OFF \
     -DCLANG_TOOL_HANDLE_LLVM_BUILD=OFF \
+    -DCLANG_TOOL_LIBCLANG_BUILD=OFF \
     -DCLANG_TOOL_NVPTX_ARCH_BUILD=OFF \
     -DCLANG_TOOL_SCAN_BUILD_BUILD=OFF \
     -DCLANG_TOOL_SCAN_BUILD_PY_BUILD=OFF \
@@ -389,7 +396,7 @@ stage_configure() {
 # One ninja invocation for everything. `clang` pulls in the TableGen outputs
 # it needs, in the right order, on its own.
 stage_build() {
-  ninja -C "$BUILD_DIR" -j"$JOBS" clang FileCheck not count 2>&1 | tee /tmp/build.log
+  ninja -C "$BUILD_DIR" -j"$JOBS" clang FileCheck 2>&1 | tee /tmp/build.log
   local rc=${PIPESTATUS[0]}
   if [ "$rc" -ne 0 ]; then
     echo "::group::first errors"
@@ -427,23 +434,7 @@ EOF
 }
 
 stage_test() {
-  local lit="./$BUILD_DIR/bin/llvm-lit"
-  if [ ! -x "$lit" ]; then
-    echo "::warning::${lit} missing; using llvm/utils/lit/lit.py"
-    lit="python3 llvm/utils/lit/lit.py"
-  fi
-  $lit -v --timeout=120 clang/test/Metal 2>&1 | tee /tmp/lit.log
-  local rc=${PIPESTATUS[0]}
-  echo "::group::lit summary"
-  sed -n '/Failed Tests/,$p' /tmp/lit.log
-  echo "::endgroup::"
-  if [ "$rc" -ne 0 ]; then
-    grep -E '^(FAIL|UNRESOLVED|TIMEOUT):' /tmp/lit.log | while IFS= read -r line; do
-      printf '::error::%s\n' "$line"
-    done
-    annotate_errors /tmp/lit.log 25
-  fi
-  return "$rc"
+  ci/metal/run-tests.sh clang/test/Metal "$BUILD_DIR"
 }
 
 case "${1:-}" in
