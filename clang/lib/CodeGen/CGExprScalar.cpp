@@ -1328,6 +1328,21 @@ Value *ScalarExprEmitter::EmitScalarCast(Value *Src, QualType SrcType,
     DstElementType = DstType;
   }
 
+  // Metal converts vectors elementwise through a single air.convert whose
+  // suffix names the vector type -- air.convert.f.v4f32.s.v4i32 and the other
+  // 56 variants in the reference corpus. The dispatch below keys on
+  // isa<llvm::IntegerType>, which is false for a vector of integers, so pick
+  // the element type out first or vector conversions never reach it.
+  if (CGF.getLangOpts().Metal) {
+    if (const auto *SrcVec = SrcType->getAs<VectorType>())
+      if (const auto *DstVec = DstType->getAs<VectorType>()) {
+        SrcElementTy = cast<llvm::VectorType>(SrcTy)->getElementType();
+        DstElementTy = cast<llvm::VectorType>(DstTy)->getElementType();
+        SrcElementType = SrcVec->getElementType();
+        DstElementType = DstVec->getElementType();
+      }
+  }
+
   if (isa<llvm::IntegerType>(SrcElementTy)) {
     bool InputSigned = SrcElementType->isSignedIntegerOrEnumerationType();
     if (SrcElementType->isBooleanType() && Opts.TreatBooleanAsSigned) {

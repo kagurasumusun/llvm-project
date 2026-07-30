@@ -18,6 +18,9 @@ kernel void as_kernel(device int *d [[buffer(0)]],
   *d = *c + *t;
 }
 
-// `thread` is the default address space and is therefore unqualified.
-// CHECK-LABEL: define {{.*}}@thread_load
+// `thread` is the default address space, so it is not mangled: the reference
+// corpus records `read_thread` as _Z11read_threadP10AddressBox, with no
+// qualifier at all, while `device` produces U9MTLdevice. Only entry points
+// keep their plain name; an ordinary function is mangled as usual.
+// CHECK-LABEL: define {{.*}}@_Z11thread_loadPi
 int thread_load(thread int *p) { return *p; }
