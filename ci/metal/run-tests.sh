@@ -101,6 +101,15 @@ for test in "$TESTDIR"/*.metal; do
              | grep -vE '^\s*(check|label|dag|next|not):' \
              | head -1)
     printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
+    # "FileCheck error: '<stdin>' is empty" says nothing about why the
+    # compiler produced no output, so surface the compiler's own diagnostics
+    # as annotations too -- the raw log cannot be fetched from here.
+    printf '%s\n' "$out" \
+      | sed -n '/--- compiler output alone ---/,$p' \
+      | grep -E 'error:|warning:|fatal' | head -5 \
+      | while IFS= read -r l; do
+          printf '::error::  %s: %s\n' "$name" "${l:0:280}"
+        done
   fi
 done
 
