@@ -179,12 +179,21 @@ static std::string adjustAIRName(llvm::StringRef TableName, llvm::Type *RetTy,
   return Out;
 }
 
+// TEMPORARY: crash bisection checkpoints, visible in CI annotations because
+// the runner captures stderr. Delete once builtin-arity.metal is root-caused.
+#define MBE_TRACE(...)                                                         \
+  do {                                                                         \
+    llvm::errs() << "MBE: " << __VA_ARGS__ << '\n';                            \
+  } while (0)
+
 std::optional<RValue>
 CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
+  MBE_TRACE("enter builtin=" << BuiltinID << " argc=" << E->getNumArgs());
   // If BuiltinID is not a Metal builtin, check if the function name starts
   // with "__metal_". This handles cases where the builtin wasn't properly
   // registered but is still being called.
   if (!isMetalBuiltin(BuiltinID)) {
+    MBE_TRACE("not a metal builtin: " << BuiltinID);
     // Try to infer Metal builtin from function name
     if (const FunctionDecl *FD = E->getDirectCallee()) {
       StringRef Name = FD->getName();
@@ -234,7 +243,9 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   llvm::SmallVector<llvm::Value *, 8> Args;
   llvm::SmallVector<llvm::Type *, 8> ArgTypes;
   for (const Expr *Arg : E->arguments()) {
+    MBE_TRACE("emit arg " << (unsigned)Args.size() << " cls=" << Arg->getStmtClassName() << " ty=" << Arg->getType().getAsString());
     llvm::Value *V = EmitScalarExpr(Arg);
+    MBE_TRACE("arg done");
     Args.push_back(V);
     ArgTypes.push_back(V->getType());
   }
@@ -244,6 +255,7 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
     Args.pop_back();
     ArgTypes.pop_back();
   }
+  MBE_TRACE("args evaluated, expr ty=" << E->getType().getAsString());
 
   llvm::Type *RetTy = ConvertType(E->getType());
   // If the result type is void (e.g., because Sema did not set it or the
@@ -295,8 +307,10 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   }
 
   llvm::FunctionCallee Callee = CGM.CreateRuntimeFunction(FTy, Name);
+  MBE_TRACE("callee " << Name);
 
   llvm::CallInst *Call = Builder.CreateCall(Callee, Args);
+  MBE_TRACE("call emitted");
 
   // Apple marks these calls `tail call`, and additionally `fast` on the
   // floating point ones when fast math is enabled. research/golden/P01 shows
@@ -309,12 +323,14 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
 
   if (RetTy->isVoidTy())
     return RValue::get(nullptr);
+  MBE_TRACE("returning call rvalue");
   return RValue::get(Call);
 }
 
 std::optional<RValue>
 CodeGenFunction::EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
                                               const CallExpr *E) {
+  MBE_TRACE("no-air-op builtin=" << BuiltinID);
   // Only the cases the reference set positively establishes are implemented
   // here. Anything else is left to the generic path rather than guessed at.
   switch (BuiltinID) {

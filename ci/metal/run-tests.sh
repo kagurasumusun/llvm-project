@@ -132,24 +132,21 @@ $(eval "$compile_only" 2>&1 | head -25)"
     # are buffered and flushed after the run summary, which therefore always
     # makes the cut.
     if printf '%s\n' "$out" | grep -qE 'Stack dump|PLEASE submit a bug report'; then
-      frames=""
-      if command -v gdb >/dev/null 2>&1; then
-        compile_only=${cmd%%|*}
-        read -r -a argv <<< "$compile_only"
-        frames=$(gdb -batch -ex 'run > /dev/null' -ex 'bt 30' \
-                  --args "${argv[@]}" 2>/dev/null \
-                 | grep -E '^#[0-9]+' \
-                 | c++filt \
-                 | sed -E 's/^#[0-9]+ +//; s/0x[0-9a-f]+ in //; s/clang::|llvm:://g; s/ \([^)]*\)//g; s/ at .*//; s/^ +//' \
-                 | head -16 \
-                 | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }')
-      fi
-      [ -z "$frames" ] && frames=$(printf '%s\n' "$out" \
-               | grep -E '^[[:space:]]*#[0-9]+' \
-               | c++filt \
-               | sed -E 's/^[[:space:]]+//; s/0x[0-9a-f]+//g; s/clang::|llvm:://g; s/[^ ]+\.(cpp|h|inc)(: [0-9]+)?(: [0-9]+)?//g; s/[[:space:]][[:space:]]+/ /g' \
-               | head -14 \
+      # The last MBE: checkpoint emitted before the crash pinpoints the
+      # failing statement far better than an address backtrace; accompany it
+      # with the two tail lines of the output for context. GitHub keeps only
+      # a handful of error annotations per step, so this is one annotation.
+      frames=$(printf '%s\n' "$out" \
+               | grep -E 'MBE:' \
+               | tail -4 \
                | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }')
+      if [ -z "$frames" ]; then
+        frames=$(printf '%s\n' "$out" \
+                 | grep -vE '^\s*$' \
+                 | tail -3 \
+                 | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }' \
+                 | cut -c1-280)
+      fi
       notes+=("::error::CRASH $name :: ${frames:0:290}")
     else
       notes+=("::error::FAIL $name :: ${reason:0:300}")
