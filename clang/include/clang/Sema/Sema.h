@@ -6105,6 +6105,14 @@ public:
   /// Reject a declaration that uses a C++ construct MSL does not support.
   bool DiagnoseMetalUnsupportedDecl(Decl *D);
 
+  /// Custom typechecking for the Metal builtins.
+  ///
+  /// The builtins are declared with the generic `"v."` signature because they
+  /// are polymorphic -- `__metal_abs` is called on float, half and the integer
+  /// types from a single declaration -- so their arity and result type have to
+  /// be worked out here. Returns true on error.
+  bool CheckMetalBuiltinCall(unsigned BuiltinID, CallExpr *TheCall);
+
   /// Reject a type MSL does not provide (double, long long, ...).
   bool DiagnoseMetalUnsupportedType(QualType Ty, SourceLocation Loc);
 

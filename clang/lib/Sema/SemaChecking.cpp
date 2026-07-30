@@ -2060,6 +2060,14 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
                                CallExpr *TheCall) {
   ExprResult TheCallResult(TheCall);
 
+  // The Metal builtins are declared with the generic `"v."` signature because
+  // they are polymorphic, so their arity and result type are checked here
+  // rather than against a fixed signature.
+  if (getLangOpts().Metal) {
+    if (CheckMetalBuiltinCall(BuiltinID, TheCall))
+      return ExprError();
+  }
+
   // Find out if any arguments are required to be integer constant expressions.
   unsigned ICEArguments = 0;
   ASTContext::GetBuiltinTypeError Error;

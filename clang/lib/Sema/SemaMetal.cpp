@@ -483,3 +483,64 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
              {MSS_Kernel, MSS_Mesh, MSS_Object});
   }
 }
+
+//===----------------------------------------------------------------------===//
+// Builtin typechecking
+//===----------------------------------------------------------------------===//
+
+/// The measured arity of a Metal builtin, or -1 if it is not one.
+///
+/// The values come from parsing every `__metal_*` call site in Apple's
+/// <metal_stdlib>; see docs-metal/verify/extract_builtin_arity.py. All 650
+/// names in BuiltinsMetal.def are covered, with no gaps.
+static int getMetalBuiltinArity(unsigned BuiltinID) {
+  switch (BuiltinID) {
+#define METAL_BUILTIN(ID, TYPE, ATTRS, AIRNAME, ARITY)                         \
+  case Builtin::BI##ID:                                                        \
+    return ARITY;
+#include "clang/Basic/BuiltinsMetal.def"
+  default:
+    return -1;
+  }
+}
+
+bool Sema::CheckMetalBuiltinCall(unsigned BuiltinID, CallExpr *TheCall) {
+  int Arity = getMetalBuiltinArity(BuiltinID);
+  if (Arity < 0)
+    return false;
+
+  if (checkArgCount(*this, TheCall, (unsigned)Arity))
+    return true;
+
+  // The builtins are generic, so the result type follows the arguments rather
+  // than a fixed signature. Apple's standard library always writes them in one
+  // of two shapes:
+  //
+  //   return __metal_abs(x);                      // result is typeof(x)
+  //   return __metal_sqrt(x, __METAL_FAST_MATH__) // ditto, flag is trailing
+  //
+  // that is, the value being operated on is the first argument and any
+  // trailing flags are integer constants. Taking the type of the first
+  // non-integer-constant argument therefore reproduces the result type for
+  // every arithmetic builtin, which is the group whose result is actually
+  // consumed. A builtin called only for effect keeps `void`, which is what
+  // the `"v."` declaration already gives.
+  QualType ResultTy = Context.VoidTy;
+  for (unsigned I = 0, E = TheCall->getNumArgs(); I != E; ++I) {
+    Expr *Arg = TheCall->getArg(I);
+
+    // Run the usual conversions so that the argument type is the promoted one
+    // and array/function decay has happened.
+    ExprResult Converted = DefaultFunctionArrayLvalueConversion(Arg);
+    if (Converted.isInvalid())
+      return true;
+    Arg = Converted.get();
+    TheCall->setArg(I, Arg);
+
+    if (I == 0)
+      ResultTy = Arg->getType();
+  }
+
+  TheCall->setType(ResultTy);
+  return false;
+}

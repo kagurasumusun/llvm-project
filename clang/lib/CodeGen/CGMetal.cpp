@@ -49,7 +49,7 @@ using namespace CodeGen;
 /// none. Driven entirely by the table in BuiltinsMetal.def.
 static llvm::StringRef getAIRIntrinsicName(unsigned BuiltinID) {
   switch (BuiltinID) {
-#define METAL_BUILTIN(ID, TYPE, ATTRS, AIRNAME)                                \
+#define METAL_BUILTIN(ID, TYPE, ATTRS, AIRNAME, ARITY)                         \
   case Builtin::BI##ID:                                                        \
     return AIRNAME;
 #include "clang/Basic/BuiltinsMetal.def"
@@ -61,7 +61,7 @@ static llvm::StringRef getAIRIntrinsicName(unsigned BuiltinID) {
 /// Is \p BuiltinID one of the Metal builtins at all?
 static bool isMetalBuiltin(unsigned BuiltinID) {
   switch (BuiltinID) {
-#define METAL_BUILTIN(ID, TYPE, ATTRS, AIRNAME) case Builtin::BI##ID:
+#define METAL_BUILTIN(ID, TYPE, ATTRS, AIRNAME, ARITY) case Builtin::BI##ID:
 #include "clang/Basic/BuiltinsMetal.def"
     return true;
   default:
