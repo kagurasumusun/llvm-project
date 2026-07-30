@@ -41,11 +41,10 @@ permissions:
 jobs:
   build:
     name: build clang and run clang/test/Metal
+    # 4 vCPUs against 2 on the free x86 runners, and the host arch matches
+    # the target the build is configured for.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
-
-    env:
-      CCACHE_KEY: metal-ccache-${{ runner.os }}-${{ runner.arch }}
 
     steps:
       - name: Check out
@@ -73,8 +72,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.ccache
-          key: ${{ env.CCACHE_KEY }}-${{ github.sha }}
-          restore-keys: ${{ env.CCACHE_KEY }}-
+          key: metal-ccache-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: metal-ccache-${{ runner.arch }}-
 
       - name: Configure ccache
         run: |
@@ -109,14 +108,14 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/.ccache
-          key: ${{ env.CCACHE_KEY }}-${{ github.sha }}-${{ github.run_id }}
+          key: metal-ccache-${{ runner.arch }}-${{ github.sha }}-${{ github.run_id }}
 
       - name: Smoke test the Metal frontend
-        if: steps.build.outcome == 'success'
+        if: always() && steps.build.outcome == 'success'
         run: ci/metal/build.sh smoke
 
       - name: Run clang/test/Metal
-        if: steps.build.outcome == 'success'
+        if: always() && steps.build.outcome == 'success'
         run: ci/metal/build.sh test
 
       - name: Upload logs
