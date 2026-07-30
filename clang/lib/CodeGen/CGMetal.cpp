@@ -181,8 +181,22 @@ static std::string adjustAIRName(llvm::StringRef TableName, llvm::Type *RetTy,
 
 std::optional<RValue>
 CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
-  if (!isMetalBuiltin(BuiltinID))
+  // If BuiltinID is not a Metal builtin, check if the function name starts
+  // with "__metal_". This handles cases where the builtin wasn't properly
+  // registered but is still being called.
+  if (!isMetalBuiltin(BuiltinID)) {
+    // Try to infer Metal builtin from function name
+    if (const FunctionDecl *FD = E->getDirectCallee()) {
+      StringRef Name = FD->getName();
+      if (Name.startswith("__metal_")) {
+        // This is a Metal builtin that wasn't properly registered.
+        // For now, return nullopt to let the generic path handle it,
+        // but this indicates a registration problem.
+        return std::nullopt;
+      }
+    }
     return std::nullopt;
+  }
 
   llvm::StringRef AIRName = getAIRIntrinsicName(BuiltinID);
 

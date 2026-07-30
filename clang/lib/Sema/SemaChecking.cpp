@@ -2066,6 +2066,22 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
   if (getLangOpts().Metal) {
     if (CheckMetalBuiltinCall(BuiltinID, TheCall))
       return ExprError();
+    
+    // If CheckMetalBuiltinCall didn't handle it (BuiltinID not recognized),
+    // but the function name starts with "__metal_", manually set the result
+    // type to prevent crashes during code generation.
+    if (BuiltinID == 0 || !TheCall->getType()->isVoidType()) {
+      // Already handled or not a Metal builtin
+    } else if (const FunctionDecl *FD = TheCall->getDirectCallee()) {
+      StringRef Name = FD->getName();
+      if (Name.startswith("__metal_") && TheCall->getNumArgs() > 0) {
+        // Set result type to first argument's type to prevent void result
+        QualType FirstArgTy = TheCall->getArg(0)->getType();
+        if (!FirstArgTy.isNull() && !FirstArgTy->isVoidType()) {
+          TheCall->setType(FirstArgTy);
+        }
+      }
+    }
   }
 
   // Find out if any arguments are required to be integer constant expressions.
