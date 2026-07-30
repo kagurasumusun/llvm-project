@@ -51,6 +51,7 @@ echo "symbolizer: ${LLVM_SYMBOLIZER_PATH:-none found}"
 
 pass=0 fail=0
 failed=()
+notes=()
 
 for test in "$TESTDIR"/*.metal; do
   [ -e "$test" ] || continue
@@ -123,31 +124,31 @@ $(eval "$compile_only" 2>&1 | head -25)"
     fi
     # A clang crash prints a stack dump; the frame list is what identifies
     # the bug. GitHub keeps only a handful of error annotations per step, so
-    # the top frames are compressed into this one annotation instead of one
-    # annotation per frame: drop addresses, namespaces and argument lists,
-    # join what is left with '<' (innermost frame first). The raw log cannot
+    # the top frames are compressed into one annotation instead of one per
+    # frame: addresses, namespaces and source locations are dropped and what
+    # is left is joined with '<' (innermost frame first). The raw log cannot
     # be fetched from some environments -- Azure Blob EOFs -- so the
-    # annotation IS the backtrace.
+    # annotation IS the backtrace. Annotations are buffered and flushed after
+    # the run summary, which therefore always makes the cut.
     if printf '%s\n' "$out" | grep -qE 'Stack dump|PLEASE submit a bug report'; then
       frames=$(printf '%s\n' "$out" \
-               | grep -E '^ *#[0-9]+ ' \
+               | grep -E '^[[:space:]]*#[0-9]+' \
                | c++filt \
-               | sed -E 's/^ *//; s/0x[0-9a-f]+//g; s/clang::|llvm:://g; s/ \([^)]*\)//g; s/ [^ ]+\.(cpp|h|inc):[0-9]+:[0-9]+//g; s/  +/ /g' \
+               | sed -E 's/^[[:space:]]+//; s/0x[0-9a-f]+//g; s/clang::|llvm:://g; s/[^ ]+\.(cpp|h|inc)(: [0-9]+)?(: [0-9]+)?//g; s/[[:space:]][[:space:]]+/ /g' \
                | head -14 \
-               | paste -sd' < ' -)
-      printf '::error::CRASH %s :: %s\n' "$name" "${frames:0:290}"
+               | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }')
+      notes+=("::error::CRASH $name :: ${frames:0:290}")
     else
-      printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
+      notes+=("::error::FAIL $name :: ${reason:0:300}")
     fi
     # "FileCheck error: '<stdin>' is empty" says nothing about why the
     # compiler produced no output, so surface the compiler's own diagnostics
     # as annotations too -- the raw log cannot be fetched from here.
-    printf '%s\n' "$out" \
-      | sed -n '/--- compiler output alone ---/,$p' \
-      | grep -E 'error:|warning:|fatal' | head -5 \
-      | while IFS= read -r l; do
-          printf '::error::  %s: %s\n' "$name" "${l:0:280}"
-        done
+    while IFS= read -r l; do
+      notes+=("::error::  $name: ${l:0:280}")
+    done < <(printf '%s\n' "$out" \
+             | sed -n '/--- compiler output alone ---/,$p' \
+             | grep -E 'error:|warning:|fatal' | head -3)
   fi
 done
 
@@ -156,9 +157,10 @@ echo "Passed: $pass  Failed: $fail"
 if [ "$fail" -gt 0 ]; then
   printf 'Failed tests:\n'
   printf '  %s\n' "${failed[@]}"
-  # A single annotation listing every failure, so the set is visible even
-  # when the per-test ones get truncated.
+  # The summary annotation goes FIRST: GitHub cuts annotations off after a
+  # handful and this line is the only place the full failure set appears.
   printf '::error::%d/%d failed: %s\n' "$fail" "$((pass + fail))" "${failed[*]}"
+  printf '%s\n' "${notes[@]}"
   exit 1
 fi
 printf '::notice::all %d tests passed\n' "$pass"
