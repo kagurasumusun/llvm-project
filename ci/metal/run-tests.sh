@@ -70,14 +70,15 @@ for test in "$TESTDIR"/*.metal; do
     if ! out=$(eval "$cmd" 2>&1); then
       ok=0
       failed_cmd=$cmd
-      # A pipeline into FileCheck hides why the compiler produced nothing, so
-      # when that happens re-run just the compiler half to get its diagnostics.
-      case "$cmd" in
-        *"| $FILECHECK"*|*"|$FILECHECK"*)
-          compile_only=${cmd%%|*}
-          out="$out"$'\n'"--- compiler output alone ---"$'\n'"$(eval "$compile_only" 2>&1 | head -20)"
-          ;;
-      esac
+      # A pipeline into FileCheck hides why the compiler produced nothing:
+      # all that survives is "'<stdin>' is empty". Re-run the part before the
+      # first pipe to get the compiler's own diagnostics.
+      if [ "${cmd#*|}" != "$cmd" ]; then
+        compile_only=${cmd%%|*}
+        out="$out
+--- compiler output alone ---
+$(eval "$compile_only" 2>&1 | head -25)"
+      fi
       break
     fi
   done
@@ -96,10 +97,17 @@ for test in "$TESTDIR"/*.metal; do
     # One annotation per failing test, carrying its first real diagnostic.
     # GitHub caps how many annotations it keeps, so the test name and the
     # reason go in the same line rather than as separate entries.
+    # Prefer the compiler's own diagnostic when there is one: "'<stdin>' is
+    # empty" from FileCheck says nothing about why nothing was produced.
     reason=$(printf '%s\n' "$out" \
-             | grep -E 'error:' \
-             | grep -vE '^\s*(check|label|dag|next|not):' \
-             | head -1)
+             | sed -n '/--- compiler output alone ---/,$p' \
+             | grep -vE '^(--- compiler|$)' | head -1)
+    if [ -z "$reason" ]; then
+      reason=$(printf '%s\n' "$out" | grep -E 'error:|Assertion' | head -1)
+    fi
+    if [ -z "$reason" ]; then
+      reason=$(printf '%s\n' "$out" | head -1)
+    fi
     printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
     # "FileCheck error: '<stdin>' is empty" says nothing about why the
     # compiler produced no output, so surface the compiler's own diagnostics
