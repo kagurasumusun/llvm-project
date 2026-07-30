@@ -142,7 +142,12 @@ stage_deps() {
   # mold is the linker; lld would mean building it first, and mold is faster
   # on this workload anyway. ccache and ninja are the other two that matter.
   # No cmake here: the runner image already ships a current one.
-  sudo apt-get install -y --no-install-recommends ninja-build mold ccache
+  # llvm is here for llvm-symbolizer: without it a clang crash prints bare
+  # addresses ("Stack dump without symbol names"), which cannot be read back
+  # from the annotations the runner emits. The binary keeps its symbol table
+  # (Release with -g0, not stripped), so the symbolizer resolves the frame
+  # list to mangled names, and run-tests.sh pipes it through c++filt.
+  sudo apt-get install -y --no-install-recommends ninja-build mold ccache llvm
   echo "cpus=$(nproc) mem=$(free -g | awk '/^Mem:/{print $2}')GB"
   mold --version
   ccache --version | head -1

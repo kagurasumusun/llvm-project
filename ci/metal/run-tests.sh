@@ -36,6 +36,19 @@ for tool in "$CLANG" "$FILECHECK"; do
   [ -x "$tool" ] || { echo "::error::missing $tool"; exit 2; }
 done
 
+# Point clang at a symbolizer so a crash prints function names instead of the
+# useless "Stack dump without symbol names" address list. The compiler keeps
+# its symbol table (Release build with -g0, not stripped), which is all the
+# symbolizer needs; frames are demangled with c++filt when annotated below.
+if [ -z "${LLVM_SYMBOLIZER_PATH:-}" ]; then
+  for sym in $(command -v llvm-symbolizer 2>/dev/null) \
+             /usr/bin/llvm-symbolizer-* \
+             /usr/lib/llvm-*/bin/llvm-symbolizer; do
+    [ -x "$sym" ] && { export LLVM_SYMBOLIZER_PATH="$sym"; break; }
+  done
+fi
+echo "symbolizer: ${LLVM_SYMBOLIZER_PATH:-none found}"
+
 pass=0 fail=0
 failed=()
 
@@ -110,11 +123,20 @@ $(eval "$compile_only" 2>&1 | head -25)"
     fi
     printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
     # A clang crash prints a stack dump; the frame list is what identifies
-    # the bug, so put those lines in annotations too. Nothing else can be
-    # read back: the raw log lives in Azure Blob storage and is unreachable.
+    # the bug, so it goes FIRST among the annotations. GitHub keeps only a
+    # handful of error annotations per step, so the pretty-stack trace entries
+    # (which name only the declaration, not the crashing function) come after.
+    # Nothing else can be read back: the raw log lives in Azure Blob storage
+    # and is unreachable from some environments.
     printf '%s\n' "$out" \
-      | grep -E '^[0-9]+\.|Stack dump|Assertion|^ *#[0-9]+ |error:|warning:|note:|^ +[a-z_]+\.metal:' \
-      | head -12 | while IFS= read -r l; do
+      | grep -E '^ *#[0-9]+ ' \
+      | c++filt \
+      | head -8 | while IFS= read -r l; do
+          printf '::error::  %s | FRAME %s\n' "$name" "${l:0:280}"
+        done
+    printf '%s\n' "$out" \
+      | grep -E '^[0-9]+\.|Stack dump|Assertion|error:|warning:|note:' \
+      | head -8 | while IFS= read -r l; do
           printf '::error::  %s | %s\n' "$name" "${l:0:280}"
         done
     # "FileCheck error: '<stdin>' is empty" says nothing about why the
