@@ -197,12 +197,28 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   // Evaluate the arguments and call the intrinsic by name. The intrinsics are
   // declared lazily with the exact signature of the call site, matching how
   // Apple's output carries one `declare` per instantiated intrinsic.
+  // Apple's standard library passes __METAL_FAST_MATH__ as a trailing
+  // argument to the maths builtins -- `__metal_sqrt(x, __METAL_FAST_MATH__)`
+  // -- but that flag selects which intrinsic to call, it is not passed on to
+  // it. The recorded declarations carry the value operands only:
+  //
+  //     declare <4 x float> @air.fast_sqrt.v4f32(<4 x float>)
+  //
+  // so a trailing integer constant on a floating point operation is dropped
+  // here. It has already done its job by this point: airMathOpTakesFastInfix
+  // decides the `fast_` spelling from the element type.
   llvm::SmallVector<llvm::Value *, 8> Args;
   llvm::SmallVector<llvm::Type *, 8> ArgTypes;
   for (const Expr *Arg : E->arguments()) {
     llvm::Value *V = EmitScalarExpr(Arg);
     Args.push_back(V);
     ArgTypes.push_back(V->getType());
+  }
+  if (Args.size() > 1 && Args.front()->getType()->isFPOrFPVectorTy() &&
+      llvm::isa<llvm::ConstantInt>(Args.back()) &&
+      !Args.back()->getType()->isFPOrFPVectorTy()) {
+    Args.pop_back();
+    ArgTypes.pop_back();
   }
 
   llvm::Type *RetTy = ConvertType(E->getType());
@@ -212,6 +228,19 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   // The table records one representative spelling; specialise it for the types
   // at this call site (and apply the fast_ infix where it belongs).
   std::string Name = adjustAIRName(AIRName, RetTy, ArgTypes);
+
+  // The name is meant to encode the operand type, so two call sites with
+  // different types get different intrinsics. Where the table entry does not
+  // carry a suffix that distinguishes them they can still collide, and
+  // CreateRuntimeFunction returns whatever is already in the module -- which
+  // would leave a call whose signature disagrees with its callee and trip an
+  // assertion. Look the name up first and only reuse it when the type
+  // matches; otherwise leave this builtin to the generic path rather than
+  // emitting something malformed.
+  if (llvm::Function *Existing = CGM.getModule().getFunction(Name))
+    if (Existing->getFunctionType() != FTy)
+      return std::nullopt;
+
   llvm::FunctionCallee Callee = CGM.CreateRuntimeFunction(FTy, Name);
 
   llvm::CallInst *Call = Builder.CreateCall(Callee, Args);
