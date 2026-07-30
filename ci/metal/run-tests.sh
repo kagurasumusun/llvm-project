@@ -109,6 +109,14 @@ $(eval "$compile_only" 2>&1 | head -25)"
       reason=$(printf '%s\n' "$out" | head -1)
     fi
     printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
+    # A clang crash prints a stack dump; the frame list is what identifies
+    # the bug, so put those lines in annotations too. Nothing else can be
+    # read back: the raw log lives in Azure Blob storage and is unreachable.
+    printf '%s\n' "$out" \
+      | grep -E '^[0-9]+\.|Stack dump|clang.*Assertion|^ *#[0-9]+ ' \
+      | head -8 | while IFS= read -r l; do
+          printf '::error::  %s | %s\n' "$name" "${l:0:280}"
+        done
     # "FileCheck error: '<stdin>' is empty" says nothing about why the
     # compiler produced no output, so surface the compiler's own diagnostics
     # as annotations too -- the raw log cannot be fetched from here.
