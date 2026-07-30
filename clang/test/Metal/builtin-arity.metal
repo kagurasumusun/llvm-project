@@ -50,3 +50,5 @@ kernel void bad(device float *f [[buffer(0)]]) {
   f[0] = __metal_sqrt(f[0]); // expected-error {{too few arguments to function call, expected 2, have 1}}
   f[1] = __metal_fabs(f[0], 1, 1); // expected-error {{too many arguments to function call, expected 2, have 3}}
 }
+
+// CI trigger: ci/metal/build.sh の最小化を検証する。
