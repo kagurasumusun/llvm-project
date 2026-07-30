@@ -235,7 +235,7 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   // If the result type is void (e.g., because Sema did not set it or the
   // builtin signature is "v."), derive it from the first argument's type.
   // This prevents crashes when the result is used in an assignment.
-  if (RetTy->isVoidTy() && !E->arg_empty()) {
+  if (RetTy->isVoidTy() && E->getNumArgs() > 0) {
     QualType FirstArgTy = E->getArg(0)->getType();
     llvm::Type *DerivedTy = ConvertType(FirstArgTy);
     if (DerivedTy && !DerivedTy->isVoidTy())
@@ -401,8 +401,8 @@ void CodeGenModule::EmitMetalModuleMetadata() {
   //   !24 = !{!"Metal", i32 3, i32 2, i32 0}
   {
     unsigned Major, Minor, Patch;
-    // Get MetalVersion directly from LangOptions
-    unsigned MetalVer = static_cast<unsigned>(getLangOpts().MetalVersion);
+    // Get MetalVersion via public getter
+    unsigned MetalVer = static_cast<unsigned>(getLangOpts().getMetalVersion());
     decodeMetalVersion(MetalVer, Major, Minor, Patch);
     llvm::NamedMDNode *N =
         M.getOrInsertNamedMetadata("air.language_version");
