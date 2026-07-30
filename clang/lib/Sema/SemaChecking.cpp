@@ -2067,18 +2067,18 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     if (CheckMetalBuiltinCall(BuiltinID, TheCall))
       return ExprError();
     
-    // If CheckMetalBuiltinCall didn't handle it (BuiltinID not recognized),
-    // but the function name starts with "__metal_", manually set the result
+    // If the result type is still void after CheckMetalBuiltinCall,
+    // and the function name starts with "__metal_", manually set the result
     // type to prevent crashes during code generation.
-    if (BuiltinID == 0 || !TheCall->getType()->isVoidType()) {
-      // Already handled or not a Metal builtin
-    } else if (const FunctionDecl *FD = TheCall->getDirectCallee()) {
-      StringRef Name = FD->getName();
-      if (Name.startswith("__metal_") && TheCall->getNumArgs() > 0) {
-        // Set result type to first argument's type to prevent void result
-        QualType FirstArgTy = TheCall->getArg(0)->getType();
-        if (!FirstArgTy.isNull() && !FirstArgTy->isVoidType()) {
-          TheCall->setType(FirstArgTy);
+    if (TheCall->getType()->isVoidType()) {
+      if (const FunctionDecl *FD = TheCall->getDirectCallee()) {
+        StringRef Name = FD->getName();
+        if (Name.startswith("__metal_") && TheCall->getNumArgs() > 0) {
+          // Set result type to first argument's type to prevent void result
+          QualType FirstArgTy = TheCall->getArg(0)->getType();
+          if (!FirstArgTy.isNull() && !FirstArgTy->isVoidType()) {
+            TheCall->setType(FirstArgTy);
+          }
         }
       }
     }
