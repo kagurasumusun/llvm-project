@@ -10186,8 +10186,10 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
   // Metal entry point signature checking. Unlike HLSL there is no single
   // designated entry symbol: every function carrying [[kernel]], [[vertex]],
   // [[fragment]], [[mesh]] or [[object]] is an entry point.
-  if (getLangOpts().Metal && !NewFD->isInvalidDecl())
+  if (getLangOpts().Metal && !NewFD->isInvalidDecl()) {
+    DiagnoseMetalUnsupportedDecl(NewFD);
     CheckMetalEntryPoint(NewFD);
+  }
 
   if (getLangOpts().HLSL) {
     auto &TargetInfo = getASTContext().getTargetInfo();
@@ -13914,6 +13916,9 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
   // Metal restricts which address space a variable may live in, and requires
   // pointers and references to name their address space explicitly.
   if (getLangOpts().Metal) {
+    // Check for unsupported types like double, long long, etc.
+    DiagnoseMetalUnsupportedType(var->getType(), var->getLocation());
+    
     CheckMetalVarDeclAddressSpace(var);
     if (var->isInvalidDecl())
       return;

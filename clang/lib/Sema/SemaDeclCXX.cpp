@@ -6789,6 +6789,10 @@ void Sema::CheckCompletedCXXClass(Scope *S, CXXRecordDecl *Record) {
   if (!Record)
     return;
 
+  // Metal does not support unions, derived classes, or virtual member functions.
+  if (getLangOpts().Metal)
+    DiagnoseMetalUnsupportedDecl(Record);
+
   if (Record->isAbstract() && !Record->isInvalidDecl()) {
     AbstractUsageInfo Info(*this, Record);
     CheckAbstractClassUsage(Info, Record);

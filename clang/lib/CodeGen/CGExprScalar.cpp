@@ -1450,6 +1450,19 @@ Value *ScalarExprEmitter::EmitScalarConversion(Value *Src, QualType SrcType,
   QualType OrigSrcType = SrcType;
   llvm::Type *SrcTy = Src->getType();
 
+  // Metal: vector-to-vector numeric conversions use air.convert intrinsics
+  // rather than being decomposed into elementwise operations.
+  if (CGF.getLangOpts().Metal && SrcTy->isVectorTy()) {
+    llvm::Type *DstTy = ConvertType(DstType);
+    if (DstTy->isVectorTy()) {
+      bool SrcIsSigned = SrcType->isSignedIntegerOrEnumerationType();
+      bool DstIsSigned = DstType->isSignedIntegerOrEnumerationType();
+      if (Value *V = emitMetalConvert(CGF, Builder, Src, SrcTy, DstTy,
+                                      SrcIsSigned, DstIsSigned))
+        return V;
+    }
+  }
+
   // Handle conversions to bool first, they are special: comparisons against 0.
   if (DstType->isBooleanType())
     return EmitConversionToBool(Src, SrcType);

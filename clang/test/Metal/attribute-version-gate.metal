@@ -14,6 +14,7 @@
 // declared here so the test does not need the real standard library.
 typedef unsigned int uint;
 typedef unsigned short ushort;
+typedef __attribute__((__ext_vector_type__(4))) float float4;
 
 struct S {
   int a [[id(0)]];

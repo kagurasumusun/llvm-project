@@ -232,6 +232,16 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   }
 
   llvm::Type *RetTy = ConvertType(E->getType());
+  // If the result type is void (e.g., because Sema did not set it or the
+  // builtin signature is "v."), derive it from the first argument's type.
+  // This prevents crashes when the result is used in an assignment.
+  if (RetTy->isVoidTy() && !E->arg_empty()) {
+    QualType FirstArgTy = E->getArg(0)->getType();
+    llvm::Type *DerivedTy = ConvertType(FirstArgTy);
+    if (DerivedTy && !DerivedTy->isVoidTy())
+      RetTy = DerivedTy;
+  }
+  
   llvm::FunctionType *FTy =
       llvm::FunctionType::get(RetTy, ArgTypes, /*isVarArg=*/false);
 
@@ -372,6 +382,16 @@ void CodeGenModule::EmitMetalModuleMetadata() {
   // not -std=. The triple carries it as the `_vNN` arch suffix; v28 means
   // AIR 2.8.0, so the encoding is {2, NN - 20, 0}.
   unsigned AIRVer = getTarget().getTriple().getAIRVersion();
+  // Fallback: if getAIRVersion() returns 0 but triple contains "air",
+  // parse version from arch name directly.
+  if (AIRVer == 0) {
+    StringRef ArchName = getTarget().getTriple().getArchName();
+    if (ArchName.startswith("air")) {
+      size_t Pos = ArchName.find("_v");
+      if (Pos != StringRef::npos)
+        ArchName.substr(Pos + 2).getAsInteger(10, AIRVer);
+    }
+  }
   if (AIRVer >= 20) {
     llvm::NamedMDNode *N = M.getOrInsertNamedMetadata("air.version");
     N->addOperand(llvm::MDNode::get(Ctx, {i32(2), i32(AIRVer - 20), i32(0)}));
@@ -381,8 +401,9 @@ void CodeGenModule::EmitMetalModuleMetadata() {
   //   !24 = !{!"Metal", i32 3, i32 2, i32 0}
   {
     unsigned Major, Minor, Patch;
-    decodeMetalVersion(static_cast<unsigned>(getLangOpts().getMetalVersion()),
-                       Major, Minor, Patch);
+    // Get MetalVersion directly from LangOptions
+    unsigned MetalVer = static_cast<unsigned>(getLangOpts().MetalVersion);
+    decodeMetalVersion(MetalVer, Major, Minor, Patch);
     llvm::NamedMDNode *N =
         M.getOrInsertNamedMetadata("air.language_version");
     N->addOperand(llvm::MDNode::get(
@@ -867,7 +888,16 @@ std::string CodeGenModule::getMetalTypeName(QualType Ty) {
   // disagrees with what the runtime expects.
   Policy.SuppressDefaultTemplateArgs = false;
 
-  std::string Name = Ty.getAsString(Policy);
+  // For template specializations, we need to ensure all arguments (including
+  // defaulted ones) are printed. Use the canonical type to get the full
+  // template argument list.
+  QualType PrintTy = Ty;
+  if (const auto *TST = Ty->getAs<TemplateSpecializationType>()) {
+    if (TST->isSugared())
+      PrintTy = TST->desugar();
+  }
+
+  std::string Name = PrintTy.getAsString(Policy);
 
   // The printer writes enumerators qualified by their scope. Apple records
   // the bare name: "texture2d<float, sample>", not

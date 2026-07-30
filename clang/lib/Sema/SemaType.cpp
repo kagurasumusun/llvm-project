@@ -8094,10 +8094,12 @@ static void HandleMetalPackedVectorTypeAttr(QualType &CurType,
   if (T.isNull())
     return;
 
-  // Re-tag the freshly built vector as packed.
-  if (const auto *VT = T->getAs<VectorType>())
+  // Re-tag the freshly built vector as packed by creating a new VectorType
+  // with MetalPackedVector kind. This ensures proper alignment and size.
+  if (const auto *VT = T->getAs<VectorType>()) {
     T = S.Context.getVectorType(VT->getElementType(), VT->getNumElements(),
                                 VectorType::MetalPackedVector);
+  }
   CurType = T;
 }
 

@@ -7034,6 +7034,17 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
                                 llvm::function_ref<void()>([&]() {
                                   Actions.CodeCompleteFunctionQualifiers(DS, D);
                                 }));
+      
+      // Metal: explicitly parse address space qualifiers for member functions.
+      // These appear after cv-qualifiers (e.g., "int f() const constant").
+      if (getLangOpts().Metal) {
+        while (Tok.isOneOf(tok::kw_device, tok::kw_constant, tok::kw_threadgroup,
+                           tok::kw_thread, tok::kw_threadgroup_imageblock,
+                           tok::kw_ray_data, tok::kw_object_data)) {
+          ParseMetalQualifiers(DS.getAttributes());
+        }
+      }
+      
       if (!DS.getSourceRange().getEnd().isInvalid()) {
         EndLoc = DS.getSourceRange().getEnd();
       }

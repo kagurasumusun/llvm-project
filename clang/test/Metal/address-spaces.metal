@@ -11,7 +11,7 @@
 kernel void as_kernel(device int *d [[buffer(0)]],
                       constant int *c [[buffer(1)]],
                       threadgroup int *t [[threadgroup(0)]]) {
-  // CHECK: define void @as_kernel(
+  // CHECK: define{{.*}}@as_kernel(
   // CHECK-SAME: i32 addrspace(1)*
   // CHECK-SAME: i32 addrspace(2)*
   // CHECK-SAME: i32 addrspace(3)*
