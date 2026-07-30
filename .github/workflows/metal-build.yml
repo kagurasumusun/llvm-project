@@ -94,11 +94,16 @@ jobs:
         run: ccache --show-stats
 
       - name: Save ccache
+        # The key carries the run id as well as the sha: a re-run of the same
+        # commit would otherwise collide with the entry the first attempt
+        # already wrote, and the save fails with "Cache save failed".
+        # restore-keys above matches on the prefix, so the extra suffix costs
+        # nothing on the way back in.
         if: always()
         uses: actions/cache/save@v4
         with:
           path: ~/.ccache
-          key: metal-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          key: metal-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}-${{ github.run_id }}
 
       - name: Smoke test the Metal frontend
         run: ci/metal/build.sh smoke
