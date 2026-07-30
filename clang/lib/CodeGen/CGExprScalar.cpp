@@ -2150,6 +2150,33 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   CastKind Kind = CE->getCastKind();
   CodeGenFunction::CGFPOptionsRAII FPOptions(CGF, CE);
 
+  // Metal: Handle vector-to-vector numeric conversions directly.
+  // ext_vector_type casts may not go through EmitScalarConversion, so we
+  // handle them here to ensure air.convert intrinsics are used.
+  if (CGF.getLangOpts().Metal) {
+    QualType SrcType = E->getType();
+    if (SrcType->isVectorType() && DestTy->isVectorType()) {
+      // Check if this is a numeric conversion (not a bitcast)
+      QualType SrcElem = SrcType->getAs<VectorType>()->getElementType();
+      QualType DstElem = DestTy->getAs<VectorType>()->getElementType();
+      bool IsNumericConv = (SrcElem->isFloatingPointType() || SrcElem->isIntegerType()) &&
+                           (DstElem->isFloatingPointType() || DstElem->isIntegerType()) &&
+                           !SrcElem->isBooleanType() && !DstElem->isBooleanType();
+      if (IsNumericConv && SrcElem != DstElem) {
+        Value *Src = Visit(const_cast<Expr*>(E));
+        llvm::Type *SrcTy = Src->getType();
+        llvm::Type *DstTy = ConvertType(DestTy);
+        if (SrcTy->isVectorTy() && DstTy->isVectorTy()) {
+          bool SrcIsSigned = SrcElem->isSignedIntegerOrEnumerationType();
+          bool DstIsSigned = DstElem->isSignedIntegerOrEnumerationType();
+          if (Value *V = emitMetalConvert(CGF, Builder, Src, SrcTy, DstTy,
+                                          SrcIsSigned, DstIsSigned))
+            return V;
+        }
+      }
+    }
+  }
+
   // These cases are generally not written to ignore the result of
   // evaluating their sub-expressions, so we clear this now.
   bool Ignored = TestAndClearIgnoreResultAssign();
