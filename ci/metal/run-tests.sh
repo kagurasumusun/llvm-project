@@ -122,16 +122,29 @@ $(eval "$compile_only" 2>&1 | head -25)"
     if [ -z "$reason" ]; then
       reason=$(printf '%s\n' "$out" | head -1)
     fi
-    # A clang crash prints a stack dump; the frame list is what identifies
-    # the bug. GitHub keeps only a handful of error annotations per step, so
-    # the top frames are compressed into one annotation instead of one per
-    # frame: addresses, namespaces and source locations are dropped and what
-    # is left is joined with '<' (innermost frame first). The raw log cannot
-    # be fetched from some environments -- Azure Blob EOFs -- so the
-    # annotation IS the backtrace. Annotations are buffered and flushed after
-    # the run summary, which therefore always makes the cut.
+    # A crash is re-run under gdb to get a trustworthy backtrace: clang's own
+    # stack printer stalls inside the symbolizer protocol after one frame on
+    # this binary, but gdb reads the symbol table directly. The frame list is
+    # compressed into a single annotation -- addresses, namespaces and
+    # argument lists dropped, frames joined with '<', innermost first --
+    # because GitHub cuts annotations off after a handful, and the raw log
+    # cannot be fetched from some environments (Azure Blob EOFs). Annotations
+    # are buffered and flushed after the run summary, which therefore always
+    # makes the cut.
     if printf '%s\n' "$out" | grep -qE 'Stack dump|PLEASE submit a bug report'; then
-      frames=$(printf '%s\n' "$out" \
+      frames=""
+      if command -v gdb >/dev/null 2>&1; then
+        compile_only=${cmd%%|*}
+        read -r -a argv <<< "$compile_only"
+        frames=$(gdb -batch -ex 'run > /dev/null' -ex 'bt 30' \
+                  --args "${argv[@]}" 2>/dev/null \
+                 | grep -E '^#[0-9]+' \
+                 | c++filt \
+                 | sed -E 's/^#[0-9]+ +//; s/0x[0-9a-f]+ in //; s/clang::|llvm:://g; s/ \([^)]*\)//g; s/ at .*//; s/^ +//' \
+                 | head -16 \
+                 | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }')
+      fi
+      [ -z "$frames" ] && frames=$(printf '%s\n' "$out" \
                | grep -E '^[[:space:]]*#[0-9]+' \
                | c++filt \
                | sed -E 's/^[[:space:]]+//; s/0x[0-9a-f]+//g; s/clang::|llvm:://g; s/[^ ]+\.(cpp|h|inc)(: [0-9]+)?(: [0-9]+)?//g; s/[[:space:]][[:space:]]+/ /g' \
