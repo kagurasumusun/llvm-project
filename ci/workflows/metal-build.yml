@@ -59,6 +59,17 @@ jobs:
         continue-on-error: true
         run: ci/metal/build.sh stdlib
 
+      - name: Make room in the cache
+        # The repository cache is capped at 10 GB and was sitting at 9.8 GB of
+        # entries from other branches, so every save here failed with
+        # "Cache save failed" and the build never got a warm cache. Evict the
+        # least recently used entries belonging to branches that no longer
+        # exist, plus older duplicates of this branch's own key.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+        run: ci/metal/build.sh prune-cache
+
       - name: Restore ccache
         # restore + save rather than the combined action. actions/cache only
         # writes its entry in a post step, and that post step is skipped when
