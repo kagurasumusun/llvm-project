@@ -36,7 +36,7 @@ concurrency:
 
 permissions:
   contents: read
-  actions: write        # required to evict old cache entries
+  actions: write
 
 jobs:
   build:
@@ -112,11 +112,11 @@ jobs:
           key: ${{ env.CCACHE_KEY }}-${{ github.sha }}-${{ github.run_id }}
 
       - name: Smoke test the Metal frontend
-        if: always() && steps.build.outcome == 'success'
+        if: steps.build.outcome == 'success'
         run: ci/metal/build.sh smoke
 
       - name: Run clang/test/Metal
-        if: always() && steps.build.outcome == 'success'
+        if: steps.build.outcome == 'success'
         run: ci/metal/build.sh test
 
       - name: Upload logs
