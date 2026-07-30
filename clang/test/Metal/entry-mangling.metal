@@ -10,7 +10,10 @@
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
 // RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
 
-static float helper_mul(float a, float b) { return a * b; }
+// Not static: the reference probe declares `float helper_mul(float, float)` at
+// namespace scope, which is what produces the external `_Z10helper_mulff`. A
+// static helper would correctly mangle as `_ZL10helper_mulff` instead.
+float helper_mul(float a, float b) { return a * b; }
 
 [[visible]] int visible_fn(int v) { return v + 1; }
 

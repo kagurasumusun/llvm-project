@@ -54,6 +54,7 @@ static const LangASMap FakeAddrSpaceMap = {
     18, // metal_threadgroup_imageblock
     19, // metal_object_data
     20, // metal_ray_data
+    1,  // metal_device_coherent
 };
 
 // TargetInfo Constructor.

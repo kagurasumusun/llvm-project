@@ -25,6 +25,12 @@
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
 // RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
 
+// `uint` and the vector types come from Apple's <metal_stdlib>, not from the
+// compiler; the reference AST dumps show them as ordinary typedefs. They are
+// declared here so the test does not need the real standard library.
+typedef unsigned int uint;
+typedef unsigned short ushort;
+
 struct Args {
   device float *data [[id(0)]];
   unsigned int count [[id(1)]];

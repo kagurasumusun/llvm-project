@@ -3311,12 +3311,28 @@ static void GenerateHasAttrSpellingStringSwitch(
     // be taken from the specification of the attribute in the C Standard.
     int Version = 1;
 
+    // An attribute that is gated on a non-C++ language mode is not an ISO
+    // standard attribute even though it is written with `[[]]` and no scope.
+    // The Metal Shading Language spells all of its attributes that way -
+    // `[[kernel]]`, `[[buffer(0)]]`, `[[position]]` and so on - and there is
+    // no SD-6 recommendation to draw a version number from, so such
+    // attributes are exempt from the check below rather than being given a
+    // fabricated version.
+    bool IsLanguageSpecific = false;
+    for (const Record *LO : Attr->getValueAsListOfDefs("LangOpts")) {
+      StringRef Name = LO->getValueAsString("Name");
+      if (Name == "Metal") {
+        IsLanguageSpecific = true;
+        break;
+      }
+    }
+
     if (Variety == "CXX11" || Variety == "C2x") {
       std::vector<Record *> Spellings = Attr->getValueAsListOfDefs("Spellings");
       for (const auto &Spelling : Spellings) {
         if (Spelling->getValueAsString("Variety") == Variety) {
           Version = static_cast<int>(Spelling->getValueAsInt("Version"));
-          if (Scope.empty() && Version == 1)
+          if (Scope.empty() && Version == 1 && !IsLanguageSpecific)
             PrintError(Spelling->getLoc(), "Standard attributes must have "
                                            "valid version information.");
           break;

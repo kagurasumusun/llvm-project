@@ -2712,6 +2712,15 @@ void CXXNameMangler::mangleQualifiers(Qualifiers Quals, const DependentAddressSp
       case LangAS::metal_object_data:
         ASString = "MTLobjectdata";
         break;
+      // `device coherent(device) T` emits two vendor qualifiers back to back,
+      // the address space first and the coherence second:
+      //   _ZN8UniformsC1ERU9MTLdeviceU18MTLcoherent_deviceKS_
+      // Measured 1,001 times across the reference AST dumps. Only the
+      // `coherent(device)` form occurs; `coherent(threadgroup)` never does.
+      case LangAS::metal_device_coherent:
+        mangleVendorQualifier("MTLdevice");
+        ASString = "MTLcoherent_device";
+        break;
       case LangAS::metal_thread:
         // Default address space; intentionally not mangled.
         break;

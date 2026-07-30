@@ -49,6 +49,7 @@ static const unsigned DirectXAddrSpaceMap[] = {
     0, // metal_threadgroup_imageblock
     0, // metal_object_data
     0, // metal_ray_data
+    0, // metal_device_coherent
 };
 
 class LLVM_LIBRARY_VISIBILITY DirectXTargetInfo : public TargetInfo {

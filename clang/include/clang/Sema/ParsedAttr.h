@@ -729,7 +729,11 @@ public:
     switch (getParsedKind()) {
     case ParsedAttr::AT_MetalDeviceAddressSpace:
       return LangAS::metal_device;
-    case ParsedAttr::AT_MetalConstantAddressSpace:
+    // `constant` shares OpenCLConstantAddressSpace's parse kind because the
+    // spelling is identical and the attribute name matcher has no language
+    // mode to disambiguate with. The two languages are mutually exclusive,
+    // and this accessor is only ever reached in Metal mode.
+    case ParsedAttr::AT_OpenCLConstantAddressSpace:
       return LangAS::metal_constant;
     case ParsedAttr::AT_MetalThreadgroupAddressSpace:
       return LangAS::metal_threadgroup;

@@ -72,6 +72,15 @@ enum class LangAS : unsigned {
   metal_threadgroup_imageblock,
   metal_object_data,
   metal_ray_data,
+  // `device coherent(device) T` -- the coherence qualifier is written on top
+  // of an existing address space and mangles as a second vendor qualifier
+  // immediately after it, so it is modelled as a distinct language address
+  // space that lowers to the same target address space as `device`:
+  //   const device coherent(device) Uniforms &
+  //   _ZN8UniformsC1ERU9MTLdeviceU18MTLcoherent_deviceKS_
+  // Measured 1,001 times in the reference AST dumps; `coherent(threadgroup)`
+  // does not occur anywhere in the corpus.
+  metal_device_coherent,
 
   // This denotes the count of language-specific address spaces and also
   // the offset added to the target-specific address spaces, which are usually

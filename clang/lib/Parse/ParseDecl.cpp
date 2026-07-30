@@ -937,6 +937,13 @@ void Parser::ParseMetalQualifiers(ParsedAttributes &Attrs) {
   IdentifierInfo *AttrName = Tok.getIdentifierInfo();
   SourceLocation AttrNameLoc = ConsumeToken();
 
+  // `kernel` is also an OpenCL C keyword, and OpenCLKernelAttr claims the
+  // spelling in the attribute name matcher. Metal mode has to name its own
+  // attribute explicitly, or the parsed attribute comes out as
+  // OpenCLKernelAttr and the !air.kernel metadata is never emitted.
+  if (AttrName->isStr("kernel"))
+    AttrName = PP.getIdentifierInfo("metal_kernel");
+
   if (AttrName->isStr("coherent") && Tok.is(tok::l_paren)) {
     BalancedDelimiterTracker T(*this, tok::l_paren);
     T.consumeOpen();
@@ -949,7 +956,10 @@ void Parser::ParseMetalQualifiers(ParsedAttributes &Attrs) {
     }
     T.consumeClose();
     if (Scope) {
-      ArgsUnion Args[] = {Scope};
+      // ParsedAttr stores an identifier argument as an IdentifierLoc, not as
+      // a bare IdentifierInfo.
+      ArgsUnion Args[] = {
+          IdentifierLoc::create(Actions.Context, ScopeLoc, Scope)};
       Attrs.addNew(AttrName, SourceRange(AttrNameLoc, T.getCloseLocation()),
                    nullptr, ScopeLoc, Args, 1, ParsedAttr::AS_Keyword);
       return;
@@ -4395,6 +4405,18 @@ void Parser::ParseDeclarationSpecifiers(
       ParseMetalQualifiers(DS.getAttributes());
       continue;
 
+    // Metal entry point qualifiers. MSL writes these as leading keywords
+    // (`kernel void k()`, `vertex VOut v()`), not as `[[kernel]]`, so they
+    // are parsed here and turned into the corresponding attribute.
+    case tok::kw_kernel:
+    case tok::kw_vertex:
+    case tok::kw_fragment:
+    case tok::kw_visible:
+    case tok::kw_stitchable:
+      // NOTE: ParseMetalQualifiers will consume the qualifier token.
+      ParseMetalQualifiers(DS.getAttributes());
+      continue;
+
     case tok::less:
       // GCC ObjC supports types like "<SomeProtocol>" as a synonym for
       // "id<SomeProtocol>".  This is hopelessly old fashioned and dangerous,
@@ -5421,6 +5443,20 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___write_only:
 
   case tok::kw_groupshared:
+  // Metal address space, coherence and entry point qualifiers.
+  case tok::kw_device:
+  case tok::kw_constant:
+  case tok::kw_threadgroup:
+  case tok::kw_thread:
+  case tok::kw_threadgroup_imageblock:
+  case tok::kw_ray_data:
+  case tok::kw_object_data:
+  case tok::kw_coherent:
+  case tok::kw_kernel:
+  case tok::kw_vertex:
+  case tok::kw_fragment:
+  case tok::kw_visible:
+  case tok::kw_stitchable:
     return true;
 
   case tok::kw_private:
@@ -5683,6 +5719,20 @@ bool Parser::isDeclarationSpecifier(
 #include "clang/Basic/OpenCLImageTypes.def"
 
   case tok::kw_groupshared:
+  // Metal address space, coherence and entry point qualifiers.
+  case tok::kw_device:
+  case tok::kw_constant:
+  case tok::kw_threadgroup:
+  case tok::kw_thread:
+  case tok::kw_threadgroup_imageblock:
+  case tok::kw_ray_data:
+  case tok::kw_object_data:
+  case tok::kw_coherent:
+  case tok::kw_kernel:
+  case tok::kw_vertex:
+  case tok::kw_fragment:
+  case tok::kw_visible:
+  case tok::kw_stitchable:
     return true;
 
   case tok::kw_private:
@@ -5924,6 +5974,18 @@ void Parser::ParseTypeQualifierListOpt(
     case tok::kw_ray_data:
     case tok::kw_object_data:
     case tok::kw_coherent:
+      // NOTE: ParseMetalQualifiers will consume the qualifier token.
+      ParseMetalQualifiers(DS.getAttributes());
+      continue;
+
+    // Metal entry point qualifiers. MSL writes these as leading keywords
+    // (`kernel void k()`, `vertex VOut v()`), not as `[[kernel]]`, so they
+    // are parsed here and turned into the corresponding attribute.
+    case tok::kw_kernel:
+    case tok::kw_vertex:
+    case tok::kw_fragment:
+    case tok::kw_visible:
+    case tok::kw_stitchable:
       // NOTE: ParseMetalQualifiers will consume the qualifier token.
       ParseMetalQualifiers(DS.getAttributes());
       continue;

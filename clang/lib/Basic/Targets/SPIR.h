@@ -52,6 +52,7 @@ static const unsigned SPIRDefIsPrivMap[] = {
     0, // metal_threadgroup_imageblock
     0, // metal_object_data
     0, // metal_ray_data
+    0, // metal_device_coherent
 };
 
 // Used by both the SPIR and SPIR-V targets.
@@ -89,6 +90,7 @@ static const unsigned SPIRDefIsGenMap[] = {
     0, // metal_threadgroup_imageblock
     0, // metal_object_data
     0, // metal_ray_data
+    0, // metal_device_coherent
 };
 
 // Base class for SPIR and SPIR-V target info.

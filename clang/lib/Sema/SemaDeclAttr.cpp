@@ -6987,11 +6987,106 @@ static bool checkMetalAttrCommon(Sema &S, const ParsedAttr &AL) {
   return S.CheckMetalAttributeVersion(AL, getMetalAttrMinVersion(AL));
 }
 
-/// Build a Metal attribute that carries arguments, letting the generic
-/// TableGen produced constructor consume the parsed argument list.
+/// Build a Metal attribute taking a fixed number of expression arguments,
+/// such as `[[buffer(0)]]` or `[[required_threads_per_threadgroup(8, 8, 1)]]`.
+///
+/// The TableGen produced `Create` overload that takes only the
+/// AttributeCommonInfo exists solely for argument-less attributes, so each
+/// argument shape has to be forwarded explicitly.
+template <unsigned N, typename AttrType>
+static void handleMetalExprArgsAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  if (!AL.checkExactlyNumArgs(S, N))
+    return;
+  Expr *Args[N ? N : 1] = {};
+  for (unsigned I = 0; I != N; ++I) {
+    if (!AL.isArgExpr(I)) {
+      S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+          << AL << AANT_ArgumentIntegerConstant;
+      return;
+    }
+    Args[I] = AL.getArgAsExpr(I);
+  }
+  if constexpr (N == 1)
+    D->addAttr(AttrType::Create(S.Context, Args[0], AL));
+  else if constexpr (N == 3)
+    D->addAttr(AttrType::Create(S.Context, Args[0], Args[1], Args[2], AL));
+}
+
+/// Build a Metal attribute taking a single string argument, such as
+/// `[[user("uid")]]`.
 template <typename AttrType>
-static void handleMetalGenericAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  D->addAttr(AttrType::Create(S.Context, AL));
+static void handleMetalStringArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  StringRef Str;
+  if (!S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+  D->addAttr(AttrType::Create(S.Context, Str, AL));
+}
+
+/// Build a Metal attribute taking a list of string arguments, such as
+/// `[[function_groups("a", "b")]]`.
+template <typename AttrType>
+static void handleMetalStringListAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  SmallVector<StringRef, 4> Strs;
+  for (unsigned I = 0, E = AL.getNumArgs(); I != E; ++I) {
+    StringRef Str;
+    if (!S.checkStringLiteralArgumentAttr(AL, I, Str))
+      return;
+    Strs.push_back(Str);
+  }
+  D->addAttr(AttrType::Create(S.Context, Strs.data(), Strs.size(), AL));
+}
+
+/// Build a Metal attribute taking a bare identifier, such as
+/// `[[depth(greater)]]` or `[[patch(triangle, 3)]]`. The identifier is
+/// optional in both cases; a bare `[[depth]]` records no qualifier and the
+/// AIR metadata falls back to `air.any`.
+template <typename AttrType>
+static void handleMetalIdentifierAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  IdentifierInfo *Ident = nullptr;
+  if (AL.getNumArgs() > 0) {
+    if (!AL.isArgIdent(0)) {
+      S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+          << AL << AANT_ArgumentIdentifier;
+      return;
+    }
+    Ident = AL.getArgAsIdent(0)->Ident;
+  }
+  D->addAttr(AttrType::Create(S.Context, Ident, AL));
+}
+
+/// `[[patch(triangle, 3)]]`: an identifier naming the patch type and an
+/// optional control point count. The AIR metadata records both:
+///   !{!"air.patch", !"triangle", !"air.patch_control_point", i32 3}
+static void handleMetalPatchAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  if (AL.getNumArgs() < 1 || !AL.isArgIdent(0)) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+        << AL << AANT_ArgumentIdentifier;
+    return;
+  }
+  IdentifierInfo *PatchType = AL.getArgAsIdent(0)->Ident;
+  Expr *ControlPoints = nullptr;
+  if (AL.getNumArgs() > 1) {
+    if (!AL.isArgExpr(1)) {
+      S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+          << AL << AANT_ArgumentIntegerConstant;
+      return;
+    }
+    ControlPoints = AL.getArgAsExpr(1);
+  }
+  D->addAttr(MetalPatchAttr::Create(S.Context, PatchType, ControlPoints, AL));
+}
+
+/// Build a Metal attribute taking a type argument, such as
+/// `[[imageblock_data(T)]]`.
+template <typename AttrType>
+static void handleMetalTypeArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  if (!AL.hasParsedType()) {
+    S.Diag(AL.getLoc(), diag::err_attribute_wrong_number_arguments) << AL << 1;
+    return;
+  }
+  TypeSourceInfo *TSI = nullptr;
+  (void)S.GetTypeFromParser(AL.getTypeArg(), &TSI);
+  D->addAttr(AttrType::Create(S.Context, TSI, AL));
 }
 
 /// Handle the resource binding attributes [[buffer(N)]], [[texture(N)]],
@@ -9355,7 +9450,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalIntersection:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalIntersectionAttr>(S, D, AL);
+      handleMetalStringListAttr<MetalIntersectionAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalEarlyFragmentTests:
     if (checkMetalAttrCommon(S, AL))
@@ -9363,23 +9458,23 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalHostName:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalHostNameAttr>(S, D, AL);
+      handleMetalStringArgAttr<MetalHostNameAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalMaxTotalThreadsPerThreadgroup:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalMaxTotalThreadsPerThreadgroupAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalMaxTotalThreadsPerThreadgroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalMaxTotalThreadgroupsPerMeshGrid:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalMaxTotalThreadgroupsPerMeshGridAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalMaxTotalThreadgroupsPerMeshGridAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalRequiredThreadsPerThreadgroup:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalRequiredThreadsPerThreadgroupAttr>(S, D, AL);
+      handleMetalExprArgsAttr<3, MetalRequiredThreadsPerThreadgroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPatch:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalPatchAttr>(S, D, AL);
+      handleMetalPatchAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalStageIn:
     if (checkMetalAttrCommon(S, AL))
@@ -9387,11 +9482,11 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalAttributeIndex:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalAttributeIndexAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalAttributeIndexAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalFunctionConstant:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalFunctionConstantAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalFunctionConstantAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadPosGrid:
     if (checkMetalAttrCommon(S, AL))
@@ -9535,11 +9630,11 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalColor:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalColorAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalColorAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalDepth:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalDepthAttr>(S, D, AL);
+      handleMetalIdentifierAttr<MetalDepthAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalStencil:
     if (checkMetalAttrCommon(S, AL))
@@ -9559,15 +9654,15 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalId:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalIdAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalUserDefined:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalUserDefinedAttr>(S, D, AL);
+      handleMetalStringArgAttr<MetalUserDefinedAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalUserAnnotation:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalUserAnnotationAttr>(S, D, AL);
+      handleMetalStringArgAttr<MetalUserAnnotationAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalFlat:
     if (checkMetalAttrCommon(S, AL))
@@ -9603,11 +9698,11 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalRasterOrderGroup:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalRasterOrderGroupAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalRasterOrderGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalImageblockData:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalImageblockDataAttr>(S, D, AL);
+      handleMetalTypeArgAttr<MetalImageblockDataAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAliasImplicitImageblock:
     if (checkMetalAttrCommon(S, AL))
@@ -9615,7 +9710,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalAliasImplicitImageblockColor:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalAliasImplicitImageblockColorAttr>(S, D, AL);
+      handleMetalExprArgsAttr<1, MetalAliasImplicitImageblockColorAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPixelPositionInTile:
     if (checkMetalAttrCommon(S, AL))
@@ -9635,7 +9730,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalSizeAs:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalSizeAsAttr>(S, D, AL);
+      handleMetalTypeArgAttr<MetalSizeAsAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPrimitiveCulled:
     if (checkMetalAttrCommon(S, AL))
@@ -9643,7 +9738,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     break;
   case ParsedAttr::AT_MetalFunctionGroups:
     if (checkMetalAttrCommon(S, AL))
-      handleMetalGenericAttr<MetalFunctionGroupsAttr>(S, D, AL);
+      handleMetalStringListAttr<MetalFunctionGroupsAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAcceptIntersection:
     if (checkMetalAttrCommon(S, AL))

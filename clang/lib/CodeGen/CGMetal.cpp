@@ -18,8 +18,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CGCXXABI.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
+// Builtins.h must be included before anything that pulls in Builtins.def with
+// only a subset of the callback macros defined -- Expr.h does exactly that for
+// ATOMIC_BUILTIN -- otherwise the METAL_BUILTIN entries never reach the
+// Builtin::ID enum and the switches below fail to compile.
+#include "clang/Basic/Builtins.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
@@ -314,7 +320,8 @@ void CodeGenModule::EmitMetalModuleMetadata() {
   //   !24 = !{!"Metal", i32 3, i32 2, i32 0}
   {
     unsigned Major, Minor, Patch;
-    decodeMetalVersion(getLangOpts().MetalVersion, Major, Minor, Patch);
+    decodeMetalVersion(static_cast<unsigned>(getLangOpts().getMetalVersion()),
+                       Major, Minor, Patch);
     llvm::NamedMDNode *N =
         M.getOrInsertNamedMetadata("air.language_version");
     N->addOperand(llvm::MDNode::get(
@@ -346,7 +353,8 @@ void CodeGenModule::EmitMetalModuleMetadata() {
     // and `enable` for -std >= macos-metal2.3 (5,831 modules).
     bool FramebufferFetch = true;
     if (getTarget().getTriple().isMacOSX())
-      FramebufferFetch = getLangOpts().MetalVersion >= 230;
+      FramebufferFetch =
+          static_cast<unsigned>(getLangOpts().getMetalVersion()) >= 230;
     addOption(FramebufferFetch ? "air.compile.framebuffer_fetch_enable"
                                : "air.compile.framebuffer_fetch_disable");
   }
@@ -404,6 +412,8 @@ public:
 };
 
 } // namespace
+
+static llvm::StringRef getAIRAccess(QualType Ty);
 
 /// Is \p Ty a binding to an argument buffer, i.e. a record whose fields carry
 /// `[[id(N)]]`? Such a binding is recorded as `air.indirect_buffer`.
@@ -763,6 +773,24 @@ std::string CodeGenModule::getMetalTypeName(QualType Ty) {
     }
   }
 
+  // Scalars use the MSL spelling too. The corpus records `uint`, `ushort`,
+  // `uchar` and `ulong`, and contains no occurrence of the C spelling
+  // `unsigned int` anywhere in air.arg_type_name.
+  if (const auto *BT = Ty->getAs<BuiltinType>()) {
+    StringRef Name =
+        llvm::StringSwitch<StringRef>(Ty.getAsString(C.getPrintingPolicy()))
+            .Case("unsigned int", "uint")
+            .Case("unsigned short", "ushort")
+            .Case("unsigned char", "uchar")
+            .Case("unsigned long", "ulong")
+            .Case("signed char", "char")
+            .Case("__bf16", "bfloat")
+            .Default(StringRef());
+    (void)BT;
+    if (!Name.empty())
+      return Name.str();
+  }
+
   // Everything else keeps its source spelling. Suppress the `metal::` scope
   // because Apple records "texture2d<float, sample>", not
   // "metal::texture2d<...>".
@@ -948,7 +976,15 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
     // The argument index always comes first.
     B.addInt(Index);
 
-    if (llvm::StringRef Stage = getAIRStageInputName(PVD); !Stage.empty()) {
+    if (getMetalTypeName(Ty) == "mesh_grid_properties") {
+      // An object stage takes the grid properties by type rather than by
+      // attribute, and it is recorded like a stage builtin:
+      //   !{i32 0, !"air.mesh_grid_properties", !"air.arg_type_name",
+      //     !"mesh_grid_properties", !"air.arg_name", !"__gp"}
+      // The AST records the parameter as `metal::mesh_grid_properties`.
+      B.addStr("air.mesh_grid_properties");
+    } else if (llvm::StringRef Stage = getAIRStageInputName(PVD);
+               !Stage.empty()) {
       // Stage builtins: no location index, no address space.
       B.addStr(Stage);
     } else if (const auto *TexA = PVD->getAttr<MetalTextureIndexAttr>()) {
@@ -977,15 +1013,16 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       //           !"air.arg_type_name",
       //           !"acceleration_structure<instancing>",
       //           !"air.arg_name", !"accel"}
-      if (getMetalTypeName(Ty).startswith("acceleration_structure") ||
-          getMetalTypeName(Ty) == "instance_acceleration_structure") {
+      std::string ASName = getMetalTypeName(Ty);
+      if (StringRef(ASName).startswith("acceleration_structure") ||
+          ASName == "instance_acceleration_structure") {
         B.addStr("air.instance_acceleration_structure");
         B.addStr("air.location_index");
         B.addInt(getMetalAttrIndex(BufA->getIndex()));
         B.addInt(1);
         B.addStr("air.read");
         B.addStr("air.arg_type_name");
-        B.addStr(getMetalTypeName(Ty));
+        B.addStr(ASName);
         B.addStr("air.arg_name");
         B.addStr(PVD->getName());
         ArgNodes.push_back(B.finish());
@@ -1219,6 +1256,18 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
   //           !"early_fragment_tests"}
   if (FD->hasAttr<MetalEarlyFragmentTestsAttr>())
     FnNodeOps.push_back(llvm::MDString::get(Ctx, "early_fragment_tests"));
+
+  // A tessellation stage trails its patch description, naming the patch type
+  // and the control point count:
+  //   !{!"air.patch", !"triangle", !"air.patch_control_point", i32 3}
+  if (const auto *PA = FD->getAttr<MetalPatchAttr>()) {
+    MetalArgMetadataBuilder PB(Ctx);
+    PB.addStr("air.patch");
+    PB.addStr(PA->getPatchType() ? PA->getPatchType()->getName() : "triangle");
+    PB.addStr("air.patch_control_point");
+    PB.addInt(getMetalAttrIndex(PA->getControlPoints()));
+    FnNodeOps.push_back(PB.finish());
+  }
 
   llvm::NamedMDNode *N = getModule().getOrInsertNamedMetadata(StageMD);
   N->addOperand(llvm::MDNode::get(Ctx, FnNodeOps));

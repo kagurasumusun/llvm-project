@@ -9,6 +9,12 @@
 // RUN: %clang_cc1 -x metal -triple air64_v20-apple-macosx10.13.0 \
 // RUN:   -std=macos-metal1.1 -fsyntax-only -verify %s
 
+// `uint` and the vector types come from Apple's <metal_stdlib>, not from the
+// compiler; the reference AST dumps show them as ordinary typedefs. They are
+// declared here so the test does not need the real standard library.
+typedef unsigned int uint;
+typedef unsigned short ushort;
+
 struct S {
   int a [[id(0)]];
   // expected-error@-1 {{'id' attribute requires Metal language standard macos-metal2.0 or higher}}

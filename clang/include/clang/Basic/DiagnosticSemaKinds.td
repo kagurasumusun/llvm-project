@@ -11888,5 +11888,10 @@ def err_metal_resource_index_exceeds_max : Error<
   "%0 index %1 exceeds maximum allowed index %2">;
 def err_metal_duplicate_resource_index : Error<
   "%0 index %1 is used more than once">;
+// Every occurrence in the reference AST dumps writes the coherence qualifier
+// on top of a `device` qualifier (`const device coherent(device) Uniforms &`);
+// the corpus contains no other combination.
+def err_metal_coherent_requires_device : Error<
+  "'coherent' qualifier requires the 'device' address space">;
 
 } // end of sema component.

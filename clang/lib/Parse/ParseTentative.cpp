@@ -1482,6 +1482,23 @@ Parser::isCXXDeclarationSpecifier(ImplicitTypenameContext AllowImplicitTypename,
     // HLSL address space qualifiers
   case tok::kw_groupshared:
 
+    // Metal address space, coherence and entry point qualifiers. Without
+    // these the tentative parse does not recognise `void f(device float *p)`
+    // as a function declaration and falls back to parsing an expression.
+  case tok::kw_device:
+  case tok::kw_constant:
+  case tok::kw_threadgroup:
+  case tok::kw_thread:
+  case tok::kw_threadgroup_imageblock:
+  case tok::kw_ray_data:
+  case tok::kw_object_data:
+  case tok::kw_coherent:
+  case tok::kw_kernel:
+  case tok::kw_vertex:
+  case tok::kw_fragment:
+  case tok::kw_visible:
+  case tok::kw_stitchable:
+
     // GNU
   case tok::kw_restrict:
   case tok::kw__Complex:

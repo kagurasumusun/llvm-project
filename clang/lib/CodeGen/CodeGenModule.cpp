@@ -5005,8 +5005,14 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
     const auto *FCA = D->getAttr<MetalFunctionConstantAttr>();
     std::string Suffix;
     {
+      // The suffix is the Itanium code of the *unqualified* type: the corpus
+      // shows `_b` for `constant bool`, not `_U11MTLconstantb`. Apple records
+      // `_b`, `_i`, `_j` and `_f`, so the address space qualifier that the
+      // declaration carries has to be stripped first.
       llvm::raw_string_ostream Out(Suffix);
-      getCXXABI().getMangleContext().mangleTypeName(D->getType(), Out);
+      QualType Unqual = D->getType().getUnqualifiedType();
+      Unqual = getContext().removeAddrSpaceQualType(Unqual);
+      getCXXABI().getMangleContext().mangleTypeName(Unqual, Out);
     }
     StringRef S(Suffix);
     if (S.startswith("_ZTS"))

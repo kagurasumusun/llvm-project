@@ -6849,6 +6849,26 @@ static void HandleAddressSpaceTypeAttribute(QualType &Type,
     if (S.getLangOpts().Metal && ASIdx == LangAS::metal_thread)
       return;
 
+    // `coherent(device)` is written on top of an existing `device` qualifier
+    // rather than replacing it. Apple's mangling emits both, in that order:
+    //   _ZN8UniformsC1ERU9MTLdeviceU18MTLcoherent_deviceKS_
+    // so the pair collapses to the single metal_device_coherent space rather
+    // than tripping the conflicting-address-space diagnostic below.
+    if (S.getLangOpts().Metal &&
+        Attr.getParsedKind() == ParsedAttr::AT_MetalCoherent) {
+      LangAS Existing = Type.getAddressSpace();
+      if (Existing != LangAS::metal_device &&
+          Existing != LangAS::metal_device_coherent) {
+        S.Diag(Attr.getLoc(), diag::err_metal_coherent_requires_device);
+        Attr.setInvalid();
+        return;
+      }
+      if (Existing == LangAS::metal_device_coherent)
+        return;
+      Type = S.Context.removeAddrSpaceQualType(Type);
+      ASIdx = LangAS::metal_device_coherent;
+    }
+
     if (ASIdx == LangAS::Default)
       llvm_unreachable("Invalid address space");
 
@@ -8491,12 +8511,14 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     case ParsedAttr::AT_OpenCLGenericAddressSpace:
     case ParsedAttr::AT_HLSLGroupSharedAddressSpace:
     case ParsedAttr::AT_MetalDeviceAddressSpace:
-    case ParsedAttr::AT_MetalConstantAddressSpace:
     case ParsedAttr::AT_MetalThreadgroupAddressSpace:
     case ParsedAttr::AT_MetalThreadAddressSpace:
     case ParsedAttr::AT_MetalThreadgroupImageblockAddressSpace:
     case ParsedAttr::AT_MetalRayDataAddressSpace:
     case ParsedAttr::AT_MetalObjectDataAddressSpace:
+    // `coherent(device)` refines an existing `device` qualifier; see
+    // HandleAddressSpaceTypeAttribute.
+    case ParsedAttr::AT_MetalCoherent:
     case ParsedAttr::AT_AddressSpace:
       HandleAddressSpaceTypeAttribute(type, attr, state);
       attr.setUsedAsTypeAttr();

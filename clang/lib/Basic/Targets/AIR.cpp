@@ -85,7 +85,7 @@ void AIRTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (!Opts.Metal)
     return;
 
-  const unsigned MetalVersion = Opts.MetalVersion;
+  const unsigned MetalVersion = static_cast<unsigned>(Opts.getMetalVersion());
 
   // Apple's compiler splits its "which Metal is this" signalling in two,
   // measured in reference/metal-ast-macos-air64/driver/*.macros:

@@ -2271,6 +2271,10 @@ std::string Qualifiers::getAddrSpaceAsString(LangAS AS) {
     return "object_data";
   case LangAS::metal_ray_data:
     return "ray_data";
+  // The AST dumps spell this with both qualifiers, e.g.
+  // `const device coherent(device) Uniforms &`.
+  case LangAS::metal_device_coherent:
+    return "device coherent(device)";
   default:
     return std::to_string(toTargetAddressSpace(AS));
   }

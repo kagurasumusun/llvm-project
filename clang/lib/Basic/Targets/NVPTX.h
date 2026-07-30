@@ -52,6 +52,7 @@ static const unsigned NVPTXAddrSpaceMap[] = {
     0, // metal_threadgroup_imageblock
     0, // metal_object_data
     0, // metal_ray_data
+    0, // metal_device_coherent
 };
 
 /// The DWARF address class. Taken from

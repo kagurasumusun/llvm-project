@@ -101,6 +101,7 @@ static const unsigned AIRAddrSpaceMap[] = {
     4, // metal_threadgroup_imageblock
     6, // metal_object_data
     9, // metal_ray_data
+    1, // metal_device_coherent
 };
 
 class LLVM_LIBRARY_VISIBILITY AIRTargetInfo : public TargetInfo {

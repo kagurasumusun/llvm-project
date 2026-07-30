@@ -77,7 +77,8 @@ Sema::MetalShaderStage Sema::getMetalShaderStage(const FunctionDecl *FD) const {
 
 bool Sema::CheckMetalAttributeVersion(const ParsedAttr &AL,
                                       unsigned MinVersion) {
-  if (!MinVersion || getLangOpts().MetalVersion >= MinVersion)
+  if (!MinVersion ||
+      static_cast<unsigned>(getLangOpts().getMetalVersion()) >= MinVersion)
     return true;
   Diag(AL.getLoc(), diag::err_metal_attribute_requires_std)
       << AL << getMetalStandardName(MinVersion);
@@ -157,7 +158,13 @@ void Sema::CheckMetalVarDeclAddressSpace(VarDecl *VD) {
       VD->setInvalidDecl();
       return;
     }
-    if (!VD->hasInit() && !VD->hasExternalStorage()) {
+    // A `[[function_constant(N)]]` is deliberately uninitialised: the value is
+    // supplied at pipeline build time. Apple's output confirms it, emitting
+    // `@_ZL10use_path_a = ... addrspace(2) global i8 undef` with no
+    // initialiser and filling it in from an externally initialised
+    // placeholder in an `air.static_init` constructor.
+    if (!VD->hasInit() && !VD->hasExternalStorage() &&
+        !VD->hasAttr<MetalFunctionConstantAttr>()) {
       Diag(VD->getLocation(), diag::err_metal_constant_needs_init);
       VD->setInvalidDecl();
       return;
@@ -374,7 +381,10 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
     if (PVD->hasAttr<MetalBufferIndexAttr>()) {
       if (PTy->isPointerType() || PTy->isReferenceType()) {
         LangAS PointeeAS = PTy->getPointeeType().getAddressSpace();
+        // `device coherent(device) T` is a device buffer with an extra
+        // coherence qualifier, and binds exactly like a plain device one.
         if (PointeeAS != LangAS::metal_device &&
+            PointeeAS != LangAS::metal_device_coherent &&
             PointeeAS != LangAS::metal_constant) {
           Diag(PVD->getLocation(), diag::err_metal_invalid_buffer_pointee)
               << PTy->getPointeeType();

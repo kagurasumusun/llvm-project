@@ -1643,6 +1643,10 @@ private:
   /// Emit any needed decls for which code generation was deferred.
   void EmitDeferred();
 
+public:
+  // Metal Shading Language support, implemented in CGMetal.cpp. These are
+  // called from CodeGenFunction and from EmitGlobalVarDefinition, so they
+  // cannot live in the private section.
   /// Emit the module level `!air.*` metadata (version, language version,
   /// compile options, source file name) and the AIR resource limit module
   /// flags. Implemented in CGMetal.cpp.
@@ -1683,6 +1687,9 @@ private:
   /// The `[[function_constant]]` variables seen so far, in declaration order.
   llvm::SmallVector<std::pair<const VarDecl *, llvm::GlobalVariable *>, 4>
       MetalFunctionConstants;
+
+
+private:
 
   /// Try to emit external vtables as available_externally if they have emitted
   /// all inlined virtual functions.  It runs after EmitDeferred() and therefore

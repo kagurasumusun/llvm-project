@@ -6,6 +6,12 @@
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
 // RUN:   -std=metal4.0 -fsyntax-only -verify %s
 
+// `uint` and the vector types come from Apple's <metal_stdlib>, not from the
+// compiler; the reference AST dumps show them as ordinary typedefs. They are
+// declared here so the test does not need the real standard library.
+typedef unsigned int uint;
+typedef unsigned short ushort;
+
 kernel int bad_kernel_return() { // expected-error {{invalid return type 'int' for kernel function}}
   return 0;
 }
