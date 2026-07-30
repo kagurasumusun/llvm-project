@@ -79,14 +79,18 @@ for test in "$TESTDIR"/*.metal; do
     fail=$((fail + 1))
     failed+=("$name")
     echo "FAIL: $name"
-    echo "::error::FAIL: $name"
     echo "::group::$name"
     printf '%s\n' "$cmd"
-    printf '%s\n' "$out" | head -30
+    printf '%s\n' "$out" | head -40
     echo "::endgroup::"
-    printf '%s\n' "$out" | grep -E 'error:' | head -3 | while IFS= read -r l; do
-      printf '::error::%s\n' "${l:0:400}"
-    done
+    # One annotation per failing test, carrying its first real diagnostic.
+    # GitHub caps how many annotations it keeps, so the test name and the
+    # reason go in the same line rather than as separate entries.
+    reason=$(printf '%s\n' "$out" \
+             | grep -E 'error:' \
+             | grep -vE '^\s*(check|label|dag|next|not):' \
+             | head -1)
+    printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
   fi
 done
 
@@ -95,5 +99,9 @@ echo "Passed: $pass  Failed: $fail"
 if [ "$fail" -gt 0 ]; then
   printf 'Failed tests:\n'
   printf '  %s\n' "${failed[@]}"
+  # A single annotation listing every failure, so the set is visible even
+  # when the per-test ones get truncated.
+  printf '::error::%d/%d failed: %s\n' "$fail" "$((pass + fail))" "${failed[*]}"
   exit 1
 fi
+printf '::notice::all %d tests passed\n' "$pass"

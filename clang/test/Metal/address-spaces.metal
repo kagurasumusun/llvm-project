@@ -19,5 +19,5 @@ kernel void as_kernel(device int *d [[buffer(0)]],
 }
 
 // `thread` is the default address space and is therefore unqualified.
-// CHECK-LABEL: define {{.*}}@thread_ptr
+// CHECK-LABEL: define {{.*}}@thread_load
 int thread_load(thread int *p) { return *p; }
