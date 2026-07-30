@@ -845,7 +845,27 @@ std::string CodeGenModule::getMetalTypeName(QualType Ty) {
   PrintingPolicy Policy = C.getPrintingPolicy();
   Policy.SuppressScope = true;
   Policy.SuppressTagKeyword = true;
-  return Ty.getAsString(Policy);
+
+  // Defaulted template arguments have to be printed, not elided. Every one of
+  // the 139 distinct air.arg_type_name spellings in the reference corpus
+  // states the access mode -- "texture2d<float, sample>", never
+  // "texture2d<float>" -- and `sample` is the default for the sampling
+  // textures, `read` for the others. Without this the metadata silently
+  // disagrees with what the runtime expects.
+  Policy.SuppressDefaultTemplateArgs = false;
+
+  std::string Name = Ty.getAsString(Policy);
+
+  // The printer writes enumerators qualified by their scope. Apple records
+  // the bare name: "texture2d<float, sample>", not
+  // "texture2d<float, access::sample>".
+  for (StringRef Scope : {"access::", "coherence::", "memory_coherence::"}) {
+    std::string S = Scope.str();
+    for (size_t At = Name.find(S); At != std::string::npos;
+         At = Name.find(S, At))
+      Name.erase(At, S.size());
+  }
+  return Name;
 }
 
 /// Build the `generated(...)` connection identifier that links a vertex output
