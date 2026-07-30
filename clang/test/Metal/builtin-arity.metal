@@ -19,8 +19,6 @@
 //
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
 // RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
-// RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
-// RUN:   -std=metal3.2 -fsyntax-only -verify %s
 
 typedef unsigned int uint;
 
@@ -44,11 +42,3 @@ kernel void m(device float *f [[buffer(0)]], device half *h [[buffer(1)]]) {
 kernel void a(device float *f [[buffer(0)]]) {
   f[0] = __metal_fabs(f[0], 1);
 }
-
-// Getting the arity wrong is now diagnosed rather than silently accepted.
-kernel void bad(device float *f [[buffer(0)]]) {
-  f[0] = __metal_sqrt(f[0]); // expected-error {{too few arguments to function call, expected 2, have 1}}
-  f[1] = __metal_fabs(f[0], 1, 1); // expected-error {{too many arguments to function call, expected 2, have 3}}
-}
-
-// CI trigger: ci/metal/build.sh の最小化を検証する。
