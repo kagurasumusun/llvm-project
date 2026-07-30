@@ -82,6 +82,22 @@
 #   * CLANG_INCLUDE_TESTS, INSTALL_UTILS, EXPORT_COMPILE_COMMANDS,
 #     install rules: build-graph clutter that is never reached.
 #
+# Where the remaining 2218 steps go, and why none of it is reachable from a
+# cmake flag -- each of these is named in a CMakeLists LLVM_LINK_COMPONENTS
+# list, so the dependency is structural:
+#
+#   lib/Transforms      270  clangCodeGen links IPO, InstCombine, Passes, LTO
+#   lib/CodeGen         220  ditto
+#   lib/DebugInfo       171  clang links CodeView/DWARF/MSF/PDB; PDB alone is
+#                            93 steps of Windows-only debug format, and
+#                            LLVM_ENABLE_BACKTRACES=OFF does not shift it
+#   lib/Support         149
+#   lib/Analysis        121
+#   clang/lib/AST       101
+#   utils/TableGen       84  needed to generate the 76 .inc files
+#
+# Dropping these would mean editing CMakeLists, not configuring differently.
+#
 # What could not be dropped:
 #
 #   * lib/DebugInfo (171 steps). clangCodeGen emits debug info, so the DWARF
@@ -95,10 +111,13 @@ set -uo pipefail
 BUILD_DIR=${BUILD_DIR:-build}
 STDLIB_DIR=${STDLIB_DIR:-/tmp/metal-info}
 JOBS=${JOBS:-$(nproc)}
-# Links are memory hungry. The hosted ARM runner has 4 vCPUs but 16 GB, and
-# linking several LLVM shared libraries at once exhausted it -- the build died
-# with exit 139 (SIGSEGV) partway through. Compiles stay at full width.
-LINK_JOBS=${LINK_JOBS:-1}
+# Compiles run at full width; links are throttled separately. The SIGSEGV that
+# forced this was caused by linking several *shared* LLVM libraries at once,
+# and those are no longer built at all.
+# 2 rather than 1: with the aggregate shared libraries gone the only heavy
+# link left is the clang executable itself, and 67 static archives that cost
+# almost nothing. Serialising all of them was over-cautious.
+LINK_JOBS=${LINK_JOBS:-2}
 
 # Re-emit diagnostics as workflow annotations. The raw job log is served from
 # Azure Blob storage, which is not always reachable from where these logs get
