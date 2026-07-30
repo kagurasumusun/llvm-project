@@ -1,20 +1,18 @@
 name: Metal frontend build and test
 
-# A thin wrapper. Every step just calls into ci/metal/build.sh, and all of the
-# real logic -- cmake flags, which target to build, how the stdlib is fetched,
-# how diagnostics are surfaced -- lives there.
+# A thin wrapper: every step calls into ci/metal/build.sh, and all of the real
+# logic lives there. That split exists because .github/workflows/ is
+# write-protected for GitHub Apps, so keeping this file down to a list of
+# invocations means the pipeline can change without editing a protected file.
 #
-# That split is deliberate. GitHub refuses writes to .github/workflows/ from
-# any GitHub App that lacks the `workflows` permission, and neither the agent
-# working on this repository nor the built-in GITHUB_TOKEN can hold it (the
-# github-actions bot cannot be granted it at all). Anything outside that
-# directory is unrestricted, so keeping this file down to a list of script
-# invocations means the pipeline can be changed without a human having to
-# hand-edit a protected file. This file should only need to change when a
-# step is added or removed.
-#
-# Speed comes from: ubuntu-24.04-arm (4 vCPUs rather than the 2 on the free
-# x86 runners), mold, ccache, and a minimal cmake configuration.
+# Ordering and failure handling are deliberate:
+#   * the cache is pruned before it is restored, so there is room to save into;
+#   * ccache is saved with if: always(), so a red build still warms the next
+#     run instead of throwing the work away;
+#   * the smoke test runs with if: always() too -- if the build fell over it
+#     will simply fail, but when only lit is red it still proves the compiler
+#     works end to end;
+#   * logs are uploaded on failure, so a failed run is still evidence.
 
 on:
   push:
@@ -38,12 +36,16 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write        # required to evict old cache entries
 
 jobs:
   build:
     name: build clang and run clang/test/Metal
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 180
+    timeout-minutes: 120
+
+    env:
+      CCACHE_KEY: metal-ccache-${{ runner.os }}-${{ runner.arch }}
 
     steps:
       - name: Check out
@@ -51,38 +53,28 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Independent of the build, and the slowest non-build step, so it goes
+      # first while nothing depends on it yet.
       - name: Install toolchain
         run: ci/metal/build.sh deps
 
-      - name: Fetch the Apple standard library
-        id: stdlib
-        continue-on-error: true
-        run: ci/metal/build.sh stdlib
-
+      # Before the restore: the repository cache was full of other branches'
+      # entries, which is why saves were failing and every run started cold.
       - name: Make room in the cache
-        # The repository cache is capped at 10 GB and was sitting at 9.8 GB of
-        # entries from other branches, so every save here failed with
-        # "Cache save failed" and the build never got a warm cache. Evict the
-        # least recently used entries belonging to branches that no longer
-        # exist, plus older duplicates of this branch's own key.
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: ci/metal/build.sh prune-cache
 
       - name: Restore ccache
-        # restore + save rather than the combined action. actions/cache only
-        # writes its entry in a post step, and that post step is skipped when
-        # the job fails -- so while the lit stage was red the cache was never
-        # written and every run recompiled LLVM from scratch. Checked against
-        # the API: this branch had zero cache entries. Saving explicitly, right
-        # after the build and with if: always(), decouples the two.
+        # restore + save rather than the combined action: actions/cache only
+        # writes in a post step, and that post step is skipped when the job
+        # fails. While lit was red the cache was never written at all.
         uses: actions/cache/restore@v4
         with:
           path: ~/.ccache
-          key: metal-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
-          restore-keys: |
-            metal-ccache-${{ runner.os }}-${{ runner.arch }}-
+          key: ${{ env.CCACHE_KEY }}-${{ github.sha }}
+          restore-keys: ${{ env.CCACHE_KEY }}-
 
       - name: Configure ccache
         run: |
@@ -91,45 +83,49 @@ jobs:
           ccache --set-config=sloppiness=pch_defines,time_macros,include_file_mtime,include_file_ctime
           ccache --zero-stats
 
+      # Fetched while the cache is warming; nothing before the smoke test
+      # needs it.
+      - name: Fetch the Apple standard library
+        continue-on-error: true
+        run: ci/metal/build.sh stdlib
+
       - name: Configure
         run: ci/metal/build.sh configure
 
-      - name: Build TableGen output first
-        run: ci/metal/build.sh tablegen
-
-      - name: Build clang and test tools
+      # One ninja invocation. TableGen output is ordered ahead of its consumers
+      # by the dependency graph, so a separate pass just costs a second start.
+      - name: Build
+        id: build
         run: ci/metal/build.sh build
 
       - name: ccache statistics
         if: always()
         run: ccache --show-stats
 
+      # Unconditional: a partial cache from a failed build still saves most of
+      # the next run. The run id keeps re-runs of one commit from colliding.
       - name: Save ccache
-        # The key carries the run id as well as the sha: a re-run of the same
-        # commit would otherwise collide with the entry the first attempt
-        # already wrote, and the save fails with "Cache save failed".
-        # restore-keys above matches on the prefix, so the extra suffix costs
-        # nothing on the way back in.
         if: always()
         uses: actions/cache/save@v4
         with:
           path: ~/.ccache
-          key: metal-ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}-${{ github.run_id }}
+          key: ${{ env.CCACHE_KEY }}-${{ github.sha }}-${{ github.run_id }}
 
       - name: Smoke test the Metal frontend
+        if: always() && steps.build.outcome == 'success'
         run: ci/metal/build.sh smoke
 
       - name: Run clang/test/Metal
+        if: always() && steps.build.outcome == 'success'
         run: ci/metal/build.sh test
 
-      - name: Upload logs on failure
-        if: failure()
+      - name: Upload logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: metal-build-logs
+          name: metal-logs-${{ github.run_id }}
           path: |
             /tmp/build.log
             /tmp/lit.log
-            /tmp/tblgen.log
           if-no-files-found: ignore
           retention-days: 7
