@@ -59,6 +59,7 @@ for test in "$TESTDIR"/*.metal; do
 
   ok=1
   out=""
+  failed_cmd=""
   for cmd in "${cmds[@]}"; do
     # The two substitutions these tests use. %clang_cc1 has to be expanded
     # before %s, or the path would be rewritten inside it.
@@ -68,6 +69,15 @@ for test in "$TESTDIR"/*.metal; do
 
     if ! out=$(eval "$cmd" 2>&1); then
       ok=0
+      failed_cmd=$cmd
+      # A pipeline into FileCheck hides why the compiler produced nothing, so
+      # when that happens re-run just the compiler half to get its diagnostics.
+      case "$cmd" in
+        *"| $FILECHECK"*|*"|$FILECHECK"*)
+          compile_only=${cmd%%|*}
+          out="$out"$'\n'"--- compiler output alone ---"$'\n'"$(eval "$compile_only" 2>&1 | head -20)"
+          ;;
+      esac
       break
     fi
   done
@@ -80,7 +90,7 @@ for test in "$TESTDIR"/*.metal; do
     failed+=("$name")
     echo "FAIL: $name"
     echo "::group::$name"
-    printf '%s\n' "$cmd"
+    printf '%s\n' "$failed_cmd"
     printf '%s\n' "$out" | head -40
     echo "::endgroup::"
     # One annotation per failing test, carrying its first real diagnostic.

@@ -16,7 +16,7 @@
 
 kernel void m(device float *f [[buffer(0)]], device half *h [[buffer(1)]]) {
   // CHECK: call{{.*}}@air.fast_sqrt.f32
-  f[0] = __metal_sqrt(f[0]);
+  f[0] = __metal_sqrt(f[0], 1);
   // CHECK: call{{.*}}@air.sqrt.f16
-  h[0] = __metal_sqrt(h[0]);
+  h[0] = __metal_sqrt(h[0], 1);
 }

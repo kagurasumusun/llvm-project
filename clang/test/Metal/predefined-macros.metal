@@ -10,20 +10,21 @@
 // RUN:   -std=macos-metal1.1 -E -dM %s | FileCheck --check-prefix=METAL11 %s
 
 // MSL 3.0 and later identify themselves with __METAL__ and no __METAL_MACOS__.
-// METAL40: #define __AIR64__ 1
-// METAL40: #define __AIR_VERSION__ 20800
-// METAL40: #define __METAL_VERSION__ 400
-// METAL40: #define __METAL__ 1
+// METAL40-DAG: #define __AIR64__ 1
+// METAL40-DAG: #define __AIR_VERSION__ 20800
+// METAL40-DAG: #define __METAL_VERSION__ 400
+// METAL40-DAG: #define __METAL__ 1
 // METAL40-NOT: #define __METAL_MACOS__
 
 // The versioned standards do the opposite: __METAL_MACOS__ and no __METAL__.
 // This distinction is what <metal_config> keys its __HAVE_* capability macros
 // off, so getting it wrong silently disables every capability macro.
-// METAL11: #define __AIR_VERSION__ 20000
-// METAL11: #define __METAL_MACOS__ 1
-// METAL11: #define __METAL_VERSION__ 110
+// METAL11-DAG: #define __AIR_VERSION__ 20000
+// METAL11-DAG: #define __METAL_MACOS__ 1
+// METAL11-DAG: #define __METAL_VERSION__ 110
 // METAL11-NOT: #define __METAL__ 1
 
 // Enumeration value macros are version independent.
-// METAL40: #define __METAL_ACCESS_READ_WRITE__ 3
-// METAL40: #define __METAL_MEMORY_SCOPE_THREADGROUP__ 1
+// -dM output is emitted in alphabetical order, so these have to be DAG.
+// METAL40-DAG: #define __METAL_ACCESS_READ_WRITE__ 3
+// METAL40-DAG: #define __METAL_MEMORY_SCOPE_THREADGROUP__ 1
