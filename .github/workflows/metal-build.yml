@@ -58,7 +58,20 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
         with:
+          # Blobless and sparse: the tree is 1.5 GB checked out in full, and
+          # the build only reads llvm/, clang/, cmake/ and .github/. Filtering
+          # the blobs means git fetches file contents on demand rather than
+          # all of history's, and the sparse cone keeps mlir, lldb, libcxx,
+          # compiler-rt, flang and the rest -- 384 MB -- off the runner
+          # entirely.
           fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            llvm
+            clang
+            cmake
+            ci
+          sparse-checkout-cone-mode: true
           # On a workflow_run trigger the default checkout is the default
           # branch, not the branch that was synced, so name it explicitly.
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
