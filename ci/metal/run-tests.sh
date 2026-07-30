@@ -121,24 +121,24 @@ $(eval "$compile_only" 2>&1 | head -25)"
     if [ -z "$reason" ]; then
       reason=$(printf '%s\n' "$out" | head -1)
     fi
-    printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
     # A clang crash prints a stack dump; the frame list is what identifies
-    # the bug, so it goes FIRST among the annotations. GitHub keeps only a
-    # handful of error annotations per step, so the pretty-stack trace entries
-    # (which name only the declaration, not the crashing function) come after.
-    # Nothing else can be read back: the raw log lives in Azure Blob storage
-    # and is unreachable from some environments.
-    printf '%s\n' "$out" \
-      | grep -E '^ *#[0-9]+ ' \
-      | c++filt \
-      | head -8 | while IFS= read -r l; do
-          printf '::error::  %s | FRAME %s\n' "$name" "${l:0:280}"
-        done
-    printf '%s\n' "$out" \
-      | grep -E '^[0-9]+\.|Stack dump|Assertion|error:|warning:|note:' \
-      | head -8 | while IFS= read -r l; do
-          printf '::error::  %s | %s\n' "$name" "${l:0:280}"
-        done
+    # the bug. GitHub keeps only a handful of error annotations per step, so
+    # the top frames are compressed into this one annotation instead of one
+    # annotation per frame: drop addresses, namespaces and argument lists,
+    # join what is left with '<' (innermost frame first). The raw log cannot
+    # be fetched from some environments -- Azure Blob EOFs -- so the
+    # annotation IS the backtrace.
+    if printf '%s\n' "$out" | grep -qE 'Stack dump|PLEASE submit a bug report'; then
+      frames=$(printf '%s\n' "$out" \
+               | grep -E '^ *#[0-9]+ ' \
+               | c++filt \
+               | sed -E 's/^ *//; s/0x[0-9a-f]+//g; s/clang::|llvm:://g; s/ \([^)]*\)//g; s/ [^ ]+\.(cpp|h|inc):[0-9]+:[0-9]+//g; s/  +/ /g' \
+               | head -14 \
+               | paste -sd' < ' -)
+      printf '::error::CRASH %s :: %s\n' "$name" "${frames:0:290}"
+    else
+      printf '::error::FAIL %s :: %s\n' "$name" "${reason:0:300}"
+    fi
     # "FileCheck error: '<stdin>' is empty" says nothing about why the
     # compiler produced no output, so surface the compiler's own diagnostics
     # as annotations too -- the raw log cannot be fetched from here.
