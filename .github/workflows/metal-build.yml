@@ -39,10 +39,6 @@ on:
     types: [completed]
     branches: ['arena/**']
 
-concurrency:
-  group: metal-build-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
   actions: write
