@@ -4970,6 +4970,11 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (getLangOpts().Metal)
+    llvm::errs() << "MBE: EmitCallExpr retty=" << E->getType().getAsString()
+                 << " calleety="
+                 << E->getCallee()->getType().getAsString() << '\n';
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);
@@ -4985,7 +4990,12 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
           dyn_cast_or_null<CXXMethodDecl>(CE->getCalleeDecl()))
       return EmitCXXOperatorMemberCallExpr(CE, MD, ReturnValue);
 
+  if (getLangOpts().Metal)
+    llvm::errs() << "MBE: before EmitCallee\n";
   CGCallee callee = EmitCallee(E->getCallee());
+  if (getLangOpts().Metal)
+    llvm::errs() << "MBE: after EmitCallee builtin=" << callee.isBuiltin()
+                 << '\n';
 
   if (callee.isBuiltin()) {
     return EmitBuiltinExpr(callee.getBuiltinDecl(), callee.getBuiltinID(),
