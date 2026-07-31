@@ -13,9 +13,14 @@
 #   prune-cache evict old Actions cache entries to stay under the 10 GB cap
 #   stdlib      fetch Apple's <metal_stdlib> headers from metal-info
 #   configure   run cmake
-#   build       build clang and the two tools lit insists on
-#   smoke       compile a kernel end to end
-#   test        run clang/test/Metal
+#   build         build clang, FileCheck and llvm-metallib
+#   smoke         compile a kernel end to end
+#   test          run clang/test/Metal
+#   air           compile the triangle shader to .air with the full driver
+#   deps-macos    install ninja/ccache on the macOS runner
+#   metallib-tool build llvm-metallib alone (macOS job; clang not rebuilt)
+#   metallib      wrap the .air into triangle.metallib with llvm-metallib
+#   app           build the unsigned iOS device app around the container
 #
 # What is deliberately *not* built:
 #
@@ -112,12 +117,16 @@ set -uo pipefail
 
 BUILD_DIR=${BUILD_DIR:-build}
 STDLIB_DIR=${STDLIB_DIR:-/tmp/metal-info}
+# AIR input for the macOS job: the Linux job leaves the compiled triangle
+# shader here, and the upload artifact is taken from the same directory.
+ARTIFACT_DIR=${ARTIFACT_DIR:-artifacts}
 # Oversubscribe the compile jobs. A C++ compile is not CPU-bound the whole
 # time -- it waits on the filesystem for headers, and on a ccache hit it does
 # almost nothing but read and write -- so running more jobs than cores keeps
 # all four busy. 16 GB across 6 jobs leaves well over 2 GB each, which is
 # ample for clang translation units at -g0.
-JOBS=${JOBS:-$(( $(nproc) + 2 ))}
+# nproc is Linux; the macOS job asks sysctl instead.
+JOBS=${JOBS:-$(( $(nproc 2>/dev/null || sysctl -n hw.ncpu) + 2 ))}
 # Compiles run at full width; links are throttled separately. The SIGSEGV that
 # forced this was caused by linking several *shared* LLVM libraries at once,
 # and those are no longer built at all.
@@ -222,8 +231,16 @@ stage_stdlib() {
 
 stage_configure() {
   # The triple only has to be well-formed; no backend stands behind it.
+  # On the macOS runner the same holds: LLVM_TRIPLE is set to the host.
   local triple="${LLVM_TRIPLE:-$(uname -m)-unknown-linux-gnu}"
   echo "triple=$triple targets=<none>"
+
+  # mold is Linux-only; the macOS configure passes LLVM_LINKER= (empty) and
+  # uses the stock Xcode linker instead.
+  local linker_flags=()
+  if [ -n "${LLVM_LINKER-mold}" ]; then
+    linker_flags=(-DLLVM_USE_LINKER="${LLVM_LINKER-mold}")
+  fi
 
   cmake -G Ninja -S llvm -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
@@ -249,8 +266,9 @@ stage_configure() {
     -DCMAKE_EXPORT_COMPILE_COMMANDS=OFF \
     -DCMAKE_SKIP_INSTALL_RULES=ON \
     -DCLANG_INCLUDE_TESTS=OFF \
-    -DLLVM_USE_LINKER=mold \
     -DLLVM_PARALLEL_LINK_JOBS="$LINK_JOBS" \
+    "${linker_flags[@]}" \
+    -DLLVM_TOOL_LLVM_METALLIB_BUILD=ON \
     -DLLVM_BUILD_LLVM_DYLIB=OFF \
     -DLLVM_LINK_LLVM_DYLIB=OFF \
     -DCLANG_LINK_CLANG_DYLIB=OFF \
@@ -401,9 +419,10 @@ stage_configure() {
 }
 
 # One ninja invocation for everything. `clang` pulls in the TableGen outputs
-# it needs, in the right order, on its own.
+# it needs, in the right order, on its own. llvm-metallib rides along so the
+# Linux leg also proves the container writer links and runs there.
 stage_build() {
-  ninja -C "$BUILD_DIR" -j"$JOBS" clang FileCheck 2>&1 | tee /tmp/build.log
+  ninja -C "$BUILD_DIR" -j"$JOBS" clang FileCheck llvm-metallib 2>&1 | tee /tmp/build.log
   local rc=${PIPESTATUS[0]}
   if [ "$rc" -ne 0 ]; then
     echo "::group::first errors"
@@ -444,16 +463,135 @@ stage_test() {
   ci/metal/run-tests.sh clang/test/Metal "$BUILD_DIR"
 }
 
+# Compile the triangle shader with the full driver (the same pipeline Apple
+# runs through `metal`, ending at the backend because TY_Metal stops there).
+# -emit-llvm keeps the backend output in bitcode form, which is precisely
+# what a .air file is. This is the only stage that leaves the script's own
+# tree: the macOS job downloads artifacts/triangle.air and never rebuilds
+# clang.
+stage_air() {
+  local clang="./$BUILD_DIR/bin/clang"
+  local src=ci/metal/ios-triangle/triangle.metal
+  [ -x "$clang" ] || { echo "::error::clang missing: $clang"; return 1; }
+  mkdir -p "$ARTIFACT_DIR"
+
+  "$clang" -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+    -emit-llvm -c "$src" -o "$ARTIFACT_DIR/triangle.air"
+
+  # A .air is raw bitcode: BC c0 de as the first four bytes.
+  if ! od -A n -t x1 -N 4 "$ARTIFACT_DIR/triangle.air" 2>/dev/null \
+      | grep -qi '42 43 c0 de'; then
+    echo "::error::$ARTIFACT_DIR/triangle.air is not raw bitcode"
+    return 1
+  fi
+  ls -l "$ARTIFACT_DIR/triangle.air"
+}
+
+stage_deps_macos() {
+  # The runner image ships cmake and Xcode; ninja and ccache do not.
+  HOMEBREW_NO_AUTO_UPDATE=1 brew install ninja ccache || {
+    echo "::error::brew install ninja ccache failed"
+    return 1
+  }
+  echo "cpus=$(sysctl -n hw.ncpu) mem=$(( $(sysctl -n hw.memsize) / 1073741824 ))GB"
+  xcodebuild -version || true
+}
+
+# The macOS job builds only the container writer, not clang: the compiler is
+# Linux-leg output and has already been exercised by the test suite. The dep
+# chain llvm-metallib pulls is tblgen + Support/Core/IR/Bit*/Linker/Object,
+# a few hundred files rather than thousands.
+stage_metallib_tool() {
+  ninja -C "$BUILD_DIR" -j"$JOBS" llvm-metallib 2>&1 | tee /tmp/build-macos.log
+  local rc=${PIPESTATUS[0]}
+  if [ "$rc" -ne 0 ]; then
+    echo "::group::first errors"
+    grep -nE 'error:|FAILED:' /tmp/build-macos.log | head -40
+    echo "::endgroup::"
+    annotate_errors /tmp/build-macos.log
+  fi
+  return "$rc"
+}
+
+stage_metallib() {
+  local tool="./$BUILD_DIR/bin/llvm-metallib"
+  local air="$ARTIFACT_DIR/triangle.air"
+  local out="$ARTIFACT_DIR/triangle.metallib"
+  [ -x "$tool" ] || { echo "::error::llvm-metallib missing: $tool"; return 1; }
+  [ -f "$air" ] || { echo "::error::downloaded .air missing: $air"; return 1; }
+
+  "$tool" -o "$out" "$air"
+
+  # Single-slice container: MTLB as the first four bytes.
+  if ! od -A n -t x1 -N 4 "$out" 2>/dev/null | grep -qi '4d 54 4c 42'; then
+    echo "::error::$out is missing the MTLB header"
+    return 1
+  fi
+  ls -l "$out"
+}
+
+# Assemble the unsigned iOS device app. Signing is deliberately absent from
+# this stage: the contract of this job is an unsigned device binary, so there
+# is no codesign invocation at all. (An unsigned device app cannot be
+# installed by ordinary means; it exists to prove the artifact chain, and to
+# be signed later by whatever process owns the signing identity.)
+stage_app() {
+  local src=ci/metal/ios-triangle
+  local app="$ARTIFACT_DIR/TriangleApp.app"
+  local bin="$ARTIFACT_DIR/TriangleApp"
+  local lib="$ARTIFACT_DIR/triangle.metallib"
+
+  xcodebuild -version | tee /dev/stderr | grep -q '^Xcode 26\.' || {
+    echo "::error::active DEVELOPER_DIR is not an Xcode 26.x toolchain"
+    return 1
+  }
+
+  local sdk
+  sdk=$(xcrun --sdk iphoneos --show-sdk-path)
+  echo "iphoneos sdk: $sdk"
+
+  # Device target only: arm64 iPhoneOS at the iOS 26 deployment target --
+  # no simulator slice is produced anywhere in this pipeline.
+  xcrun --sdk iphoneos swiftc -O \
+    -target arm64-apple-ios26.0 \
+    -sdk "$sdk" \
+    -module-name TriangleApp \
+    "$src/Sources/AppDelegate.swift" \
+    "$src/Sources/TriangleViewController.swift" \
+    -o "$bin" || {
+    echo "::error::swiftc failed"
+    return 1
+  }
+
+  [ -f "$lib" ] || { echo "::error::container missing: $lib"; return 1; }
+  rm -rf "$app"
+  mkdir -p "$app"
+  cp "$bin" "$app/TriangleApp"
+  cp "$src/Info.plist" "$app/Info.plist"
+  cp "$lib" "$app/triangle.metallib"
+
+  plutil -lint "$app/Info.plist"
+  file "$app/TriangleApp"
+
+  (cd "$ARTIFACT_DIR" && zip -qry TriangleApp-unsigned.zip TriangleApp.app)
+  ls -l "$app" "$ARTIFACT_DIR/TriangleApp-unsigned.zip"
+}
+
 case "${1:-}" in
-  deps)         stage_deps ;;
-  prune-cache)  stage_prune_cache ;;
-  stdlib)       stage_stdlib ;;
-  configure)    stage_configure ;;
-  build)        stage_build ;;
-  smoke)        stage_smoke ;;
-  test)         stage_test ;;
+  deps)           stage_deps ;;
+  prune-cache)    stage_prune_cache ;;
+  stdlib)         stage_stdlib ;;
+  configure)      stage_configure ;;
+  build)          stage_build ;;
+  smoke)          stage_smoke ;;
+  test)           stage_test ;;
+  air)            stage_air ;;
+  deps-macos)     stage_deps_macos ;;
+  metallib-tool)  stage_metallib_tool ;;
+  metallib)       stage_metallib ;;
+  app)            stage_app ;;
   *)
-    echo "usage: $0 {deps|prune-cache|stdlib|configure|build|smoke|test}" >&2
+    echo "usage: $0 {deps|prune-cache|stdlib|configure|build|smoke|test|air|deps-macos|metallib-tool|metallib|app}" >&2
     exit 2
     ;;
 esac
