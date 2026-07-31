@@ -2651,6 +2651,44 @@ void CastOperation::checkAddressSpaceCast(QualType SrcType, QualType DestType) {
   }
 }
 
+void CastOperation::checkMetalCastAddrSpace(QualType SrcType,
+                                            QualType DestType, bool IsCStyle) {
+  if (!Self.getLangOpts().Metal)
+    return;
+  const PointerType *SrcPtrType = SrcType->getAs<PointerType>();
+  if (!SrcPtrType)
+    return;
+  const PointerType *DestPtrType = DestType->getAs<PointerType>();
+  if (!DestPtrType)
+    return;
+
+  // Metal address spaces are disjoint: there is no generic address space,
+  // so an explicit conversion between pointers whose pointees live in
+  // different address spaces is ill-formed. `thread` is the default address
+  // space and therefore carries no qualifier, so an unqualified pointee
+  // compares unequal to a pointee in any named address space — exactly the
+  // measured behavior for `(device int *)&thread_var`:
+  //   C-style cast from 'int *' to 'device int *' converts between
+  //   mismatching address spaces
+  if (SrcPtrType->getPointeeType().getAddressSpace() ==
+      DestPtrType->getPointeeType().getAddressSpace())
+    return;
+
+  if (IsCStyle) {
+    // Measured wording (docs-metal/data/metal_diagnostics.csv).
+    Self.Diag(OpRange.getBegin(), diag::err_metal_cstyle_cast_addrspace)
+        << SrcType << DestType << SrcExpr.get()->getSourceRange();
+  } else {
+    // reinterpret_cast is rejected with the generic bad-cast message, again
+    // as measured: "reinterpret_cast from 'int *' to 'device int *' is not
+    // allowed".
+    Self.Diag(OpRange.getBegin(), diag::err_bad_cxx_cast_generic)
+        << CT_Reinterpret << SrcType << DestType << OpRange
+        << SrcExpr.get()->getSourceRange();
+  }
+  SrcExpr = ExprError();
+}
+
 bool Sema::ShouldSplatAltivecScalarInCast(const VectorType *VecTy) {
   bool SrcCompatXL = this->getLangOpts().getAltivecSrcCompat() ==
                      LangOptions::AltivecSrcCompatKind::XL;
@@ -2744,6 +2782,15 @@ void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
       return;
     }
   }
+
+  // Metal rejects casts between mismatching address spaces with its own
+  // measured wording; the check must run before the const/static/reinterpret
+  // cascade below, which would otherwise accept the conversion as a plain
+  // bitcast (TryAddressSpaceCast is a no-op outside OpenCL/SYCL).
+  checkMetalCastAddrSpace(SrcExpr.get()->getType(), DestType,
+                          /*IsCStyle=*/true);
+  if (SrcExpr.isInvalid())
+    return;
 
   // C++ [expr.cast]p5: The conversions performed by
   //   - a const_cast,
@@ -2923,9 +2970,6 @@ void CastOperation::CheckCStyleCast() {
   assert(!SrcType->isPlaceholderType());
 
   checkAddressSpaceCast(SrcType, DestType);
-  if (SrcExpr.isInvalid())
-    return;
-  checkMetalCastAddrSpace(SrcType, DestType, /*IsCStyle=*/true);
   if (SrcExpr.isInvalid())
     return;
 
