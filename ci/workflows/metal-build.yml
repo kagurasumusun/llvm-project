@@ -128,9 +128,9 @@ jobs:
       # Unconditional: a partial cache from a failed build still saves most of
       # the next run. The run id keeps re-runs of one commit from colliding.
       - name: Save ccache
-        # Only save when the clang+llvm build passed.  A cache written from
-        # a broken build corrupts the content-addressed key for all branches.
-        if: always() && steps.build.outcome == 'success'
+        # Save when the clang+llvm build attempted (not skipped), even on
+        # failure: a partial build cache still speeds up the next iteration.
+        if: always() && steps.build.outcome != 'skipped'
         uses: actions/cache/save@v4
         continue-on-error: true
         with:

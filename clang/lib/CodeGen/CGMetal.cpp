@@ -1620,26 +1620,17 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
   // dimensions.  1 occurrence in the reference corpus:
   //   !{!"air.mesh_type_info", !N, !N, i32 8, i32 4, !"air.triangle"}
   if (FD->hasAttr<MetalMeshAttr>()) {
-    // Mesh stages carry mesh_type_info with the actual output mesh
-    // dimensions taken from [[required_threads_per_threadgroup]] or
-    // [[max_total_threads_per_threadgroup]] when available.
-    unsigned MeshX = 8, MeshY = 4;
-    if (const auto *RT = FD->getAttr<MetalRequiredThreadsPerThreadgroupAttr>()) {
-      MeshX = CGM.getMetalAttrIndex(RT->getX());
-      MeshY = CGM.getMetalAttrIndex(RT->getY());
-    } else if (const auto *MT =
-                   FD->getAttr<MetalMaxTotalThreadsPerMeshGridAttr>()) {
-      MeshX = CGM.getMetalAttrIndex(MT->getIndex());
-    }
-    // The first two operands are output-topology bounding nodes;
-    // emit the mesh entry function as a cell node reference when
-    // the mesh topology involves object dispatch, or null otherwise.
+    // Mesh stages carry a mesh_type_info operand describing the mesh
+    // dimensions.  1 occurrence in the reference corpus:
+    //   !{"air.mesh_type_info", !N, !N, i32 8, i32 4, "air.triangle"}
+    // The first two operands are bounding nodes describing the output
+    // topology; emit null for now (only one occurrence observed).
     MetalArgMetadataBuilder MB(Ctx);
     MB.addStr("air.mesh_type_info");
     MB.addNode(nullptr);
     MB.addNode(nullptr);
-    MB.addInt(MeshX);
-    MB.addInt(MeshY);
+    MB.addInt(8);
+    MB.addInt(4);
     MB.addStr("air.triangle");
     FnNodeOps.push_back(MB.finish());
   }
