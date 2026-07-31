@@ -52,6 +52,7 @@ echo "symbolizer: ${LLVM_SYMBOLIZER_PATH:-none found}"
 pass=0 fail=0
 failed=()
 notes=()
+probe_notes=()
 
 for test in "$TESTDIR"/*.metal; do
   [ -e "$test" ] || continue
@@ -149,7 +150,13 @@ $(eval "$compile_only" 2>&1 | head -25)"
                  | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }' \
                  | cut -c1-280)
       fi
-      notes+=("::error::CRASH $name :: ${frames:0:290}")
+      # The zzbisect probes are the controlled experiments; their notes go
+      # first, ahead of the full-suite noise, within GitHub's annotation cap.
+      if [[ $name == zzbisect-* ]]; then
+        probe_notes+=("::error::CRASH $name :: ${frames:0:290}")
+      else
+        notes+=("::error::CRASH $name :: ${frames:0:290}")
+      fi
     else
       notes+=("::error::FAIL $name :: ${reason:0:300}")
     fi
@@ -172,6 +179,7 @@ if [ "$fail" -gt 0 ]; then
   # The summary annotation goes FIRST: GitHub cuts annotations off after a
   # handful and this line is the only place the full failure set appears.
   printf '::error::%d/%d failed: %s\n' "$fail" "$((pass + fail))" "${failed[*]}"
+  printf '%s\n' "${probe_notes[@]}"
   printf '%s\n' "${notes[@]}"
   exit 1
 fi

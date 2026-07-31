@@ -574,8 +574,14 @@ public:
   Value *VisitCastExpr(CastExpr *E);
 
   Value *VisitCallExpr(const CallExpr *E) {
+    // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+    if (CGF.getLangOpts().Metal)
+      llvm::errs() << "MBE: VisitCallExpr ty=" << E->getType().getAsString()
+                   << " vk=" << (int)E->getValueKind() << '\n';
     if (E->getCallReturnType(CGF.getContext())->isReferenceType())
       return EmitLoadOfLValue(E);
+    if (CGF.getLangOpts().Metal)
+      llvm::errs() << "MBE: VisitCallExpr not ref\n";
 
     Value *V = CGF.EmitCallExpr(E).getScalarVal();
 
@@ -5193,6 +5199,13 @@ Value *ScalarExprEmitter::VisitAtomicExpr(AtomicExpr *E) {
 Value *CodeGenFunction::EmitScalarExpr(const Expr *E, bool IgnoreResultAssign) {
   assert(E && hasScalarEvaluationKind(E->getType()) &&
          "Invalid scalar expression to emit");
+
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (getLangOpts().Metal &&
+      (E->getStmtClass() == Stmt::CallExprClass ||
+       E->getStmtClass() == Stmt::BinaryOperatorClass))
+    llvm::errs() << "MBE: EmitScalarExpr " << E->getStmtClassName()
+                 << " ty=" << E->getType().getAsString() << '\n';
 
   return ScalarExprEmitter(*this, IgnoreResultAssign)
       .Visit(const_cast<Expr *>(E));
