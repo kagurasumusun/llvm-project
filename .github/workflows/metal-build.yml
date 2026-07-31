@@ -16,6 +16,9 @@ name: Metal frontend build and test
 
 on:
   push:
+    branches:
+      - 'arena/**'
+      - 'many-error'
     paths:
       - 'clang/**'
       - 'llvm/**'
