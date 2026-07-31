@@ -1579,8 +1579,20 @@ QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
   if (TRC)
     llvm::errs() << "GCRT: enter\n";
   const Expr *Callee = getCallee();
-  if (TRC)
-    llvm::errs() << "GCRT: callee " << Callee->getStmtClassName() << '\n';
+  if (TRC) {
+    llvm::errs() << "GCRT: callee " << Callee->getStmtClassName();
+    if (const auto *DRE = dyn_cast<DeclRefExpr>(Callee)) {
+      const ValueDecl *D = DRE->getDecl();
+      llvm::errs() << " decl=" << D->getDeclKindName()
+                   << " name=" << D->getName()
+                   << " fty=";
+      if (const auto *FD = dyn_cast<FunctionDecl>(D))
+        llvm::errs() << FD->getType().getAsString();
+      else
+        llvm::errs() << "(not a FunctionDecl)";
+    }
+    llvm::errs() << '\n';
+  }
   QualType CalleeType = Callee->getType();
   if (TRC)
     llvm::errs() << "GCRT: calleety " << CalleeType.getAsString() << '\n';
