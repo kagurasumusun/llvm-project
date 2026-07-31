@@ -1577,7 +1577,9 @@ QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
   // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
   bool TRC = Ctx.getLangOpts().Metal;
   if (TRC)
-    llvm::errs() << "GCRT: enter\n";
+    llvm::errs() << "GCRT: enter nargs=" << getNumArgs()
+                 << " preargs=" << (unsigned)getNumPreArgs()
+                 << " csty=" << getType().getAsString() << '\n';
   const Expr *Callee = getCallee();
   if (TRC) {
     llvm::errs() << "GCRT: callee " << Callee->getStmtClassName();
