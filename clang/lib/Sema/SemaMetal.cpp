@@ -294,12 +294,9 @@ bool Sema::DiagnoseMetalUnsupportedDecl(Decl *D) {
   }
 
   // goto is not permitted in Metal (MSL 4.1 section 1.6.1).
-  if (auto *LS = dyn_cast<LabelStmt>(D)) {
-    (void)LS;
-    // Label statements are caught by their parent function; reject here
-    // would fire on every label, not just goto targets.  The actual goto
-    // diagnostic is emitted in SemaStmt.cpp when the parser sees 'goto'.
-  }
+  // Label statements are caught by their parent function; rejecting here
+  // would fire on every label, not just goto targets.  The actual goto
+  // diagnostic is emitted in SemaStmt.cpp when the parser sees 'goto'.
 
   return false;
 }
