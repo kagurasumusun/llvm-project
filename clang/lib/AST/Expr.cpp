@@ -573,7 +573,14 @@ DeclRefExpr *DeclRefExpr::Create(const ASTContext &Context,
   if (D->getDeclName().isIdentifier() && D->getName().startswith("__metal_"))
     llvm::errs() << "DRECRE: name=" << D->getName()
                  << " ty=" << T.getAsString()
-                 << " declty=" << D->getType().getAsString() << '\n';
+                 << " declty=" << D->getType().getAsString()
+                 << " tcls=" << (unsigned)T->getTypeClass()
+                 << " vk=" << (unsigned)VK << " nour=" << (unsigned)NOUR
+                 << " tmpl=" << (TemplateArgs ? 1 : 0)
+                 << " ql=" << (QualifierLoc.hasQualifier() ? 1 : 0)
+                 << " foundd=" << (FoundD ? 1 : 0)
+                 << " encl=" << (RefersToEnclosingVariableOrCapture ? 1 : 0)
+                 << " nil=" << (NameInfo.getLoc().isValid() ? 1 : 0) << '\n';
   return new (Mem) DeclRefExpr(Context, QualifierLoc, TemplateKWLoc, D,
                                RefersToEnclosingVariableOrCapture, NameInfo,
                                FoundD, TemplateArgs, T, VK, NOUR);
