@@ -18,3 +18,10 @@ kernel void m(device float *f [[buffer(0)]]) {
   // CHECK: call{{.*}}@air.fast_sqrt.f32
   f[0] = __metal_sqrt(f[0], 1);
 }
+
+// The half type is available in Metal on AIR targets (HasFloat16=true).
+// Half-precision builtins use air.<op>.f16 (no fast_ infix).
+kernel void m_half(device half *h [[buffer(0)]]) {
+  // CHECK: call{{.*}}@air.sqrt.f16
+  h[0] = __metal_sqrt(h[0], 1);
+}
