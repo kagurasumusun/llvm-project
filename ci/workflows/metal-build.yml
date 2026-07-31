@@ -6,9 +6,9 @@ name: Metal frontend build and test
 # invocations means the pipeline can change without editing a protected file.
 #
 # Ordering and failure handling are deliberate:
-#   * the cache is pruned before it is restored, so there is room to save into;
-#   * ccache is saved with if: always(), so a red build still warms the next
-#     run instead of throwing the work away;
+#   * the cache is pruned after a successful build, keeping room for saves;
+#   * ccache is saved only on build success, so a broken build never
+#     corrupts the content-addressed cache for other branches;
 #   * the smoke test runs with if: always() too -- if the build fell over it
 #     will simply fail, but when only lit is red it still proves the compiler
 #     works end to end;
@@ -89,14 +89,6 @@ jobs:
       - name: Install toolchain
         run: ci/metal/build.sh deps
 
-      # Before the restore: the repository cache was full of other branches'
-      # entries, which is why saves were failing and every run started cold.
-      - name: Make room in the cache
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: ci/metal/build.sh prune-cache
-
       - name: Restore ccache
         # restore + save rather than the combined action: actions/cache only
         # writes in a post step, and that post step is skipped when the job
@@ -140,21 +132,23 @@ jobs:
       # Unconditional: a partial cache from a failed build still saves most of
       # the next run. The run id keeps re-runs of one commit from colliding.
       - name: Save ccache
-        # Unconditional. A cache written by a run whose tests failed is still
-        # a cache: the object files are the same either way, and throwing it
-        # away is what kept every run starting from cold.
-        #
-        # The key deliberately has no run id. Adding one makes each save
-        # unique, which sounds safe but means the exact key can never be hit
-        # again -- only the restore-keys prefix would ever match, and a re-run
-        # of the same commit would pointlessly rebuild. Colliding on the same
-        # sha is harmless: the save is skipped and the existing entry stands.
-        if: always()
+        # Only save when the clang+llvm build passed.  A cache written from
+        # a broken build corrupts the content-addressed key for all branches.
+        if: always() && steps.build.outcome == 'success'
         uses: actions/cache/save@v4
         continue-on-error: true
         with:
           path: ${{ env.CCACHE_DIR }}
           key: metal-ccache-${{ runner.arch }}-${{ hashFiles('clang/**', 'llvm/**', 'cmake/**') }}
+
+      # Prune old cache entries only when this build succeeded.  A failing
+      # build must never evict cache entries that a green build depends on.
+      - name: Make room in the cache
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ci/metal/build.sh prune-cache
 
       - name: Smoke test the Metal frontend
         if: always() && steps.build.outcome == 'success'
