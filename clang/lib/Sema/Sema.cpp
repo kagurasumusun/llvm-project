@@ -450,6 +450,19 @@ void Sema::Initialize() {
   //   TypedefDecl <invalid sloc> implicit __metal_texture_2d_t
   //   `-BuiltinType '__metal_texture_2d_t'
   if (getLangOpts().Metal) {
+    // MSL scalar convenience typedefs that Apple's compiler predefines.
+    // The reference AST dumps show these as ordinary TypedefDecl entries at
+    // the top of every -x metal translation unit, immediately before the
+    // opaque handle typedefs.  They are drawn from metal_texture_common and
+    // other Apple stdlib headers; without them metal_stdlib is unparseable.
+    addImplicitTypedef("uchar", Context.UnsignedCharTy);
+    addImplicitTypedef("ushort", Context.UnsignedShortTy);
+    addImplicitTypedef("uint", Context.UnsignedIntTy);
+    addImplicitTypedef("ulong", Context.UnsignedLongTy);
+    // `half` in MSL is the 16-bit floating-point type.  AIR targets
+    // have HasFloat16=true, so HalfTy maps to the LLVM half type.
+    addImplicitTypedef("half", Context.HalfTy);
+
 #define METAL_TYPE(Name, Id, SingletonId, IRName)                              \
   addImplicitTypedef(#Name, Context.SingletonId);
 #include "clang/Basic/MetalTypes.def"

@@ -37,7 +37,7 @@ STDLIB_INC=""
 if [ -f /tmp/metal_stdlib_path ]; then
   sdk=$(cat /tmp/metal_stdlib_path)
   if [ -n "$sdk" ] && [ -d "$sdk" ]; then
-    STDLIB_INC="-I $sdk"
+    STDLIB_INC="-isystem $sdk"
   fi
 fi
 FILECHECK="$BUILDABS/bin/FileCheck"

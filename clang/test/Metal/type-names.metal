@@ -39,14 +39,14 @@ using namespace metal;
 //
 // CHECK-DAG: !"air.arg_type_name", !"texture2d<float, sample>"
 // CHECK-DAG: !"air.arg_type_name", !"texture2d<float, write>"
-// CHECK-DAG: !"air.arg_type_name", !"texture3d<float, read>"
+// CHECK-DAG: !"air.arg_type_name", !"texture3d<half, read>"
 //
 // Scalars use the MSL spelling; "unsigned int" must not appear.
 // CHECK-DAG: !"air.arg_type_name", !"uint"
 // CHECK-NOT: !"air.arg_type_name", !"unsigned int"
 kernel void k(texture2d<float> defaulted [[texture(0)]],
               texture2d<float, access::write> explicit_write [[texture(1)]],
-              texture3d<float> depth_defaulted [[texture(2)]],
+              texture3d<half> depth_defaulted [[texture(2)]],
               device uint *out [[buffer(0)]],
               uint id [[thread_position_in_grid]]) {
   out[id] = id;
