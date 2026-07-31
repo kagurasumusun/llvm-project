@@ -1079,7 +1079,7 @@ std::string CodeGenModule::getMetalTypeName(QualType Ty) {
   // The printer writes enumerators qualified by their scope. Apple records
   // the bare name: "texture2d<float, sample>", not
   // "texture2d<float, access::sample>".
-  for (StringRef Scope : {"access::", "coherence::", "memory_coherence::"}) {
+  for (StringRef Scope : {"access::", "coherence::", "memory_coherence::", "metal::"}) {
     std::string S = Scope.str();
     for (size_t At = Name.find(S); At != std::string::npos;
          At = Name.find(S, At))

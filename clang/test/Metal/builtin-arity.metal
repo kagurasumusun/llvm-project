@@ -20,6 +20,8 @@
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
 // RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
 
+#include <metal_stdlib>
+
 typedef unsigned int uint;
 
 // The result type follows the first argument, so the f32 and f16 forms select

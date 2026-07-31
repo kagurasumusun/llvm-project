@@ -30,6 +30,16 @@ case "$BUILD" in
   *)  BUILDABS="$PWD/$BUILD" ;;
 esac
 CLANG="$BUILDABS/bin/clang"
+
+# If the Apple standard library was fetched, add its include path so that tests
+# can #include <metal_stdlib> and use half, texture2d, sampler etc.
+STDLIB_INC=""
+if [ -f /tmp/metal_stdlib_path ]; then
+  sdk=$(cat /tmp/metal_stdlib_path)
+  if [ -n "$sdk" ] && [ -d "$sdk" ]; then
+    STDLIB_INC="-I $(dirname "$sdk")"
+  fi
+fi
 FILECHECK="$BUILDABS/bin/FileCheck"
 
 for tool in "$CLANG" "$FILECHECK"; do
@@ -78,7 +88,7 @@ for test in "$TESTDIR"/*.metal; do
   for cmd in "${cmds[@]}"; do
     # The two substitutions these tests use. %clang_cc1 has to be expanded
     # before %s, or the path would be rewritten inside it.
-    cmd=${cmd//'%clang_cc1'/"$CLANG -cc1 -internal-isystem $BUILDABS/lib/clang/16/include -nostdsysteminc"}
+    cmd=${cmd//'%clang_cc1'/"$CLANG -cc1 -internal-isystem $BUILDABS/lib/clang/16/include $STDLIB_INC -nostdsysteminc"}
     cmd=${cmd//'%s'/"$test"}
     cmd=${cmd//FileCheck/"$FILECHECK"}
 

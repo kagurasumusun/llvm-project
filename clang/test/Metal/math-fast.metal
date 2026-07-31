@@ -10,6 +10,9 @@
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
 // RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
 
+// <metal_stdlib> provides the 'half' keyword.
+#include <metal_stdlib>
+
 // __metal_sqrt is a compiler builtin declared in BuiltinsMetal.def, so it
 // must not be redeclared here; doing so is rejected with
 // "cannot redeclare builtin function".
