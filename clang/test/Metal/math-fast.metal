@@ -20,8 +20,9 @@ kernel void m(device float *f [[buffer(0)]]) {
 }
 
 // The half type is available in Metal on AIR targets (HasFloat16=true).
-// Half-precision builtins use air.<op>.f16 (no fast_ infix).
+// In LLVM IR, half is stored as i16 in device address space; the AIR
+// intrinsic uses the i16 suffix to match the LLVM type.
 kernel void m_half(device half *h [[buffer(0)]]) {
-  // CHECK: call{{.*}}@air.sqrt.f16
+  // CHECK: call{{.*}}@air.sqrt.i16
   h[0] = __metal_sqrt(h[0], 1);
 }

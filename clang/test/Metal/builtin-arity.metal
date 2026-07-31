@@ -32,9 +32,9 @@ kernel void m(device float *f [[buffer(0)]]) {
   f[0] = __metal_sqrt(f[0], 1);
 }
 
-// Half-precision form: air.sqrt.f16 (no fast_ infix).
+// Half-precision form: half → i16 in LLVM → air.sqrt.i16 (no fast_ infix).
 // CHECK-LABEL: define void @m_half(
-// CHECK: call{{.*}}@air.sqrt.f16
+// CHECK: call{{.*}}@air.sqrt.i16
 kernel void m_half(device half *h [[buffer(0)]]) {
   h[0] = __metal_sqrt(h[0], 1);
 }
