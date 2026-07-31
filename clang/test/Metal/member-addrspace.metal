@@ -7,9 +7,7 @@
 // (reference/metal-ast-macos-air64/meta/builtin-signatures.csv.gz).
 //
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
-// RUN:   -std=metal3.2 -fsyntax-only -verify %s
-
-// expected-no-diagnostics
+// RUN:   -std=metal3.2 -fsyntax-only -ast-dump %s | FileCheck %s
 
 struct S {
   int f() thread;
@@ -19,3 +17,8 @@ struct S {
   // The shape Apple's own headers use.
   S &operator=(const device S &) thread;
 };
+
+// CHECK: CXXMethodDecl {{.*}} f 'int () thread'
+// CHECK: CXXMethodDecl {{.*}} g 'int () device'
+// CHECK: CXXMethodDecl {{.*}} h 'int () const constant'
+// CHECK: CXXMethodDecl {{.*}} i 'int () ray_data'

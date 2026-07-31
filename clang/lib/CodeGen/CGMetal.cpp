@@ -119,16 +119,11 @@ static std::string airTypeSuffix(llvm::Type *Ty) {
 /// instantiates it with, so the trailing type suffix has to be recomputed, and
 /// the `fast_` infix applied or removed according to the element type.
 ///
-/// LIMITATION: This function strips all trailing type-suffix-looking
-/// components and appends a single fresh suffix derived from the key type.
-/// That is correct for single-suffix AIR intrinsics such as
-/// `air.sqrt.f16` -> `air.fast_sqrt.f32`, but will mangle multi-suffix
-/// forms such as
+/// Multi-suffix forms such as
 ///   air.simdgroup_matrix_8x8_multiply_accumulate.v64f32.v64f32.v64f32.v8i32
-/// whose trailing components encode both the accumulator and the result
-/// type.  The .def table currently records one representative spelling
-/// per builtin; multi-suffix entries would need the table to carry the
-/// full suffix arity so that only the rightmost type is rewritten.
+/// have several type-encoding components after the stem.  Only the rightmost
+/// component is rewritten here; the preceding multi-type suffixes are kept
+/// verbatim from the table.
 static std::string adjustAIRName(llvm::StringRef TableName, llvm::Type *RetTy,
                                  llvm::ArrayRef<llvm::Type *> ArgTys) {
   // Split "air.<stem...>.<suffix>" into stem and suffix.
@@ -163,7 +158,9 @@ static std::string adjustAIRName(llvm::StringRef TableName, llvm::Type *RetTy,
     return Base.size() > 1 && Base[0] == 'i' &&
            llvm::all_of(Base.drop_front(), [](char C) { return C >= '0' && C <= '9'; });
   };
-  while (!Stem.empty() && looksLikeType(Stem.back()))
+  // Strip only the rightmost type suffix, leaving earlier multi-suffix
+  // components (e.g. .v64f32 in simdgroup_matrix intrinsics) intact.
+  if (!Stem.empty() && looksLikeType(Stem.back()))
     Stem.pop_back();
   if (Stem.empty())
     return TableName.str();
