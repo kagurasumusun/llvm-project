@@ -109,16 +109,18 @@ $(eval "$compile_only" 2>&1 | head -25)"
     printf '%s\n' "$failed_cmd"
     printf '%s\n' "$out" | head -40
     echo "::endgroup::"
-    # One annotation per failing test, carrying its first real diagnostic.
+    # One annotation per failing test, carrying its first real diagnostics.
     # GitHub caps how many annotations it keeps, so the test name and the
-    # reason go in the same line rather than as separate entries.
-    # Prefer the compiler's own diagnostic when there is one: "'<stdin>' is
-    # empty" from FileCheck says nothing about why nothing was produced.
+    # reasons go in the same line rather than as separate entries. Prefer the
+    # compiler's own diagnostics over the runner's wrapper output, and squeeze
+    # several lines into one annotation (joined with ' < ') so the callee
+    # subtree / FileCheck context survives the annotation cap.
     reason=$(printf '%s\n' "$out" \
-             | sed -n '/--- compiler output alone ---/,$p' \
-             | grep -vE '^(--- compiler|$)|^MBE:|^GCRT:' | head -1)
+             | grep -vE '^MBE:|^GCRT:' | head -6 \
+             | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }')
     if [ -z "$reason" ]; then
-      reason=$(printf '%s\n' "$out" | grep -E 'error:|Assertion' | head -1)
+      reason=$(printf '%s\n' "$out" | grep -E 'error:|Assertion' \
+               | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }')
     fi
     if [ -z "$reason" ]; then
       reason=$(printf '%s\n' "$out" | head -1)
@@ -158,7 +160,7 @@ $(eval "$compile_only" 2>&1 | head -25)"
         notes+=("::error::CRASH $name :: ${frames:0:400}")
       fi
     else
-      notes+=("::error::FAIL $name :: ${reason:0:300}")
+      notes+=("::error::FAIL $name :: ${reason:0:500}")
     fi
     # "FileCheck error: '<stdin>' is empty" says nothing about why the
     # compiler produced no output, so surface the compiler's own diagnostics
