@@ -16059,6 +16059,17 @@ bool Sema::isQualifiedMemberAccess(Expr *E) {
 ExprResult Sema::BuildUnaryOp(Scope *S, SourceLocation OpLoc,
                               UnaryOperatorKind Opc, Expr *Input,
                               bool IsAfterAmp) {
+  // Measured (cf_pointer_to_member_function / era_function_pointer_*):
+  // taking the address of a function is rejected before Metal 2.1 with
+  //   error: taking address of function is not allowed
+  // The implicit function-to-pointer decay in initializers is *not*
+  // diagnosed -- only the explicit unary '&' is.
+  if (Opc == UO_AddrOf && getLangOpts().Metal &&
+      static_cast<unsigned>(getLangOpts().getMetalVersion()) < 210 &&
+      isa_and_nonnull<FunctionDecl>(
+          Input->IgnoreParenImpCasts()->getReferencedDeclOfCallee()))
+    Diag(OpLoc, diag::err_metal_address_of_function);
+
   // First things first: handle placeholders so that the
   // overloaded-operator check considers the right type.
   if (const BuiltinType *pty = Input->getType()->getAsPlaceholderType()) {

@@ -744,8 +744,10 @@ Sema::ActOnDecompositionDeclarator(Scope *S, Declarator &D,
     return nullptr;
   }
 
+  // MSL is a C++14/17 superset: structured bindings are available in every
+  // Metal standard (FEAT catalogue), so the C++17 rules apply.
   Diag(Decomp.getLSquareLoc(),
-       !getLangOpts().CPlusPlus17
+       !(getLangOpts().CPlusPlus17 || getLangOpts().Metal)
            ? diag::ext_decomp_decl
            : D.getContext() == DeclaratorContext::Condition
                  ? diag::ext_decomp_decl_cond

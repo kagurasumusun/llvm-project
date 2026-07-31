@@ -3396,7 +3396,9 @@ ExprResult Parser::ParseFoldExpression(ExprResult LHS,
     }
   }
 
-  Diag(EllipsisLoc, getLangOpts().CPlusPlus17
+  // MSL is a C++14/17 superset: fold expressions are available in every
+  // Metal standard (FEAT catalogue).
+  Diag(EllipsisLoc, getLangOpts().CPlusPlus17 || getLangOpts().Metal
                         ? diag::warn_cxx14_compat_fold_expression
                         : diag::ext_fold_expression);
 

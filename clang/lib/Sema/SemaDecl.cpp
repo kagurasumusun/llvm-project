@@ -7454,9 +7454,12 @@ NamedDecl *Sema::ActOnVariableDeclarator(
     SC = SC_None;
   }
 
+  // Metal bans 'register' with its own measured diagnostic; the C++
+  // ext/deprecated warning on top would just be noise.
   if (getLangOpts().CPlusPlus11 && SCSpec == DeclSpec::SCS_register &&
-      !D.getAsmLabel() && !getSourceManager().isInSystemMacro(
-                              D.getDeclSpec().getStorageClassSpecLoc())) {
+      !getLangOpts().Metal && !D.getAsmLabel() &&
+      !getSourceManager().isInSystemMacro(
+          D.getDeclSpec().getStorageClassSpecLoc())) {
     // In C++11, the 'register' storage class specifier is deprecated.
     // Suppress the warning in system macros, it's used in macros in some
     // popular C system headers, such as in glibc's htonl() macro.
@@ -14633,7 +14636,7 @@ Decl *Sema::ActOnParamDeclarator(Scope *S, Declarator &D) {
     SC = SC_Register;
     // In C++11, the 'register' storage class specifier is deprecated.
     // In C++17, it is not allowed, but we tolerate it as an extension.
-    if (getLangOpts().CPlusPlus11) {
+    if (getLangOpts().CPlusPlus11 && !getLangOpts().Metal) {
       Diag(DS.getStorageClassSpecLoc(),
            getLangOpts().CPlusPlus17 ? diag::ext_register_storage_class
                                      : diag::warn_deprecated_register)
@@ -14711,6 +14714,11 @@ Decl *Sema::ActOnParamDeclarator(Scope *S, Declarator &D) {
     IdResolver.AddDecl(New);
 
   ProcessDeclAttributes(S, New, D);
+
+  // Metal's parameter restrictions need the attributes attached above
+  // (address-space-qualified value types, register, pre-2.1 function
+  // pointers, stage attributes on references).
+  CheckMetalParamDecl(New);
 
   if (D.getDeclSpec().isModulePrivateSpecified())
     Diag(New->getLocation(), diag::err_module_private_local)

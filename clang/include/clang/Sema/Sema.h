@@ -6095,6 +6095,13 @@ public:
   /// address spaces and stage input/output attributes.
   void CheckMetalEntryPoint(FunctionDecl *FD);
 
+  /// Validate the struct type behind a [[stage_in]] parameter.
+  void CheckMetalStageInStruct(ParmVarDecl *PVD, CXXRecordDecl *RD);
+
+  /// Diagnose a function parameter violating a Metal rule (address space
+  /// qualified value type, register storage, pre-2.1 function pointer).
+  void CheckMetalParamDecl(ParmVarDecl *PVD);
+
   /// Diagnose a declaration that violates one of MSL's address space rules.
   void CheckMetalVarDeclAddressSpace(VarDecl *VD);
 
@@ -6122,9 +6129,10 @@ public:
   bool CheckMetalAttributeVersion(const ParsedAttr &AL, unsigned MinVersion);
 
   /// Validate a [[buffer(N)]] / [[texture(N)]] / [[sampler(N)]] index against
-  /// the target's resource limits.
+  /// the target's resource limits; the index is sign-preserved so that a
+  /// negative literal reports the same out-of-bounds error.
   bool CheckMetalResourceIndexBounds(const ParsedAttr &AL, llvm::StringRef Kind,
-                                     uint32_t Index);
+                                     int64_t Index);
 
   /// Spell the active Metal language standard the way Apple's diagnostics do
   /// (`macos-metal2.3` for MSL 1.x and 2.x, `metal3.0` and later prefixless).

@@ -146,6 +146,11 @@ namespace {
     // Language specific cast restrictions for address spaces.
     void checkAddressSpaceCast(QualType SrcType, QualType DestType);
 
+    // Metal cast between mismatching address spaces, with the measured
+    // wording: C-style and reinterpret_cast report different messages.
+    void checkMetalCastAddrSpace(QualType SrcType, QualType DestType,
+                                 bool IsCStyle);
+
     void checkCastAlign() {
       Self.CheckCastAlign(SrcExpr.get(), DestType, OpRange);
     }
@@ -1156,6 +1161,10 @@ void CastOperation::CheckReinterpretCast() {
   else
     checkNonOverloadPlaceholders();
   if (SrcExpr.isInvalid()) // if conversion failed, don't report another error
+    return;
+  checkMetalCastAddrSpace(SrcExpr.get()->getType(), DestType,
+                          /*IsCStyle=*/false);
+  if (SrcExpr.isInvalid())
     return;
 
   unsigned msg = diag::err_bad_cxx_cast_generic;
@@ -2914,6 +2923,9 @@ void CastOperation::CheckCStyleCast() {
   assert(!SrcType->isPlaceholderType());
 
   checkAddressSpaceCast(SrcType, DestType);
+  if (SrcExpr.isInvalid())
+    return;
+  checkMetalCastAddrSpace(SrcType, DestType, /*IsCStyle=*/true);
   if (SrcExpr.isInvalid())
     return;
 

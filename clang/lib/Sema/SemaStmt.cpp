@@ -552,6 +552,13 @@ Sema::ActOnDefaultStmt(SourceLocation DefaultLoc, SourceLocation ColonLoc,
 StmtResult
 Sema::ActOnLabelStmt(SourceLocation IdentLoc, LabelDecl *TheDecl,
                      SourceLocation ColonLoc, Stmt *SubStmt) {
+  // Measured (reference/metal-ast-*/log, cf_goto fixture): plain labels are
+  // rejected outright in Metal with "labeled statements are not supported in
+  //  Metal". Switch case/default labels are CaseStmt/DefaultStmt, not
+  // LabelStmt, so they are unaffected.
+  if (getLangOpts().Metal)
+    Diag(IdentLoc, diag::err_metal_unsupported_feature) << 4;
+
   // If the label was multiply defined, reject it now.
   if (TheDecl->getStmt()) {
     Diag(IdentLoc, diag::err_redefinition_of_label) << TheDecl->getDeclName();
@@ -3282,7 +3289,10 @@ StmtResult Sema::FinishCXXForRangeStmt(Stmt *S, Stmt *B) {
 StmtResult Sema::ActOnGotoStmt(SourceLocation GotoLoc,
                                SourceLocation LabelLoc,
                                LabelDecl *TheDecl) {
-  setFunctionHasBranchIntoScope();
+  // Measured: "error: 'goto' is not supported in Metal".
+  if (!DiagnoseMetalUnsupported(GotoLoc, "goto")) {
+    setFunctionHasBranchIntoScope();
+  }
   TheDecl->markUsed(Context);
   return new (Context) GotoStmt(TheDecl, GotoLoc, LabelLoc);
 }
@@ -4438,6 +4448,10 @@ public:
 /// handlers and creates a try statement from them.
 StmtResult Sema::ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
                                   ArrayRef<Stmt *> Handlers) {
+  // Measured (cf_catch_in_kernel): "error: 'try' is not supported in Metal".
+  // Keep building the try block so that handler scopes stay consistent.
+  DiagnoseMetalUnsupported(TryLoc, "try");
+
   // Don't report an error if 'try' is used in system headers.
   if (!getLangOpts().CXXExceptions &&
       !getSourceManager().isInSystemHeader(TryLoc) && !getLangOpts().CUDA) {

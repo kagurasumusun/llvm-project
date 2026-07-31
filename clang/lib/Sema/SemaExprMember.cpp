@@ -1617,6 +1617,22 @@ static ExprResult LookupMemberExpr(Sema &S, LookupResult &R,
     return ExprError();
   }
 
+  // Metal packed vector types (packed_float3 and friends, declared with
+  // __attribute__((packed_vector_type))) do not support component accessors.
+  // Measured on every fixture that tries it, in every measured standard:
+  //   error: illegal vector component name 'x'
+  // (repr_packed_* and res_threadgroup_packed_mixed fixtures; Apple's own
+  // <metal_stdlib> never performs component access on packed vectors).
+  if (S.getLangOpts().Metal)
+    if (const auto *VT = dyn_cast<VectorType>(BaseType))
+      if (VT->getVectorKind() == VectorType::MetalPackedVector) {
+        S.Diag(R.getNameLoc(), diag::err_ext_vector_component_name_illegal)
+            << MemberName
+            << (BaseExpr.get() ? BaseExpr.get()->getSourceRange()
+                               : SourceRange());
+        return ExprError();
+      }
+
   // Handle 'field access' to vectors, such as 'V.xx'.
   if (BaseType->isExtVectorType()) {
     // FIXME: this expr should store IsArrow.

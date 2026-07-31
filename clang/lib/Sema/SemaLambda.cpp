@@ -1673,6 +1673,15 @@ ExprResult Sema::BuildCaptureInit(const Capture &Cap,
 
 ExprResult Sema::ActOnLambdaExpr(SourceLocation StartLoc, Stmt *Body,
                                  Scope *CurScope) {
+  // Measured (cx_009/cx_010 at macos-metal1.1) and the MSL specification
+  // agree: "lambda expressions ... prior to Metal 3.2" are unavailable.
+  // The reject message is version independent:
+  //   error: lambda expressions are not supported in Metal
+  // Lambdas become available starting with Metal 3.2.
+  if (getLangOpts().Metal &&
+      getLangOpts().getMetalVersion() < LangOptions::Metal_3_2)
+    Diag(StartLoc, diag::err_metal_unsupported_feature) << 3;
+
   LambdaScopeInfo LSI = *cast<LambdaScopeInfo>(FunctionScopes.back());
   ActOnFinishFunctionBody(LSI.CallOperator, Body);
   return BuildLambdaExpr(StartLoc, Body->getEndLoc(), &LSI);

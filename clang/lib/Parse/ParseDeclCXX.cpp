@@ -3880,6 +3880,10 @@ ExceptionSpecificationType Parser::tryParseExceptionSpecification(
     // Consume and cache the starting token.
     bool IsNoexcept = Tok.is(tok::kw_noexcept);
     Token StartTok = Tok;
+    // Measured (sig_noexcept_kernel): "error: 'noexcept' is not supported in
+    // Metal". MSL bans the keyword categorically, expression form included.
+    if (IsNoexcept)
+      Actions.DiagnoseMetalUnsupported(StartTok.getLocation(), "noexcept");
     SpecificationRange = SourceRange(ConsumeToken());
 
     // Check for a '('.
@@ -3920,6 +3924,9 @@ ExceptionSpecificationType Parser::tryParseExceptionSpecification(
   // If there's no noexcept specification, we're done.
   if (Tok.isNot(tok::kw_noexcept))
     return Result;
+
+  // Measured: "error: 'noexcept' is not supported in Metal".
+  Actions.DiagnoseMetalUnsupported(Tok.getLocation(), "noexcept");
 
   Diag(Tok, diag::warn_cxx98_compat_noexcept_decl);
 

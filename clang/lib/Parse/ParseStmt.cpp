@@ -1446,8 +1446,11 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
   SourceLocation ConstevalLoc;
 
   if (Tok.is(tok::kw_constexpr)) {
-    Diag(Tok, getLangOpts().CPlusPlus17 ? diag::warn_cxx14_compat_constexpr_if
-                                        : diag::ext_constexpr_if);
+    // MSL is a C++14/17 superset: "if constexpr" is available in every
+    // Metal standard, so the C++17 behaviour applies (FEAT catalogue).
+    Diag(Tok, getLangOpts().CPlusPlus17 || getLangOpts().Metal
+                  ? diag::warn_cxx14_compat_constexpr_if
+                  : diag::ext_constexpr_if);
     IsConstexpr = true;
     ConsumeToken();
   } else {

@@ -824,6 +824,9 @@ Sema::ActOnCXXNullPtrLiteral(SourceLocation Loc) {
 /// ActOnCXXThrow - Parse throw expressions.
 ExprResult
 Sema::ActOnCXXThrow(Scope *S, SourceLocation OpLoc, Expr *Ex) {
+  // Measured (cf_throw_in_kernel): "error: 'throw' is not supported in Metal".
+  if (getLangOpts().Metal)
+    return ExprError(Diag(OpLoc, diag::err_metal_unsupported) << "'throw'");
   bool IsThrownVarInScope = false;
   if (Ex) {
     // C++0x [class.copymove]p31:
@@ -1847,6 +1850,11 @@ Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
                   SourceLocation PlacementLParen, MultiExprArg PlacementArgs,
                   SourceLocation PlacementRParen, SourceRange TypeIdParens,
                   Declarator &D, Expr *Initializer) {
+  // Measured (cx_006_new_delete): "error: 'new' is not supported in Metal".
+  // (Metal 4.1 re-allows *placement* new; this fork predates 4.1 support.)
+  if (getLangOpts().Metal)
+    return ExprError(Diag(StartLoc, diag::err_metal_unsupported)
+                     << "'new'");
   std::optional<Expr *> ArraySize;
   // If the specified type is an array, unwrap it and save the expression.
   if (D.getNumTypeObjects() > 0 &&
@@ -3579,6 +3587,10 @@ void Sema::AnalyzeDeleteExprMismatch(FieldDecl *Field, SourceLocation DeleteLoc,
 ExprResult
 Sema::ActOnCXXDelete(SourceLocation StartLoc, bool UseGlobal,
                      bool ArrayForm, Expr *ExE) {
+  // Measured (cx_006_new_delete): "error: 'delete' is not supported in Metal".
+  if (getLangOpts().Metal)
+    return ExprError(Diag(StartLoc, diag::err_metal_unsupported)
+                     << "'delete'");
   // C++ [expr.delete]p1:
   //   The operand shall have a pointer type, or a class type having a single
   //   non-explicit conversion function to a pointer type. The result has type

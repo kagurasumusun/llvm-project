@@ -246,6 +246,11 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
                                  Expr *asmString, MultiExprArg clobbers,
                                  unsigned NumLabels,
                                  SourceLocation RParenLoc) {
+  // Measured (cf_asm_inline fixture): every asm statement is rejected in
+  // Metal with "illegal asm statement".
+  if (getLangOpts().Metal)
+    Diag(AsmLoc, diag::err_metal_illegal_asm);
+
   unsigned NumClobbers = clobbers.size();
   StringLiteral **Constraints =
     reinterpret_cast<StringLiteral**>(constraints.data());

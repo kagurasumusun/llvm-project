@@ -11818,13 +11818,20 @@ def err_metal_static_local : Error<
   "variables in function scope cannot be declared static">;
 def err_metal_kernel_member_function : Error<
   "kernel function cannot be a member function">;
+// Measured: "invalid prototype; variadic arguments are not allowed in Metal
+// qualified functions" -- note the semicolon, not a comma.
 def err_metal_variadic : Error<
-  "invalid prototype, variadic arguments are not allowed in Metal qualified "
+  "invalid prototype; variadic arguments are not allowed in Metal qualified "
   "functions">;
 def err_metal_function_pointer : Error<
   "pointers to functions are not allowed">;
 def err_metal_address_of_function : Error<
   "taking address of function is not allowed">;
+def err_metal_main_function : Error<
+  "non-qualified function cannot be called 'main'">;
+// Measured verbatim on `asm("nop");` inside a kernel.
+def err_metal_illegal_asm : Error<
+  "illegal asm statement">;
 def err_metal_param_addrspace : Error<
   "parameter may not be qualified with an address space">;
 def err_metal_param_needs_attr : Error<
@@ -11835,6 +11842,10 @@ def err_metal_invalid_input_type : Error<
   "%select{kernel|vertex|fragment|mesh|object}1 function">;
 def err_metal_cstyle_cast_addrspace : Error<
   "C-style cast from %0 to %1 converts between mismatching address spaces">;
+// Measured verbatim on `reinterpret_cast<device int*>(&x)` where x is a
+// thread variable.
+def err_metal_reinterpret_cast_addrspace : Error<
+  "reinterpret_cast from %0 to %1 is not allowed">;
 
 // Address spaces.
 def err_metal_pointer_needs_addrspace : Error<
@@ -11861,11 +11872,32 @@ def err_metal_invalid_buffer_pointee : Error<
 def err_metal_invalid_input_attr : Error<
   "invalid %0 attribute for input declaration in a "
   "%select{kernel|vertex|fragment|mesh|object}1 function">;
-def err_metal_invalid_output_attr : Error<
+// Measured as a note chained to "invalid return type %0 for %1 function":
+// Apple's own texture types are classes, and when pre-Metal 2.1 refuses a
+// class return from a graphics entry point it chains a reason note. The fork
+// models textures as builtin opaque types so it cannot reproduce that chain
+// for textures, but it emits the same note for output attributes that do not
+// belong to the returning stage:
+//   error: invalid return type 'VertexOut' for vertex function
+//   note: invalid 'color' attribute for output declaration
+def note_metal_invalid_output_attr : Note<
   "invalid %0 attribute for output declaration">;
-def err_metal_invalid_stage_in_type : Error<
-  "invalid type %0 of input declaration with attribute 'stage_in' in a "
-  "%select{kernel|vertex|fragment|mesh|object}1 function">;
+// Uniform type-vs-attribute mismatch, e.g.:
+//   type 'int' is not valid for attribute 'position'
+//   type 'MIn' is not valid for attribute 'stage_in'
+//   type 'metal::float4x4' (aka 'matrix<float; 4; 4>') is not valid for
+//     attribute 'attribute'
+//   type 'device ulong *' (aka 'device unsigned long *') is not valid for
+//     attribute 'buffer'
+// %1 is passed pre-quoted (e.g. "'position'").
+def err_metal_invalid_attr_type : Error<
+  "type %0 is not valid for attribute %1">;
+// Chained under err_metal_invalid_attr_type when the buffer pointee is a
+// scalar MSL does not provide, e.g.:
+//   note: type 'ulong' (aka 'unsigned long') cannot be used in buffer pointee
+//         type
+def note_metal_buffer_pointee_unsupported : Note<
+  "type %0 cannot be used in buffer pointee type">;
 
 // Attribute availability. Apple names the OS prefixed standard in the message
 // for MSL 1.x and 2.x and the prefixless one for 3.0 and later, e.g.
@@ -11875,19 +11907,48 @@ def err_metal_attribute_requires_std : Error<
   "%0 attribute requires Metal language standard %1 or higher">;
 
 // Attribute placement and compatibility.
+// Measured select forms:
+//   'kernel' attribute only applies to functions
+//   'early_fragment_tests' attribute only applies to fragment functions
+//   'grid_size' attribute only applies to parameters and global builtin
+//     variables
+// %0 is passed pre-quoted (e.g. "'kernel'").
 def err_metal_attr_only_applies_to : Error<
   "%0 attribute only applies to "
-  "%select{functions|fragment functions|vertex functions|kernel functions}1">;
+  "%select{functions|fragment functions|vertex functions|kernel functions|"
+  "parameters and global builtin variables}1">;
 def err_metal_incompatible_attrs : Error<
   "%0 and %1 attributes are not compatible">;
+// Duplicate built-in attribute across the whole signature, e.g. a
+// [[position]] inside the stage_in struct and another on a direct parameter:
+//   error: declaration with attribute 'position' already specified
+//   note: previous declaration with attribute 'position' here
+// %0 is passed pre-quoted.
+def err_metal_attr_already_specified : Error<
+  "declaration with attribute %0 already specified">;
+def note_metal_attr_previous_specified : Note<
+  "previous declaration with attribute %0 here">;
 
 // Resource binding.
+// Measured on two parameters sharing [[buffer(0)]] / [[texture(0)]]:
+//   cannot reserve 'buffer' resource location at index 0
+// %0 is passed pre-quoted.
 def err_metal_resource_index_reserved : Error<
   "cannot reserve %0 resource location at index %1">;
-def err_metal_resource_index_exceeds_max : Error<
-  "%0 index %1 exceeds maximum allowed index %2">;
-def err_metal_duplicate_resource_index : Error<
-  "%0 index %1 is used more than once">;
+// Measured verbatim, with the inclusive index range:
+//   'buffer' attribute parameter is out of bounds: must be between 0 and 30
+//   'sampler' attribute parameter is out of bounds: must be between 0 and 15
+//   'attribute' attribute parameter is out of bounds: must be between 0 and 30
+//   'texture' attribute parameter is out of bounds: must be between 0 and 30
+// The texture bound is target- and language-version-dependent (31 on
+// iOS/tvOS before Metal 2.0, 128 otherwise); see
+// Sema::CheckMetalResourceIndexBounds.
+def err_metal_attr_out_of_bounds : Error<
+  "%0 attribute parameter is out of bounds: must be between %1 and %2">;
+def err_metal_attr_takes_one_arg : Error<
+  "%0 attribute takes one argument">;
+def err_metal_invalid_string_attr : Error<
+  "invalid string literal value for %0 attribute">;
 // Every occurrence in the reference AST dumps writes the coherence qualifier
 // on top of a `device` qualifier (`const device coherent(device) Uniforms &`);
 // the corpus contains no other combination.

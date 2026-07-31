@@ -7089,6 +7089,30 @@ static void handleMetalTypeArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   D->addAttr(AttrType::Create(S.Context, TSI, AL));
 }
 
+/// Evaluate the constant index of a Metal binding attribute, preserving the
+/// sign so that [[buffer(-1)]] is diagnosed as out of bounds rather than
+/// wrapped. Returns false when the argument is not an integer constant;
+/// value-dependent arguments (inside templates) are accepted without a
+/// value and are re-checked at instantiation.
+static bool getMetalAttrIndexValue(Sema &S, const ParsedAttr &AL, int64_t &V) {
+  if (!AL.isArgExpr(0)) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+        << AL << AANT_ArgumentIntegerConstant;
+    return false;
+  }
+  Expr *E = AL.getArgAsExpr(0);
+  if (E->isValueDependent())
+    return true;
+  std::optional<llvm::APSInt> Res = E->getIntegerConstantExpr(S.Context);
+  if (!Res) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+        << AL << AANT_ArgumentIntegerConstant;
+    return false;
+  }
+  V = Res->getExtValue();
+  return true;
+}
+
 /// Handle the resource binding attributes [[buffer(N)]], [[texture(N)]],
 /// [[sampler(N)]] and [[threadgroup(N)]].
 ///
@@ -7099,10 +7123,6 @@ static void handleMetalTypeArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
 static void handleMetalResourceIndexAttr(Sema &S, Decl *D,
                                          const ParsedAttr &AL) {
   if (!checkMetalAttrCommon(S, AL))
-    return;
-
-  uint32_t Index = 0;
-  if (!checkUInt32Argument(S, AL, AL.getArgAsExpr(0), Index))
     return;
 
   StringRef Kind;
@@ -7123,7 +7143,21 @@ static void handleMetalResourceIndexAttr(Sema &S, Decl *D,
     llvm_unreachable("not a Metal resource index attribute");
   }
 
-  if (!S.CheckMetalResourceIndexBounds(AL, Kind, Index))
+  // Measured: a bare [[buffer]] etc. is rejected with
+  //   error: 'buffer' attribute takes one argument
+  if (AL.getNumArgs() != 1) {
+    S.Diag(AL.getLoc(), diag::err_metal_attr_takes_one_arg) << Kind;
+    return;
+  }
+
+  int64_t SignedIndex = 0;
+  if (!getMetalAttrIndexValue(S, AL, SignedIndex))
+    return;
+
+  // Measured: the out-of-bounds error covers negative indices too, e.g.
+  // [[buffer(-1)]] and [[buffer(32)]] both produce "'buffer' attribute
+  // parameter is out of bounds: must be between 0 and 30".
+  if (!S.CheckMetalResourceIndexBounds(AL, Kind, SignedIndex))
     return;
 
   switch (AL.getKind()) {
@@ -7146,6 +7180,49 @@ static void handleMetalResourceIndexAttr(Sema &S, Decl *D,
   default:
     llvm_unreachable("not a Metal resource index attribute");
   }
+}
+
+/// `[[attribute(N)]]` on a vertex input: one integer argument, bounded by
+/// the measured vertex attribute slot count (0..30).
+static void handleMetalAttributeIndexAttr(Sema &S, Decl *D,
+                                          const ParsedAttr &AL) {
+  if (!checkMetalAttrCommon(S, AL))
+    return;
+
+  if (AL.getNumArgs() != 1) {
+    S.Diag(AL.getLoc(), diag::err_metal_attr_takes_one_arg) << "attribute";
+    return;
+  }
+
+  int64_t SignedIndex = 0;
+  if (!getMetalAttrIndexValue(S, AL, SignedIndex))
+    return;
+  if (!S.CheckMetalResourceIndexBounds(AL, "attribute", SignedIndex))
+    return;
+
+  D->addAttr(
+      ::new (S.Context) MetalAttributeIndexAttr(S.Context, AL,
+                                                AL.getArgAsExpr(0)));
+}
+
+/// [[host_name("...")]]: a plain string argument, with one measured quirk:
+/// an empty string literal is rejected only at macos-metal2.2 (the standard
+/// that introduced the attribute) with
+///   error: invalid string literal value for 'host_name' attribute
+/// Metal 2.3 and later accept the empty string.
+static void handleMetalHostNameAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  if (!checkMetalAttrCommon(S, AL))
+    return;
+
+  StringRef Str;
+  if (!S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+  if (Str.empty() &&
+      static_cast<unsigned>(S.getLangOpts().getMetalVersion()) == 220) {
+    S.Diag(AL.getLoc(), diag::err_metal_invalid_string_attr) << AL;
+    return;
+  }
+  D->addAttr(MetalHostNameAttr::Create(S.Context, Str, AL));
 }
 
 /// Handle the entry point attributes [[kernel]], [[vertex]], [[fragment]],
@@ -9457,8 +9534,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
       handleSimpleAttribute<MetalEarlyFragmentTestsAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalHostName:
-    if (checkMetalAttrCommon(S, AL))
-      handleMetalStringArgAttr<MetalHostNameAttr>(S, D, AL);
+    handleMetalHostNameAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalMaxTotalThreadsPerThreadgroup:
     if (checkMetalAttrCommon(S, AL))
@@ -9485,8 +9561,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
       handleSimpleAttribute<MetalStageInAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAttributeIndex:
-    if (checkMetalAttrCommon(S, AL))
-      handleMetalExprArgsAttr<1, MetalAttributeIndexAttr>(S, D, AL);
+    handleMetalAttributeIndexAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalFunctionConstant:
     if (checkMetalAttrCommon(S, AL))
