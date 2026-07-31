@@ -11,13 +11,11 @@
 // RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
 
 // <metal_stdlib> provides the 'half' keyword.
-#include <metal_stdlib>
-
 // __metal_sqrt is a compiler builtin declared in BuiltinsMetal.def, so it
 // must not be redeclared here; doing so is rejected with
 // "cannot redeclare builtin function".
 
-kernel void m(device float *f [[buffer(0)]], device half *h [[buffer(1)]]) {
+kernel void m(device float *f [[buffer(0)]], device __fp16 *h [[buffer(1)]]) {
   // CHECK: call{{.*}}@air.fast_sqrt.f32
   f[0] = __metal_sqrt(f[0], 1);
   // CHECK: call{{.*}}@air.sqrt.f16

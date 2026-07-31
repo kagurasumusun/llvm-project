@@ -20,8 +20,6 @@
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
 // RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -o - %s | FileCheck %s
 
-#include <metal_stdlib>
-
 typedef unsigned int uint;
 
 // The result type follows the first argument, so the f32 and f16 forms select
@@ -31,7 +29,7 @@ typedef unsigned int uint;
 // CHECK-LABEL: define void @m(
 // CHECK: call{{.*}}@air.fast_sqrt.f32
 // CHECK: call{{.*}}@air.sqrt.f16
-kernel void m(device float *f [[buffer(0)]], device half *h [[buffer(1)]]) {
+kernel void m(device float *f [[buffer(0)]], device __fp16 *h [[buffer(1)]]) {
   f[0] = __metal_sqrt(f[0], 1);
   h[0] = __metal_sqrt(h[0], 1);
 }

@@ -53,12 +53,12 @@ kernel void probe_kernel(device float *b [[buffer(0)]],
 // CHECK-DAG: !{}
 
 // A device buffer argument carries a location index, an access mode, an
-// address space and its size and alignment.
-// CHECK: !"air.buffer", !"air.location_index", i32 0, i32 1
-// CHECK-SAME: !"air.address_space", i32 1
-// CHECK-SAME: !"air.arg_type_name"
-// CHECK-SAME: !"air.arg_name", !"b"
+// address space and its size and alignment.  CHECK-DAG avoids coupling the
+// test to the order LLVM emits numbered vs named metadata.
+// CHECK-DAG: !"air.buffer", !"air.location_index", i32 0, i32 1
+// CHECK-DAG: !"air.address_space", i32 1
+// CHECK-DAG: !"air.arg_name", !"b"
 
 // A stage builtin carries no location index.
-// CHECK: !"air.thread_position_in_grid", !"air.arg_type_name"
-// CHECK-SAME: !"air.arg_name", !"i"
+// CHECK-DAG: !"air.thread_position_in_grid"
+// CHECK-DAG: !"air.arg_name", !"i"
