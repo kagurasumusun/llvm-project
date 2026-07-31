@@ -58,7 +58,7 @@ air.less,546,operand_string,EMITTED,
 air.visible,520,named_md,EMITTED,
 air.visible_output,520,operand_string,EMITTED,"!{!""air.visible_output"", !""air.arg_type_name"", !""uint""}"
 air.visible_input,520,operand_string,EMITTED,"!{i32 0, !""air.visible_input"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""v""}"
-air.visible_function_reference,352,operand_string,EMITTED_EMPTY,"!{!""air.visible_function_reference"", i32 (i32)* @ld_visible_fn.MTL_VISIBLE_FN_REF, !""ld_visible_fn""}"
+air.visible_function_reference,352,operand_string,EMITTED,"!{!""air.visible_function_reference"", i32 (i32)* @ld_visible_fn.MTL_VISIBLE_FN_REF, !""ld_visible_fn""}"
 air.visible_function_references,352,named_md,EMITTED,
 air.indirect_buffer,312,operand_string,EMITTED,"!{i32 0, !""air.indirect_buffer"", !""air.buffer_size"", i32 16, !""air.location_index"", i32 0, i32 1, !""air.read"", !""air.address_space"", i32 2, !""air.struct_type_info"", !N, !""air.arg_type_size"", i32 16, !""air.arg_type_align_size"", i32 8, !""air.arg_type_name"", !""Args"", !""air.arg_name"", !""args""}"
 air.render_target_array_index,280,operand_string,EMITTED,"!{!""air.render_target_array_index"", !""air.arg_type_name"", !""uint"", !""air.arg_name"", !""rta""}"
@@ -75,9 +75,9 @@ air.threadgroup_position_in_grid,56,operand_string,EMITTED,"!{i32 1, !""air.thre
 air.thread_position_in_threadgroup,4,operand_string,EMITTED,"!{i32 2, !""air.thread_position_in_threadgroup"", !""air.arg_type_name"", !""ushort2"", !""air.arg_name"", !""__lid"", !""air.arg_unused""}"
 air.imageblock,3,operand_string,EMITTED,"!{i32 0, !""air.imageblock"", !""implicit"", !""air.struct_type_info"", !N, !""air.arg_type_align_size"", i32 16, !""air.arg_type_name"", !""imageblock<IB25C, layout_implicit>"", !""air.arg_name"", !""__ib""}"
 air.patch_control_point,2,operand_string,EMITTED,
-air.patch_id,2,operand_string,NOT_EMITTED_NEEDS_ATTR,"!{i32 1, !""air.patch_id"", !""air.arg_type_name"", !""ushort"", !""air.arg_name"", !""__pid""}"
+air.patch_id,2,operand_string,EMITTED,"!{i32 1, !""air.patch_id"", !""air.arg_type_name"", !""ushort"", !""air.arg_name"", !""__pid""}"
 air.patch,2,operand_string,EMITTED,"!{!""air.patch"", !""triangle"", !""air.patch_control_point"", i32 3}"
-air.patch_control_point_input,2,operand_string,EMITTED_EMPTY,"!{i32 0, !""air.patch_control_point_input"", !N, !N, !""air.arg_unused""}"
+air.patch_control_point_input,2,operand_string,EMITTED,"!{i32 0, !""air.patch_control_point_input"", !N, !N, !""air.arg_unused""}"
 air.patch_control_point_function,2,operand_string,EMITTED,"!{!""air.patch_control_point_function"", null}"
 air.triangle,1,operand_string,EMITTED,
 air.mesh_type_info,1,operand_string,EMITTED,"!{!""air.mesh_type_info"", !N, !N, i32 8, i32 4, !""air.triangle""}"

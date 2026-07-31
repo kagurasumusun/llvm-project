@@ -293,6 +293,14 @@ bool Sema::DiagnoseMetalUnsupportedDecl(Decl *D) {
     }
   }
 
+  // goto is not permitted in Metal (MSL 4.1 section 1.6.1).
+  if (auto *LS = dyn_cast<LabelStmt>(D)) {
+    (void)LS;
+    // Label statements are caught by their parent function; reject here
+    // would fire on every label, not just goto targets.  The actual goto
+    // diagnostic is emitted in SemaStmt.cpp when the parser sees 'goto'.
+  }
+
   return false;
 }
 
@@ -302,6 +310,25 @@ bool Sema::DiagnoseMetalUnsupportedDecl(Decl *D) {
 /// 'long long'. The specification agrees: "Metal does not support the double,
 /// long long, unsigned long long, and long double data types" (MSL 4.1 table
 /// 2.1 commentary).
+bool Sema::DiagnoseMetalUnsupportedExpr(Expr *E) {
+  if (!getLangOpts().Metal || !E)
+    return false;
+
+  // MSL 4.1 section 1.6.1 lists dynamic_cast and typeid as unavailable.
+  if (isa<CXXDynamicCastExpr>(E) || isa<CXXTypeidExpr>(E)) {
+    Diag(E->getBeginLoc(), diag::err_metal_unsupported)
+        << (llvm::Twine("'") + E->getStmtClassName() + "'").str();
+    return true;
+  }
+
+  // RTTI (typeid on types, dynamic_cast) is broadly unavailable.
+  // CXXDynamicCast and CXXTypeidExpr cover the expression forms;
+  // RTTI descriptor generation is suppressed via -fno-rtti in the
+  // driver, which is the Metal default.
+
+  return false;
+}
+
 bool Sema::DiagnoseMetalUnsupportedType(QualType Ty, SourceLocation Loc) {
   if (!getLangOpts().Metal || Ty.isNull())
     return false;

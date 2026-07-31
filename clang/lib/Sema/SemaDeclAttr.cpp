@@ -9472,6 +9472,10 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     if (checkMetalAttrCommon(S, AL))
       handleMetalExprArgsAttr<3, MetalRequiredThreadsPerThreadgroupAttr>(S, D, AL);
     break;
+  case ParsedAttr::AT_MetalPatchId:
+    if (checkMetalAttrCommon(S, AL))
+      handleSimpleAttribute<MetalPatchIdAttr>(S, D, AL);
+    break;
   case ParsedAttr::AT_MetalPatch:
     if (checkMetalAttrCommon(S, AL))
       handleMetalPatchAttr(S, D, AL);

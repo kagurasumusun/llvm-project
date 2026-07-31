@@ -4554,6 +4554,13 @@ def MetalPackedVectorType : Attr {
   let Documentation = [Undocumented];
 }
 
+def MetalPatchId : InheritableParamAttr {
+  let Spellings = [CXX11<"", "patch_id">];
+  let Subjects = SubjectList<[ParmVar]>;
+  let LangOpts = [Metal];
+  let Documentation = [Undocumented];
+}
+
 def MetalPatch : InheritableAttr {
   let Spellings = [CXX11<"", "patch">];
   let Args = [IdentifierArgument<"PatchType">, ExprArgument<"ControlPoints", 1>];

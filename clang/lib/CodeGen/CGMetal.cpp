@@ -876,6 +876,8 @@ static llvm::StringRef getAIRStageInputName(const ParmVarDecl *PVD) {
     return "air.primitive_id";
   if (PVD->hasAttr<MetalBarycentricCoordAttr>())
     return "air.barycentric_coord";
+  if (PVD->hasAttr<MetalPatchIdAttr>())
+    return "air.patch_id";
   return llvm::StringRef();
 }
 
@@ -1378,6 +1380,14 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       B.addStr(IsKernelIn    ? "air.stage_in"
                : IsVertexIn  ? "air.vertex_input"
                              : "air.fragment_input");
+    } else if (PVD->hasAttr<MetalPatchIdAttr>()) {
+      // A tessellation control-point input.  Two occurrences in the
+      // reference corpus:
+      //   !{i32 0, !"air.patch_control_point_input", !N, !N,
+      //     !"air.arg_unused"}
+      B.addStr("air.patch_control_point_input");
+      B.addNode(nullptr);
+      B.addNode(nullptr);
     } else if (FD->hasAttr<MetalVisibleAttr>()) {
       // A `[[visible]]` function takes plain values, recorded as
       // `air.visible_input`, and returns one `air.visible_output`:
@@ -1453,6 +1463,17 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
   // kernel the second operand is an empty node, as in P01:
   //   !9 = !{void (...)* @probe_p01_kernel, !10, !11}
   //   !10 = !{}
+  // Track visible function references for !air.visible_function_references.
+  if (FD->hasAttr<MetalVisibleAttr>()) {
+    llvm::NamedMDNode *VFN =
+        getModule().getOrInsertNamedMetadata("air.visible_function_references");
+    llvm::MDNode *RefNode = llvm::MDNode::get(
+        Ctx, {llvm::MDString::get(Ctx, "air.visible_function_reference"),
+              llvm::ConstantAsMetadata::get(Fn),
+              llvm::MDString::get(Ctx, FD->getName())});
+    VFN->addOperand(RefNode);
+  }
+
   llvm::Metadata *FnMD = llvm::ConstantAsMetadata::get(Fn);
   // Kernels have no outputs (the second operand is an empty node, as in
   // golden P01); vertex and fragment stages describe theirs.

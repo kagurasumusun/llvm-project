@@ -6101,6 +6101,7 @@ public:
   /// Reject the C++ constructs MSL does not support (exceptions, RTTI,
   /// new/delete, virtual functions, unions, goto, ...).
   bool DiagnoseMetalUnsupported(SourceLocation Loc, StringRef Construct);
+  bool DiagnoseMetalUnsupportedExpr(Expr *E);
 
   /// Reject a declaration that uses a C++ construct MSL does not support.
   bool DiagnoseMetalUnsupportedDecl(Decl *D);
