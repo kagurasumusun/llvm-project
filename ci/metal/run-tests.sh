@@ -145,8 +145,8 @@ $(eval "$compile_only" 2>&1 | head -25)"
         # No MBE checkpoints were logged: crash happened before the first
         # instrumented site. The numbered pretty-stack entries at the head of
         # the dump say what clang was doing; take them plus the final lines.
-        frames=$( { printf '%s\n' "$out" | grep -E '^[0-9]+\.'; \
-                    printf '%s\n' "$out" | grep -vE '^\s*$' | tail -2; } \
+        frames=$( { printf '%s\n' "$out" | grep -E '^[0-9]+\.' | grep -v 'Program arguments'; \
+                    printf '%s\n' "$out" | grep -vE '^\s*$' | tail -4; } \
                  | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }' \
                  | cut -c1-280)
       fi

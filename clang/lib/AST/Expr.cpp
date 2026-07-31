@@ -1574,8 +1574,16 @@ bool CallExpr::isUnevaluatedBuiltinCall(const ASTContext &Ctx) const {
 }
 
 QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  bool TRC = Ctx.getLangOpts().Metal;
+  if (TRC)
+    llvm::errs() << "GCRT: enter\n";
   const Expr *Callee = getCallee();
+  if (TRC)
+    llvm::errs() << "GCRT: callee " << Callee->getStmtClassName() << '\n';
   QualType CalleeType = Callee->getType();
+  if (TRC)
+    llvm::errs() << "GCRT: calleety " << CalleeType.getAsString() << '\n';
   if (const auto *FnTypePtr = CalleeType->getAs<PointerType>()) {
     CalleeType = FnTypePtr->getPointeeType();
   } else if (const auto *BPT = CalleeType->getAs<BlockPointerType>()) {
@@ -1595,8 +1603,15 @@ QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
     return Ctx.DependentTy;
   }
 
+  if (TRC)
+    llvm::errs() << "GCRT: pre-castAs " << CalleeType.getAsString() << '\n';
   const FunctionType *FnType = CalleeType->castAs<FunctionType>();
-  return FnType->getReturnType();
+  if (TRC)
+    llvm::errs() << "GCRT: castAs ok\n";
+  QualType Ret = FnType->getReturnType();
+  if (TRC)
+    llvm::errs() << "GCRT: ret " << Ret.getAsString() << '\n';
+  return Ret;
 }
 
 const Attr *CallExpr::getUnusedResultAttr(const ASTContext &Ctx) const {
