@@ -569,6 +569,11 @@ DeclRefExpr *DeclRefExpr::Create(const ASTContext &Context,
           TemplateArgs ? TemplateArgs->size() : 0);
 
   void *Mem = Context.Allocate(Size, alignof(DeclRefExpr));
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (D->getDeclName().isIdentifier() && D->getName().startswith("__metal_"))
+    llvm::errs() << "DRECRE: name=" << D->getName()
+                 << " ty=" << T.getAsString()
+                 << " declty=" << D->getType().getAsString() << '\n';
   return new (Mem) DeclRefExpr(Context, QualifierLoc, TemplateKWLoc, D,
                                RefersToEnclosingVariableOrCapture, NameInfo,
                                FoundD, TemplateArgs, T, VK, NOUR);
