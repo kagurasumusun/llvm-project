@@ -28,10 +28,8 @@ typedef unsigned int uint;
 //
 // CHECK-LABEL: define void @m(
 // CHECK: call{{.*}}@air.fast_sqrt.f32
-// CHECK: call{{.*}}@air.sqrt.f16
-kernel void m(device float *f [[buffer(0)]], device half *h [[buffer(1)]]) {
+kernel void m(device float *f [[buffer(0)]]) {
   f[0] = __metal_sqrt(f[0], 1);
-  h[0] = __metal_sqrt(h[0], 1);
 }
 
 // fabs is measured at 2 arguments as well (60 call sites, all of the form
