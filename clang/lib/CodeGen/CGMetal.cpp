@@ -383,12 +383,13 @@ CodeGenFunction::EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
   }
   case Builtin::BI__metal_get_num_patch_control_points: {
     // Returns the number of control points declared on the enclosing
-    // entry point's [[patch(triangle, N)]].  Read at compile time from
-    // the MetalPatchAttr on the current FunctionDecl.
+    // entry point's [[patch(triangle, N)]].
+    // CurFuncDecl tracks the outermost non-closure function; getAttr<>()
+    // is a method on Decl, so no cast is required.
     unsigned NumCP = 0;
-    if (const FunctionDecl *CurFD =
-            dyn_cast_or_null<FunctionDecl>(CurCodeDecl)) {
-      if (const auto *PA = CurFD->getAttr<MetalPatchAttr>()) {
+    if (CurFuncDecl) {
+      if (const auto *PA =
+              CurFuncDecl->getAttr<MetalPatchAttr>()) {
         if (PA->getControlPoints())
           NumCP = CGM.getMetalAttrIndex(PA->getControlPoints());
       }

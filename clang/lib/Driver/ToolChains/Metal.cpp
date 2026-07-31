@@ -52,7 +52,7 @@ unsigned MetalToolChain::getMetalVersionForStd(llvm::StringRef Std,
   unsigned Ver = parseMetalStd(Std);
   if (Ver == 0) {
     // If no -std= was given, pick a reasonable default based on the
-    // deployment target.  macOS 26 → Metal 4.0, macOS 15 → Metal 3.2, etc.
+    // deployment target.  macOS 26 -> Metal 4.0, macOS 15 -> Metal 3.2, etc.
     unsigned Major = Target.getOSVersion().getMajor();
     if (Target.isMacOSX()) {
       if (Major >= 26) Ver = 400;
@@ -110,12 +110,7 @@ void MetalToolChain::addClangTargetOptions(
   if (const Arg *A = DriverArgs.getLastArg(options::OPT_std_EQ)) {
     A->render(DriverArgs, CC1Args);
 
-    // Compute and inject the Metal version as a cc1-level LangOption.
-    unsigned Ver = getMetalVersionForStd(A->getValue(), getTriple());
-    if (Ver > 0) {
-      CC1Args.push_back("-fmetal-version");
-      CC1Args.push_back(DriverArgs.MakeArgString(Twine(Ver)));
-    }
+    // Metal version is derived from -std= by the frontend.
   }
 
   // Forward Metal-specific flags.
@@ -153,11 +148,9 @@ void metal::Compiler::ConstructJob(Compilation &C, const JobAction &JA,
                                    const InputInfoList &Inputs,
                                    const ArgList &Args,
                                    const char *LinkingOutput) const {
-  const auto &TC = static_cast<const toolchains::MetalToolChain &>(getToolChain());
+  const auto &TC =
+      static_cast<const toolchains::MetalToolChain &>(getToolChain());
   ArgStringList CmdArgs;
-
-  // Claim all args we handle via RenderExtraToolArgs.
-  ClaimNoWarnArgs(Args);
 
   // Common Clang cc1 arguments.
   CmdArgs.push_back("-cc1");
@@ -172,12 +165,7 @@ void metal::Compiler::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (const Arg *A = Args.getLastArg(options::OPT_std_EQ)) {
     A->render(Args, CmdArgs);
-    unsigned Ver = MetalToolChain::getMetalVersionForStd(
-        A->getValue(), TC.getTriple());
-    if (Ver > 0) {
-      CmdArgs.push_back("-fmetal-version");
-      CmdArgs.push_back(Args.MakeArgString(Twine(Ver)));
-    }
+    // Metal version is derived from -std= by the frontend.
   }
 
   // Forward metal-specific flags.
@@ -269,8 +257,7 @@ void metal::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Metal produces .metallib archives from .air bitcode files.  The
   // standard tool for this is `metallib`, but for now we use `llvm-link`
-  // followed by `metal-libtool`-style archive creation.  The driver just
-  // passes through to the system linker or `metallib`.
+  // followed by `metal-libtool`-style archive creation.
   //
   // Apple's `metallib` tool takes .air files and produces a .metallib:
   //   metallib -o output.metallib input1.air input2.air

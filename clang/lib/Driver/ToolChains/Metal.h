@@ -54,8 +54,6 @@ public:
                         llvm::opt::ArgStringList &CC1Args,
                         Action::OffloadKind DeviceOffloadKind) const override;
 
-  /// Metal uses the same C++ standard library as the host (libc++),
-  /// pulled through the SDK.
   void AddClangCXXStdlibIncludeArgs(
       const llvm::opt::ArgList &DriverArgs,
       llvm::opt::ArgStringList &CC1Args) const override;
@@ -79,9 +77,7 @@ namespace metal {
 
 class LLVM_LIBRARY_VISIBILITY Compiler : public Tool {
 public:
-  Compiler(const ToolChain &TC)
-      : Tool("metal::Compiler", "clang", TC,
-             Tool::RF_Full, llvm::sys::WEM_UTF8, "--cc1") {}
+  Compiler(const ToolChain &TC) : Tool("metal::Compiler", "clang", TC) {}
 
   bool hasIntegratedCPP() const override { return true; }
   bool hasIntegratedBackend() const override { return false; }
@@ -96,9 +92,7 @@ public:
 
 class LLVM_LIBRARY_VISIBILITY Backend : public Tool {
 public:
-  Backend(const ToolChain &TC)
-      : Tool("metal::Backend", "clang", TC,
-             Tool::RF_Full, llvm::sys::WEM_UTF8, "--cc1") {}
+  Backend(const ToolChain &TC) : Tool("metal::Backend", "clang", TC) {}
 
   bool hasIntegratedCPP() const override { return true; }
   bool hasIntegratedBackend() const override { return true; }
@@ -112,8 +106,7 @@ public:
 
 class LLVM_LIBRARY_VISIBILITY Linker : public Tool {
 public:
-  Linker(const ToolChain &TC)
-      : Tool("metal::Linker", "ld64.lld", TC) {}
+  Linker(const ToolChain &TC) : Tool("metal::Linker", "ld64.lld", TC) {}
   bool isLinkJob() const override { return true; }
   bool hasIntegratedCPP() const override { return false; }
   void ConstructJob(Compilation &C, const JobAction &JA,
