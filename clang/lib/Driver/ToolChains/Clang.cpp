@@ -3593,6 +3593,31 @@ static void RenderMetalOptions(const Driver &D, const ArgList &Args,
   CmdArgs.push_back("-fno-strict-return");
   CmdArgs.push_back("-fcommon");
 
+  // The rest of the measured always-on cc1 option set that this tree can
+  // honor. Three measured options are deliberately absent:
+  //   -fno-odr-hash-protocols and -clang-vendor-feature=+... switch off
+  //   machinery (the ODR hash protocol, the vendor-gated AST behaviors)
+  //   that does not exist in this base at all, and -fstack-check is an
+  //   ignored driver-level option with no cc1 flag here.
+  CmdArgs.push_back("-fno-verbose-asm");
+  CmdArgs.push_back("-no-integrated-as");
+  CmdArgs.push_back("-fvisibility-inlines-hidden-static-local-var");
+  // new-infallible is off: operator new in Metal device code may fail and
+  // return nullptr; Apple passes -fno-new-infallible to every cc1 call.
+  CmdArgs.push_back("-fno-new-infallible");
+  // Autolinking is off for Metal even though the target is Darwin
+  // (ShouldEnableAutolink otherwise leaves it on).
+  CmdArgs.push_back("-fno-autolink");
+  CmdArgs.push_back("-fencode-extended-block-signature");
+  CmdArgs.push_back("-fregister-global-dtors-with-atexit");
+  CmdArgs.push_back("-mllvm");
+  CmdArgs.push_back("-treat-scalable-fixed-error-as-warning");
+  // Apple caps the error limit at 19 rather than the default 20.
+  if (!Args.getLastArg(options::OPT_ferror_limit, options::OPT_ferror_limit_EQ)) {
+    CmdArgs.push_back("-ferror-limit");
+    CmdArgs.push_back("19");
+  }
+
   // Apple consumes the standard library as clang modules:
   //   -fmodules -fmodule-map-file=<resource-dir>/include/metal/module.modulemap
   // The fork does not ship the standard library, so the module map only
@@ -3608,6 +3633,7 @@ static void RenderMetalOptions(const Driver &D, const ArgList &Args,
       CmdArgs.push_back("-fmodules");
       CmdArgs.push_back(
           Args.MakeArgString(Twine("-fmodule-map-file=") + MapFile));
+      CmdArgs.push_back("-fmodules-validate-system-headers");
     }
   }
 
@@ -5906,6 +5932,44 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     A->claim();
   }
 
+  // Apple's `metal` driver seeds every cc1 invocation with this exact set of
+  // warning configurations, uniform across all 18 target/OS/standard tuples
+  // (reference/metal-ast-*/meta/metal-cc1-invocations.txt). They are emitted
+  // before the user's own -W options below so that the user can still
+  // override them.
+  if (types::isMetal(InputType)) {
+    static const char *const MetalWarningDefaults[] = {
+        "-Wdeprecated-objc-isa-usage", "-Werror=deprecated-objc-isa-usage",
+        "-Werror=implicit-function-declaration",
+        "-Wuninitialized",
+        "-Wunused-variable",
+        "-Wunused-value",
+        "-Wunused-function",
+        "-Wsign-compare",
+        "-Wreturn-type",
+        "-Wmissing-braces",
+        "-Wformat-nonliteral",
+        "-Wno-reorder-init-list",
+        "-Wno-implicit-int-float-conversion",
+        "-Wno-c99-designator",
+        "-Wno-final-dtor-non-final-class",
+        "-Wno-extra-semi-stmt",
+        "-Wno-misleading-indentation",
+        "-Wno-quoted-include-in-framework-header",
+        "-Wno-implicit-fallthrough",
+        "-Wno-enum-enum-conversion",
+        "-Wno-enum-float-conversion",
+        "-Wno-elaborated-enum-base",
+        "-Wno-reserved-identifier",
+        "-Wno-gnu-folding-constant",
+        "-Wno-objc-load-method",
+        "-Wmtl-shader-return-type",
+        "-Werror=mtl-shader-return-type",
+    };
+    for (const char *W : MetalWarningDefaults)
+      CmdArgs.push_back(W);
+  }
+
   claimNoWarnArgs(Args);
 
   Args.AddAllArgs(CmdArgs, options::OPT_R_Group);
@@ -6034,6 +6098,16 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Add in -fdebug-compilation-dir if necessary.
   const char *DebugCompilationDir =
       addDebugCompDirArg(Args, CmdArgs, D.getVFS());
+
+  // Apple seeds -main-file-name for every Metal compile; !air.source_file_name
+  // in the emitted module contains the input file's base name (e.g.
+  // !19 = !{"probe.metal"} in research/golden/P01/metal32_macosx26/probe.ll),
+  // which is exactly the -main-file-name value.
+  if (types::isMetal(InputType)) {
+    CmdArgs.push_back("-main-file-name");
+    SmallString<128> MainFileName(llvm::sys::path::filename(Input.getFilename()));
+    CmdArgs.push_back(Args.MakeArgString(MainFileName));
+  }
 
   addDebugPrefixMapArg(D, TC, Args, CmdArgs);
 
