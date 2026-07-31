@@ -184,8 +184,6 @@ void metal::Compiler::ConstructJob(Compilation &C, const JobAction &JA,
   // Optimization and debug info.
   Args.AddLastArg(CmdArgs, options::OPT_O_Group);
   Args.AddLastArg(CmdArgs, options::OPT_g_Group);
-  Args.AddAllArgs(CmdArgs, options::OPT_fast_math_Group);
-  Args.AddAllArgs(CmdArgs, options::OPT_ffast_math);
 
   // Metal uses typed pointers (the reference IR is -- as shipped by Apple --
   // entirely in typed pointer form).
