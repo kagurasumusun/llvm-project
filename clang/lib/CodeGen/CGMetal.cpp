@@ -876,8 +876,6 @@ static llvm::StringRef getAIRStageInputName(const ParmVarDecl *PVD) {
     return "air.primitive_id";
   if (PVD->hasAttr<MetalBarycentricCoordAttr>())
     return "air.barycentric_coord";
-  if (PVD->hasAttr<MetalPatchIdAttr>())
-    return "air.patch_id";
   return llvm::StringRef();
 }
 
