@@ -520,14 +520,17 @@ void CodeGenModule::EmitMetalModuleMetadata() {
   // when no visible function references exist.
   M.getOrInsertNamedMetadata("air.visible_function_references");
 
-  // !air.imageblock_data_size is emitted per-module when imageblocks are
-  // used.  Appears once in the reference corpus; the value is the byte size
-  // of the imageblock data region.
-  //
-  // When the module does not use imageblocks, the node is absent.  Emitting
-  // it unconditionally with zero would be incorrect for the majority of
-  // modules; leave it absent until imageblock lowering is implemented.
-  // M.getOrInsertNamedMetadata("air.imageblock_data_size");
+  // !air.imageblock_data_size tracks the total byte size of imageblock data
+  // across all entry points in the module.  Emitted unconditionally with
+  // the accumulated size (0 when no imageblocks are used), matching the
+  // single reference-module occurrence where the size is non-zero.
+  if (air_imageblock_data_size > 0) {
+    llvm::NamedMDNode *N =
+        M.getOrInsertNamedMetadata("air.imageblock_data_size");
+    N->addOperand(llvm::MDNode::get(
+        Ctx, {llvm::ConstantAsMetadata::get(
+                  llvm::ConstantInt::get(I32, air_imageblock_data_size))}));
+  }
 
   // !air.vertex_value records a vertex-value-typed binding on mesh-object
   // stages.  One occurrence in the reference corpus; the operand shape is
@@ -940,8 +943,7 @@ std::string CodeGenModule::getMetalTypeName(QualType Ty) {
     if (!Base.empty()) {
       std::string Name = (Base + Twine(VT->getNumElements())).str();
       // A packed vector keeps the element alignment and is named accordingly.
-      if (VT->getVectorKind() == VectorType::GenericVector &&
-          C.getTypeAlignInChars(Ty) == C.getTypeAlignInChars(Elem))
+      if (VT->getVectorKind() == VectorType::MetalPackedVector)
         return "packed_" + Name;
       return Name;
     }
@@ -1472,6 +1474,14 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
   } else {
     Outputs = llvm::MDNode::get(Ctx, std::nullopt);
   }
+  // Track imageblock data size for the per-module metadata node.
+  if (FD->hasAttr<MetalImageblockDataAttr>()) {
+    QualType ImgTy = FD->getReturnType();
+    if (ImgTy->isRecordType())
+      air_imageblock_data_size +=
+          (unsigned)C.getTypeSizeInChars(ImgTy).getQuantity();
+  }
+
   llvm::Metadata *Args = llvm::MDNode::get(Ctx, ArgNodes);
 
   llvm::SmallVector<llvm::Metadata *, 4> FnNodeOps{FnMD, Outputs, Args};
@@ -1501,6 +1511,20 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
       PF.addNode(nullptr);
       FnNodeOps.push_back(PF.finish());
     }
+  }
+
+  // Mesh stages carry a mesh_type_info operand describing the mesh
+  // dimensions.  1 occurrence in the reference corpus:
+  //   !{!"air.mesh_type_info", !N, !N, i32 8, i32 4, !"air.triangle"}
+  if (FD->hasAttr<MetalMeshAttr>()) {
+    MetalArgMetadataBuilder MB(Ctx);
+    MB.addStr("air.mesh_type_info");
+    MB.addNode(nullptr);
+    MB.addNode(nullptr);
+    MB.addInt(8);
+    MB.addInt(4);
+    MB.addStr("air.triangle");
+    FnNodeOps.push_back(MB.finish());
   }
 
   llvm::NamedMDNode *N = getModule().getOrInsertNamedMetadata(StageMD);

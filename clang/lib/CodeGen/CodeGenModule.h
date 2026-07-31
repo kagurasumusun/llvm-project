@@ -1688,6 +1688,10 @@ public:
   llvm::SmallVector<std::pair<const VarDecl *, llvm::GlobalVariable *>, 4>
       MetalFunctionConstants;
 
+  /// Accumulated byte size of imageblock data across all entry points in
+  /// this translation unit.  Emitted as !air.imageblock_data_size.
+  unsigned air_imageblock_data_size = 0;
+
 
 private:
 
