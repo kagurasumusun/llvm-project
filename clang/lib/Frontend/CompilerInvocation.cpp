@@ -3714,9 +3714,9 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
     if (Arg *A = Args.getLastArg(OPT_fmetal_math_fp32_functions_EQ)) {
       StringRef V = A->getValue();
       if (V == "precise")
-        Opts.MetalFPMath = LangOptions::MetalFPMathFunctions::Precise;
+        Opts.setMetalFPMath(LangOptions::MetalFPMathFunctions::Precise);
       else
-        Opts.MetalFPMath = LangOptions::MetalFPMathFunctions::Fast;
+        Opts.setMetalFPMath(LangOptions::MetalFPMathFunctions::Fast);
     }
     if (Arg *A = Args.getLastArg(OPT_fmetal_math_mode_EQ)) {
       // Captured for future use; does not currently affect compilation.
