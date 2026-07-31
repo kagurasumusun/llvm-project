@@ -154,6 +154,22 @@ jobs:
         if: always() && steps.build.outcome == 'success'
         run: ci/metal/build.sh test
 
+      # Linux-produced .air for the macOS leg. The shader is
+      # ci/metal/ios-triangle/triangle.metal, compiled by the freshly built
+      # fork clang through the full driver pipeline.
+      - name: Compile the triangle shader to .air
+        if: always() && steps.build.outcome == 'success'
+        run: ci/metal/build.sh air
+
+      - name: Upload the .air for the macOS job
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: triangle-air-${{ github.run_id }}
+          path: artifacts/triangle.air
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -162,5 +178,127 @@ jobs:
           path: |
             /tmp/build.log
             /tmp/lit.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Second leg: take the Linux-built .air onto a macOS runner, wrap it into a
+  # .metallib with this tree's llvm-metallib (built there from source -- the
+  # compiler itself is not rebuilt), and assemble the unsigned iOS 26 device
+  # app that renders a triangle with it. This is the other half of the .air
+  # -> .metallib -> device story, so the container format gets exercised on
+  # the same OS the runtime loader lives on.
+  ios-app:
+    name: wrap .metallib on macOS and build the unsigned iOS app
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 120
+
+    env:
+      CCACHE_DIR: /Users/runner/.ccache
+      # stage_configure only applies -DLLVM_USE_LINKER when this is non-empty;
+      # mold does not exist on macOS and the Xcode linker is fine.
+      LLVM_LINKER: ""
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            llvm
+            clang
+            cmake
+            ci
+          sparse-checkout-cone-mode: true
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Download the Linux-built .air
+        uses: actions/download-artifact@v4
+        with:
+          name: triangle-air-${{ github.run_id }}
+          path: artifacts
+
+      - name: Install toolchain
+        run: ci/metal/build.sh deps-macos
+
+      # Separate key prefix from the Linux ccache entries: they are ARM64 on
+      # both legs, but the object files inside are Linux ones and would just
+      # be download overhead here.
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: metal-ccache-macos-${{ hashFiles('clang/**', 'llvm/**', 'cmake/**') }}
+          restore-keys: |
+            metal-ccache-macos-
+
+      - name: Configure ccache
+        run: |
+          ccache --set-config=max_size=2G
+          ccache --set-config=compression=true
+          ccache --set-config=sloppiness=pch_defines,time_macros,include_file_mtime,include_file_ctime
+          ccache --zero-stats
+
+      - name: Select Xcode 26.5
+        # Hard requirement of this pipeline: the iOS 26 device SDK from the
+        # 26.5 toolchain. Fail loudly rather than falling back to whatever
+        # the runner image happens to default to.
+        run: |
+          for d in /Applications/Xcode_26.5.app /Applications/Xcode_26.5_beta.app; do
+            if [ -d "$d" ]; then
+              echo "DEVELOPER_DIR=$d/Contents/Developer" >> "$GITHUB_ENV"
+              echo "selected $d"
+              exit 0
+            fi
+          done
+          echo "::error::Xcode 26.5 is not installed on this runner:"
+          ls /Applications | grep -i xcode || true
+          exit 1
+
+      - name: Configure
+        env:
+          LLVM_TRIPLE: arm64-apple-darwin
+        run: ci/metal/build.sh configure
+
+      - name: Build llvm-metallib
+        id: build
+        run: ci/metal/build.sh metallib-tool
+
+      - name: ccache statistics
+        if: always()
+        run: ccache --show-stats
+
+      - name: Save ccache
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: metal-ccache-macos-${{ hashFiles('clang/**', 'llvm/**', 'cmake/**') }}
+
+      - name: Wrap the .air into triangle.metallib
+        run: ci/metal/build.sh metallib
+
+      - name: Build the unsigned iOS device app
+        run: ci/metal/build.sh app
+
+      - name: Upload the unsigned app
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: triangle-app-unsigned-${{ github.run_id }}
+          path: artifacts/TriangleApp-unsigned.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metal-logs-macos-${{ github.run_id }}
+          path: |
+            /tmp/build-macos.log
           if-no-files-found: ignore
           retention-days: 7
