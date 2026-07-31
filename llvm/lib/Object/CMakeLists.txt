@@ -16,6 +16,7 @@ add_llvm_component_library(LLVMObject
   IRSymtab.cpp
   MachOObjectFile.cpp
   MachOUniversal.cpp
+  MetallibWriter.cpp
   Minidump.cpp
   ModuleSymbolTable.cpp
   Object.cpp

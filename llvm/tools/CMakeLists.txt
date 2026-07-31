@@ -33,6 +33,7 @@ add_llvm_tool_subdirectory(gold)
 add_llvm_tool_subdirectory(llvm-ar)
 add_llvm_tool_subdirectory(llvm-config)
 add_llvm_tool_subdirectory(llvm-lto)
+add_llvm_tool_subdirectory(llvm-metallib)
 add_llvm_tool_subdirectory(llvm-profdata)
 
 # Projects supported via LLVM_EXTERNAL_*_SOURCE_DIR need to be explicitly
