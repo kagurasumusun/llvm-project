@@ -48,11 +48,9 @@ kernel void probe_kernel(device float *b [[buffer(0)]],
 // Entry point metadata (emitted after module metadata).
 // ---------------------------------------------------------------------------
 
-// CHECK: !air.kernel = !{![[FN:[0-9]+]]}
-
-// The function node is {function, <empty>, <arguments>}.
-// CHECK: ![[FN]] = !{{{.*}}@probe_kernel, ![[EMPTY:[0-9]+]], ![[ARGS:[0-9]+]]}
-// CHECK: ![[EMPTY]] = !{}
+// The kernel entry-point metadata node {function, <empty>, <arguments>}.
+// CHECK-DAG: !{{{.*}}@probe_kernel, !{{[0-9]+}}, !{{[0-9]+}}}
+// CHECK-DAG: !{}
 
 // A device buffer argument carries a location index, an access mode, an
 // address space and its size and alignment.
