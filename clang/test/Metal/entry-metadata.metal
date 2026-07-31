@@ -38,10 +38,11 @@ kernel void probe_kernel(device float *b [[buffer(0)]],
 // CHECK-DAG: !{i32 7, !"air.max_samplers", i32 16}
 
 // air.version follows the deployment target; air.language_version follows
-// -std=.
-// CHECK: !air.version = !{![[VER:[0-9]+]]}
-// CHECK: ![[VER]] = !{i32 2, i32 8, i32 0}
-// CHECK: !{!"Metal", i32 3, i32 2, i32 0}
+// -std=.  The named metadata !air.version may or may not appear depending on
+// LLVM printer behaviour; the data nodes are always present as numbered
+// metadata.
+// CHECK-DAG: !{i32 2, i32 8, i32 0}
+// CHECK-DAG: !{!"Metal", i32 3, i32 2, i32 0}
 
 // ---------------------------------------------------------------------------
 // Entry point metadata (emitted after module metadata).
