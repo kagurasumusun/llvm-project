@@ -7115,9 +7115,10 @@ def fmetal_math_fp32_functions_EQ : Joined<["-"], "fmetal-math-fp32-functions=">
            "'metal::fast' namespace) | precise (selects the corresponding "
            "functions in 'metal::precise' namespace). Default is 'fast'.">,
   Values<"fast,precise">;
-def fmetal_math_mode_EQ : Joined<["-"], "fmetal-math-mode=">,
-  Group<f_Group>, Flags<[CC1Option]>,
-  HelpText<"Floating point math mode for Metal">;
+// Note: `-fmetal-math-mode=` once existed here but was removed. It was an
+// invention that appears in no measured invocation of Apple's `metal` driver;
+// the measured knobs are -ffast-math / -fno-fast-math (the umbrella, default
+// on for Metal) and -fmetal-math-fp32-functions= below.
 def fmetal_enable_logging : Flag<["-"], "fmetal-enable-logging">,
   Group<f_Group>, Flags<[CC1Option]>,
   MarshallingInfoFlag<LangOpts<"MetalEnableLogging">>,

@@ -9,6 +9,7 @@
 #include "Metal.h"
 #include "CommonArgs.h"
 #include "clang/Basic/AIRVersion.h"
+#include "clang/Basic/DarwinSDKInfo.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
@@ -118,12 +119,33 @@ void MetalToolChain::addClangTargetOptions(
           options::OPT_fmetal_math_fp32_functions_EQ)) {
     A->render(DriverArgs, CC1Args);
   }
-  if (const Arg *A =
-          DriverArgs.getLastArg(options::OPT_fmetal_math_mode_EQ)) {
-    A->render(DriverArgs, CC1Args);
-  }
   if (DriverArgs.hasArg(options::OPT_fmetal_enable_logging))
     CC1Args.push_back("-fmetal-enable-logging");
+
+  // Pass the SDK version down so that the backend can record the
+  //   !{i32 2, !"SDK Version", [2 x i32] [...]}
+  // module flag exactly the way Apple does (measured in the golden corpus,
+  // e.g. research/golden/P01/metal32_macosx26/probe.ll !0 with value
+  // [26, 5] for the macOS 26.5 SDK). The version is read from the sysroot's
+  // SDKSettings.json the same way the Darwin toolchain does it; without a
+  // sysroot there is no SDK and no flag, again matching Apple.
+  if (const Arg *A = DriverArgs.getLastArg(options::OPT_isysroot)) {
+    StringRef SysRoot = A->getValue();
+    auto SDKInfoOrErr = parseDarwinSDKInfo(getVFS(), SysRoot);
+    std::optional<DarwinSDKInfo> SDKInfo;
+    if (SDKInfoOrErr)
+      SDKInfo = *SDKInfoOrErr;
+    else {
+      llvm::consumeError(SDKInfoOrErr.takeError());
+      getDriver().Diag(diag::warn_drv_darwin_sdk_invalid_settings);
+    }
+    if (SDKInfo) {
+      std::string Arg;
+      llvm::raw_string_ostream OS(Arg);
+      OS << "-target-sdk-version=" << SDKInfo->getVersion();
+      CC1Args.push_back(DriverArgs.MakeArgString(OS.str()));
+    }
+  }
 
   // Disable exception handling and RTTI for Metal.
   CC1Args.push_back("-fno-exceptions");
@@ -171,8 +193,6 @@ void metal::Compiler::ConstructJob(Compilation &C, const JobAction &JA,
   // Forward metal-specific flags.
   if (const Arg *A =
           Args.getLastArg(options::OPT_fmetal_math_fp32_functions_EQ))
-    A->render(Args, CmdArgs);
-  if (const Arg *A = Args.getLastArg(options::OPT_fmetal_math_mode_EQ))
     A->render(Args, CmdArgs);
   if (Args.hasArg(options::OPT_fmetal_enable_logging))
     CmdArgs.push_back("-fmetal-enable-logging");

@@ -116,6 +116,11 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
                         .Case("objc", LangOpts.ObjC)
                         .Case("objc_arc", LangOpts.ObjCAutoRefCount)
                         .Case("opencl", LangOpts.OpenCL)
+                        // Apple's <metal/module.modulemap> gates every
+                        // standard library module on `requires metal`. Without
+                        // this feature name the map is syntactically valid
+                        // but every module in it is unimportable.
+                        .Case("metal", LangOpts.Metal)
                         .Case("tls", Target.isTLSSupported())
                         .Case("zvector", LangOpts.ZVector)
                         .Default(Target.hasFeature(Feature) ||

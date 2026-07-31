@@ -88,7 +88,16 @@ getMetalVersionForLangStandard(LangStandard::Kind LangStd) {
   switch (LangStd) {
   case LangStandard::lang_macos_metal1_0:
   case LangStandard::lang_osx_metal1_0:
+    // `macos-metal1.0` (and its `osx-` alias) is a hidden compatibility
+    // spelling: it is not listed in any published specification, but the
+    // reference toolchain accepts it and lowers it to language version
+    // 1.1.0 (measured: research/spec/LEGACY_METAL_SUPPORT.md,
+    // "Metal 1.0 ... 1.1に統合"). There never was a separate macOS 1.0.
+    return LangOptions::Metal_1_1;
   case LangStandard::lang_ios_metal1_0:
+    // iOS genuinely shipped MSL 1.0: the measured `-dM` output of
+    // `-std=ios-metal1.0` carries `__METAL_VERSION__ 100`
+    // (reference/metal-ast-ios-air64/driver/*ios-metal1.0*macros).
     return LangOptions::Metal_1_0;
   case LangStandard::lang_macos_metal1_1:
   case LangStandard::lang_osx_metal1_1:

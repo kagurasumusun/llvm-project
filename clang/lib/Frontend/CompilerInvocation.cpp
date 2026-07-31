@@ -3718,10 +3718,6 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
       else
         Opts.setMetalFPMath(LangOptions::MetalFPMathFunctions::Fast);
     }
-    if (Arg *A = Args.getLastArg(OPT_fmetal_math_mode_EQ)) {
-      // Captured for future use; does not currently affect compilation.
-      (void)A;
-    }
     if (Args.hasArg(OPT_fmetal_enable_logging))
       Opts.MetalEnableLogging = 1;
   }

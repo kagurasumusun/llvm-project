@@ -28,7 +28,13 @@
 #define METAL_MACRO(Name, Value)
 #endif
 
-METAL_MACRO("METAL_FUNC", "static __inline__ __attribute__((__always_inline__))")
+// Note: METAL_FUNC is deliberately NOT here. It is defined by Apple's
+// <metal_types> itself (`#define METAL_FUNC inline __attribute__((__always_inline__))`)
+// and the reference toolchain predefines nothing of the sort (zero hits in the
+// measured `cc1 -dM` output for every Metal standard). Predefining it would
+// clash with the shipping standard library (different token sequence:
+// `static __inline__` vs plain `inline`) and change the linkage of every
+// standard library function.
 
 METAL_MACRO("__AIR_ABI__", "__AIR_PB_ABI__")
 METAL_MACRO("__AIR_MB_ABI__", "1")

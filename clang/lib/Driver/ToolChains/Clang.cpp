@@ -2661,7 +2661,8 @@ static void CollectArgsForIntegratedAssembler(Compilation &C,
 static void RenderFloatingPointOptions(const ToolChain &TC, const Driver &D,
                                        bool OFastEnabled, const ArgList &Args,
                                        ArgStringList &CmdArgs,
-                                       const JobAction &JA) {
+                                       const JobAction &JA,
+                                       bool DefaultFastMath = false) {
   // Handle various floating point optimization flags, mapping them to the
   // appropriate LLVM code generation flags. This is complicated by several
   // "umbrella" flags, so we do this by stepping through the flags incrementally
@@ -2698,8 +2699,32 @@ static void RenderFloatingPointOptions(const ToolChain &TC, const Driver &D,
   StringRef FPContract;
   StringRef LastSeenFfpContractOption;
   bool SeenUnsafeMathModeOption = false;
+  // Seed the umbrella state from the target's default before walking the
+  // argument list. Metal compiles with fast math ON unless the user passes
+  // -fno-fast-math: every captured cc1 line of Apple's `metal` driver carries
+  //   -menable-no-infs -menable-no-nans -fapprox-func
+  //   -menable-unsafe-fp-math -fno-signed-zeros -mreassociate
+  //   -freciprocal-math -ffp-contract=fast -fno-rounding-math -ffast-math
+  //   -ffinite-math-only
+  // (reference/metal-ast-*/meta/metal-cc1-invocations.txt, all 18 targets).
+  // Seeding this way (rather than appending raw flags afterwards) makes any
+  // explicit user flag, notably -fno-fast-math, override the default through
+  // the ordinary incremental logic below, and produces exactly the measured
+  // flag decomposition.
+  if (DefaultFastMath) {
+    HonorINFs = false;
+    HonorNaNs = false;
+    MathErrno = false;
+    AssociativeMath = true;
+    ReciprocalMath = true;
+    ApproxFunc = true;
+    SignedZeros = false;
+    FPContract = "fast";
+  }
+  // Metal's measured cc1 line carries -ffp-contract=fast (the seeded default
+  // above), so the ordinary "on" fallback must not overwrite it.
   if (!JA.isDeviceOffloading(Action::OFK_Cuda) &&
-      !JA.isOffloading(Action::OFK_HIP))
+      !JA.isOffloading(Action::OFK_HIP) && !DefaultFastMath)
     FPContract = "on";
   bool StrictFPModel = false;
   StringRef Float16ExcessPrecision = "";
@@ -3040,9 +3065,20 @@ static void RenderFloatingPointOptions(const ToolChain &TC, const Driver &D,
   if (MathErrno)
     CmdArgs.push_back("-fmath-errno");
 
- if (AssociativeMath && ReciprocalMath && !SignedZeros && ApproxFunc &&
-     !TrappingMath)
-    CmdArgs.push_back("-funsafe-math-optimizations");
+  // Apple's metal driver decomposes its default fast math into the individual
+  // cc1 flags and never passes the -funsafe-math-optimizations umbrella;
+  // instead it enables LangOpts' unsafe-fp-math bit directly. See all 3738
+  // measured cc1 lines in
+  // reference/metal-ast-macos-air64/meta/metal-cc1-invocations.txt:
+  // -menable-unsafe-fp-math appears on every one of them, while
+  // -funsafe-math-optimizations appears on none.
+  if (AssociativeMath && ReciprocalMath && !SignedZeros && ApproxFunc &&
+      !TrappingMath) {
+    if (DefaultFastMath)
+      CmdArgs.push_back("-menable-unsafe-fp-math");
+    else
+      CmdArgs.push_back("-funsafe-math-optimizations");
+  }
 
   if (!SignedZeros)
     CmdArgs.push_back("-fno-signed-zeros");
@@ -3521,23 +3557,59 @@ static void RenderMetalOptions(const Driver &D, const ArgList &Args,
     CmdArgs.push_back("-finclude-default-header");
 
   // Apple's default for Metal is fast math with the single precision math
-  // functions routed to the metal::fast namespace.
+  // functions routed to the metal::fast namespace. (The fast-math umbrella
+  // itself is seeded earlier in RenderFloatingPointOptions; -fno-fast-math
+  // needs no special handling here.)
   if (Arg *A = Args.getLastArg(options::OPT_fmetal_math_fp32_functions_EQ)) {
     StringRef Val = A->getValue();
     if (Val != "fast" && Val != "precise") {
       D.Diag(diag::err_drv_invalid_value) << A->getAsString(Args) << Val;
       return;
     }
+
+    // fp32 math routing is only meaningful when fast math itself is on;
+    // with -fno-fast-math the frontend treats the library as fully precise
+    // regardless of this choice, matching the pragma override semantics.
     A->render(Args, CmdArgs);
   } else {
     CmdArgs.push_back("-fmetal-math-fp32-functions=fast");
   }
 
-  if (Arg *A = Args.getLastArg(options::OPT_fmetal_math_mode_EQ))
-    A->render(Args, CmdArgs);
-
   if (Args.hasArg(options::OPT_fmetal_enable_logging))
     CmdArgs.push_back("-fmetal-enable-logging");
+
+  // Measured always-on cc1 options of Apple's `metal` driver
+  // (reference/metal-ast-*/meta/metal-cc1-invocations.txt):
+  //
+  //   -mframe-pointer=all          kernels keep a frame pointer
+  //   -faligned-alloc-unavailable  no C++17 aligned de/allocation functions
+  //   -fno-strict-return           MSL does not promise reaching return
+  //   -fcommon                     tentative definitions of device globals
+  //                                coalesce; Apple passes -fcommon for Metal
+  //
+  // They are unconditional there; reproduce them verbatim.
+  CmdArgs.push_back("-mframe-pointer=all");
+  CmdArgs.push_back("-faligned-alloc-unavailable");
+  CmdArgs.push_back("-fno-strict-return");
+  CmdArgs.push_back("-fcommon");
+
+  // Apple consumes the standard library as clang modules:
+  //   -fmodules -fmodule-map-file=<resource-dir>/include/metal/module.modulemap
+  // The fork does not ship the standard library, so the module map only
+  // exists once a drop-in copy of Apple's headers is installed into the
+  // resource directory. Enable the measured configuration in that case;
+  // explicit user -fmodules / -fmodule-map-file= keep working through the
+  // generic forwarding either way.
+  if (!Args.hasArg(options::OPT_nostdinc) &&
+      !Args.hasArg(options::OPT_fno_modules)) {
+    SmallString<128> MapFile(D.ResourceDir);
+    llvm::sys::path::append(MapFile, "include", "metal", "module.modulemap");
+    if (llvm::sys::fs::exists(MapFile)) {
+      CmdArgs.push_back("-fmodules");
+      CmdArgs.push_back(
+          Args.MakeArgString(Twine("-fmodule-map-file=") + MapFile));
+    }
+  }
 
   // Apple emits typed pointers for AIR.
   CmdArgs.push_back("-no-opaque-pointers");
@@ -4932,7 +5004,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                        options::OPT_fno_optimize_sibling_calls);
 
     RenderFloatingPointOptions(TC, D, isOptimizationLevelFast(Args), Args,
-                               CmdArgs, JA);
+                               CmdArgs, JA,
+                               types::isMetal(Inputs[0].getType()));
 
     // Render ABI arguments
     switch (TC.getArch()) {
@@ -5376,7 +5449,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    options::OPT_fno_protect_parens, false))
     CmdArgs.push_back("-fprotect-parens");
 
-  RenderFloatingPointOptions(TC, D, OFastEnabled, Args, CmdArgs, JA);
+  RenderFloatingPointOptions(TC, D, OFastEnabled, Args, CmdArgs, JA,
+                             types::isMetal(Inputs[0].getType()));
 
   if (Arg *A = Args.getLastArg(options::OPT_fextend_args_EQ)) {
     const llvm::Triple::ArchType Arch = TC.getArch();

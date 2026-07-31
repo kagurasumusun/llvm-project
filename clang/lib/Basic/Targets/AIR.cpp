@@ -143,7 +143,31 @@ void AIRTargetInfo::getTargetDefines(const LangOptions &Opts,
                               LangOptions::MetalFPMathFunctions::Precise
                           ? "0"
                           : "1");
-  Builder.defineMacro("__METAL_FAST_MATH__", Opts.FastMath ? "1" : "0");
+  // __METAL_FAST_MATH__ is NOT a boolean flag. It is an enumerator constant
+  // (0 = fast, 1 = half, 2 = native, 3 = precise) that the standard library
+  // passes as the trailing selector argument of the __metal_* maths builtins:
+  //
+  //   return __metal_sqrt(x, __METAL_FAST_MATH__);        // selector 0
+  //
+  // Apple predefines it to 0 in every configuration, including with
+  // -ffast-math on the command line (measured `cc1 -dM` for every Metal
+  // standard). Tying the value to Opts.FastMath would silently re-route every
+  // default maths call to the half-precision selector (1) the moment fast
+  // math is enabled, so the value must stay the constant "0".
+  Builder.defineMacro("__METAL_FAST_MATH__", "0");
+
+  // -fmetal-enable-logging: <metal_logging> is entirely guarded on this
+  // macro; without it every os_log entry point compiles to a no-op even
+  // when the flag is given.
+  if (Opts.MetalEnableLogging)
+    Builder.defineMacro("__METAL_ENABLE_LOGGING__", "1");
+
+  // ilogb sentinels. Apple predefines both; <metal_types> expands
+  // FP_ILOGB0 / FP_ILOGBNAN straight from them. The spelling reproduces the
+  // measured output (`#define __FP_ILOGB0__ (-__INT_MAX__ - 1)`,
+  // i.e. INT_MIN on this target).
+  Builder.defineMacro("__FP_ILOGB0__", "(-__INT_MAX__ - 1)");
+  Builder.defineMacro("__FP_ILOGBNAN__", "(-__INT_MAX__ - 1)");
 
   // The remaining Metal macros are version independent enumeration values.
   // They are transcribed verbatim from a measurement of the reference
