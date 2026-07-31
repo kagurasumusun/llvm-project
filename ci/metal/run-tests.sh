@@ -116,7 +116,7 @@ $(eval "$compile_only" 2>&1 | head -25)"
     # empty" from FileCheck says nothing about why nothing was produced.
     reason=$(printf '%s\n' "$out" \
              | sed -n '/--- compiler output alone ---/,$p' \
-             | grep -vE '^(--- compiler|$)' | head -1)
+             | grep -vE '^(--- compiler|$)|^MBE:|^GCRT:' | head -1)
     if [ -z "$reason" ]; then
       reason=$(printf '%s\n' "$out" | grep -E 'error:|Assertion' | head -1)
     fi
@@ -138,8 +138,8 @@ $(eval "$compile_only" 2>&1 | head -25)"
       # with the two tail lines of the output for context. GitHub keeps only
       # a handful of error annotations per step, so this is one annotation.
       frames=$(printf '%s\n' "$out" \
-               | grep -E 'MBE:' \
-               | tail -4 \
+               | grep -E 'MBE:|GCRT:' \
+               | tail -8 \
                | awk 'BEGIN { ORS="" } { if (NR > 1) printf " < "; printf "%s", $0 }')
       if [ -z "$frames" ]; then
         # No MBE checkpoints were logged: crash happened before the first
@@ -153,9 +153,9 @@ $(eval "$compile_only" 2>&1 | head -25)"
       # The zzbisect probes are the controlled experiments; their notes go
       # first, ahead of the full-suite noise, within GitHub's annotation cap.
       if [[ $name == zzbisect-* ]]; then
-        probe_notes+=("::error::CRASH $name :: ${frames:0:290}")
+        probe_notes+=("::error::CRASH $name :: ${frames:0:400}")
       else
-        notes+=("::error::CRASH $name :: ${frames:0:290}")
+        notes+=("::error::CRASH $name :: ${frames:0:400}")
       fi
     else
       notes+=("::error::FAIL $name :: ${reason:0:300}")
