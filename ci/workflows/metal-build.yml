@@ -104,10 +104,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          # The exact key never hits on a first run for a commit; the prefix
-          # in restore-keys is what actually does the work, picking up the
-          # most recent entry from any earlier commit on any branch.
-          key: metal-ccache-${{ runner.arch }}-${{ github.sha }}
+          # Content-addressed: hashFiles of the source tree means every
+          # branch that builds the same code shares the same cache entry,
+          # and every code change creates a fresh one automatically.
+          key: metal-ccache-${{ runner.arch }}-${{ hashFiles('clang/**', 'llvm/**', 'cmake/**') }}
           restore-keys: |
             metal-ccache-${{ runner.arch }}-
 
@@ -154,7 +154,7 @@ jobs:
         continue-on-error: true
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: metal-ccache-${{ runner.arch }}-${{ github.sha }}
+          key: metal-ccache-${{ runner.arch }}-${{ hashFiles('clang/**', 'llvm/**', 'cmake/**') }}
 
       - name: Smoke test the Metal frontend
         if: always() && steps.build.outcome == 'success'
