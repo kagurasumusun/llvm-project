@@ -1655,6 +1655,7 @@ public:
   /// Emit the `!air.kernel` / `!air.vertex` / `!air.fragment` entry describing
   /// \p FD and its arguments. Implemented in CGMetal.cpp.
   void EmitMetalEntryPointMetadata(const FunctionDecl *FD, llvm::Function *Fn);
+  void EmitMetalAliasScopes(const FunctionDecl *FD, llvm::Function *Fn);
 
   /// Constant fold a Metal resource index attribute argument.
   unsigned getMetalAttrIndex(const Expr *E);

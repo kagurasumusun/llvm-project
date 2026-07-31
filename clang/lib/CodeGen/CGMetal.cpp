@@ -34,7 +34,9 @@
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
@@ -1632,8 +1634,235 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
     FnNodeOps.push_back(MB.finish());
   }
 
+  // Every buffer-style pointer parameter of an entry point is additionally
+  // decorated with the string attribute "air-buffer-no-alias", declaring it
+  // non-aliasing with every other argument. Measured on all five target
+  // corpora, e.g. golden P01:
+  //   define void @probe_p01_kernel(
+  //       float addrspace(1)* nocapture noundef "air-buffer-no-alias" %0,
+  //       %struct.Params addrspace(2)* nocapture noundef readonly align 16
+  //           dereferenceable(32) "air-buffer-no-alias" %1,
+  //       %struct._texture_2d_t addrspace(1)* %2,         ; no attribute
+  //       %struct._sampler_t addrspace(2)* nocapture readonly %3, ; no attr
+  //       float addrspace(3)* nocapture noundef "air-buffer-no-alias" %4,
+  //       i32 noundef %5)
+  // i.e. the attribute binds to the [[buffer]]/[[threadgroup]] parameters
+  // only, never to texture or sampler handles and never to scalars.
+  if (Fn->arg_size() == FD->getNumParams()) {
+    unsigned ArgIndex = 0;
+    for (const ParmVarDecl *PVD : FD->parameters()) {
+      llvm::Argument *A = Fn->getArg(ArgIndex++);
+      if ((PVD->hasAttr<MetalBufferIndexAttr>() ||
+           PVD->hasAttr<MetalLocalIndexAttr>()) &&
+          A->getType()->isPointerTy())
+        A->addAttr(llvm::Attribute::get(Ctx, "air-buffer-no-alias"));
+    }
+  }
+
   llvm::NamedMDNode *N = getModule().getOrInsertNamedMetadata(StageMD);
   N->addOperand(llvm::MDNode::get(Ctx, FnNodeOps));
+}
+
+/// Which alias-scope domain a kernel parameter feeds, if any.
+enum class MetalAliasScopeClass { None, Arg, Texture, Sampler };
+
+static MetalAliasScopeClass
+classifyMetalAliasScopeParam(const ParmVarDecl *PVD) {
+  if (PVD->hasAttr<MetalBufferIndexAttr>() ||
+      PVD->hasAttr<MetalLocalIndexAttr>())
+    return MetalAliasScopeClass::Arg;
+  if (PVD->hasAttr<MetalTextureIndexAttr>())
+    return MetalAliasScopeClass::Texture;
+  if (PVD->hasAttr<MetalSamplerIndexAttr>())
+    return MetalAliasScopeClass::Sampler;
+  return MetalAliasScopeClass::None;
+}
+
+/// Strip a pointer down to the memory object it accesses: any kernel
+/// argument, else null. Handles the parameter promotion pattern the
+/// unoptimised IR exhibits, where a pointer argument is stored into a local
+/// alloca at function entry and reloaded before every use.
+static llvm::Value *resolveMetalAliasScopeBase(llvm::Value *V,
+                                               const llvm::DataLayout &DL) {
+  int64_t Offset = 0;
+  llvm::Value *Base =
+      llvm::GetPointerBaseWithConstantOffset(V, Offset, DL)
+          ->stripPointerCastsAndAliases();
+  if (llvm::isa<llvm::Argument>(Base))
+    return Base;
+  auto *LI = llvm::dyn_cast<llvm::LoadInst>(Base);
+  if (!LI)
+    return nullptr;
+  auto *AI = llvm::dyn_cast<llvm::AllocaInst>(LI->getPointerOperand());
+  if (!AI)
+    return nullptr;
+  llvm::Value *Stored = nullptr;
+  for (llvm::User *U : AI->users()) {
+    if (llvm::isa<llvm::CallBase>(U))
+      return nullptr; // the alloca escapes; its contents are unknown
+    auto *SI = llvm::dyn_cast<llvm::StoreInst>(U);
+    if (!SI || SI->getPointerOperand() != AI)
+      continue;
+    llvm::Value *SV = SI->getValueOperand()->stripPointerCastsAndAliases();
+    if (!llvm::isa<llvm::Argument>(SV))
+      return nullptr; // the slot is re-pointed after entry
+    if (Stored)
+      return nullptr; // promoted twice: not the canonical pattern
+    Stored = SV;
+  }
+  return Stored;
+}
+
+/// Attach the measured alias scope graph to every memory access of a Metal
+/// entry point body.
+///
+/// Golden P01 (research/golden/P01/metal32_macosx26/probe.ll) fixes the
+/// schema exactly:
+///   !32 = distinct !{!32, !"air-alias-scopes(probe_p01_kernel)"}
+///   !31 = distinct !{!31, !32, !"air-alias-scope-arg(0)"}
+///   !34 = distinct !{!34, !32, !"air-alias-scope-arg(1)"}
+///   !35 = distinct !{!35, !32, !"air-alias-scope-textures"}
+///   !36 = distinct !{!36, !32, !"air-alias-scope-samplers"}
+///   !37 = distinct !{!37, !32, !"air-alias-scope-arg(4)"}
+/// Every load/store rooted in argument i carries
+///   !alias.scope {scope(i)}, !noalias {every other scope of the domain}
+/// and a memory-touching call carries the union over its pointer arguments
+/// (the air.sample_texture_2d call measured {textures, samplers} with
+/// !noalias {arg(0), arg(1), arg(4)}). Plain helper functions of the same
+/// module carry no such metadata at all (measured in the
+/// multi_entry_with_helpers module), so this only runs on attributed entry
+/// points.
+void CodeGenModule::EmitMetalAliasScopes(const FunctionDecl *FD,
+                                         llvm::Function *Fn) {
+  if (!getLangOpts().Metal || !FD || !Fn || Fn->isDeclaration())
+    return;
+  if (!FD->hasAttr<MetalKernelAttr>() && !FD->hasAttr<MetalVertexAttr>() &&
+      !FD->hasAttr<MetalFragmentAttr>() && !FD->hasAttr<MetalObjectAttr>() &&
+      !FD->hasAttr<MetalVisibleAttr>() && !FD->hasAttr<MetalMeshAttr>())
+    return;
+  if (Fn->arg_size() != FD->getNumParams())
+    return;
+
+  llvm::LLVMContext &Ctx = getLLVMContext();
+  llvm::Module *M = Fn->getParent();
+  const llvm::DataLayout &DL = M->getDataLayout();
+
+  // The per-function alias domain and one scope per eligible argument, plus
+  // the two category scopes textures and samplers.
+  llvm::MDNode *Domain = llvm::MDNode::getDistinct(
+      Ctx, {nullptr,
+            llvm::MDString::get(
+                Ctx, ("air-alias-scopes(" + Fn->getName() + ")").str())});
+  Domain->replaceOperandWith(0, Domain);
+  auto makeScope = [&](llvm::StringRef Name) {
+    llvm::MDNode *S = llvm::MDNode::getDistinct(
+        Ctx, {nullptr, Domain, llvm::MDString::get(Ctx, Name)});
+    S->replaceOperandWith(0, S);
+    return S;
+  };
+
+  llvm::SmallVector<llvm::Metadata *, 8> AllScopes;
+  llvm::SmallVector<llvm::MDNode *, 8> ArgScope(Fn->arg_size(), nullptr);
+  llvm::MDNode *TextureScope = nullptr, *SamplerScope = nullptr;
+  unsigned ArgIndex = 0;
+  for (const ParmVarDecl *PVD : FD->parameters()) {
+    switch (classifyMetalAliasScopeParam(PVD)) {
+    case MetalAliasScopeClass::Arg:
+      if (Fn->getArg(ArgIndex)->getType()->isPointerTy()) {
+        ArgScope[ArgIndex] =
+            makeScope(("air-alias-scope-arg(" + llvm::Twine(ArgIndex) + ")")
+                          .str());
+        AllScopes.push_back(ArgScope[ArgIndex]);
+      }
+      break;
+    case MetalAliasScopeClass::Texture:
+      if (!TextureScope) {
+        TextureScope = makeScope("air-alias-scope-textures");
+        AllScopes.push_back(TextureScope);
+      }
+      break;
+    case MetalAliasScopeClass::Sampler:
+      if (!SamplerScope) {
+        SamplerScope = makeScope("air-alias-scope-samplers");
+        AllScopes.push_back(SamplerScope);
+      }
+      break;
+    case MetalAliasScopeClass::None:
+      break;
+    }
+    ++ArgIndex;
+  }
+  if (AllScopes.empty())
+    return;
+
+  auto scopeOfBase = [&](llvm::Value *V) -> llvm::MDNode * {
+    if (!V || !V->getType()->isPointerTy())
+      return nullptr;
+    auto *A =
+        llvm::dyn_cast_or_null<llvm::Argument>(resolveMetalAliasScopeBase(V, DL));
+    if (!A || A->getParent() != Fn)
+      return nullptr;
+    unsigned I = A->getArgNo();
+    if (I < ArgScope.size() && ArgScope[I])
+      return ArgScope[I];
+    switch (classifyMetalAliasScopeParam(FD->getParamDecl(I))) {
+    case MetalAliasScopeClass::Texture:
+      return TextureScope;
+    case MetalAliasScopeClass::Sampler:
+      return SamplerScope;
+    default:
+      return nullptr;
+    }
+  };
+
+  auto tagInstruction = [&](llvm::Instruction &I,
+                            llvm::ArrayRef<llvm::Metadata *> Alias) {
+    if (Alias.empty())
+      return;
+    llvm::SmallVector<llvm::Metadata *, 8> NoAlias;
+    for (llvm::Metadata *S : AllScopes)
+      if (!llvm::is_contained(Alias, S))
+        NoAlias.push_back(S);
+    I.setMetadata(llvm::LLVMContext::MD_alias_scope,
+                  llvm::MDNode::get(Ctx, Alias));
+    // Measured: !noalias is omitted entirely when nothing is left over
+    // (single-buffer kernels carry alias.scope only).
+    if (!NoAlias.empty())
+      I.setMetadata(llvm::LLVMContext::MD_noalias, llvm::MDNode::get(Ctx, NoAlias));
+  };
+
+  for (llvm::BasicBlock &BB : *Fn) {
+    for (llvm::Instruction &I : BB) {
+      llvm::Value *Ptr = nullptr;
+      if (auto *LI = llvm::dyn_cast<llvm::LoadInst>(&I))
+        Ptr = LI->getPointerOperand();
+      else if (auto *SI = llvm::dyn_cast<llvm::StoreInst>(&I))
+        Ptr = SI->getPointerOperand();
+      else if (auto *RMW = llvm::dyn_cast<llvm::AtomicRMWInst>(&I))
+        Ptr = RMW->getPointerOperand();
+      else if (auto *CX = llvm::dyn_cast<llvm::AtomicCmpXchgInst>(&I))
+        Ptr = CX->getPointerOperand();
+      else if (auto *CB = llvm::dyn_cast<llvm::CallBase>(&I)) {
+        if (CB->doesNotAccessMemory())
+          continue;
+        // Union over the scopes reachable through the call's pointer
+        // arguments, e.g. the air.sample call measured
+        //   !alias.scope !40 = !{textures, samplers},
+        //   !noalias    !41 = !{arg(0), arg(1), arg(4)}
+        llvm::SmallVector<llvm::Metadata *, 4> CallScopes;
+        for (llvm::Value *Op : CB->args())
+          if (llvm::MDNode *S = scopeOfBase(Op))
+            if (!llvm::is_contained(CallScopes, S))
+              CallScopes.push_back(S);
+        tagInstruction(I, CallScopes);
+        continue;
+      }
+      if (!Ptr)
+        continue;
+      if (llvm::MDNode *S = scopeOfBase(Ptr))
+        tagInstruction(I, {S});
+    }
+  }
 }
 
 unsigned CodeGenModule::getMetalAttrIndex(const Expr *E) {

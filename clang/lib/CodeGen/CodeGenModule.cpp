@@ -1450,6 +1450,13 @@ static std::string getMangledNameImpl(CodeGenModule &CGM, GlobalDecl GD,
     } else if (FD && FD->hasAttr<CUDAGlobalAttr>() &&
                GD.getKernelReferenceKind() == KernelReferenceKind::Stub) {
       Out << "__device_stub__" << II->getName();
+    } else if (FD && FD->hasAttr<MetalHostNameAttr>()) {
+      // [[host_name("...")]] names the emitted LLVM symbol outright.
+      // Measured: [[host_name("my_kernel")]] kernel void internal_name(...)
+      // produces `define void @my_kernel(...)`, and the air.kernel metadata
+      // references @my_kernel (reference/metal-ast-ios-air64/ir/
+      // ios_air64_versioned_none_ios-metal2.2_cx_vis_host_name_26_0_llvm-ir.ll).
+      Out << FD->getAttr<MetalHostNameAttr>()->getName();
     } else {
       Out << II->getName();
     }
@@ -6895,6 +6902,16 @@ void CodeGenModule::EmitVersionIdentMetadata() {
   llvm::NamedMDNode *IdentMetadata =
     TheModule.getOrInsertNamedMetadata("llvm.ident");
   std::string Version = getClangFullVersion();
+  if (getLangOpts().Metal) {
+    // Apple's Metal frontend identifies itself in every module as
+    //   !16 = !{!"Apple metal version 32023.883 (metalfe-32023.883)"}
+    // measured across the whole reference LLVM IR corpus (e.g.
+    // reference/metal-ast-*/ir/*_llvm-ir.ll and
+    // research/golden/P01/metal32_macosx26/probe.ll). The string is the
+    // banner of the reference toolchain; reproduce it byte for byte
+    // instead of this tree's native clang version line.
+    Version = "Apple metal version 32023.883 (metalfe-32023.883)";
+  }
   llvm::LLVMContext &Ctx = TheModule.getContext();
 
   llvm::Metadata *IdentNode[] = {llvm::MDString::get(Ctx, Version)};

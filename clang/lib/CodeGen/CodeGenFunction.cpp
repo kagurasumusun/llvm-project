@@ -525,6 +525,15 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
       ReturnValue = Address::invalid();
     }
   }
+
+  // With the body complete, thread the measured air alias scope graph
+  // (!alias.scope / !noalias backed by air-alias-scopes domains) through
+  // every memory access of a Metal entry point. Helper functions in the
+  // same module get none (measured), so this is gated inside on the entry
+  // point attributes.
+  if (getLangOpts().Metal)
+    if (const auto *FD = dyn_cast_or_null<FunctionDecl>(CurFuncDecl))
+      CGM.EmitMetalAliasScopes(FD, CurFn);
 }
 
 /// ShouldInstrumentFunction - Return true if the current function should be

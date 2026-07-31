@@ -44,6 +44,11 @@ kernel void probe_kernel(device float *b [[buffer(0)]],
 // CHECK-DAG: !{i32 2, i32 8, i32 0}
 // CHECK-DAG: !{!"Metal", i32 3, i32 2, i32 0}
 
+// Every Apple Metal module identifies the frontend that produced it
+// (measured across the whole reference IR corpus).
+// CHECK-DAG: !llvm.ident = !{![[IDENT:[0-9]+]]}
+// CHECK-DAG: ![[IDENT]] = !{!"Apple metal version 32023.883 (metalfe-32023.883)"}
+
 // ---------------------------------------------------------------------------
 // Entry point metadata (emitted after module metadata).
 // ---------------------------------------------------------------------------
