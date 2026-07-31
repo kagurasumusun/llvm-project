@@ -937,12 +937,17 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     EmitKernelMetadata(FD, Fn);
   }
 
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (FD && getLangOpts().Metal)
+    llvm::errs() << "MBE: StartFunction attrs done " << FD->getNameAsString() << '\n';
   // Metal entry points are identified purely by metadata: the calling
   // convention stays the default C one. This was established by disassembling
   // all 701 modules of Apple's shipping runtime, none of which uses a special
   // convention (research/spec/IR_GROUND_TRUTH.md section 2.5).
   if (FD && getLangOpts().Metal)
     CGM.EmitMetalEntryPointMetadata(FD, Fn);
+  if (FD && getLangOpts().Metal)
+    llvm::errs() << "MBE: entry metadata done\n";
 
   // If we are checking function types, emit a function type signature as
   // prologue data.
@@ -1251,10 +1256,14 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
 void CodeGenFunction::EmitFunctionBody(const Stmt *Body) {
   incrementProfileCounter(Body);
-  if (const CompoundStmt *S = dyn_cast<CompoundStmt>(Body))
+  if (const CompoundStmt *S = dyn_cast<CompoundStmt>(Body)) {
     EmitCompoundStmtWithoutScope(*S);
-  else
+  } else {
     EmitStmt(Body);
+  }
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (getLangOpts().Metal)
+    llvm::errs() << "MBE: EmitFunctionBody end\n";
 
   // This is checked after emitting the function body so we know if there
   // are any permitted infinite loops.
@@ -1460,6 +1469,9 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
     // copy-constructors.
     emitImplicitAssignmentOperatorBody(Args);
   } else if (Body) {
+    // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+    if (getLangOpts().Metal)
+      llvm::errs() << "MBE: EmitFunctionBody begin\n";
     EmitFunctionBody(Body);
   } else
     llvm_unreachable("no definition for emitted function");
