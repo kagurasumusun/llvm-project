@@ -24,18 +24,24 @@ kernel void probe_kernel(device float *b [[buffer(0)]],
 
 // ---------------------------------------------------------------------------
 // Module level metadata (emitted before entry point metadata).
-// air.version follows the deployment target; air.language_version follows
-// -std=.
+//
+// In LLVM IR text output module flags (!llvm.module.flags) are emitted
+// *before* named metadata (!air.version etc.), so CHECK-DAG for flags
+// must come before CHECK for air.version.  See CGMetal.cpp: addModuleFlag
+// calls precede getOrInsertNamedMetadata, and the printer serialises in
+// the same order.
 // ---------------------------------------------------------------------------
-
-// CHECK: !air.version = !{![[VER:[0-9]+]]}
-// CHECK: ![[VER]] = !{i32 2, i32 8, i32 0}
-// CHECK: !{!"Metal", i32 3, i32 2, i32 0}
 
 // Resource limits, emitted as module flags.  Order-independent across flags.
 // CHECK-DAG: !{i32 7, !"air.max_device_buffers", i32 31}
 // CHECK-DAG: !{i32 7, !"air.max_textures", i32 128}
 // CHECK-DAG: !{i32 7, !"air.max_samplers", i32 16}
+
+// air.version follows the deployment target; air.language_version follows
+// -std=.
+// CHECK: !air.version = !{![[VER:[0-9]+]]}
+// CHECK: ![[VER]] = !{i32 2, i32 8, i32 0}
+// CHECK: !{!"Metal", i32 3, i32 2, i32 0}
 
 // ---------------------------------------------------------------------------
 // Entry point metadata (emitted after module metadata).
