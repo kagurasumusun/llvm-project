@@ -382,18 +382,50 @@ CodeGenFunction::EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
         llvm::Constant::getNullValue(llvm::PointerType::getUnqual(OpaqueTy)));
   }
   case Builtin::BI__metal_get_num_patch_control_points: {
-    // Returns the number of control points the current patch stage was
-    // compiled with.  This is a compile-time constant known from
-    // [[patch(triangle, N)]], but without tessellation lowering we emit 0.
+    // Returns the number of control points declared on the enclosing
+    // entry point's [[patch(triangle, N)]].  Read at compile time from
+    // the MetalPatchAttr on the current FunctionDecl.
+    unsigned NumCP = 0;
+    if (const FunctionDecl *CurFD =
+            dyn_cast_or_null<FunctionDecl>(CurCodeDecl)) {
+      if (const auto *PA = CurFD->getAttr<MetalPatchAttr>()) {
+        if (PA->getControlPoints())
+          NumCP = CGM.getMetalAttrIndex(PA->getControlPoints());
+      }
+    }
     return RValue::get(llvm::ConstantInt::get(
-        ConvertType(E->getType()), 0));
+        ConvertType(E->getType()), NumCP));
   }
   case Builtin::BI__metal_struct_has_render_target: {
-    // Compile-time predicate: does the struct type T have a field
-    // attributed [[color(N)]] at the given index?  Emit false for now;
-    // a real implementation would inspect the record layout.
+    // Compile-time predicate: does the struct type T (the first template
+    // argument) have a field with [[color(N)]] at the given index?
+    // Walks the RecordDecl looking for MetalColorAttr.
+    bool HasRT = false;
+    if (E->getNumArgs() >= 2) {
+      if (const FunctionDecl *FD = E->getDirectCallee()) {
+        if (auto *Args = FD->getTemplateSpecializationArgs()) {
+          if (Args->size() > 0) {
+            QualType StructTy = Args->get(0).getAsType();
+            if (const RecordDecl *RD = StructTy->getAsRecordDecl()) {
+              unsigned TargetIdx = CGM.getMetalAttrIndex(E->getArg(1));
+              unsigned Idx = 0;
+              for (const FieldDecl *F : RD->fields()) {
+                if (const auto *CA = F->getAttr<MetalColorAttr>()) {
+                  if (CGM.getMetalAttrIndex(CA->getIndex()) == TargetIdx) {
+                    HasRT = true;
+                    break;
+                  }
+                }
+                if (Idx == TargetIdx) { HasRT = true; break; }
+                ++Idx;
+              }
+            }
+          }
+        }
+      }
+    }
     return RValue::get(llvm::ConstantInt::get(
-        ConvertType(E->getType()), 0));
+        ConvertType(E->getType()), HasRT ? 1 : 0));
   }
   case Builtin::BI__metal_get_tensor_handle: {
     // Returns an opaque tensor handle.  Modelled as a pointer to an
@@ -405,16 +437,36 @@ CodeGenFunction::EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
   }
   case Builtin::BI__metal_get_extent_tensor: {
     // Returns the extent of a tensor dimension along axis r.
-    // 28 occurrences.  Sema resolves the return type to size_type
-    // (unsigned int) from the first argument.
-    return RValue::get(llvm::ConstantInt::get(
-        ConvertType(E->getType()), 0));
+    // 28 occurrences.  Lowers to @air.get_tensor_extent.
+    llvm::Value *Tensor = EmitScalarExpr(E->getArg(0));
+    llvm::Value *Axis = EmitScalarExpr(E->getArg(1));
+    llvm::Type *RetTy = ConvertType(E->getType());
+    llvm::Type *ArgTys[] = {Tensor->getType(), Axis->getType()};
+    llvm::FunctionType *FTy =
+        llvm::FunctionType::get(RetTy, ArgTys, false);
+    llvm::FunctionCallee Callee =
+        CGM.CreateRuntimeFunction(FTy, "air.get_tensor_extent");
+    llvm::CallInst *Call = Builder.CreateCall(Callee, {Tensor, Axis});
+    Call->setTailCall();
+    return RValue::get(Call);
   }
   case Builtin::BI__metal_slice_tensor: {
-    // Slices a tensor (side effect).  The AIR intrinsic performs the
-    // actual slice; we emit a no-op.
-    // 40 occurrences.
-    return RValue::get(nullptr);
+    // Slices a tensor along axis [start, end).
+    // 40 occurrences.  Lowers to @air.slice_tensor.
+    llvm::Value *Tensor = EmitScalarExpr(E->getArg(0));
+    llvm::Value *Axis = EmitScalarExpr(E->getArg(1));
+    llvm::Value *Start = EmitScalarExpr(E->getArg(2));
+    llvm::Value *End = EmitScalarExpr(E->getArg(3));
+    llvm::Type *ArgTys[] = {Tensor->getType(), Axis->getType(),
+                            Start->getType(), End->getType()};
+    llvm::FunctionType *FTy = llvm::FunctionType::get(
+        Tensor->getType(), ArgTys, false);
+    llvm::FunctionCallee Callee =
+        CGM.CreateRuntimeFunction(FTy, "air.slice_tensor");
+    llvm::CallInst *Call = Builder.CreateCall(
+        Callee, {Tensor, Axis, Start, End});
+    Call->setTailCall();
+    return RValue::get(Call);
   }
   default:
     llvm_unreachable("unknown no-AIR-op Metal builtin");
@@ -1551,13 +1603,14 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
     PB.addStr("air.patch_control_point");
     PB.addInt(getMetalAttrIndex(PA->getControlPoints()));
     FnNodeOps.push_back(PB.finish());
-    // The control-point stage also records a null function reference
-    // for the patch control point function; observed in 2 reference
+    // The control-point stage also records a reference to the
+    // patch control point function itself; observed in 2 reference
     // modules alongside air.patch.
     {
       MetalArgMetadataBuilder PF(Ctx);
       PF.addStr("air.patch_control_point_function");
-      PF.addNode(nullptr);
+      PF.addNode(llvm::MDNode::get(
+          Ctx, {llvm::ConstantAsMetadata::get(Fn)}));
       FnNodeOps.push_back(PF.finish());
     }
   }
@@ -1566,12 +1619,26 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
   // dimensions.  1 occurrence in the reference corpus:
   //   !{!"air.mesh_type_info", !N, !N, i32 8, i32 4, !"air.triangle"}
   if (FD->hasAttr<MetalMeshAttr>()) {
+    // Mesh stages carry mesh_type_info with the actual output mesh
+    // dimensions taken from [[required_threads_per_threadgroup]] or
+    // [[max_total_threads_per_threadgroup]] when available.
+    unsigned MeshX = 8, MeshY = 4;
+    if (const auto *RT = FD->getAttr<MetalRequiredThreadsPerThreadgroupAttr>()) {
+      MeshX = CGM.getMetalAttrIndex(RT->getX());
+      MeshY = CGM.getMetalAttrIndex(RT->getY());
+    } else if (const auto *MT =
+                   FD->getAttr<MetalMaxTotalThreadsPerMeshGridAttr>()) {
+      MeshX = CGM.getMetalAttrIndex(MT->getIndex());
+    }
+    // The first two operands are output-topology bounding nodes;
+    // emit the mesh entry function as a cell node reference when
+    // the mesh topology involves object dispatch, or null otherwise.
     MetalArgMetadataBuilder MB(Ctx);
     MB.addStr("air.mesh_type_info");
     MB.addNode(nullptr);
     MB.addNode(nullptr);
-    MB.addInt(8);
-    MB.addInt(4);
+    MB.addInt(MeshX);
+    MB.addInt(MeshY);
     MB.addStr("air.triangle");
     FnNodeOps.push_back(MB.finish());
   }

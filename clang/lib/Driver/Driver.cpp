@@ -34,6 +34,7 @@
 #include "ToolChains/Linux.h"
 #include "ToolChains/MSP430.h"
 #include "ToolChains/MSVC.h"
+#include "ToolChains/Metal.h"
 #include "ToolChains/MinGW.h"
 #include "ToolChains/Minix.h"
 #include "ToolChains/MipsLinux.h"
@@ -6060,7 +6061,10 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
     case llvm::Triple::TvOS:
     case llvm::Triple::WatchOS:
     case llvm::Triple::DriverKit:
-      TC = std::make_unique<toolchains::DarwinClang>(*this, Target, Args);
+      if (Target.isAIR())
+        TC = std::make_unique<toolchains::MetalToolChain>(*this, Target, Args);
+      else
+        TC = std::make_unique<toolchains::DarwinClang>(*this, Target, Args);
       break;
     case llvm::Triple::DragonFly:
       TC = std::make_unique<toolchains::DragonFly>(*this, Target, Args);
