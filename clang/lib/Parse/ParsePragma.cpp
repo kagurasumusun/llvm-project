@@ -4136,12 +4136,19 @@ void PragmaMetalHandler::HandlePragma(Preprocessor &PP,
       return;
     }
     IdentifierInfo *Mode = Tok.getIdentifierInfo();
-    if (!Mode->isStr("safe") && !Mode->isStr("fast") &&
-        !Mode->isStr("precise")) {
+    Sema::MetalFPMathMode MathMode;
+    if (Mode->isStr("safe"))
+      MathMode = Sema::MetalFPMathMode::MetalFPMath_Safe;
+    else if (Mode->isStr("fast"))
+      MathMode = Sema::MetalFPMathMode::MetalFPMath_Fast;
+    else if (Mode->isStr("precise"))
+      MathMode = Sema::MetalFPMathMode::MetalFPMath_Precise;
+    else {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
           << "METAL";
       return;
     }
+    SourceLocation ModeLoc = Tok.getLocation();
     PP.Lex(Tok);
     if (Tok.isNot(tok::r_paren)) {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_rparen) << "METAL";
@@ -4151,6 +4158,7 @@ void PragmaMetalHandler::HandlePragma(Preprocessor &PP,
     if (Tok.isNot(tok::eod))
       PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
           << "METAL";
+    Actions.ActOnMetalFPMathMode(ModeLoc, MathMode);
     return;
   }
 

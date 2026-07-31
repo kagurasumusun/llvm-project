@@ -563,6 +563,20 @@ def CalledOnceParameter : DiagGroup<"called-once-parameter", [CompletionHandler]
 def OpenCLUnsupportedRGBA: DiagGroup<"opencl-unsupported-rgba">;
 def UnderalignedExceptionObject : DiagGroup<"underaligned-exception-object">;
 def DeprecatedObjCIsaUsage : DiagGroup<"deprecated-objc-isa-usage">;
+// Apple's Metal driver passes -Wno-objc-load-method to every cc1 invocation
+// (reference/metal-ast-*/meta/metal-cc1-invocations.txt). The diagnostic
+// itself does not exist in this tree (it warns on +load methods under ARC,
+// a newer clang addition); accept the group name so the measured driver
+// flags work.
+def ObjCLoadMethod : DiagGroup<"objc-load-method">;
+// Apple's Metal driver passes -Wmtl-shader-return-type /
+// -Werror=mtl-shader-return-type to every cc1 invocation. Apple still
+// prints "invalid return type %0 for %1 function" as a bare error with no
+// [-W...] flag suffix, which is only reproducible when the diagnostic is
+// not a member of a named group; the group therefore stays empty and exists
+// solely so the measured -W flags are accepted without an
+// unknown-warning-option warning.
+def MtlShaderReturnType : DiagGroup<"mtl-shader-return-type">;
 def ExplicitInitializeCall : DiagGroup<"explicit-initialize-call">;
 def OrderedCompareFunctionPointers : DiagGroup<"ordered-compare-function-pointers">;
 def PackedNonPod : DiagGroup<"packed-non-pod">;

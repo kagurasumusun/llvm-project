@@ -3819,6 +3819,8 @@ static FormatAttrKind getFormatAttrKind(StringRef Format) {
       .Case("freebsd_kprintf", SupportedFormat) // FreeBSD.
       .Case("os_trace", SupportedFormat)
       .Case("os_log", SupportedFormat)
+      // <metal_types>: METAL_OS_LOG_FORMAT(F) = format(metal_os_log, F, F+1)
+      .Case("metal_os_log", SupportedFormat)
 
       .Cases("gcc_diag", "gcc_cdiag", "gcc_cxxdiag", "gcc_tdiag", IgnoredFormat)
       .Default(InvalidFormat);
@@ -7145,8 +7147,11 @@ static void handleMetalResourceIndexAttr(Sema &S, Decl *D,
 
   // Measured: a bare [[buffer]] etc. is rejected with
   //   error: 'buffer' attribute takes one argument
+  // Measured with the spelling quoted: 'buffer' attribute takes one
+  // argument. String diagnostic arguments carry their own quotes.
   if (AL.getNumArgs() != 1) {
-    S.Diag(AL.getLoc(), diag::err_metal_attr_takes_one_arg) << Kind;
+    S.Diag(AL.getLoc(), diag::err_metal_attr_takes_one_arg)
+        << ("'" + Kind + "'").str();
     return;
   }
 
@@ -7190,7 +7195,8 @@ static void handleMetalAttributeIndexAttr(Sema &S, Decl *D,
     return;
 
   if (AL.getNumArgs() != 1) {
-    S.Diag(AL.getLoc(), diag::err_metal_attr_takes_one_arg) << "attribute";
+    S.Diag(AL.getLoc(), diag::err_metal_attr_takes_one_arg)
+        << "'attribute'";
     return;
   }
 

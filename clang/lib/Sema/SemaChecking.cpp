@@ -9118,6 +9118,10 @@ Sema::FormatStringType Sema::GetFormatStringType(const FormatAttr *Format) {
       .Case("freebsd_kprintf", FST_FreeBSDKPrintf)
       .Case("os_trace", FST_OSLog)
       .Case("os_log", FST_OSLog)
+      // METAL_OS_LOG_FORMAT(N) in Apple's <metal_types> expands to
+      // __attribute__((format(metal_os_log, N, N + 1))); the format family
+      // shares the os_log checking rules.
+      .Case("metal_os_log", FST_OSLog)
       .Default(FST_Unknown);
 }
 

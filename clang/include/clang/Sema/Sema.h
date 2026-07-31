@@ -6128,6 +6128,26 @@ public:
   /// err_metal_attribute_requires_std if it is not.
   bool CheckMetalAttributeVersion(const ParsedAttr &AL, unsigned MinVersion);
 
+  /// FP evaluation modes accepted by `#pragma METAL fp math_mode(...)`.
+  enum MetalFPMathMode {
+    MetalFPMath_Safe,
+    MetalFPMath_Fast,
+    MetalFPMath_Precise
+  };
+
+  /// Apply `#pragma METAL fp math_mode(...)` to the current scope: `fast`
+  /// enables the fast-math relaxations; `safe` and `precise` switch the
+  /// affected region to the precise evaluation mode (the same override set
+  /// FPOptionsOverride::setFPPreciseEnabled computes). The effect lasts to
+  /// the end of the enclosing compound statement: ParseCompoundStatementBody
+  /// wraps every body in FPFeaturesStateRAII, which restores CurFPFeatures
+  /// and FpPragmaStack.CurrentValue when the '}' is consumed, so a pragma
+  /// inside a function body cannot leak into following code, while a pragma
+  /// at file scope lasts to the end of the translation unit. Apple's
+  /// headers use it inside function bodies only (90 occurrences of
+  /// math_mode(safe) in <metal_math>).
+  void ActOnMetalFPMathMode(SourceLocation Loc, MetalFPMathMode Mode);
+
   /// Validate a [[buffer(N)]] / [[texture(N)]] / [[sampler(N)]] index against
   /// the target's resource limits; the index is sign-preserved so that a
   /// negative literal reports the same out-of-bounds error.

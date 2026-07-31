@@ -82,6 +82,28 @@ Sema::MetalShaderStage Sema::getMetalShaderStage(const FunctionDecl *FD) const {
   return MSS_None;
 }
 
+void Sema::ActOnMetalFPMathMode(SourceLocation Loc, MetalFPMathMode Mode) {
+  if (!getLangOpts().Metal)
+    return;
+
+  // Map the Metal spelling onto the float_control pair: safe and precise
+  // request the precise evaluation mode (all fast-math relaxations off,
+  // contraction within a statement); fast requests the fast-math mode. This
+  // is exactly the override pair FPOptionsOverride::setFPPreciseEnabled
+  // computes, and it matches how Apple's <metal_math> uses math_mode(safe)
+  // 90 times around bit-twiddling helpers that must not be reassociated.
+  //
+  // The scope-of-effect is the enclosing compound statement. Nothing has to
+  // be undone here: ParseCompoundStatementBody wraps every body in
+  // FPFeaturesStateRAII, so CurFPFeatures and FpPragmaStack.CurrentValue are
+  // restored when the closing '}' is consumed. A pragma at file scope is
+  // outside any compound statement and lasts to the end of the TU.
+  FPOptionsOverride NewFPFeatures = CurFPFeatureOverrides();
+  NewFPFeatures.setFPPreciseEnabled(Mode != MetalFPMath_Fast);
+  FpPragmaStack.Act(Loc, PSK_Set, StringRef(), NewFPFeatures);
+  CurFPFeatures = NewFPFeatures.applyOverrides(getLangOpts());
+}
+
 bool Sema::CheckMetalAttributeVersion(const ParsedAttr &AL,
                                       unsigned MinVersion) {
   if (!MinVersion ||
@@ -143,6 +165,15 @@ static unsigned getMetalResourceLimit(const ASTContext &Ctx,
   return 31;
 }
 
+/// Wrap an attribute spelling in the single quotes Apple prints around
+/// attribute names in diagnostics. std::string diagnostic arguments are
+/// inserted verbatim (the diagnostics engine adds quotes only for
+/// QualType/Attr*/ParsedAttr arguments), so the quotes must be part of
+/// the argument itself.
+static std::string metalQuoteSpelling(llvm::StringRef Name) {
+  return ("'" + Name + "'").str();
+}
+
 bool Sema::CheckMetalResourceIndexBounds(const ParsedAttr &AL,
                                          llvm::StringRef Kind,
                                          int64_t Index) {
@@ -151,7 +182,7 @@ bool Sema::CheckMetalResourceIndexBounds(const ParsedAttr &AL,
     return true;
 
   Diag(AL.getLoc(), diag::err_metal_attr_out_of_bounds)
-      << Kind << 0 << (Limit - 1);
+      << metalQuoteSpelling(Kind) << 0 << (Limit - 1);
   return false;
 }
 
@@ -176,9 +207,20 @@ static bool isMetalFunctionPointerType(QualType Ty) {
   return false;
 }
 
-/// Is \p Ty one of the Metal matrix types (float4x4 and friends)?
+/// Is \p Ty one of the Metal matrix types (float4x4 and friends)? The
+/// standard library declares them as the class template
+///   template <typename T, int Cols, int Rows = Cols> struct metal::matrix;
+/// (<metal_matrix>), and float4x4 is a typedef of matrix<float, 4, 4>. The
+/// alias is already desugared away when the member type is examined, so
+/// match the record by name, the same way textures and samplers are
+/// recognized. Clang's -fenable-matrix extension type is honored too.
 static bool isMetalMatrixType(QualType Ty) {
-  return Ty->getUnqualifiedDesugaredType()->isMatrixType();
+  const Type *T = Ty->getUnqualifiedDesugaredType();
+  if (T->isMatrixType())
+    return true;
+  if (const auto *RD = T->getAsCXXRecordDecl())
+    return RD->getName() == "matrix" || RD->getName() == "_matrix";
+  return false;
 }
 
 /// Is \p Ty one of the packed vector types?
@@ -536,12 +578,12 @@ void Sema::CheckMetalStageInStruct(ParmVarDecl *PVD, CXXRecordDecl *RD) {
     // measured as a separate line after the stage_in error.
     if (AA)
       Diag(AA->getLocation(), diag::err_metal_invalid_attr_type)
-          << FTy << "attribute";
+          << FTy << "'attribute'";
   }
 
   if (Bad) {
     Diag(PVD->getLocation(), diag::err_metal_invalid_attr_type)
-        << Context.getTypeDeclType(RD) << "stage_in";
+        << Context.getTypeDeclType(RD) << "'stage_in'";
     PVD->setInvalidDecl();
   }
 }
@@ -590,7 +632,7 @@ void Sema::CheckMetalParamDecl(ParmVarDecl *PVD) {
       if (!A || !IsPtrOrRef)
         return;
       Diag(A->getLocation(), diag::err_metal_invalid_attr_type)
-          << PVD->getType() << Name;
+          << PVD->getType() << metalQuoteSpelling(Name);
       PVD->setInvalidDecl();
     };
     rejectRef(PVD->getAttr<MetalStageInAttr>(), "stage_in");
@@ -649,9 +691,9 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
       if (!R.second) {
         Diag(Slot.first->getLocation(),
              diag::err_metal_attr_already_specified)
-            << Slot.second;
+            << metalQuoteSpelling(Slot.second);
         Diag(R.first->second, diag::note_metal_attr_previous_specified)
-            << Slot.second;
+            << metalQuoteSpelling(Slot.second);
       }
     }
   };
@@ -733,7 +775,7 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
     FD->setInvalidDecl();
     for (const auto &Bad : BadOutputAttrs)
       Diag(Bad.first->getLocation(), diag::note_metal_invalid_output_attr)
-          << Bad.second;
+          << metalQuoteSpelling(Bad.second);
   }
 
   // Duplicate resource binding locations are claimed per index:
@@ -774,7 +816,7 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
                      BT->getKind() == BuiltinType::ULong) &&
               static_cast<unsigned>(getLangOpts().getMetalVersion()) < 400) {
             Diag(PVD->getLocation(), diag::err_metal_invalid_attr_type)
-                << PTy << "buffer";
+                << PTy << "'buffer'";
             Diag(PVD->getLocation(), diag::note_metal_buffer_pointee_unsupported)
                 << Pointee;
             PVD->setInvalidDecl();
@@ -782,7 +824,7 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
         }
       } else if (!isMetalTextureType(PTy) && !isMetalSamplerType(PTy)) {
         Diag(PVD->getLocation(), diag::err_metal_invalid_attr_type)
-            << PTy << "buffer";
+            << PTy << "'buffer'";
         PVD->setInvalidDecl();
       } else {
         Diag(PVD->getLocation(), diag::err_metal_invalid_buffer_pointee)
@@ -799,18 +841,18 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
     if (PVD->hasAttr<MetalTextureIndexAttr>() && !isMetalTextureType(PTy) &&
         !PTy->isPointerType() && !PTy->isReferenceType()) {
       Diag(PVD->getLocation(), diag::err_metal_invalid_attr_type)
-          << PTy << "texture";
+          << PTy << "'texture'";
       PVD->setInvalidDecl();
     }
     if (PVD->hasAttr<MetalSamplerIndexAttr>() && !isMetalSamplerType(PTy)) {
       Diag(PVD->getLocation(), diag::err_metal_invalid_attr_type)
-          << PTy << "sampler";
+          << PTy << "'sampler'";
       PVD->setInvalidDecl();
     }
     if (PVD->hasAttr<MetalLocalIndexAttr>() &&
         !(PTy->isPointerType() || PTy->isReferenceType())) {
       Diag(PVD->getLocation(), diag::err_metal_invalid_attr_type)
-          << PTy << "threadgroup";
+          << PTy << "'threadgroup'";
       PVD->setInvalidDecl();
     }
 
@@ -836,7 +878,7 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
       SmallVector<unsigned, 4> &Seen = Reserved[KindIdx][(unsigned)Index];
       if (!Seen.empty())
         Diag(A->getLocation(), diag::err_metal_resource_index_reserved)
-            << Kind << Index;
+            << metalQuoteSpelling(Kind) << Index;
       Seen.push_back((unsigned)Index);
     };
     claim(PVD->getAttr<MetalBufferIndexAttr>(), "buffer", 0);
@@ -893,7 +935,7 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
     //   error: type 'int' is not valid for attribute 'position'
     if (PVD->hasAttr<MetalPositionAttr>() && !isMetalFloat4Type(PTy)) {
       Diag(PVD->getLocation(), diag::err_metal_invalid_attr_type)
-          << PTy << "position";
+          << PTy << "'position'";
       PVD->setInvalidDecl();
     }
 

@@ -11862,6 +11862,13 @@ def note_metal_valid_addrspace : Note<
   "valid address space qualifications are device and constant">;
 
 // Entry point signatures.
+// Apple's driver passes -Wmtl-shader-return-type /
+// -Werror=mtl-shader-return-type to cc1 (metal-cc1-invocations.txt), yet
+// Apple prints this diagnostic as a bare 'error:' with no [-W...] suffix.
+// That is only reproducible with a plain Error outside the group (any
+// warning class diagnostic in the group would print the option name), so
+// the diagnostic stays an unconditional error and the MtlShaderReturnType
+// group exists solely so the measured -W flags are accepted.
 def err_metal_invalid_return_type : Error<
   "invalid return type %0 for %select{kernel|vertex|fragment|mesh|object}1 "
   "function">;
