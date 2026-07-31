@@ -2186,11 +2186,17 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                         const CallExpr *E,
                                         ReturnValueSlot ReturnValue) {
   const FunctionDecl *FD = GD.getDecl()->getAsFunction();
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (getLangOpts().Metal)
+    llvm::errs() << "MBE: EmitBuiltinExpr id=" << BuiltinID
+                 << " prvalue=" << E->isPRValue() << '\n';
   // See if we can constant fold this builtin.  If so, don't emit it at all.
   // TODO: Extend this handling to all builtin calls that we can constant-fold.
   Expr::EvalResult Result;
   if (E->isPRValue() && E->EvaluateAsRValue(Result, CGM.getContext()) &&
       !Result.hasSideEffects()) {
+    if (getLangOpts().Metal)
+      llvm::errs() << "MBE: constant-folded\n";
     if (Result.Val.isInt())
       return RValue::get(llvm::ConstantInt::get(getLLVMContext(),
                                                 Result.Val.getInt()));
@@ -2198,6 +2204,9 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
       return RValue::get(llvm::ConstantFP::get(getLLVMContext(),
                                                Result.Val.getFloat()));
   }
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (getLangOpts().Metal)
+    llvm::errs() << "MBE: constant-eval done\n";
 
   // If current long-double semantics is IEEE 128-bit, replace math builtins
   // of long-double with f128 equivalent.
@@ -2214,6 +2223,9 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   const unsigned BuiltinIDIfNoAsmLabel =
       FD->hasAttr<AsmLabelAttr>() ? 0 : BuiltinID;
 
+  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
+  if (getLangOpts().Metal)
+    llvm::errs() << "MBE: EmitBuiltinExpr id=" << BuiltinID << '\n';
   // Metal builtins lower to AIR intrinsic calls. They are handled up front
   // because the mapping is a pure table lookup and none of the generic
   // handling below applies to them.
