@@ -4970,11 +4970,6 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
-  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
-  if (getLangOpts().Metal)
-    llvm::errs() << "MBE: EmitCallExpr retty=" << E->getType().getAsString()
-                 << " calleety="
-                 << E->getCallee()->getType().getAsString() << '\n';
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);
@@ -4990,12 +4985,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
           dyn_cast_or_null<CXXMethodDecl>(CE->getCalleeDecl()))
       return EmitCXXOperatorMemberCallExpr(CE, MD, ReturnValue);
 
-  if (getLangOpts().Metal)
-    llvm::errs() << "MBE: before EmitCallee\n";
-  CGCallee callee = EmitCallee(E->getCallee());
-  if (getLangOpts().Metal)
-    llvm::errs() << "MBE: after EmitCallee builtin=" << callee.isBuiltin()
-                 << '\n';
+CGCallee callee = EmitCallee(E->getCallee());
 
   if (callee.isBuiltin()) {
     return EmitBuiltinExpr(callee.getBuiltinDecl(), callee.getBuiltinID(),
@@ -5030,17 +5020,10 @@ static CGCallee EmitDirectCallee(CodeGenFunction &CGF, GlobalDecl GD) {
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
 
   if (auto builtinID = FD->getBuiltinID()) {
-    // TEMPORARY: crash bisection checkpoints; see MBE_TRACE in CGMetal.cpp.
-    if (CGF.getLangOpts().Metal)
-      llvm::errs() << "MBE: EmitDirectCallee id=" << builtinID << '\n';
     std::string NoBuiltinFD = ("no-builtin-" + FD->getName()).str();
     std::string NoBuiltins = "no-builtins";
 
-    if (CGF.getLangOpts().Metal)
-      llvm::errs() << "MBE: before getMangledName\n";
     StringRef Ident = CGF.CGM.getMangledName(GD);
-    if (CGF.getLangOpts().Metal)
-      llvm::errs() << "MBE: after getMangledName: " << Ident << '\n';
     std::string FDInlineName = (Ident + ".inline").str();
 
     bool IsPredefinedLibFunction =
@@ -5073,9 +5056,6 @@ static CGCallee EmitDirectCallee(CodeGenFunction &CGF, GlobalDecl GD) {
     // not a predefined library function which means we must generate the
     // builtin no matter what.
     else if (!IsPredefinedLibFunction || !HasAttributeNoBuiltin) {
-      // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
-      if (CGF.getLangOpts().Metal)
-        llvm::errs() << "MBE: forBuiltin id=" << builtinID << '\n';
       return CGCallee::forBuiltin(builtinID, FD);
     }
   }

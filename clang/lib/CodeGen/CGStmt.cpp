@@ -532,13 +532,7 @@ CodeGenFunction::EmitCompoundStmtWithoutScope(const CompoundStmt &S,
                          /*IsInit*/ false);
       }
     } else {
-      // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
-      if (getLangOpts().Metal)
-        llvm::errs() << "MBE: EmitStmt " << CurStmt->getStmtClassName() << '\n';
       EmitStmt(CurStmt);
-      if (getLangOpts().Metal)
-        llvm::errs() << "MBE: EmitStmt done " << CurStmt->getStmtClassName()
-                     << '\n';
     }
   }
 

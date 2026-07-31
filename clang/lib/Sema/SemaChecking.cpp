@@ -2063,25 +2063,13 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
   // The Metal builtins are declared with the generic `"v."` signature because
   // they are polymorphic, so their arity and result type are checked here
   // rather than against a fixed signature.
+  // SemaMetal::CheckMetalBuiltinCall resolves the result type (void for
+  // barriers/fences/stores, first argument type for value-returning builtins)
+  // and checks the arity against the measured values in
+  // docs-metal/data/builtin_arity.csv.
   if (getLangOpts().Metal) {
     if (CheckMetalBuiltinCall(BuiltinID, TheCall))
       return ExprError();
-    
-    // If the result type is still void after CheckMetalBuiltinCall,
-    // and the function name starts with "__metal_", manually set the result
-    // type to prevent crashes during code generation.
-    if (TheCall->getType()->isVoidType()) {
-      if (const FunctionDecl *FD = TheCall->getDirectCallee()) {
-        StringRef Name = FD->getName();
-        if (Name.startswith("__metal_") && TheCall->getNumArgs() > 0) {
-          // Set result type to first argument's type to prevent void result
-          QualType FirstArgTy = TheCall->getArg(0)->getType();
-          if (!FirstArgTy.isNull() && !FirstArgTy->isVoidType()) {
-            TheCall->setType(FirstArgTy);
-          }
-        }
-      }
-    }
   }
 
   // Find out if any arguments are required to be integer constant expressions.

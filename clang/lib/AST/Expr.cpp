@@ -569,18 +569,6 @@ DeclRefExpr *DeclRefExpr::Create(const ASTContext &Context,
           TemplateArgs ? TemplateArgs->size() : 0);
 
   void *Mem = Context.Allocate(Size, alignof(DeclRefExpr));
-  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
-  if (D->getDeclName().isIdentifier() && D->getName().startswith("__metal_"))
-    llvm::errs() << "DRECRE: name=" << D->getName()
-                 << " ty=" << T.getAsString()
-                 << " declty=" << D->getType().getAsString()
-                 << " tcls=" << (unsigned)T->getTypeClass()
-                 << " vk=" << (unsigned)VK << " nour=" << (unsigned)NOUR
-                 << " tmpl=" << (TemplateArgs ? 1 : 0)
-                 << " ql=" << (QualifierLoc.hasQualifier() ? 1 : 0)
-                 << " foundd=" << (FoundD ? 1 : 0)
-                 << " encl=" << (RefersToEnclosingVariableOrCapture ? 1 : 0)
-                 << " nil=" << (NameInfo.getLoc().isValid() ? 1 : 0) << '\n';
   return new (Mem) DeclRefExpr(Context, QualifierLoc, TemplateKWLoc, D,
                                RefersToEnclosingVariableOrCapture, NameInfo,
                                FoundD, TemplateArgs, T, VK, NOUR);
@@ -1586,30 +1574,8 @@ bool CallExpr::isUnevaluatedBuiltinCall(const ASTContext &Ctx) const {
 }
 
 QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
-  // TEMPORARY: crash bisection checkpoint; see MBE_TRACE in CGMetal.cpp.
-  bool TRC = Ctx.getLangOpts().Metal;
-  if (TRC)
-    llvm::errs() << "GCRT: enter nargs=" << getNumArgs()
-                 << " preargs=" << (unsigned)getNumPreArgs()
-                 << " csty=" << getType().getAsString() << '\n';
   const Expr *Callee = getCallee();
-  if (TRC) {
-    llvm::errs() << "GCRT: callee " << Callee->getStmtClassName();
-    if (const auto *DRE = dyn_cast<DeclRefExpr>(Callee)) {
-      const ValueDecl *D = DRE->getDecl();
-      llvm::errs() << " decl=" << D->getDeclKindName()
-                   << " name=" << D->getName()
-                   << " fty=";
-      if (const auto *FD = dyn_cast<FunctionDecl>(D))
-        llvm::errs() << FD->getType().getAsString();
-      else
-        llvm::errs() << "(not a FunctionDecl)";
-    }
-    llvm::errs() << '\n';
-  }
   QualType CalleeType = Callee->getType();
-  if (TRC)
-    llvm::errs() << "GCRT: calleety " << CalleeType.getAsString() << '\n';
   if (const auto *FnTypePtr = CalleeType->getAs<PointerType>()) {
     CalleeType = FnTypePtr->getPointeeType();
   } else if (const auto *BPT = CalleeType->getAs<BlockPointerType>()) {
@@ -1629,14 +1595,8 @@ QualType CallExpr::getCallReturnType(const ASTContext &Ctx) const {
     return Ctx.DependentTy;
   }
 
-  if (TRC)
-    llvm::errs() << "GCRT: pre-castAs " << CalleeType.getAsString() << '\n';
   const FunctionType *FnType = CalleeType->castAs<FunctionType>();
-  if (TRC)
-    llvm::errs() << "GCRT: castAs ok\n";
   QualType Ret = FnType->getReturnType();
-  if (TRC)
-    llvm::errs() << "GCRT: ret " << Ret.getAsString() << '\n';
   return Ret;
 }
 

@@ -650,3 +650,4 @@ __metal_write_texture_3d_t,7,12,7:12,"__metal_write_texture_3d_t(derived.t, coor
 __metal_write_texture_buffer_1d_t,6,12,6:12,"__metal_write_texture_buffer_1d_t(derived.t, coord, color, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__)"
 __metal_write_texture_cube_array_t,9,12,9:12,"__metal_write_texture_cube_array_t(derived.t, coord, face, array, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__)"
 __metal_write_texture_cube_t,8,12,8:12,"__metal_write_texture_cube_t(derived.t, coord, face, color, lod, int(a), int(c), __METAL_TEXTURE_WRITE_ROUNDING_MODE__)"
+__metal_atomic_add,2,2,2:2,"__metal_atomic_add(ptr, val)"

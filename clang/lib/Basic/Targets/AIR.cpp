@@ -150,4 +150,96 @@ void AIRTargetInfo::getTargetDefines(const LangOptions &Opts,
   // toolchain; see clang/Basic/MetalMacros.def.
 #define METAL_MACRO(Name, Value) Builder.defineMacro(Name, Value);
 #include "clang/Basic/MetalMacros.def"
+
+  // __HAVE_* capability macros.  Apple's <metal_config> derives these from
+  // __METAL_VERSION__, but predefining them here lets client code that does
+  // not include <metal_stdlib> still see the correct feature set.
+  // Thresholds measured from reference/metal-ast-macos-air64/meta/
+  // metal-predefined-macros.txt for the Apple toolchain (metalfe-32023.883).
+#define HAVE_IF(V) ((MetalVersion) >= (V))
+
+  // MSL 1.1+
+  if (HAVE_IF(110)) {
+    Builder.defineMacro("__HAVE_TEXTURE_READ_WRITE__", "1");
+  }
+
+  // MSL 1.2+
+  if (HAVE_IF(120)) {
+    Builder.defineMacro("__HAVE_FUNCTION_CONSTANTS__", "1");
+    Builder.defineMacro("__HAVE_EARLY_FRAGMENT_TESTS__", "1");
+  }
+
+  // MSL 2.0+
+  if (HAVE_IF(200)) {
+    Builder.defineMacro("__HAVE_IMAGEBLOCK_SAMPLE__", "1");
+    Builder.defineMacro("__HAVE_RASTER_ORDER_GROUPS__", "1");
+    Builder.defineMacro("__HAVE_DEPTH_2D_MS__", "1");
+    Builder.defineMacro("__HAVE_TEXTURE_2D_MS__", "1");
+    Builder.defineMacro("__HAVE_TEXTURE_2D_MS_ARRAY__", "1");
+  }
+
+  // MSL 2.1+
+  if (HAVE_IF(210)) {
+    Builder.defineMacro("__HAVE_TESSELLATION__", "1");
+  }
+
+  // MSL 2.2+
+  if (HAVE_IF(220)) {
+    Builder.defineMacro("__HAVE_BARYCENTRIC_COORD__", "1");
+  }
+
+  // MSL 2.3+
+  if (HAVE_IF(230)) {
+    Builder.defineMacro("__HAVE_COHERENT__", "1");
+    Builder.defineMacro("__HAVE_FRAMEBUFFER_FETCH__", "1");
+  }
+
+  // MSL 2.4+
+  if (HAVE_IF(240)) {
+    Builder.defineMacro("__HAVE_VISIBLE_FUNCTIONS__", "1");
+    Builder.defineMacro("__HAVE_INTERSECTION_FUNCTION_TABLES__", "1");
+  }
+
+  // MSL 3.0+
+  if (HAVE_IF(300)) {
+    Builder.defineMacro("__HAVE_ATOMIC_TEMPLATE__", "1");
+    Builder.defineMacro("__HAVE_ATOMIC_BOOL__", "1");
+    Builder.defineMacro("__HAVE_ATOMIC_FLOAT__", "1");
+    Builder.defineMacro("__HAVE_ATOMIC_ULONG__", "1");
+    Builder.defineMacro("__HAVE_ATOMIC_ULONG_MIN_MAX__", "1");
+    Builder.defineMacro("__HAVE_RAYTRACING__", "1");
+    Builder.defineMacro("__HAVE_MESH__", "1");
+    Builder.defineMacro("__HAVE_OBJECTS__", "1");
+    Builder.defineMacro("__HAVE_INTERSECTION_QUERY__", "1");
+    Builder.defineMacro("__HAVE_TEXTURE_READ_WITHOUT_SAMPLE__", "1");
+    Builder.defineMacro("__HAVE_TEXTURE_BUFFER__", "1");
+    Builder.defineMacro("__HAVE_TEXTURE_CUBE_ARRAY__", "1");
+    Builder.defineMacro("__HAVE_DEPTH_CUBE_ARRAY__", "1");
+    Builder.defineMacro("__HAVE_DEPTH_2D_MS_ARRAY__", "1");
+    Builder.defineMacro("__HAVE_ATOMIC_FENCE__", "1");
+    Builder.defineMacro("__HAVE_SIMDGROUP_INTRINSICS__", "1");
+  }
+
+  // MSL 3.1+
+  if (HAVE_IF(310)) {
+    Builder.defineMacro("__HAVE_PACKED_VECTOR_TYPES__", "1");
+    Builder.defineMacro("__HAVE_TENSOR__", "1");
+  }
+
+  // MSL 3.2+
+  if (HAVE_IF(320)) {
+    Builder.defineMacro("__HAVE_LAMBDAS__", "1");
+  }
+
+  // MSL 4.0+
+  if (HAVE_IF(400)) {
+    Builder.defineMacro("__HAVE_TENSOR_THREAD__", "1");
+  }
+
+  // MSL 4.1+
+  if (HAVE_IF(410)) {
+    Builder.defineMacro("__HAVE_ATOMIC_COMPARE_EXCHANGE__", "1");
+  }
+
+#undef HAVE_IF
 }

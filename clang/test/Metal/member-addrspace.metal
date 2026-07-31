@@ -7,7 +7,7 @@
 // (reference/metal-ast-macos-air64/meta/builtin-signatures.csv.gz).
 //
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
-// RUN:   -std=metal3.2 -ast-dump -fsyntax-only %s | FileCheck %s
+// RUN:   -std=metal3.2 -fsyntax-only -ast-dump %s | FileCheck %s
 
 struct S {
   int f() thread;

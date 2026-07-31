@@ -65,6 +65,7 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsGenMap = {
     Generic,  // metal_threadgroup_imageblock
     Generic,  // metal_object_data
     Generic,  // metal_ray_data
+    Generic,  // metal_device_coherent
 };
 
 const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
@@ -96,6 +97,7 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
     Generic, // metal_threadgroup_imageblock
     Generic, // metal_object_data
     Generic, // metal_ray_data
+    Generic, // metal_device_coherent
 
 };
 } // namespace targets

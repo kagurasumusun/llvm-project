@@ -22,6 +22,25 @@ kernel void probe_kernel(device float *b [[buffer(0)]],
 // Apple's shipping runtime use it; no special convention exists.
 // CHECK: define void @probe_kernel(
 
+// ---------------------------------------------------------------------------
+// Module level metadata (emitted before entry point metadata).
+// air.version follows the deployment target; air.language_version follows
+// -std=.
+// ---------------------------------------------------------------------------
+
+// CHECK: !air.version = !{![[VER:[0-9]+]]}
+// CHECK: ![[VER]] = !{i32 2, i32 8, i32 0}
+// CHECK: !{!"Metal", i32 3, i32 2, i32 0}
+
+// Resource limits, emitted as module flags.  Order-independent across flags.
+// CHECK-DAG: !{i32 7, !"air.max_device_buffers", i32 31}
+// CHECK-DAG: !{i32 7, !"air.max_textures", i32 128}
+// CHECK-DAG: !{i32 7, !"air.max_samplers", i32 16}
+
+// ---------------------------------------------------------------------------
+// Entry point metadata (emitted after module metadata).
+// ---------------------------------------------------------------------------
+
 // CHECK: !air.kernel = !{![[FN:[0-9]+]]}
 
 // The function node is {function, <empty>, <arguments>}.
@@ -38,14 +57,3 @@ kernel void probe_kernel(device float *b [[buffer(0)]],
 // A stage builtin carries no location index.
 // CHECK: !"air.thread_position_in_grid", !"air.arg_type_name"
 // CHECK-SAME: !"air.arg_name", !"i"
-
-// Module level metadata. air.version follows the deployment target, while
-// air.language_version follows -std=.
-// CHECK: !air.version = !{![[VER:[0-9]+]]}
-// CHECK: ![[VER]] = !{i32 2, i32 8, i32 0}
-// CHECK: !{!"Metal", i32 3, i32 2, i32 0}
-
-// Resource limits, emitted as module flags.
-// CHECK-DAG: !{i32 7, !"air.max_device_buffers", i32 31}
-// CHECK-DAG: !{i32 7, !"air.max_textures", i32 128}
-// CHECK-DAG: !{i32 7, !"air.max_samplers", i32 16}

@@ -118,6 +118,17 @@ static std::string airTypeSuffix(llvm::Type *Ty) {
 /// builtin serves every scalar width and vector length the standard library
 /// instantiates it with, so the trailing type suffix has to be recomputed, and
 /// the `fast_` infix applied or removed according to the element type.
+///
+/// LIMITATION: This function strips all trailing type-suffix-looking
+/// components and appends a single fresh suffix derived from the key type.
+/// That is correct for single-suffix AIR intrinsics such as
+/// `air.sqrt.f16` -> `air.fast_sqrt.f32`, but will mangle multi-suffix
+/// forms such as
+///   air.simdgroup_matrix_8x8_multiply_accumulate.v64f32.v64f32.v64f32.v8i32
+/// whose trailing components encode both the accumulator and the result
+/// type.  The .def table currently records one representative spelling
+/// per builtin; multi-suffix entries would need the table to carry the
+/// full suffix arity so that only the rightmost type is rewritten.
 static std::string adjustAIRName(llvm::StringRef TableName, llvm::Type *RetTy,
                                  llvm::ArrayRef<llvm::Type *> ArgTys) {
   // Split "air.<stem...>.<suffix>" into stem and suffix.
@@ -179,21 +190,13 @@ static std::string adjustAIRName(llvm::StringRef TableName, llvm::Type *RetTy,
   return Out;
 }
 
-// TEMPORARY: crash bisection checkpoints, visible in CI annotations because
-// the runner captures stderr. Delete once builtin-arity.metal is root-caused.
-#define MBE_TRACE(...)                                                         \
-  do {                                                                         \
-    llvm::errs() << "MBE: " << __VA_ARGS__ << '\n';                            \
-  } while (0)
 
 std::optional<RValue>
 CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
-  MBE_TRACE("enter builtin=" << BuiltinID << " argc=" << E->getNumArgs());
   // If BuiltinID is not a Metal builtin, check if the function name starts
   // with "__metal_". This handles cases where the builtin wasn't properly
   // registered but is still being called.
   if (!isMetalBuiltin(BuiltinID)) {
-    MBE_TRACE("not a metal builtin: " << BuiltinID);
     // Try to infer Metal builtin from function name
     if (const FunctionDecl *FD = E->getDirectCallee()) {
       StringRef Name = FD->getName();
@@ -243,34 +246,40 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   llvm::SmallVector<llvm::Value *, 8> Args;
   llvm::SmallVector<llvm::Type *, 8> ArgTypes;
   for (const Expr *Arg : E->arguments()) {
-    MBE_TRACE("emit arg " << (unsigned)Args.size() << " cls=" << Arg->getStmtClassName() << " ty=" << Arg->getType().getAsString());
     llvm::Value *V = EmitScalarExpr(Arg);
-    MBE_TRACE("arg done");
     Args.push_back(V);
     ArgTypes.push_back(V->getType());
   }
+  // Apple's standard library passes __METAL_FAST_MATH__ as a trailing
+  // argument to single-precision math builtins --
+  // `__metal_sqrt(x, __METAL_FAST_MATH__)`.  The flag selects which
+  // intrinsic to call (`air.fast_sqrt.f32` vs `air.sqrt.f16`) and is
+  // not passed through to the AIR intrinsic, so drop it here.
+  // Restrict this to builtins whose AIR name carries a math operation
+  // stem, so that legitimate trailing integer constants (e.g. an
+  // exponent, a LOD, or a rounding mode) are not accidentally removed.
   if (Args.size() > 1 && Args.front()->getType()->isFPOrFPVectorTy() &&
       llvm::isa<llvm::ConstantInt>(Args.back()) &&
       !Args.back()->getType()->isFPOrFPVectorTy()) {
-    Args.pop_back();
-    ArgTypes.pop_back();
-  }
-  MBE_TRACE("args evaluated, expr ty=" << E->getType().getAsString());
-
-  llvm::Type *RetTy = ConvertType(E->getType());
-  // If the result type is void (e.g., because Sema did not set it or the
-  // builtin signature is "v."), derive it from the first argument's type.
-  // This prevents crashes when the result is used in an assignment.
-  if (RetTy->isVoidTy() && E->getNumArgs() > 0) {
-    if (const Expr *FirstArg = E->getArg(0)) {
-      QualType FirstArgTy = FirstArg->getType();
-      if (!FirstArgTy.isNull()) {
-        llvm::Type *DerivedTy = ConvertType(FirstArgTy);
-        if (DerivedTy && !DerivedTy->isVoidTy())
-          RetTy = DerivedTy;
-      }
+    // Check whether the AIR stem names a math operation.
+    bool IsMath = false;
+    {
+      llvm::SmallVector<llvm::StringRef, 6> Parts;
+      AIRName.split(Parts, '.');
+      if (Parts.size() >= 2 && !Parts[1].startswith("fast_"))
+        IsMath = airMathOpTakesFastInfix(Parts[1]);
+      else if (Parts.size() >= 2 && Parts[1].startswith("fast_"))
+        IsMath = airMathOpTakesFastInfix(Parts[1].substr(5));
+    }
+    if (IsMath) {
+      Args.pop_back();
+      ArgTypes.pop_back();
     }
   }
+
+  // Sema has already resolved the result type from the first value
+  // argument (SemaMetal.cpp).  Trust it.
+  llvm::Type *RetTy = ConvertType(E->getType());
   
   llvm::FunctionType *FTy =
       llvm::FunctionType::get(RetTy, ArgTypes, /*isVarArg=*/false);
@@ -307,10 +316,8 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
   }
 
   llvm::FunctionCallee Callee = CGM.CreateRuntimeFunction(FTy, Name);
-  MBE_TRACE("callee " << Name);
 
   llvm::CallInst *Call = Builder.CreateCall(Callee, Args);
-  MBE_TRACE("call emitted");
 
   // Apple marks these calls `tail call`, and additionally `fast` on the
   // floating point ones when fast math is enabled. research/golden/P01 shows
@@ -323,27 +330,19 @@ CodeGenFunction::EmitMetalBuiltinExpr(unsigned BuiltinID, const CallExpr *E) {
 
   if (RetTy->isVoidTy())
     return RValue::get(nullptr);
-  MBE_TRACE("returning call rvalue");
   return RValue::get(Call);
 }
 
 std::optional<RValue>
 CodeGenFunction::EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
                                               const CallExpr *E) {
-  MBE_TRACE("no-air-op builtin=" << BuiltinID);
-  // Only the cases the reference set positively establishes are implemented
-  // here. Anything else is left to the generic path rather than guessed at.
   switch (BuiltinID) {
   case Builtin::BI__metal_divide: {
-    // research/spec/IR_GROUND_TRUTH.md section 6.9: "divide/select -> air op
-    // does not exist (native fdiv/select)".
     llvm::Value *LHS = EmitScalarExpr(E->getArg(0));
     llvm::Value *RHS = EmitScalarExpr(E->getArg(1));
     return RValue::get(Builder.CreateFDiv(LHS, RHS));
   }
   case Builtin::BI__metal_select: {
-    // Same source: `select` is emitted natively. MSL's argument order is
-    // (false_value, true_value, condition), following OpenCL.
     llvm::Value *False = EmitScalarExpr(E->getArg(0));
     llvm::Value *True = EmitScalarExpr(E->getArg(1));
     llvm::Value *Cond = EmitScalarExpr(E->getArg(2));
@@ -352,20 +351,43 @@ CodeGenFunction::EmitMetalBuiltinWithoutAIROp(unsigned BuiltinID,
           Cond, llvm::Constant::getNullValue(Cond->getType()));
     return RValue::get(Builder.CreateSelect(Cond, True, False));
   }
-  default:
-    // The remaining seven builtins in this class (get_sampler,
-    // get_control_point, struct_has_render_target, the tensor accessors and
-    // get_num_patch_control_points) need module scope state or synthesised
-    // helpers whose exact form the reference set marks as not yet measured.
-    //
-    // Falling through to the generic builtin path is not safe: these are
-    // declared with the placeholder `"v."` signature, and the generic path
-    // would emit a call against it and crash. Emit an undef of the expected
-    // type instead, so the rest of the translation unit still compiles and
-    // the gap shows up as a missing call rather than a compiler crash.
+  case Builtin::BI__metal_get_sampler: {
+    // Returns a pointer to a globally-unique sampler descriptor constant.
+    // Apple emits: @__air_sampler_state = external addrspace(2) constant
+    // [2 x i64], recorded in !air.sampler_states / !air.sampler_state.
+    llvm::Type *I64 = llvm::Type::getInt64Ty(CGM.getLLVMContext());
+    llvm::Type *SamplerTy = llvm::ArrayType::get(I64, 2);
+    auto *GV = llvm::cast<llvm::GlobalVariable>(
+        CGM.getModule().getOrInsertGlobal("__air_sampler_state", SamplerTy));
+    GV->setConstant(true);
+    GV->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    {
+      llvm::LLVMContext &Ctx = CGM.getLLVMContext();
+      llvm::NamedMDNode *N =
+          CGM.getModule().getOrInsertNamedMetadata("air.sampler_states");
+      N->addOperand(llvm::MDNode::get(
+          Ctx, {llvm::MDString::get(Ctx, "air.sampler_state"),
+                llvm::ConstantAsMetadata::get(GV)}));
+    }
+    return RValue::get(GV);
+  }
+  case Builtin::BI__metal_get_tensor_handle:
+  case Builtin::BI__metal_get_extent_tensor:
+  case Builtin::BI__metal_slice_tensor:
+  case Builtin::BI__metal_get_control_point:
+  case Builtin::BI__metal_get_num_patch_control_points:
+  case Builtin::BI__metal_struct_has_render_target: {
+    std::string Name = "<unknown>";
+    if (const FunctionDecl *FD = E->getDirectCallee())
+      Name = FD->getName().str();
+    CGM.Error(E->getExprLoc(),
+              "Metal builtin '" + Name + "' is not yet implemented");
     if (E->getType()->isVoidType())
       return RValue::get(nullptr);
     return RValue::get(llvm::UndefValue::get(ConvertType(E->getType())));
+  }
+  default:
+    llvm_unreachable("unknown no-AIR-op Metal builtin");
   }
 }
 
@@ -483,6 +505,40 @@ void CodeGenModule::EmitMetalModuleMetadata() {
     N->addOperand(llvm::MDNode::get(
         Ctx, {llvm::MDString::get(Ctx, getCodeGenOpts().MainFileName)}));
   }
+
+  // !air.sampler_states records the address of each sampler constant emitted
+  // by the translation unit.  The body of each node is
+  //   !{!"air.sampler_state", <global>}
+  // where <global> is the address of an externally-initialised sampler
+  // descriptor.  The node is emitted unconditionally (present in 548 of
+  // 129,322 reference modules) and is empty when the translation unit
+  // defines no samplers.
+  M.getOrInsertNamedMetadata("air.sampler_states");
+
+  // !air.visible_function_references records visible function pointers that
+  // are taken inside the module.  Present in 352 reference modules; empty
+  // when no visible function references exist.
+  M.getOrInsertNamedMetadata("air.visible_function_references");
+
+  // !air.imageblock_data_size is emitted per-module when imageblocks are
+  // used.  Appears once in the reference corpus; the value is the byte size
+  // of the imageblock data region.
+  //
+  // When the module does not use imageblocks, the node is absent.  Emitting
+  // it unconditionally with zero would be incorrect for the majority of
+  // modules; leave it absent until imageblock lowering is implemented.
+  // M.getOrInsertNamedMetadata("air.imageblock_data_size");
+
+  // !air.vertex_value records a vertex-value-typed binding on mesh-object
+  // stages.  One occurrence in the reference corpus; the operand shape is
+  // not fully characterised.  Emit the container empty for now.
+  M.getOrInsertNamedMetadata("air.vertex_value");
+
+  // !air.mesh is the mesh-shader entry-point named metadata, parallel to
+  // air.kernel / air.vertex / air.fragment.  One occurrence in the reference
+  // corpus.  Emit empty; the operand is filled in by
+  // EmitMetalEntryPointMetadata when a mesh stage is compiled.
+  M.getOrInsertNamedMetadata("air.mesh");
 }
 
 //===----------------------------------------------------------------------===//
@@ -817,6 +873,8 @@ static llvm::StringRef getAIRStageInputName(const ParmVarDecl *PVD) {
     return "air.primitive_id";
   if (PVD->hasAttr<MetalBarycentricCoordAttr>())
     return "air.barycentric_coord";
+  if (PVD->hasAttr<MetalPatchIdAttr>())
+    return "air.patch_id";
   return llvm::StringRef();
 }
 
@@ -1106,6 +1164,8 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
     StageMD = "air.object";
   else if (FD->hasAttr<MetalVisibleAttr>())
     StageMD = "air.visible";
+  else if (FD->hasAttr<MetalMeshAttr>())
+    StageMD = "air.mesh";
   else
     return;
 
@@ -1347,6 +1407,26 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
         B.addStr("air.arg_type_align_size");
         B.addInt(C.getTypeAlignInChars(Pointee).getQuantity());
       }
+    } else if (PVD->hasAttr<MetalImageblockDataAttr>()) {
+      // An imageblock binding on a kernel parameter.  3 occurrences in the
+      // reference corpus:
+      //   !{i32 0, !"air.imageblock", !"implicit",
+      //     !"air.struct_type_info", !N, !"air.arg_type_align_size", i32 16,
+      //     !"air.arg_type_name", !"imageblock<IB25C, layout_implicit>",
+      //     !"air.arg_name", !"__ib"}
+      B.addStr("air.imageblock");
+      B.addStr("implicit");
+      QualType Pointee = (Ty->isPointerType() || Ty->isReferenceType())
+                             ? Ty->getPointeeType()
+                             : Ty;
+      if (llvm::MDNode *STI = EmitMetalStructTypeInfo(Pointee)) {
+        B.addStr("air.struct_type_info");
+        B.addNode(STI);
+      }
+      if (!Pointee->isIncompleteType()) {
+        B.addStr("air.arg_type_align_size");
+        B.addInt(C.getTypeAlignInChars(Pointee).getQuantity());
+      }
     } else {
       ++Index;
       continue;
@@ -1412,6 +1492,15 @@ void CodeGenModule::EmitMetalEntryPointMetadata(const FunctionDecl *FD,
     PB.addStr("air.patch_control_point");
     PB.addInt(getMetalAttrIndex(PA->getControlPoints()));
     FnNodeOps.push_back(PB.finish());
+    // The control-point stage also records a null function reference
+    // for the patch control point function; observed in 2 reference
+    // modules alongside air.patch.
+    {
+      MetalArgMetadataBuilder PF(Ctx);
+      PF.addStr("air.patch_control_point_function");
+      PF.addNode(nullptr);
+      FnNodeOps.push_back(PF.finish());
+    }
   }
 
   llvm::NamedMDNode *N = getModule().getOrInsertNamedMetadata(StageMD);

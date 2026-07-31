@@ -530,6 +530,87 @@ static bool checkMetalArgCount(Sema &S, CallExpr *Call, unsigned Desired) {
          << /*function call*/ 0 << Desired << ArgCount << Excess;
 }
 
+/// Is \p BuiltinID a Metal builtin that returns void (has no meaningful
+/// return value)?
+///
+/// The builtins are all declared with the placeholder `"v."` type string, so
+/// the return type cannot be derived from the signature. This helper inspects
+/// the AIR intrinsic name recorded in BuiltinsMetal.def to decide whether the
+/// operation produces a value or is called only for its side effects.
+///
+/// Void-returning categories:
+///   * unimplemented builtins with an empty AIR name (except divide/select)
+///   * barriers, fences, flushes, memcpy/move/set, discard, abort
+///   * atomic store intrinsics (air.atomic.*.store.*)
+///
+/// All other builtins produce a value whose type is the first argument's type
+/// (following the convention that Apple's <metal_stdlib> always passes the
+/// value operand first).
+static bool isMetalBuiltinVoidReturning(unsigned BuiltinID) {
+  // extract the AIR intrinsic name from the table.
+  llvm::StringRef AIRName;
+  switch (BuiltinID) {
+#define METAL_BUILTIN(ID, TYPE, ATTRS, AIRNAME, ARITY)                         \
+  case Builtin::BI##ID:                                                        \
+    AIRName = AIRNAME;                                                         \
+    break;
+#include "clang/Basic/BuiltinsMetal.def"
+  default:
+    return false;
+  }
+
+  // Unimplemented: empty AIR name means no AIR intrinsic; these are either
+  // native instructions (divide/select) or not-yet-implemented helpers.
+  // divide/select are value-returning; everything else with an empty name
+  // keeps void.
+  if (AIRName.empty()) {
+    switch (BuiltinID) {
+    case Builtin::BI__metal_divide:
+    case Builtin::BI__metal_select:
+      return false;
+    default:
+      return true;
+    }
+  }
+
+  // Explicitly void: barriers.
+  if (AIRName.contains("barrier"))
+    return true;
+
+  // Explicitly void: fences and flushes.
+  if (AIRName.startswith("air.fence") || AIRName.contains("fence_texture") ||
+      AIRName.contains("flush"))
+    return true;
+
+  // Explicitly void: atomics that store or fence (air.atomic.*.store.* /
+  // air.atomic.fence).  Air names for void atomics contain ".store" or
+  // ".fence"; value-returning atomics leave those segments out.
+  if (AIRName.startswith("air.atomic.") &&
+      (AIRName.contains(".store") || AIRName.contains(".fence")))
+    return true;
+
+  // Explicitly void: discard, abort, memcpy, memmove, memset.
+  if (AIRName.startswith("air.discard_fragment") ||
+      AIRName.startswith("air.abort_intersection_query") ||
+      AIRName.startswith("air.memcpy") ||
+      AIRName.startswith("air.memmove") ||
+      AIRName.startswith("air.memset"))
+    return true;
+
+  // Explicitly void: clear/set barrier commands.
+  if (AIRName.startswith("air.clear_barrier_") ||
+      AIRName.startswith("air.set_barrier_"))
+    return true;
+
+  // get_descriptor_size_tensor returns void (the result goes through an
+  // out-parameter).
+  if (AIRName.startswith("air.get_descriptor_size_"))
+    return true;
+
+  // Everything else produces a value.
+  return false;
+}
+
 bool Sema::CheckMetalBuiltinCall(unsigned BuiltinID, CallExpr *TheCall) {
   int Arity = getMetalBuiltinArity(BuiltinID);
   if (Arity < 0)
@@ -538,33 +619,27 @@ bool Sema::CheckMetalBuiltinCall(unsigned BuiltinID, CallExpr *TheCall) {
   if (checkMetalArgCount(*this, TheCall, (unsigned)Arity))
     return true;
 
-  // The builtins are generic, so the result type follows the arguments rather
-  // than a fixed signature. Apple's standard library always writes them in one
-  // of two shapes:
-  //
-  //   return __metal_abs(x);                      // result is typeof(x)
-  //   return __metal_sqrt(x, __METAL_FAST_MATH__) // ditto, flag is trailing
-  //
-  // that is, the value being operated on is the first argument and any
-  // trailing flags are integer constants. Taking the type of the first
-  // non-integer-constant argument therefore reproduces the result type for
-  // every arithmetic builtin, which is the group whose result is actually
-  // consumed. A builtin called only for effect keeps `void`, which is what
-  // the `"v."` declaration already gives.
-  QualType ResultTy = Context.VoidTy;
+  // Run the usual conversions on every argument so that the argument type is
+  // the promoted one and array/function decay has happened.
   for (unsigned I = 0, E = TheCall->getNumArgs(); I != E; ++I) {
-    Expr *Arg = TheCall->getArg(I);
-
-    // Run the usual conversions so that the argument type is the promoted one
-    // and array/function decay has happened.
-    ExprResult Converted = DefaultFunctionArrayLvalueConversion(Arg);
+    ExprResult Converted =
+        DefaultFunctionArrayLvalueConversion(TheCall->getArg(I));
     if (Converted.isInvalid())
       return true;
-    Arg = Converted.get();
-    TheCall->setArg(I, Arg);
+    TheCall->setArg(I, Converted.get());
+  }
 
-    if (I == 0)
-      ResultTy = Arg->getType();
+  // Determine the result type.  All builtins are declared with `"v."`
+  // (void return, no formal parameter list) because a single builtin serves
+  // every scalar width and vector length.  The result type follows the first
+  // value argument (Apple's standard library always writes the value operand
+  // first).
+  //
+  // Void-returning builtins (barriers, fences, stores, discards, ...) keep
+  // void; they are called for side effects only.
+  QualType ResultTy = Context.VoidTy;
+  if (!isMetalBuiltinVoidReturning(BuiltinID) && TheCall->getNumArgs() > 0) {
+    ResultTy = TheCall->getArg(0)->getType();
   }
 
   TheCall->setType(ResultTy);

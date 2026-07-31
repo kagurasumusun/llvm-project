@@ -121,6 +121,7 @@ METAL_BUILTIN(__metal_atomic_exchange_explicit_texture_cube_array_t, "v.", "tn",
 METAL_BUILTIN(__metal_atomic_exchange_explicit_texture_cube_t, "v.", "tn", "air.atomic_exchange_explicit_texture_cube.u.v4i32", 6)
 METAL_BUILTIN(__metal_atomic_fence, "v.", "tn", "air.atomic.fence", 3)
 METAL_BUILTIN(__metal_atomic_fetch_add_explicit, "v.", "tn", "air.atomic.global.add.s.i32", 4)
+METAL_BUILTIN(__metal_atomic_add, "v.", "tn", "air.atomic.global.add.s.i32", 2)
 METAL_BUILTIN(__metal_atomic_fetch_add_explicit_texture_1d_array_t, "v.", "tn", "air.atomic_fetch_add_explicit_texture_1d_array.u.v4i32", 6)
 METAL_BUILTIN(__metal_atomic_fetch_add_explicit_texture_1d_t, "v.", "tn", "air.atomic_fetch_add_explicit_texture_1d.u.v4i32", 5)
 METAL_BUILTIN(__metal_atomic_fetch_add_explicit_texture_2d_array_t, "v.", "tn", "air.atomic_fetch_add_explicit_texture_2d_array.u.v4i32", 7)
