@@ -6138,6 +6138,9 @@ let Flags = [CC1Option, FC1Option, NoDriverOption] in {
 def mreassociate : Flag<["-"], "mreassociate">,
   HelpText<"Allow reassociation transformations for floating-point instructions">,
   MarshallingInfoFlag<LangOpts<"AllowFPReassoc">>, ImpliedByAnyOf<[funsafe_math_optimizations.KeyPath]>;
+def menable_unsafe_fp_math : Flag<["-"], "menable-unsafe-fp-math">,
+  HelpText<"Enable unsafe floating-point math optimizations">,
+  MarshallingInfoFlag<LangOpts<"UnsafeFPMath">>, ImpliedByAnyOf<[funsafe_math_optimizations.KeyPath]>;
 def menable_no_nans : Flag<["-"], "menable-no-nans">,
   HelpText<"Allow optimization to assume there are no NaNs.">,
   MarshallingInfoFlag<LangOpts<"NoHonorNaNs">>, ImpliedByAnyOf<[ffinite_math_only.KeyPath]>;
