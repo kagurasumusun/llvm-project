@@ -447,6 +447,14 @@ Retry:
     ConsumeAnnotationToken();
     return StmtError();
 
+  case tok::annot_pragma_metal:
+    // '#pragma METAL fp math_mode(...)' is legal at any statement position;
+    // that is exactly how Apple's <metal_math> wraps individual helpers.
+    ProhibitAttributes(CXX11Attrs);
+    ProhibitAttributes(GNUAttrs);
+    HandlePragmaMetal();
+    return StmtEmpty();
+
   case tok::annot_pragma_opencl_extension:
     ProhibitAttributes(CXX11Attrs);
     ProhibitAttributes(GNUAttrs);
@@ -1029,6 +1037,9 @@ void Parser::ParseCompoundStatementLeadingPragmas() {
       break;
     case tok::annot_pragma_float_control:
       HandlePragmaFloatControl();
+      break;
+    case tok::annot_pragma_metal:
+      HandlePragmaMetal();
       break;
     case tok::annot_pragma_ms_pointers_to_members:
       HandlePragmaMSPointersToMembers();

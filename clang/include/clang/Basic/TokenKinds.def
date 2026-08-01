@@ -912,6 +912,13 @@ PRAGMA_ANNOTATION(pragma_fenv_round)
 // handles them.
 PRAGMA_ANNOTATION(pragma_float_control)
 
+// Annotation for '#pragma METAL fp math_mode(...)'.
+// Like float_control, the lexer produces these so the FP mode only takes
+// effect when the parser consumes the token; a preprocessor-time callback
+// would race ahead of the enclosing compound statement and have its effect
+// rolled back by FPFeaturesStateRAII.
+PRAGMA_ANNOTATION(pragma_metal)
+
 // Annotation for #pragma pointers_to_members...
 // The lexer produces these so that they only take effect when the parser
 // handles them.

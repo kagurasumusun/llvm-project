@@ -778,6 +778,7 @@ private:
   /// Handle the annotation token produced for
   /// #pragma float_control
   void HandlePragmaFloatControl();
+  void HandlePragmaMetal();
 
   /// \brief Handle the annotation token produced for
   /// #pragma clang fp ...

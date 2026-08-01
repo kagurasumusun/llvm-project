@@ -107,13 +107,9 @@ struct PragmaFPContractHandler : public PragmaHandler {
 /// each, and `#pragma METAL fp math_mode(safe)` 90 times. Without these the
 /// unmodified Apple headers cannot be compiled.
 struct PragmaMetalHandler : public PragmaHandler {
-  PragmaMetalHandler(Sema &Actions)
-      : PragmaHandler("METAL"), Actions(Actions) {}
+  PragmaMetalHandler() : PragmaHandler("METAL") {}
   void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
                     Token &FirstToken) override;
-
-private:
-  Sema &Actions;
 };
 
 // Pragma STDC implementations.
@@ -436,7 +432,7 @@ void Parser::initializePragmaHandlers() {
   }
 
   if (getLangOpts().Metal) {
-    MetalHandler = std::make_unique<PragmaMetalHandler>(Actions);
+    MetalHandler = std::make_unique<PragmaMetalHandler>();
     PP.AddPragmaHandler(MetalHandler.get());
   }
   if (getLangOpts().OpenMP)
@@ -820,6 +816,14 @@ void Parser::HandlePragmaFloatControl() {
   PragmaFloatControlKind Kind = PragmaFloatControlKind(Value & 0xFFFF);
   SourceLocation PragmaLoc = ConsumeAnnotationToken();
   Actions.ActOnPragmaFloatControl(PragmaLoc, Action, Kind);
+}
+
+void Parser::HandlePragmaMetal() {
+  assert(Tok.is(tok::annot_pragma_metal));
+  auto Mode = static_cast<Sema::MetalFPMathMode>(
+      reinterpret_cast<uintptr_t>(Tok.getAnnotationValue()));
+  SourceLocation PragmaLoc = ConsumeAnnotationToken();
+  Actions.ActOnMetalFPMathMode(PragmaLoc, Mode);
 }
 
 void Parser::HandlePragmaFEnvAccess() {
@@ -4158,7 +4162,20 @@ void PragmaMetalHandler::HandlePragma(Preprocessor &PP,
     if (Tok.isNot(tok::eod))
       PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
           << "METAL";
-    Actions.ActOnMetalFPMathMode(ModeLoc, MathMode);
+
+    // Defer the mode change to the parser, the way float_control does it:
+    // an annotation token is consumed at the exact source position, so a
+    // pragma between functions cannot have its effect rolled back by the
+    // FPFeaturesStateRAII of the enclosing (still open) compound statement.
+    auto TokenArray = std::make_unique<Token[]>(1);
+    TokenArray[0].startToken();
+    TokenArray[0].setKind(tok::annot_pragma_metal);
+    TokenArray[0].setLocation(ModeLoc);
+    TokenArray[0].setAnnotationEndLoc(Tok.getLocation());
+    TokenArray[0].setAnnotationValue(
+        reinterpret_cast<void *>(static_cast<uintptr_t>(MathMode)));
+    PP.EnterTokenStream(std::move(TokenArray), 1,
+                        /*DisableMacroExpansion=*/false, /*IsReinject=*/false);
     return;
   }
 

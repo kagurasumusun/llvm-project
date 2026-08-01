@@ -6,8 +6,10 @@
 // #pragma float_control:
 //
 //   safe / precise -> FPOptionsOverride::setFPPreciseEnabled(true)
-//                     (every relaxation off, fp contract within a statement,
-//                      i.e. only the `contract` fast-math flag remains)
+//                     (every relaxation off, contraction included; the
+//                      multiplication prints plain `fmul float`, exactly as
+//                      measured for #pragma float_control(precise, on) on the
+//                      same cc1)
 //   fast           -> FPOptionsOverride::setFPPreciseEnabled(false)
 //                     (the whole fast-math set, printed as `fast`)
 //
@@ -38,8 +40,8 @@ kernel void local(device float *f [[buffer(0)]],
   // STRICT: fmul contract float
 #pragma METAL fp math_mode(safe)
   float b = f[2] * f[3];
-  // FM: fmul contract float
-  // STRICT: fmul contract float
+  // FM: fmul float
+  // STRICT: fmul float
   {
 #pragma METAL fp math_mode(fast)
     // An inner scope may raise the mode again.
@@ -51,11 +53,11 @@ kernel void local(device float *f [[buffer(0)]],
   // Instead the inner pragma's effect ends with its braces and the outer
   // math_mode(safe) is back in force.
   f[i + 1] = a * b;
-  // FM: fmul contract float
-  // STRICT: fmul contract float
+  // FM: fmul float
+  // STRICT: fmul float
   f[i + 2] = a + b;
-  // FM: fadd contract float
-  // STRICT: fadd contract float
+  // FM: fadd float
+  // STRICT: fadd float
 }
 
 // The function body's closing restore also keeps the pragma from leaking
@@ -74,8 +76,8 @@ kernel void leak_check(device float *f [[buffer(0)]],
 kernel void file_precise(device float *f [[buffer(0)]],
                          uint i [[thread_position_in_grid]]) {
   f[i] = f[i] * f[i + 1];
-  // FM: fmul contract float
-  // STRICT: fmul contract float
+  // FM: fmul float
+  // STRICT: fmul float
 }
 
 #pragma METAL fp math_mode(fast)
