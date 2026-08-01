@@ -6984,9 +6984,17 @@ static unsigned getMetalAttrMinVersion(const ParsedAttr &AL) {
 }
 
 /// Common entry point for every Metal attribute: enforce the version gate that
-/// applies to it before the generic handler builds the Attr node.
-static bool checkMetalAttrCommon(Sema &S, const ParsedAttr &AL) {
-  return S.CheckMetalAttributeVersion(AL, getMetalAttrMinVersion(AL));
+/// applies to it before the generic handler builds the Attr node.  A rejected
+/// attribute is dropped, and the declaration is marked invalid so the later
+/// structural entry point checks do not cascade into secondary diagnostics
+/// that Apple's compiler does not produce (Apple emits only the version
+/// error; see docs-metal/data/metal_attributes.csv).
+static bool checkMetalAttrCommon(Sema &S, Decl *D, const ParsedAttr &AL) {
+  if (S.CheckMetalAttributeVersion(AL, getMetalAttrMinVersion(AL)))
+    return true;
+  if (D)
+    D->setInvalidDecl();
+  return false;
 }
 
 /// Build a Metal attribute taking a fixed number of expression arguments,
@@ -7124,7 +7132,7 @@ static bool getMetalAttrIndexValue(Sema &S, const ParsedAttr &AL, int64_t &V) {
 /// than assumed.
 static void handleMetalResourceIndexAttr(Sema &S, Decl *D,
                                          const ParsedAttr &AL) {
-  if (!checkMetalAttrCommon(S, AL))
+  if (!checkMetalAttrCommon(S, D, AL))
     return;
 
   StringRef Kind;
@@ -7191,7 +7199,7 @@ static void handleMetalResourceIndexAttr(Sema &S, Decl *D,
 /// the measured vertex attribute slot count (0..30).
 static void handleMetalAttributeIndexAttr(Sema &S, Decl *D,
                                           const ParsedAttr &AL) {
-  if (!checkMetalAttrCommon(S, AL))
+  if (!checkMetalAttrCommon(S, D, AL))
     return;
 
   if (AL.getNumArgs() != 1) {
@@ -7217,7 +7225,7 @@ static void handleMetalAttributeIndexAttr(Sema &S, Decl *D,
 ///   error: invalid string literal value for 'host_name' attribute
 /// Metal 2.3 and later accept the empty string.
 static void handleMetalHostNameAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  if (!checkMetalAttrCommon(S, AL))
+  if (!checkMetalAttrCommon(S, D, AL))
     return;
 
   StringRef Str;
@@ -7234,7 +7242,7 @@ static void handleMetalHostNameAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
 /// Handle the entry point attributes [[kernel]], [[vertex]], [[fragment]],
 /// [[mesh]] and [[object]], rejecting the combinations Apple rejects.
 static void handleMetalEntryPointAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  if (!checkMetalAttrCommon(S, AL))
+  if (!checkMetalAttrCommon(S, D, AL))
     return;
 
   auto *FD = dyn_cast<FunctionDecl>(D);
@@ -9524,333 +9532,333 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
     handleMetalEntryPointAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalVisible:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalVisibleAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalStitchable:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalStitchableAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalIntersection:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalStringListAttr<MetalIntersectionAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalEarlyFragmentTests:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalEarlyFragmentTestsAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalHostName:
     handleMetalHostNameAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalMaxTotalThreadsPerThreadgroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<1, MetalMaxTotalThreadsPerThreadgroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalMaxTotalThreadgroupsPerMeshGrid:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<1, MetalMaxTotalThreadgroupsPerMeshGridAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalRequiredThreadsPerThreadgroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<3, MetalRequiredThreadsPerThreadgroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPatchId:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPatchIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPatch:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalPatchAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalStageIn:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalStageInAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAttributeIndex:
     handleMetalAttributeIndexAttr(S, D, AL);
     break;
   case ParsedAttr::AT_MetalFunctionConstant:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<1, MetalFunctionConstantAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadPosGrid:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadPosGridAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadPosGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadPosGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadGroupPosGrid:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadGroupPosGridAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadsPerGrid:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadsPerGridAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadsPerGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadsPerGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadGroupsPerGrid:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadGroupsPerGridAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadIndexGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadIndexGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadIndexSIMDGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadIndexSIMDGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalSIMDGroupIndexGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalSIMDGroupIndexGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalSIMDGroupsPerGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalSIMDGroupsPerGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadsPerSIMDGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadsPerSIMDGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadIndexQuadGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadIndexQuadGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalQuadGroupIndexGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalQuadGroupIndexGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalQuadGroupsPerGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalQuadGroupsPerGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalDispatchThreadsPerThreadgroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalDispatchThreadsPerThreadgroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalDispatchSIMDGroupsPerThreadgroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalDispatchSIMDGroupsPerThreadgroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalDispatchQuadGroupsPerThreadgroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalDispatchQuadGroupsPerThreadgroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalThreadExecutionWidth:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalThreadExecutionWidthAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalGridOrigin:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalGridOriginAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalGridSize:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalGridSizeAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalVertexId:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalVertexIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalInstanceId:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalInstanceIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalBaseVertex:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalBaseVertexAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalBaseInstance:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalBaseInstanceAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAmplificationId:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalAmplificationIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAmplificationCount:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalAmplificationCountAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalFrontFacing:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalFrontFacingAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPointCoord:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPointCoordAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalSampleId:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalSampleIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalSampleMask:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalSampleMaskAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPrimitiveId:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPrimitiveIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalBarycentricCoord:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalBarycentricCoordAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPayload:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPayloadAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPosition:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPositionAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPointSize:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPointSizeAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalColor:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<1, MetalColorAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalDepth:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalIdentifierAttr<MetalDepthAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalStencil:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalStencilAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalClipDistance:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalClipDistanceAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalRenderTargetArrayIndex:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalRenderTargetArrayIndexAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalViewportArrayIndex:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalViewportArrayIndexAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalId:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<1, MetalIdAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalUserDefined:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalStringArgAttr<MetalUserDefinedAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalUserAnnotation:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalStringArgAttr<MetalUserAnnotationAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalFlat:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalFlatAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalCenterPerspective:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalCenterPerspectiveAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalCenterNoPerspective:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalCenterNoPerspectiveAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalCentroidPerspective:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalCentroidPerspectiveAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalCentroidNoPerspective:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalCentroidNoPerspectiveAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalSamplePerspective:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalSamplePerspectiveAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalSampleNoPerspective:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalSampleNoPerspectiveAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalInvariant:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalInvariantAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalRasterOrderGroup:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<1, MetalRasterOrderGroupAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalImageblockData:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalTypeArgAttr<MetalImageblockDataAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAliasImplicitImageblock:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalAliasImplicitImageblockAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAliasImplicitImageblockColor:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalExprArgsAttr<1, MetalAliasImplicitImageblockColorAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPixelPositionInTile:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPixelPositionInTileAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPixelsPerTile:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPixelsPerTileAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalTileIndex:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalTileIndexAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalShared:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalSharedAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalSizeAs:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalTypeArgAttr<MetalSizeAsAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalPrimitiveCulled:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalPrimitiveCulledAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalFunctionGroups:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleMetalStringListAttr<MetalFunctionGroupsAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalAcceptIntersection:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalAcceptIntersectionAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalContinueSearch:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalContinueSearchAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalOrigin:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalOriginAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalDirection:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalDirectionAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalMinDistance:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalMinDistanceAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalMaxDistance:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalMaxDistanceAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_MetalDistance:
-    if (checkMetalAttrCommon(S, AL))
+    if (checkMetalAttrCommon(S, D, AL))
       handleSimpleAttribute<MetalDistanceAttr>(S, D, AL);
     break;
 

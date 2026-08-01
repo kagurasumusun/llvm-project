@@ -4452,9 +4452,12 @@ StmtResult Sema::ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
   // Keep building the try block so that handler scopes stay consistent.
   DiagnoseMetalUnsupported(TryLoc, "try");
 
-  // Don't report an error if 'try' is used in system headers.
+  // Don't report an error if 'try' is used in system headers.  Metal
+  // reports the construct with its own measured wording above, so the
+  // generic exceptions-disabled error is redundant in that mode.
   if (!getLangOpts().CXXExceptions &&
-      !getSourceManager().isInSystemHeader(TryLoc) && !getLangOpts().CUDA) {
+      !getSourceManager().isInSystemHeader(TryLoc) && !getLangOpts().CUDA &&
+      !getLangOpts().Metal) {
     // Delay error emission for the OpenMP device code.
     targetDiag(TryLoc, diag::err_exceptions_disabled) << "try";
   }

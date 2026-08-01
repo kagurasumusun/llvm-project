@@ -867,12 +867,15 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
         IndexE = TA->getIndex();
       else if (const auto *SA = dyn_cast<MetalSamplerIndexAttr>(A))
         IndexE = SA->getIndex();
-      const auto *CE = dyn_cast_or_null<ConstantExpr>(IndexE);
-      if (!CE)
+      // The attribute stores the argument as it was parsed (an
+      // IntegerLiteral for the common [[buffer(0)]]), not a folded
+      // ConstantExpr, so evaluate it generically here.
+      Expr::EvalResult Res;
+      if (!IndexE || !IndexE->EvaluateAsInt(Res, getASTContext()))
         return;
       // Out-of-bounds indices (including wrapped negatives) were already
       // rejected by the attribute handler; skip them here.
-      int64_t Index = CE->getResultAsAPSInt().getExtValue();
+      int64_t Index = Res.Val.getInt().getExtValue();
       if (Index < 0)
         return;
       SmallVector<unsigned, 4> &Seen = Reserved[KindIdx][(unsigned)Index];

@@ -1624,7 +1624,7 @@ static ExprResult LookupMemberExpr(Sema &S, LookupResult &R,
   // (repr_packed_* and res_threadgroup_packed_mixed fixtures; Apple's own
   // <metal_stdlib> never performs component access on packed vectors).
   if (S.getLangOpts().Metal)
-    if (const auto *VT = dyn_cast<VectorType>(BaseType))
+    if (const auto *VT = BaseType->getAs<VectorType>())
       if (VT->getVectorKind() == VectorType::MetalPackedVector) {
         S.Diag(R.getNameLoc(), diag::err_ext_vector_component_name_illegal)
             << MemberName
