@@ -488,11 +488,20 @@ stage_air() {
 }
 
 stage_deps_macos() {
-  # The runner image ships cmake and Xcode; ninja and ccache do not.
-  HOMEBREW_NO_AUTO_UPDATE=1 brew install ninja ccache || {
-    echo "::error::brew install ninja ccache failed"
-    return 1
-  }
+  # The runner image ships cmake and Xcode; ninja and ccache may or may not
+  # already be present, and `brew install` of an installed formula is not
+  # guaranteed to exit zero -- install only what is missing.
+  local pkg
+  for pkg in ninja ccache; do
+    if brew list --versions "$pkg" >/dev/null 2>&1; then
+      echo "$pkg already installed: $(brew list --versions "$pkg")"
+    else
+      HOMEBREW_NO_AUTO_UPDATE=1 brew install "$pkg" || {
+        echo "::error::brew install $pkg failed"
+        return 1
+      }
+    fi
+  done
   echo "cpus=$(sysctl -n hw.ncpu) mem=$(( $(sysctl -n hw.memsize) / 1073741824 ))GB"
   xcodebuild -version || true
 }
