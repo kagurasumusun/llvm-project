@@ -195,7 +195,7 @@ struct VIn {
 vertex float4 dup_pos(VIn in [[stage_in]], float4 q [[position]]) {
   return q;
 }
-// expected-error@-2 {{declaration with attribute 'position' already specified}}
+// expected-error@-3 {{declaration with attribute 'position' already specified}}
 
 struct BadIn {
   float f [[attribute(0)]];

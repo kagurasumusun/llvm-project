@@ -596,14 +596,15 @@ static llvm::Triple computeTargetTriple(const Driver &D,
   // LLVM's triple normalizer must first identify the architecture in order to
   // preserve it.  AIR's versioned architecture spelling (`air64_v28`) is a
   // Metal ABI suffix, not a distinct architecture.  Normalize its base
-  // `air64` spelling first and restore the suffix afterwards; otherwise the
-  // driver can degrade a valid `air64_vNN-apple-*` target to
-  // `unknown-apple-*`, select the Darwin toolchain, and produce no .air.
+  // `air64` spelling first and restore the suffix afterwards.  Both this and
+  // Apple's public `--target=air64-apple-ios<version>` spelling must select
+  // MetalToolChain rather than degrading to `unknown-apple-*` and producing
+  // no .air.
   StringRef OriginalArch = TargetTriple.split('-').first;
+  bool IsAIRArch = OriginalArch.startswith("air32") ||
+                   OriginalArch.startswith("air64");
   size_t AIRVersionPos = OriginalArch.find("_v");
-  bool HasVersionedAIRArch =
-      (OriginalArch.startswith("air32") || OriginalArch.startswith("air64")) &&
-      AIRVersionPos != StringRef::npos;
+  bool HasVersionedAIRArch = IsAIRArch && AIRVersionPos != StringRef::npos;
   std::string TripleForNormalization;
   if (HasVersionedAIRArch)
     TripleForNormalization =
@@ -613,7 +614,15 @@ static llvm::Triple computeTargetTriple(const Driver &D,
 
   llvm::Triple Target(llvm::Triple::normalize(
       HasVersionedAIRArch ? StringRef(TripleForNormalization) : TargetTriple));
-  if (HasVersionedAIRArch && Target.isAIR())
+  // Be deliberately defensive here.  The driver must recognize the public
+  // `--target=air64-apple-ios<version>` spelling measured in metal-info even
+  // if a Triple normalizer built without the AIR aliases has classified its
+  // architecture as unknown.  Retaining the vendor/OS components and fixing
+  // just the arch is sufficient for MetalToolChain selection.
+  if (IsAIRArch && !Target.isAIR())
+    Target.setArch(OriginalArch.startswith("air32") ? llvm::Triple::air32
+                                                     : llvm::Triple::air64);
+  if (HasVersionedAIRArch)
     Target.setArchName(OriginalArch);
 
   // GNU/Hurd's triples should have been -hurd-gnu*, but were historically made
