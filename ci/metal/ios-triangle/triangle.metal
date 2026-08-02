@@ -1,7 +1,7 @@
 // Colourful triangle for the end-to-end pipeline test.
 //
 // Compiled by the fork's clang on Linux:
-//   clang -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+//   clang --target=air64-apple-ios26.0 -miphoneos-version-min=26.0 -x metal -std=metal3.2 \
 //         -emit-llvm -c triangle.metal -o triangle.air
 //
 // then wrapped into a .metallib on macOS by llvm-metallib, and loaded by the

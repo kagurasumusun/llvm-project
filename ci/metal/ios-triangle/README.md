@@ -6,7 +6,7 @@ This directory is the payload of the two-leg CI pipeline in
 1. **Linux job** — the freshly built fork clang compiles `triangle.metal`
    through the full driver pipeline to `triangle.air` (raw LLVM bitcode):
    ```
-   build/bin/clang -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+   build/bin/clang --target=air64-apple-ios26.0 -miphoneos-version-min=26.0 -x metal -std=metal3.2 \
        -emit-llvm -c ci/metal/ios-triangle/triangle.metal -o triangle.air
    ```
 2. **macOS job** — `llvm-metallib` (this tree's in-tree container writer,

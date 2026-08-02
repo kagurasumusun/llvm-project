@@ -25,9 +25,9 @@
 // invocation that emits raw LLVM bitcode.  In particular it must not schedule
 // a generic backend job after the frontend: that job consumes the bitcode and
 // overwrites the requested .air output with an object file.
-// RUN: %clang -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+// RUN: %clang --target=air64-apple-ios26.0 -miphoneos-version-min=26.0 -x metal -std=metal3.2 \
 // RUN:   -c -o %t.air -### %s 2>&1 | FileCheck %s --check-prefix=AIR
-// RUN: %clang -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+// RUN: %clang --target=air64-apple-ios26.0 -miphoneos-version-min=26.0 -x metal -std=metal3.2 \
 // RUN:   -c -o %t.air %s && od -An -tx1 -N4 %t.air | FileCheck %s --check-prefix=AIR-MAGIC
 
 // METAL: "-cc1"

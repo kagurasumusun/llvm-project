@@ -463,9 +463,12 @@ stage_test() {
   ci/metal/run-tests.sh clang/test/Metal "$BUILD_DIR"
 }
 
-# Compile the triangle shader with the full driver.  The Metal driver's
-# contract is `-c input.metal -o output.air`: its final frontend action emits
-# raw LLVM bitcode, the .air payload consumed by llvm-metallib.  Do not add
+# Compile the triangle shader with the full driver.  Use the public target
+# spelling captured from metal-info's Apple compdb: --target=air64-apple-ios26.0
+# plus -miphoneos-version-min=26.0.  Apple then derives the internal
+# air64_v28 triple from the deployment target.  The Metal driver's contract is
+# `-c input.metal -o output.air`: its final frontend action emits raw LLVM
+# bitcode, the .air payload consumed by llvm-metallib.  Do not add
 # -emit-llvm here; .air is Metal's native compile output, rather than a
 # request to run Clang's generic backend pipeline.  This is the only stage
 # that leaves the script's own tree: the macOS job downloads
@@ -479,11 +482,11 @@ stage_air() {
   # Keep the driver's planned cc1 command in the log.  This makes an output
   # format regression diagnosable even when the binary artifact is rejected
   # and consequently cannot be uploaded.
-  "$clang" -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+  "$clang" --target=air64-apple-ios26.0 -miphoneos-version-min=26.0 -x metal -std=metal3.2 \
     -c "$src" -o "$ARTIFACT_DIR/triangle.air" -### 2>&1 \
     | tee /tmp/triangle-air-driver.log
 
-  "$clang" -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+  "$clang" --target=air64-apple-ios26.0 -miphoneos-version-min=26.0 -x metal -std=metal3.2 \
     -c "$src" -o "$ARTIFACT_DIR/triangle.air"
 
   # A .air is raw bitcode: BC c0 de as the first four bytes.  Always print
