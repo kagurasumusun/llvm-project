@@ -27,7 +27,7 @@
 // argument they access.
 //
 // RUN: %clang_cc1 -x metal -triple air64_v28-apple-macosx26.0.0 \
-// RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -fdiscard-value-names \
+// RUN:   -std=metal3.2 -emit-llvm -no-opaque-pointers -discard-value-names \
 // RUN:   -o - %s | FileCheck %s
 
 typedef unsigned int uint;

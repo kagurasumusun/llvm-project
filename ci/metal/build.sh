@@ -476,13 +476,26 @@ stage_air() {
   [ -x "$clang" ] || { echo "::error::clang missing: $clang"; return 1; }
   mkdir -p "$ARTIFACT_DIR"
 
+  # Keep the driver's planned cc1 command in the log.  This makes an output
+  # format regression diagnosable even when the binary artifact is rejected
+  # and consequently cannot be uploaded.
+  "$clang" -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+    -c "$src" -o "$ARTIFACT_DIR/triangle.air" -### 2>&1 \
+    | tee /tmp/triangle-air-driver.log
+
   "$clang" -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
     -c "$src" -o "$ARTIFACT_DIR/triangle.air"
 
-  # A .air is raw bitcode: BC c0 de as the first four bytes.
-  if ! od -A n -t x1 -N 4 "$ARTIFACT_DIR/triangle.air" 2>/dev/null \
-      | grep -qi '42 43 c0 de'; then
-    echo "::error::$ARTIFACT_DIR/triangle.air is not raw bitcode"
+  # A .air is raw bitcode: BC c0 de as the first four bytes.  Always print
+  # enough of the file to identify a wrapper, native object, or empty output
+  # in the CI log before rejecting it.
+  local header
+  header=$(od -A n -t x1 -N 32 "$ARTIFACT_DIR/triangle.air" 2>/dev/null \
+    | tr -s ' ' | sed 's/^ //')
+  echo "triangle.air first 32 bytes: ${header:-<unreadable>}"
+  command -v file >/dev/null 2>&1 && file "$ARTIFACT_DIR/triangle.air" || true
+  if ! printf '%s\n' "$header" | grep -qi '^42 43 c0 de'; then
+    echo "::error::$ARTIFACT_DIR/triangle.air is not raw bitcode (expected BC c0 de)"
     return 1
   fi
   ls -l "$ARTIFACT_DIR/triangle.air"

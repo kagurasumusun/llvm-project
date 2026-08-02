@@ -1626,8 +1626,12 @@ static ExprResult LookupMemberExpr(Sema &S, LookupResult &R,
   if (S.getLangOpts().Metal)
     if (const auto *VT = BaseType->getAs<VectorType>())
       if (VT->getVectorKind() == VectorType::MetalPackedVector) {
+        // DeclarationName's diagnostic printer adds its own quotes.  The
+        // diagnostic text already quotes %0, so pass the bare identifier to
+        // retain Metal's measured spelling: "illegal vector component name
+        // 'x'", rather than "''x''".
         S.Diag(R.getNameLoc(), diag::err_ext_vector_component_name_illegal)
-            << MemberName
+            << MemberName.getAsString()
             << (BaseExpr.get() ? BaseExpr.get()->getSourceRange()
                                : SourceRange());
         return ExprError();
