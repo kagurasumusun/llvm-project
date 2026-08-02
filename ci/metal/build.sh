@@ -495,7 +495,12 @@ stage_air() {
   echo "triangle.air first 32 bytes: ${header:-<unreadable>}"
   command -v file >/dev/null 2>&1 && file "$ARTIFACT_DIR/triangle.air" || true
   if ! printf '%s\n' "$header" | grep -qi '^42 43 c0 de'; then
-    echo "::error::$ARTIFACT_DIR/triangle.air is not raw bitcode (expected BC c0 de)"
+    # Make the decisive evidence an annotation too: GitHub log downloads can
+    # be unavailable after a failed run, whereas annotations remain visible
+    # through the Checks API.
+    driver_cc1=$(grep -m1 '"-cc1"' /tmp/triangle-air-driver.log 2>/dev/null \
+      | tr '\n' ' ' | cut -c1-1000)
+    echo "::error::$ARTIFACT_DIR/triangle.air is not raw bitcode (expected BC c0 de; first bytes: ${header:-<unreadable>}; cc1: ${driver_cc1:-<not captured>})"
     return 1
   fi
   ls -l "$ARTIFACT_DIR/triangle.air"

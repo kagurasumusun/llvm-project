@@ -700,10 +700,14 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
   for (ParmVarDecl *PVD : FD->parameters()) {
     if (!PVD->hasAttr<MetalStageInAttr>())
       continue;
-    if (auto *RD =
-            PVD->getType()->getUnqualifiedDesugaredType()->getAsCXXRecordDecl())
-      for (FieldDecl *Field : RD->getDefinition()->fields())
-        noteDuplicates(Field);
+    // Use RecordDecl rather than CXXRecordDecl: a stage_in record can be
+    // introduced through a typedef or a non-C++ record spelling, but its
+    // fields still share the entry point's builtin-attribute namespace.
+    if (auto *RD = PVD->getType()->getUnqualifiedDesugaredType()
+                       ->getAsRecordDecl())
+      if (const RecordDecl *Def = RD->getDefinition())
+        for (const FieldDecl *Field : Def->fields())
+          noteDuplicates(Field);
   }
   for (ParmVarDecl *PVD : FD->parameters())
     noteDuplicates(PVD);

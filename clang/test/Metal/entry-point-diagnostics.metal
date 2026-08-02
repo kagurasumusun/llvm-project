@@ -101,18 +101,18 @@ kernel void oob_samp(metal::sampler s [[sampler(16)]]) {}
 // Negative indices take the same out-of-bounds path (measured [[buffer(-1)]]).
 // The texture bound is 31 on iOS before Metal 2.0, 128 otherwise.
 kernel void neg_tex(metal::texture2d<float> t [[texture(-1)]]) {}
-// expected-new@-1 {{'texture' attribute parameter is out of bounds: must be between 0 and 127}}
-// expected-old@-2 {{'texture' attribute parameter is out of bounds: must be between 0 and 127}}
-// expected-hn22@-3 {{'texture' attribute parameter is out of bounds: must be between 0 and 127}}
-// expected-ios12@-4 {{'texture' attribute parameter is out of bounds: must be between 0 and 30}}
+// new-error@-1 {{'texture' attribute parameter is out of bounds: must be between 0 and 127}}
+// old-error@-2 {{'texture' attribute parameter is out of bounds: must be between 0 and 127}}
+// hn22-error@-3 {{'texture' attribute parameter is out of bounds: must be between 0 and 127}}
+// ios12-error@-4 {{'texture' attribute parameter is out of bounds: must be between 0 and 30}}
 // expected-error@-5 {{t parameter must have texture attribute}}
 
 // [[texture(32)]] is legal on macOS at every measured standard but rejected
 // by 64-bit iOS before Metal 2.0 (the ios-air32 port raises the limit one
 // standard earlier, at ios-metal1.1).
 kernel void tex_hi(metal::texture2d<float> t [[texture(32)]]) {}
-// expected-ios12@-1 {{'texture' attribute parameter is out of bounds: must be between 0 and 30}}
-// expected-ios12@-2 {{t parameter must have texture attribute}}
+// ios12-error@-1 {{'texture' attribute parameter is out of bounds: must be between 0 and 30}}
+// ios12-error@-2 {{t parameter must have texture attribute}}
 
 kernel void dup_buf(device uint *a [[buffer(0)]], device uint *b [[buffer(0)]]) {}
 // expected-error@-1 {{cannot reserve 'buffer' resource location at index 0}}
@@ -142,12 +142,12 @@ kernel void scalar_buf(uint v [[buffer(0)]]) {}
 // expected-error@-1 {{type 'uint' (aka 'unsigned int') is not valid for attribute 'buffer'}}
 
 kernel void ulong_buf(device ulong *o [[buffer(0)]]) {}
-// expected-old@-1 {{type 'device ulong *' (aka 'device unsigned long *') is not valid for attribute 'buffer'}}
-// expected-ios12@-2 {{type 'device ulong *' (aka 'device unsigned long *') is not valid for attribute 'buffer'}}
-// expected-hn22@-3 {{type 'device ulong *' (aka 'device unsigned long *') is not valid for attribute 'buffer'}}
-// expected-old@-4 {{type 'ulong' (aka 'unsigned long') cannot be used in buffer pointee type}}
-// expected-ios12@-5 {{type 'ulong' (aka 'unsigned long') cannot be used in buffer pointee type}}
-// expected-hn22@-6 {{type 'ulong' (aka 'unsigned long') cannot be used in buffer pointee type}}
+// old-error@-1 {{type 'device ulong *' (aka 'device unsigned long *') is not valid for attribute 'buffer'}}
+// ios12-error@-2 {{type 'device ulong *' (aka 'device unsigned long *') is not valid for attribute 'buffer'}}
+// hn22-error@-3 {{type 'device ulong *' (aka 'device unsigned long *') is not valid for attribute 'buffer'}}
+// old-error@-4 {{type 'ulong' (aka 'unsigned long') cannot be used in buffer pointee type}}
+// ios12-error@-5 {{type 'ulong' (aka 'unsigned long') cannot be used in buffer pointee type}}
+// hn22-error@-6 {{type 'ulong' (aka 'unsigned long') cannot be used in buffer pointee type}}
 
 kernel void samp_on_int(int s [[sampler(0)]]) {}
 // expected-error@-1 {{type 'int' is not valid for attribute 'sampler'}}
@@ -165,8 +165,8 @@ kernel void reg_param(register int r, device uint *o [[buffer(0)]]) {}
 
 // measured pre-Metal 2.1 (era_function_pointer_before_metal21).
 kernel void fnp_param(int (*fp)(int), device uint *o [[buffer(0)]]) {}
-// expected-old@-1 {{pointers to functions are not allowed}}
-// expected-ios12@-2 {{pointers to functions are not allowed}}
+// old-error@-1 {{pointers to functions are not allowed}}
+// ios12-error@-2 {{pointers to functions are not allowed}}
 
 // measured: "parameter may not be qualified with an address space".
 kernel void pas_param(constant int v, device uint *o [[buffer(0)]]) {}
@@ -237,6 +237,6 @@ vertex int *bad_vret(int vid [[vertex_id]]) { return nullptr; }
 // standard that introduced the attribute; earlier standards gate the
 // attribute itself and 2.3+ accept the empty string.
 [[host_name("")]] kernel void named(device uint *o [[buffer(0)]]) {}
-// expected-old@-1 {{'host_name' attribute requires Metal language standard macos-metal2.2 or higher}}
-// expected-ios12@-2 {{'host_name' attribute requires Metal language standard ios-metal2.2 or higher}}
-// expected-hn22@-3 {{invalid string literal value for 'host_name' attribute}}
+// old-error@-1 {{'host_name' attribute requires Metal language standard macos-metal2.2 or higher}}
+// ios12-error@-2 {{'host_name' attribute requires Metal language standard ios-metal2.2 or higher}}
+// hn22-error@-3 {{invalid string literal value for 'host_name' attribute}}
