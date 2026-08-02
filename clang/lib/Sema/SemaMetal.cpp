@@ -911,6 +911,11 @@ void Sema::CheckMetalEntryPoint(FunctionDecl *FD) {
         Which = 1; // texture
       else if (isMetalSamplerType(PTy))
         Which = 2; // sampler
+      // Function pointers are legal entry-point parameters beginning in
+      // Metal 2.1.  They are not buffer resources and therefore must not
+      // fall through to the generic pointer -> [[buffer]] rule.
+      else if (isMetalFunctionPointerType(PTy))
+        Which = std::nullopt;
       else if ((PTy->isPointerType() || PTy->isReferenceType()) &&
                PTy->getPointeeType().getAddressSpace() ==
                    LangAS::metal_threadgroup)

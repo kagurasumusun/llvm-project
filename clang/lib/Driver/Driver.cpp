@@ -593,7 +593,28 @@ static llvm::Triple computeTargetTriple(const Driver &D,
   if (const Arg *A = Args.getLastArg(options::OPT_target))
     TargetTriple = A->getValue();
 
-  llvm::Triple Target(llvm::Triple::normalize(TargetTriple));
+  // LLVM's triple normalizer must first identify the architecture in order to
+  // preserve it.  AIR's versioned architecture spelling (`air64_v28`) is a
+  // Metal ABI suffix, not a distinct architecture.  Normalize its base
+  // `air64` spelling first and restore the suffix afterwards; otherwise the
+  // driver can degrade a valid `air64_vNN-apple-*` target to
+  // `unknown-apple-*`, select the Darwin toolchain, and produce no .air.
+  StringRef OriginalArch = TargetTriple.split('-').first;
+  size_t AIRVersionPos = OriginalArch.find("_v");
+  bool HasVersionedAIRArch =
+      (OriginalArch.startswith("air32") || OriginalArch.startswith("air64")) &&
+      AIRVersionPos != StringRef::npos;
+  std::string TripleForNormalization;
+  if (HasVersionedAIRArch)
+    TripleForNormalization =
+        (OriginalArch.take_front(AIRVersionPos) +
+         TargetTriple.drop_front(OriginalArch.size()))
+            .str();
+
+  llvm::Triple Target(llvm::Triple::normalize(
+      HasVersionedAIRArch ? StringRef(TripleForNormalization) : TargetTriple));
+  if (HasVersionedAIRArch && Target.isAIR())
+    Target.setArchName(OriginalArch);
 
   // GNU/Hurd's triples should have been -hurd-gnu*, but were historically made
   // -gnu* only, and we can not change this, so we have to detect that case as
