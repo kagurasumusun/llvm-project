@@ -21,6 +21,14 @@
 // RUN: %clang -target air64_v28-apple-macosx26.0.0 -x metal -std=metal4.0 \
 // RUN:   -fsyntax-only -ferror-limit 7 -### %s 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LIMIT
+// The Metal driver contract is `-c input.metal -o output.air` -> one cc1
+// invocation that emits raw LLVM bitcode.  In particular it must not schedule
+// a generic backend job after the frontend: that job consumes the bitcode and
+// overwrites the requested .air output with an object file.
+// RUN: %clang -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+// RUN:   -c -o %t.air -### %s 2>&1 | FileCheck %s --check-prefix=AIR
+// RUN: %clang -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
+// RUN:   -c -o %t.air %s && od -An -tx1 -N4 %t.air | FileCheck %s --check-prefix=AIR-MAGIC
 
 // METAL: "-cc1"
 
@@ -75,3 +83,10 @@
 // A user supplied -ferror-limit wins over the Metal default.
 // LIMIT: "-ferror-limit" "7"
 // LIMIT-NOT: "-ferror-limit" "19"
+
+// AIR-COUNT-1: "-cc1"
+// AIR: "-triple" "air64_v28-apple-ios26.0.0"
+// AIR: "-x" "metal"
+// AIR: "-emit-llvm-bc"
+// AIR: "-o" "{{.*}}.air"
+// AIR-MAGIC: 42 43 c0 de

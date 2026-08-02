@@ -463,12 +463,13 @@ stage_test() {
   ci/metal/run-tests.sh clang/test/Metal "$BUILD_DIR"
 }
 
-# Compile the triangle shader with the full driver (the same pipeline Apple
-# runs through `metal`, ending at the backend because TY_Metal stops there).
-# -emit-llvm keeps the backend output in bitcode form, which is precisely
-# what a .air file is. This is the only stage that leaves the script's own
-# tree: the macOS job downloads artifacts/triangle.air and never rebuilds
-# clang.
+# Compile the triangle shader with the full driver.  The Metal driver's
+# contract is `-c input.metal -o output.air`: its final frontend action emits
+# raw LLVM bitcode, the .air payload consumed by llvm-metallib.  Do not add
+# -emit-llvm here; .air is Metal's native compile output, rather than a
+# request to run Clang's generic backend pipeline.  This is the only stage
+# that leaves the script's own tree: the macOS job downloads
+# artifacts/triangle.air and never rebuilds clang.
 stage_air() {
   local clang="./$BUILD_DIR/bin/clang"
   local src=ci/metal/ios-triangle/triangle.metal
@@ -476,7 +477,7 @@ stage_air() {
   mkdir -p "$ARTIFACT_DIR"
 
   "$clang" -target air64_v28-apple-ios26.0.0 -x metal -std=metal3.2 \
-    -emit-llvm -c "$src" -o "$ARTIFACT_DIR/triangle.air"
+    -c "$src" -o "$ARTIFACT_DIR/triangle.air"
 
   # A .air is raw bitcode: BC c0 de as the first four bytes.
   if ! od -A n -t x1 -N 4 "$ARTIFACT_DIR/triangle.air" 2>/dev/null \
