@@ -36,6 +36,7 @@
 #include "ToolChains/MSVC.h"
 #include "ToolChains/Managarm.h"
 #include "ToolChains/MinGW.h"
+#include "ToolChains/WinCE.h"
 #include "ToolChains/MipsLinux.h"
 #include "ToolChains/NetBSD.h"
 #include "ToolChains/OHOS.h"
@@ -6909,6 +6910,9 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
       break;
     case llvm::Triple::UEFI:
       TC = std::make_unique<toolchains::UEFI>(*this, Target, Args);
+      break;
+    case llvm::Triple::WinCE:
+      TC = std::make_unique<toolchains::WinCE>(*this, Target, Args);
       break;
     case llvm::Triple::Win32:
       switch (Target.getEnvironment()) {

@@ -223,6 +223,7 @@ public:
     Solaris,
     UEFI,
     Win32,
+    WinCE,
     ZOS,
     Haiku,
     RTEMS,
@@ -695,9 +696,14 @@ public:
     return getOS() == Triple::UEFI;
   }
 
-  /// Tests whether the OS is Windows.
+  /// Tests whether the OS is Windows (desktop Windows or Windows CE).
   bool isOSWindows() const {
-    return getOS() == Triple::Win32;
+    return getOS() == Triple::Win32 || getOS() == Triple::WinCE;
+  }
+
+  /// Tests whether the OS is Windows CE.
+  bool isWindowsCE() const {
+    return getOS() == Triple::WinCE;
   }
 
   /// Checks if the environment is MSVC.
@@ -952,6 +958,8 @@ public:
   /// Tests whether the target supports the EHABI exception
   /// handling standard.
   bool isTargetEHABICompatible() const {
+    if ((isARM() || isThumb()) && isWindowsCE())
+      return true; // userland-only EHABI unwinding via libunwind
     return (isARM() || isThumb()) &&
            (getEnvironment() == Triple::EABI ||
             getEnvironment() == Triple::GNUEABI ||

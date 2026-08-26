@@ -144,6 +144,8 @@ ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU() {
   PrivateLabelPrefix = ".L";
 
   SupportsDebugInformation = true;
+  // Windows CE uses userland ARM EHABI exception handling; the factory in
+  // ARMMCTargetDesc.cpp overrides this for the WinCE triples.
   ExceptionsType = ExceptionHandling::WinEH;
   WinEHEncodingType = WinEH::EncodingType::Itanium;
   UseAtForSpecifier = false;

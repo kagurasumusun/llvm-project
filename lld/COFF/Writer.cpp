@@ -243,6 +243,7 @@ private:
   void createECChunks();
   void insertCtorDtorSymbols();
   void insertBssDataStartEndSymbols();
+  void insertEXIdxBoundsSymbols();
   void markSymbolsWithRelocations(ObjFile *file, SymbolRVASet &usedSymbols);
   void createGuardCFTables();
   void markSymbolsForRVATable(ObjFile *file,
@@ -1309,6 +1310,11 @@ void Writer::createMiscChunks() {
     insertCtorDtorSymbols();
     insertBssDataStartEndSymbols();
   }
+
+  // Windows CE: bind __exidx_start/__exidx_end to the .ARM.exidx output
+  // section bounds when something references them (libunwind's EHABI
+  // unwinder).
+  insertEXIdxBoundsSymbols();
 }
 
 // Create .idata section for the DLL-imported symbol table.
@@ -2473,6 +2479,25 @@ void Writer::insertCtorDtorSymbols() {
     ctorsSec->splitECChunks();
     dtorsSec->splitECChunks();
   }
+}
+
+// Windows CE specific: bind __exidx_start / __exidx_end to the bounds of
+// the merged .ARM.exidx output section, mirroring what ELF linkers do for
+// the ARM EHABI unwinder.  Only symbols that are actually referenced are
+// replaced.
+void Writer::insertEXIdxBoundsSymbols() {
+  OutputSection *exidxSec = findSection(".ARM.exidx");
+  if (!exidxSec || exidxSec->chunks.empty())
+    return;
+  Symbol *startSym = ctx.symtab.find("__exidx_start");
+  Symbol *endSym = ctx.symtab.find("__exidx_end");
+  Chunk *last = exidxSec->chunks.back();
+  if (startSym)
+    replaceSymbol<DefinedSynthetic>(startSym, startSym->getName(),
+                                    exidxSec->chunks.front());
+  if (endSym)
+    replaceSymbol<DefinedSynthetic>(endSym, endSym->getName(), last,
+                                    last->getSize());
 }
 
 // MinGW (really, Cygwin) specific.

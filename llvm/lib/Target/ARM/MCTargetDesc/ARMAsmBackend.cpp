@@ -1367,7 +1367,7 @@ static MCAsmBackend *createARMAsmBackend(const Target &T,
     return new ARMAsmBackendDarwin(T, STI, MRI);
   case Triple::COFF:
     assert(TheTriple.isOSWindows() && "non-Windows ARM COFF is not supported");
-    return new ARMAsmBackendWinCOFF(T);
+    return new ARMAsmBackendWinCOFF(T, TheTriple.isWindowsCE());
   case Triple::ELF:
     assert(TheTriple.isOSBinFormatELF() && "using ELF for non-ELF target");
     uint8_t OSABI = Options.FDPIC

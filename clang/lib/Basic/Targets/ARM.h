@@ -287,6 +287,22 @@ public:
                         MacroBuilder &Builder) const override;
 };
 
+// ARM Windows CE target. Uses the WinCE/AAPCS C ABI compatible with the
+// ARM binaries run by the Windows CE loader (no symbol decoration,
+// soft-float AAPCS, char * va_list) and the Generic ARM (Itanium-based)
+// C++ ABI served by the open-source C++ runtime (libc++/libc++abi).
+class LLVM_LIBRARY_VISIBILITY WinCEARMTargetInfo : public WindowsARMTargetInfo {
+public:
+  WinCEARMTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts);
+
+  void getTargetDefines(const LangOptions &Opts,
+                        MacroBuilder &Builder) const override;
+
+  void getVisualStudioDefines(const LangOptions &Opts,
+                              MacroBuilder &Builder) const;
+};
+
+
 // ARM Cygwin target
 class LLVM_LIBRARY_VISIBILITY CygwinARMTargetInfo : public ARMleTargetInfo {
 public:

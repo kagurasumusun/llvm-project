@@ -26,6 +26,10 @@ COFF::MachineTypes llvm::getMachineType(StringRef S) {
       .Cases({"x64", "amd64"}, COFF::IMAGE_FILE_MACHINE_AMD64)
       .Cases({"x86", "i386"}, COFF::IMAGE_FILE_MACHINE_I386)
       .Case("arm", COFF::IMAGE_FILE_MACHINE_ARMNT)
+      .Case("armnt", COFF::IMAGE_FILE_MACHINE_ARMNT)
+      // Windows CE ARM images (binutils arm-wince flavor) use the original
+      // ARM machine type.
+      .Case("armce", COFF::IMAGE_FILE_MACHINE_ARM)
       .Case("arm64", COFF::IMAGE_FILE_MACHINE_ARM64)
       .Case("arm64ec", COFF::IMAGE_FILE_MACHINE_ARM64EC)
       .Case("arm64x", COFF::IMAGE_FILE_MACHINE_ARM64X)
@@ -37,6 +41,8 @@ StringRef llvm::machineToStr(COFF::MachineTypes MT) {
   switch (MT) {
   case COFF::IMAGE_FILE_MACHINE_ARMNT:
     return "arm";
+  case COFF::IMAGE_FILE_MACHINE_ARM:
+    return "armce";
   case COFF::IMAGE_FILE_MACHINE_ARM64:
     return "arm64";
   case COFF::IMAGE_FILE_MACHINE_ARM64EC:

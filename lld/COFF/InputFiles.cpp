@@ -1236,6 +1236,9 @@ ImportThunkChunk *ImportFile::makeImportThunk() {
     return make<ImportThunkChunkARM64>(symtab.ctx, impSym, ARM64);
   case ARMNT:
     return make<ImportThunkChunkARM>(symtab.ctx, impSym);
+  case IMAGE_FILE_MACHINE_ARM:
+    // Windows CE ARM images: ARM-mode import thunk.
+    return make<ImportThunkChunkARMCE>(symtab.ctx, impSym);
   }
   llvm_unreachable("unknown machine type");
 }

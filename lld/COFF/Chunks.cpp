@@ -195,6 +195,26 @@ void applyMOV32T(uint8_t *off, uint32_t v) {
   applyMOV(off + 4, v >> 16); // set MOVT operand
 }
 
+// ARM (A32) encoding of MOVW/MOVT: imm16 is split into imm4 at bits[19:16]
+// and imm12 at bits[11:0].
+static void applyMOVA(uint8_t *off, uint32_t v) {
+  uint32_t instr = read32le(off);
+  write32le(off, (instr & 0xFFF0F000u) | ((v & 0xF000u) << 4) | (v & 0xFFFu));
+}
+
+static void applyMOV32A(uint8_t *off, uint32_t v) {
+  applyMOVA(off, v & 0xFFFF); // set MOVW operand
+  applyMOVA(off + 4, v >> 16); // set MOVT operand
+}
+
+// ARM (A32) unconditional BL: 24-bit signed, word-aligned offset from PC+8.
+static void applyBranch24A(uint8_t *off, int32_t v) {
+  if (!isInt<26>(v))
+    error("relocation out of range");
+  uint32_t instr = read32le(off);
+  write32le(off, (instr & 0xFF000000u) | ((v >> 2) & 0x00FFFFFFu));
+}
+
 static void applyBranch20T(uint8_t *off, int32_t v) {
   if (!isInt<21>(v))
     error("relocation out of range");
@@ -219,9 +239,14 @@ void applyBranch24T(uint8_t *off, int32_t v) {
 void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
                                uint64_t s, uint64_t p,
                                uint64_t imageBase) const {
-  // Pointer to thumb code must have the LSB set.
+  // Desktop Windows on ARM (ARMNT) images contain only Thumb code, so any
+  // pointer into an executable section must have the LSB set.
+  // Windows CE ARM images mix ARM and Thumb code: the producer marks Thumb
+  // functions with bit 0 set in the COFF symbol value (ELF convention), so
+  // the raw symbol value is used as-is.
   uint64_t sx = s;
-  if (os && (os->header.Characteristics & IMAGE_SCN_MEM_EXECUTE))
+  if (file->symtab.ctx.config.machine == COFF::IMAGE_FILE_MACHINE_ARMNT &&
+      os && (os->header.Characteristics & IMAGE_SCN_MEM_EXECUTE))
     sx |= 1;
   switch (type) {
   case IMAGE_REL_ARM_ADDR32:
@@ -231,9 +256,13 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
   case IMAGE_REL_ARM_MOV32T:
     applyMOV32T(off, sx + imageBase);
     break;
+  case IMAGE_REL_ARM_MOV32A:
+    applyMOV32A(off, sx + imageBase);
+    break;
   case IMAGE_REL_ARM_BRANCH20T: applyBranch20T(off, sx - p - 4); break;
   case IMAGE_REL_ARM_BRANCH24T: applyBranch24T(off, sx - p - 4); break;
   case IMAGE_REL_ARM_BLX23T:    applyBranch24T(off, sx - p - 4); break;
+  case IMAGE_REL_ARM_BRANCH24:  applyBranch24A(off, sx - p - 8); break;
   case IMAGE_REL_ARM_SECTION:
     applySecIdx(off, os, file->symtab.ctx.outputSections.size());
     break;
@@ -833,6 +862,16 @@ void ImportThunkChunkARM::writeTo(uint8_t *buf) const {
   memcpy(buf, importThunkARM, sizeof(importThunkARM));
   // Fix mov.w and mov.t operands.
   applyMOV32T(buf, impSymbol->getRVA() + ctx.config.imageBase);
+}
+
+void ImportThunkChunkARMCE::getBaserels(std::vector<Baserel> *res) {
+  res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
+}
+
+void ImportThunkChunkARMCE::writeTo(uint8_t *buf) const {
+  memcpy(buf, importThunkARMCE, sizeof(importThunkARMCE));
+  // Fix the .word with the address of the IAT entry.
+  write32le(buf + 8, impSymbol->getRVA() + ctx.config.imageBase);
 }
 
 void ImportThunkChunkARM64::writeTo(uint8_t *buf) const {

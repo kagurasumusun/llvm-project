@@ -348,6 +348,7 @@ public:
   bool isTargetLinux() const { return TargetTriple.isOSLinux(); }
   bool isTargetNetBSD() const { return TargetTriple.isOSNetBSD(); }
   bool isTargetWindows() const { return TargetTriple.isOSWindows(); }
+  bool isTargetWindowsCE() const { return TargetTriple.isWindowsCE(); }
 
   bool isTargetCOFF() const { return TargetTriple.isOSBinFormatCOFF(); }
   bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }

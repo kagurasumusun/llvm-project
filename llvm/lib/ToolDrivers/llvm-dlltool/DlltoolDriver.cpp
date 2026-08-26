@@ -78,6 +78,9 @@ MachineTypes getEmulation(StringRef S) {
       .Case("i386", IMAGE_FILE_MACHINE_I386)
       .Case("i386:x86-64", IMAGE_FILE_MACHINE_AMD64)
       .Case("arm", IMAGE_FILE_MACHINE_ARMNT)
+      // Windows CE ARM images (binutils arm-wince flavor) use the original
+      // ARM machine type.
+      .Case("armce", IMAGE_FILE_MACHINE_ARM)
       .Case("arm64", IMAGE_FILE_MACHINE_ARM64)
       .Case("arm64ec", IMAGE_FILE_MACHINE_ARM64EC)
       .Case("r4000", IMAGE_FILE_MACHINE_R4000)

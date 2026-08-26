@@ -14,6 +14,13 @@
 #define _LIBCXXABI_ARM_EHABI
 #endif
 
+// Windows CE: no kernel SEH dispatch; use the userland ARM EHABI even
+// though clang defines __SEH__ for the windows/COFF target.
+#if defined(__arm__) && defined(__WINCE__) &&                                  \
+    !defined(__USING_SJLJ_EXCEPTIONS__)
+#define _LIBCXXABI_ARM_EHABI
+#endif
+
 #if defined(__clang__)
 #  define _LIBCXXABI_COMPILER_CLANG
 #  ifndef __apple_build_version__

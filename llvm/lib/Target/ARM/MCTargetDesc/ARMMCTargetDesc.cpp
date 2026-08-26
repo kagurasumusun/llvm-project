@@ -152,7 +152,9 @@ std::string ARM_MC::ParseARMTriple(const Triple &TT, StringRef CPU) {
     ARMArchFeature += "+thumb-mode,+v4t";
   }
 
-  if (TT.isOSWindows()) {
+  // Windows on ARM executes Thumb-2 only; Windows CE runs ARM-mode code
+  // (CeGCC convention), so +noarm must not be applied there.
+  if (TT.isOSWindows() && !TT.isWindowsCE()) {
     if (!ARMArchFeature.empty())
       ARMArchFeature += ",";
     ARMArchFeature += "+noarm";
@@ -338,7 +340,14 @@ static MCAsmInfo *createARMMCAsmInfo(const MCRegisterInfo &MRI,
   MCAsmInfo *MAI;
   if (TheTriple.isOSDarwin() || TheTriple.isOSBinFormatMachO())
     MAI = new ARMMCAsmInfoDarwin(TheTriple);
-  else if (TheTriple.isWindowsMSVCEnvironment())
+  else if (TheTriple.isWindowsCE()) {
+    // Windows CE: userland ARM EHABI exception handling with .ARM.exidx
+    // unwind tables (no SEH-style OS support in the kernel).  This check
+    // must precede the MSVC environment test: an unspecified environment
+    // counts as MSVC there.
+    MAI = new ARMCOFFMCAsmInfoGNU();
+    MAI->setExceptionsType(ExceptionHandling::ARM);
+  } else if (TheTriple.isWindowsMSVCEnvironment())
     MAI = new ARMCOFFMCAsmInfoMicrosoft();
   else if (TheTriple.isOSWindows())
     MAI = new ARMCOFFMCAsmInfoGNU();

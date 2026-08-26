@@ -549,6 +549,16 @@ static const uint8_t importThunkARM[] = {
     0xdc, 0xf8, 0x00, 0xf0, // ldr.w pc, [ip]
 };
 
+// Windows CE ARM (IMAGE_FILE_MACHINE_ARM) import thunk in ARM encoding,
+// identical to the stub emitted by binutils' PE DLL support (jmp_arm_bytes):
+// ldr pc, [ip] performs an interworking jump on ARMv5+ and a plain jump on
+// ARMv4, matching the binutils arm-wince behavior byte for byte.
+static const uint8_t importThunkARMCE[] = {
+    0x00, 0xc0, 0x9f, 0xe5, // ldr ip, [pc]
+    0x00, 0xf0, 0x9c, 0xe5, // ldr pc, [ip]
+    0x00, 0x00, 0x00, 0x00, // .word __imp_<name>
+};
+
 static const uint8_t importThunkARM64[] = {
     0x10, 0x00, 0x00, 0x90, // adrp x16, #0
     0x10, 0x02, 0x40, 0xf9, // ldr  x16, [x16]
@@ -608,6 +618,21 @@ public:
   void getBaserels(std::vector<Baserel> *res) override;
   void writeTo(uint8_t *buf) const override;
   MachineTypes getMachine() const override { return ARMNT; }
+};
+
+// Windows CE ARM (IMAGE_FILE_MACHINE_ARM, ARM-mode code) import thunk.
+class ImportThunkChunkARMCE : public ImportThunkChunk {
+public:
+  explicit ImportThunkChunkARMCE(COFFLinkerContext &ctx, Defined *s)
+      : ImportThunkChunk(ctx, s) {
+    setAlignment(4);
+  }
+  size_t getSize() const override { return sizeof(importThunkARMCE); }
+  void getBaserels(std::vector<Baserel> *res) override;
+  void writeTo(uint8_t *buf) const override;
+  MachineTypes getMachine() const override {
+    return llvm::COFF::IMAGE_FILE_MACHINE_ARM;
+  }
 };
 
 class ImportThunkChunkARM64 : public ImportThunkChunk {

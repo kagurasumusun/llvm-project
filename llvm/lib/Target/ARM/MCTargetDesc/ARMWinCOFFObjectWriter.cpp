@@ -18,6 +18,7 @@
 #include "llvm/MC/MCValue.h"
 #include "llvm/MC/MCWinCOFFObjectWriter.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
 
@@ -25,8 +26,12 @@ namespace {
 
 class ARMWinCOFFObjectWriter : public MCWinCOFFObjectTargetWriter {
 public:
-  ARMWinCOFFObjectWriter()
-    : MCWinCOFFObjectTargetWriter(COFF::IMAGE_FILE_MACHINE_ARMNT) {
+  // Windows CE (arm-*-wince, matching the binutils arm-wince emulation)
+  // images use IMAGE_FILE_MACHINE_ARM (0x01c0).  Desktop Windows on ARM uses
+  // IMAGE_FILE_MACHINE_ARMNT (0x01c4).
+  ARMWinCOFFObjectWriter(bool IsWinCE)
+    : MCWinCOFFObjectTargetWriter(IsWinCE ? COFF::IMAGE_FILE_MACHINE_ARM
+                                          : COFF::IMAGE_FILE_MACHINE_ARMNT) {
   }
 
   ~ARMWinCOFFObjectWriter() override = default;
@@ -60,7 +65,8 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
 
   switch (FixupKind) {
   default: {
-    Ctx.reportError(Fixup.getLoc(), "unsupported relocation type");
+    Ctx.reportError(Fixup.getLoc(), "unsupported relocation type " +
+                                        std::to_string(FixupKind));
     return COFF::IMAGE_REL_ARM_ABSOLUTE;
   }
   case FK_Data_4:
@@ -78,6 +84,9 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
     return COFF::IMAGE_REL_ARM_SECTION;
   case FK_SecRel_4:
     return COFF::IMAGE_REL_ARM_SECREL;
+  case ARM::fixup_arm_condbranch:
+  case ARM::fixup_arm_uncondbranch:
+    return COFF::IMAGE_REL_ARM_BRANCH24;
   case ARM::fixup_t2_condbranch:
     return COFF::IMAGE_REL_ARM_BRANCH20T;
   case ARM::fixup_t2_uncondbranch:
@@ -85,21 +94,26 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
     return COFF::IMAGE_REL_ARM_BRANCH24T;
   case ARM::fixup_arm_thumb_blx:
     return COFF::IMAGE_REL_ARM_BLX23T;
-  case ARM::fixup_t2_movw_lo16:
-  case ARM::fixup_t2_movt_hi16:
-    return COFF::IMAGE_REL_ARM_MOV32T;
+  case ARM::fixup_arm_uncondbl:
+  case ARM::fixup_arm_condbl:
+  case ARM::fixup_arm_blx:
+    return COFF::IMAGE_REL_ARM_BRANCH24;
+  case ARM::fixup_arm_movt_hi16:
+  case ARM::fixup_arm_movw_lo16:
+    return COFF::IMAGE_REL_ARM_MOV32A;
   }
 }
 
 bool ARMWinCOFFObjectWriter::recordRelocation(const MCFixup &Fixup) const {
-  return static_cast<unsigned>(Fixup.getKind()) != ARM::fixup_t2_movt_hi16;
+  return static_cast<unsigned>(Fixup.getKind()) != ARM::fixup_t2_movt_hi16 &&
+         static_cast<unsigned>(Fixup.getKind()) != ARM::fixup_arm_movt_hi16;
 }
 
 namespace llvm {
 
 std::unique_ptr<MCObjectTargetWriter>
-createARMWinCOFFObjectWriter() {
-  return std::make_unique<ARMWinCOFFObjectWriter>();
+createARMWinCOFFObjectWriter(bool IsWinCE) {
+  return std::make_unique<ARMWinCOFFObjectWriter>(IsWinCE);
 }
 
 } // end namespace llvm

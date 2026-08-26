@@ -1075,7 +1075,7 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
   setOperationAction(ISD::STACKSAVE,          MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE,       MVT::Other, Expand);
 
-  if (TT.isOSWindows())
+  if (TT.isOSWindows() && !TT.isWindowsCE())
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Custom);
   else
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
@@ -3629,6 +3629,10 @@ SDValue ARMTargetLowering::LowerGlobalAddress(SDValue Op,
   switch (Subtarget->getTargetTriple().getObjectFormat()) {
   default: llvm_unreachable("unknown object format");
   case Triple::COFF:
+    // Windows CE has no movw/movt (pre-v6T2 devices); addresses are formed
+    // via literal pools like the ELF path.
+    if (Subtarget->isTargetWindowsCE())
+      return LowerGlobalAddressELF(Op, DAG);
     return LowerGlobalAddressWindows(Op, DAG);
   case Triple::ELF:
     return LowerGlobalAddressELF(Op, DAG);

@@ -16,6 +16,14 @@
 #define _LIBUNWIND_ARM_EHABI
 #endif
 
+// Windows CE: the kernel provides no SEH dispatch; unwind tables are the
+// userland ARM EHABI (.ARM.exidx) even though the target is COFF/windows
+// and clang therefore defines __SEH__.
+#if defined(__arm__) && defined(__WINCE__) && !defined(__USING_SJLJ_EXCEPTIONS__)
+#define _LIBUNWIND_ARM_EHABI
+#undef __SEH__
+#endif
+
 #define _LIBUNWIND_HIGHEST_DWARF_REGISTER_X86       8
 #define _LIBUNWIND_HIGHEST_DWARF_REGISTER_X86_64    32
 #define _LIBUNWIND_HIGHEST_DWARF_REGISTER_PPC       112

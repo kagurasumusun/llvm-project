@@ -1553,7 +1553,13 @@ struct EHABISectionIterator {
   typename A::pint_t functionAddress() const {
     typename A::pint_t indexAddr = _sects->arm_section + arrayoffsetof(
         EHABIIndexEntry, _i, functionOffset);
+#if defined(__WINCE__)
+    // Windows CE COFF images store absolute addresses in .ARM.exidx
+    // entries (IMAGE_REL_ARM_ADDR32), not ELF PREL31 offsets.
+    return _addressSpace->get32(indexAddr);
+#else
     return indexAddr + signExtendPrel31(_addressSpace->get32(indexAddr));
+#endif
   }
 
   typename A::pint_t dataAddress() {
@@ -1635,7 +1641,11 @@ bool UnwindCursor<A, R>::getInfoFromEHABISection(
     exceptionTableData = indexData;
     isSingleWordEHT = true;
   } else {
+#if defined(__WINCE__)
+    exceptionTableAddr = indexData; // absolute .ARM.extab pointer
+#else
     exceptionTableAddr = indexDataAddr + signExtendPrel31(indexData);
+#endif
     exceptionTableData = _addressSpace.get32(exceptionTableAddr);
     isSingleWordEHT = false;
   }

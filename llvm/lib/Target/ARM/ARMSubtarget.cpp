@@ -251,8 +251,9 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);
 
-  // FIXME: this is invalid for WindowsCE
-  if (isTargetWindows())
+  // Windows on ARM executes Thumb-2 only.  Windows CE runs ARM-mode code
+  // (CeGCC convention); Thumb remains available via -mthumb.
+  if (isTargetWindows() && !isTargetWindowsCE())
     NoARM = true;
 
   if (TM.isAAPCS_ABI())

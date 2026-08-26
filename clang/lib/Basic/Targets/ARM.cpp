@@ -1490,6 +1490,68 @@ void MicrosoftARMleTargetInfo::getTargetDefines(const LangOptions &Opts,
   WindowsARMTargetInfo::getVisualStudioDefines(Opts, Builder);
 }
 
+// ARM Windows CE target
+WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
+                                       const TargetOptions &Opts)
+    : WindowsARMTargetInfo(Triple, Opts) {
+  TheCXXABI.set(TargetCXXABI::GenericARM);
+  TLSSupported = false; // WinCE provides no static-TLS loader support;
+                        // __thread is lowered to emutls by the compiler.
+}
+
+static void defineWinCEMacros(const llvm::Triple &Triple,
+                              MacroBuilder &Builder) {
+  // The WinCE version may be encoded in the triple (e.g. arm-pc-wince6.00);
+  // default to the most widespread deployment, Windows CE 5.0.
+  unsigned _WIN32_WCE = 0x0500;
+  llvm::VersionTuple OSVer = Triple.getOSVersion();
+  if (OSVer.getMajor()) {
+    _WIN32_WCE = OSVer.getMajor() * 0x100;
+    if (OSVer.getMinor())
+      _WIN32_WCE += OSVer.getMinor().value();
+  }
+  Builder.defineMacro("_WIN32_WCE", Twine(_WIN32_WCE));
+  Builder.defineMacro("UNDER_CE", Twine(_WIN32_WCE));
+  Builder.defineMacro("WINCE");
+  Builder.defineMacro("__WINCE__");
+  // CeGCC/CeGCC-header compatibility: the ported w32api and mingwrt sources
+  // guard their WinCE support behind this macro.
+  Builder.defineMacro("__MINGW32CE__");
+}
+
+void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,
+                                          MacroBuilder &Builder) const {
+  WindowsARMTargetInfo::getTargetDefines(Opts, Builder);
+  defineWinCEMacros(getTriple(), Builder);
+  // The WinCE C library headers (mingw-runtime for __COREDLL__, matching
+  // the CeGCC environment) select their WinCE code paths through these
+  // macros.
+  Builder.defineMacro("__COREDLL__");
+  Builder.defineMacro("__MINGW32__");
+  Builder.defineMacro("WIN32");
+  Builder.defineMacro("WINNT");
+  // eMbedded Visual C++ / Platform Builder style arch macros.
+  Builder.defineMacro("_ARM_");
+  Builder.defineMacro("ARM");
+  if (Opts.MSVCCompat)
+    getVisualStudioDefines(Opts, Builder);
+}
+
+void WinCEARMTargetInfo::getVisualStudioDefines(const LangOptions &Opts,
+                                                MacroBuilder &Builder) const {
+  defineWinCEMacros(getTriple(), Builder);
+  // Windows CE is not Windows NT; do not define _M_ARM_NT.
+  assert((getTriple().getArch() == llvm::Triple::arm ||
+          getTriple().getArch() == llvm::Triple::thumb) &&
+         "invalid architecture for Windows CE target info");
+  if (getTriple().getArch() == llvm::Triple::thumb)
+    Builder.defineMacro("_M_ARMT", "_M_ARM");
+  Builder.defineMacro("_M_ARM",
+                      getTriple().getArchName().substr(
+                          getTriple().getArch() == llvm::Triple::arm ? 4 : 6));
+  Builder.defineMacro("_M_IX86_FP", "0");
+}
+
 MinGWARMTargetInfo::MinGWARMTargetInfo(const llvm::Triple &Triple,
                                        const TargetOptions &Opts)
     : WindowsARMTargetInfo(Triple, Opts) {

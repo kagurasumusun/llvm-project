@@ -292,8 +292,9 @@ void arm::setArchNameInTriple(const Driver &D, const ArgList &Args,
                        Triple.isOSBinFormatMachO()) ||
                       // Thumb2 is the default for Fuchsia.
                       Triple.isOSFuchsia() ||
-                      // FIXME: this is invalid for WindowsCE
-                      Triple.isOSWindows();
+                      // Thumb2 is the default for Windows on ARM; Windows CE
+                      // ARM code is ARM-mode by default (CeGCC convention).
+                      (Triple.isOSWindows() && !Triple.isWindowsCE());
 
   // Check if ARM ISA was explicitly selected (using -mno-thumb or -marm) for
   // M-Class CPUs/architecture variants, which is not supported.
@@ -340,9 +341,10 @@ void arm::setArchNameInTriple(const Driver &D, const ArgList &Args,
   }
 
   // Assembly files should start in ARM mode, unless arch is M-profile, or
-  // -mthumb has been passed explicitly to the assembler. Windows is always
-  // thumb.
-  if (IsThumb || IsMProfile || Triple.isOSWindows()) {
+  // -mthumb has been passed explicitly to the assembler. Windows on ARM is
+  // always thumb; Windows CE is ARM.
+  if (IsThumb || IsMProfile ||
+      (Triple.isOSWindows() && !Triple.isWindowsCE())) {
     if (IsBigEndian)
       ArchName = "thumbeb";
     else

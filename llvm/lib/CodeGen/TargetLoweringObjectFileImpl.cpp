@@ -1995,7 +1995,8 @@ void TargetLoweringObjectFileCOFF::Initialize(MCContext &Ctx,
   TargetLoweringObjectFile::Initialize(Ctx, TM);
   this->TM = &TM;
   const Triple &T = TM.getTargetTriple();
-  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
+  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment() ||
+      T.isWindowsCE()) {
     StaticCtorSection =
         Ctx.getCOFFSection(".CRT$XCU", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
                                            COFF::IMAGE_SCN_MEM_READ);
@@ -2017,7 +2018,8 @@ static MCSectionCOFF *getCOFFStaticStructorSection(MCContext &Ctx,
                                                    unsigned Priority,
                                                    const MCSymbol *KeySym,
                                                    MCSectionCOFF *Default) {
-  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
+  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment() ||
+      T.isWindowsCE()) {
     // If the priority is the default, use .CRT$XCU, possibly associative.
     if (Priority == 65535)
       return Ctx.getAssociativeCOFFSection(Default, KeySym, 0);

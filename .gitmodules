@@ -1,3 +1,11 @@
-[submodule "third-party/cegcc-build"]
-	path = third-party/cegcc-build
-	url = https://github.com/salman-javed-nz/cegcc-build.git
+[submodule "mingwrt"]
+	path = third-party/mingwrt
+	url = https://github.com/kagurasumusun/mingwrt.git
+[submodule "w32api"]
+	path = third-party/w32api
+	url = https://github.com/kagurasumusun/w32api.git
+[submodule "binutils-gdb"]
+	url = https://github.com/kagurasumusun/binutils-gdb.git
+[submodule "binutils-gdb"]
+	path = third-party/binutils-gdb
+	url = https://github.com/kagurasumusun/binutils-gdb.git

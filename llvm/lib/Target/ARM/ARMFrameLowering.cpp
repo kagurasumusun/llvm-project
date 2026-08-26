@@ -926,7 +926,8 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   bool HasFP = hasFP(MF);
 
   if (!AFI->hasStackFrame() &&
-      (!STI.isTargetWindows() || !WindowsRequiresStackProbe(MF, NumBytes))) {
+      (!STI.isTargetWindows() || STI.isTargetWindowsCE() ||
+       !WindowsRequiresStackProbe(MF, NumBytes))) {
     if (NumBytes != 0) {
       emitSPUpdate(isARM, MBB, MBBI, dl, TII, -NumBytes,
                    MachineInstr::FrameSetup);
@@ -1115,7 +1116,8 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   if (PushPopSplit == ARMSubtarget::SplitR11WindowsSEH && HasFP)
     NeedsWinCFIStackAlloc = false;
 
-  if (STI.isTargetWindows() && WindowsRequiresStackProbe(MF, NumBytes)) {
+  if (STI.isTargetWindows() && !STI.isTargetWindowsCE() &&
+      WindowsRequiresStackProbe(MF, NumBytes)) {
     uint32_t NumWords = NumBytes >> 2;
 
     if (NumWords < 65536) {

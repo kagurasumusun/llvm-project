@@ -552,6 +552,13 @@ inline bool LocalAddressSpace::findUnwindSections(
   // Bare metal is statically linked, so no need to ask the dynamic loader
   info.arm_section =        (uintptr_t)(&__exidx_start);
   info.arm_section_length = (size_t)(&__exidx_end - &__exidx_start);
+#elif defined(_LIBUNWIND_ARM_EHABI) && defined(__WINCE__)
+  // Windows CE: statically linked COFF images; the linker binds
+  // __exidx_start/__exidx_end to the .ARM.exidx output-section bounds.
+  info.arm_section =        (uintptr_t)(&__exidx_start);
+  info.arm_section_length = (size_t)(&__exidx_end - &__exidx_start);
+  if (info.arm_section && info.arm_section_length)
+    return true;
   _LIBUNWIND_TRACE_UNWINDING("findUnwindSections: section %p length %p",
                              (void *)info.arm_section, (void *)info.arm_section_length);
   if (info.arm_section && info.arm_section_length)
