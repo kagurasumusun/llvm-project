@@ -35,10 +35,12 @@
 // RUN:   | FileCheck %s --check-prefix=CE6
 // CE6: #define _WIN32_WCE 1536
 
-/// The default CPU is the ARMv4T baseline (arm7tdmi).
+/// The default CPU is the ARMv4T baseline (arm7tdmi), soft-float
+/// (the WinCE/COREDLL FP ABI).
 // RUN: %clang -target arm-pc-wince -### -c %s -o /dev/null 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CPU
 // CPU: arm7tdmi
+// CPU: "-mfloat-abi=soft"
 
 /// Linker invocation: lld-link with the WinCE image defaults.
 // RUN: %clang -target arm-pc-wince %s -o /dev/null -### 2>&1 \

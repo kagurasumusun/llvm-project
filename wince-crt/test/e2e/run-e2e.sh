@@ -107,5 +107,50 @@ pass "entry symbol present in disassembly"
   || fail "compile liba.c -mthumb"
 pass "thumb code generation compiles"
 
+# --- 7. Driver-driven EXE link (clang --target=arm-pc-wince) -----------------
+# Exercises the WinCE toolchain's default link line: crt0, wce.lib,
+# builtins, coredll imports, subsystem/base/entry defaults.
+"$CLANG" --target=$TARGET --sysroot="$SYS" -O1 \
+    "$HERE/winmain_app.c" -o "$OUT/app2.exe" || fail "driver link app2.exe"
+"$READOBJ" -headers "$OUT/app2.exe" > "$OUT/app2.hdr" || fail "readobj app2"
+grep -q "Machine: IMAGE_FILE_MACHINE_ARM" "$OUT/app2.hdr" \
+  || fail "driver-linked EXE has wrong machine"
+grep -q "SubSystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI" "$OUT/app2.hdr" \
+  || fail "driver-linked EXE has wrong subsystem"
+grep -q "ImageBase: 0x10000" "$OUT/app2.hdr" \
+  || fail "driver-linked EXE has wrong image base"
+pass "driver-linked C EXE OK (machine/subsystem/base)"
+
+# --- 8. Driver-driven DLL link (-shared -> /dll, dllcrt0) ---------------------
+"$CLANG" --target=$TARGET --sysroot="$SYS" -O1 -shared \
+    "$HERE/simpdll.c" -o "$OUT/simp2.dll" || fail "driver link simp2.dll"
+"$READOBJ" -headers --coff-exports "$OUT/simp2.dll" > "$OUT/simp2.hdr" \
+  || fail "readobj simp2.dll"
+grep -q "SubSystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI" "$OUT/simp2.hdr" \
+  || fail "driver-linked DLL has wrong subsystem"
+grep -q "DLL" "$OUT/simp2.hdr" \
+  || fail "driver-linked DLL is not a DLL image"
+grep -q "adder" "$OUT/simp2.hdr" \
+  || fail "dllexport adder missing from driver-linked DLL"
+pass "driver-linked DLL OK (/dll, exports)"
+
+# --- 9. EXE importing the DLL (IAT + ARM thunk) --------------------------------
+"$CLANG" --target=$TARGET --sysroot="$SYS" -O1 \
+    -I"$HERE" -DUSE_DLL "$HERE/useboth.c" -o "$OUT/usedll.exe" \
+  || fail "driver link usedll.exe"
+pass "driver-linked EXE importing DLL OK"
+
+# --- 10. clang-cl (MSVC-style driver) ------------------------------------------
+"$BIN/clang-cl" --target=$TARGET --sysroot="$SYS" /O1 /c "$HERE/main_app.c" \
+    /Fo:"$OUT/cl.obj" || fail "clang-cl compile"
+"$LLD" "$OUT/cl.obj" "$SYS/lib/crt0.obj" \
+  /out:"$OUT/cl.exe" /subsystem:console /entry:mainCRTStartup \
+  /base:0x10000 /fixed /libpath:"$SYS/lib" \
+  wce.lib mingwex.lib "$SYS/lib/clang_rt.builtins-arm.lib" \
+  ceoldname.lib coredll.lib || fail "clang-cl link"
+grep -q "Machine: IMAGE_FILE_MACHINE_ARM" <("$READOBJ" -headers "$OUT/cl.exe") \
+  || fail "clang-cl EXE wrong machine"
+pass "clang-cl compile+link OK"
+
 echo
 echo "ALL E2E CHECKS PASSED ($OUT)"

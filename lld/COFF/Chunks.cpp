@@ -207,11 +207,30 @@ static void applyMOV32A(uint8_t *off, uint32_t v) {
   applyMOVA(off + 4, v >> 16); // set MOVT operand
 }
 
-// ARM (A32) unconditional BL: 24-bit signed, word-aligned offset from PC+8.
+// ARM (A32) BL/BLX: 24-bit signed, word-aligned offset from PC+8.  BLX
+// additionally carries the target's Thumb state in the H bit (bit 24) and
+// adds (H<<1) to the offset; a plain BL with a Thumb target cannot
+// interwork on ARMv4T (a veneer would be needed).
 static void applyBranch24A(uint8_t *off, int32_t v) {
+  uint32_t instr = read32le(off);
+  bool isBlx = (instr & 0xFE000000u) == 0xFA000000u;
+  if (isBlx) {
+    // BLX imm: target = align(PC+8+imm24*4, 4) + (H << 1).  v bit 0 marks
+    // the Thumb destination; bit 1 selects H.
+    if ((v & 1) == 0)
+      error("BLX relocation with non-Thumb target");
+    if (!isInt<26>(v & ~3))
+      error("relocation out of range");
+    uint32_t h = (v >> 1) & 1;
+    write32le(off, (instr & 0xFE000000u) | (h << 24) |
+                       (((v & ~3) >> 2) & 0x00FFFFFFu));
+    return;
+  }
+  if (v & 1)
+    error("ARM BL references a Thumb symbol; use BLX (ARMv5T+) or an "
+          "interworking veneer");
   if (!isInt<26>(v))
     error("relocation out of range");
-  uint32_t instr = read32le(off);
   write32le(off, (instr & 0xFF000000u) | ((v >> 2) & 0x00FFFFFFu));
 }
 

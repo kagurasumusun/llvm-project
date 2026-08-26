@@ -109,8 +109,21 @@ application).
 
 ## Third-party assets
 
-`third-party/cegcc-build` (git submodule) contains the CeGCC build tree.
-Only the WinCE-side assets are used (mingw-runtime port `mingw/`, WinCE
-w32api headers `w32api/`); the GCC/binutils compiler-side submodules are
-fetched-but-unused, and the resulting toolchain has no build-time or
-run-time dependency on them.
+The WinCE-side sources come from three git submodules (see
+`docs/BUILDING.md` for the exact build flow):
+
+* `third-party/mingwrt` (CeGCC mingw-runtime): the COREDLL definition
+  files, the public-domain CRT glue sources (atexit, argv, adapters), the
+  portable mingwex subset, and the C header overlay.  Consumed directly;
+  no GCC required.
+* `third-party/w32api` (CeGCC w32api): the WinCE platform headers and the
+  `libce/*.def` system-DLL definitions from which the import libraries
+  are generated with `llvm-dlltool -m armce`.
+* `third-party/binutils-gdb` (CeGCC binutils fork, `ce-2.43.1`): the
+  normative reference for the `arm-wince-pe` PE image format (headers,
+  entry table, thunks, relocation behavior) this toolchain reproduces
+  with LLD.  Not built, not installed, not needed at run time.
+
+The compiler, linker, runtimes and sysroot assembly are LLVM/Clang/LLD
+plus this project; nothing depends on CeGCC's GCC/binutils at build or
+run time.

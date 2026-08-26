@@ -17,7 +17,7 @@ part of the deliverable so the verification is reproducible.
 5. `pthread-test.exe` — mutex/condvar/once/TLS exercise.
 6. `cpp-interop.exe` — C++ EXE calling into simpdll.dll.
 
-Each sample lives in `wince/test/device/` (source only; binaries are
+Each sample lives in `wince-crt/test/device/` (source only; binaries are
 built with the completed toolchain).
 
 ## Deployment

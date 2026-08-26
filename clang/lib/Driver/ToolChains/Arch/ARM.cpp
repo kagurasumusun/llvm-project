@@ -424,7 +424,13 @@ arm::FloatABI arm::getDefaultFloatABI(const llvm::Triple &Triple) {
   case llvm::Triple::WatchOS:
     return FloatABI::Hard;
 
-  // FIXME: this is invalid for WindowsCE
+  // Windows desktop on ARM is hard-float (VFP).  Windows CE predates VFP
+  // deployment: the CE kernel and COREDLL expose a soft-float AAPCS ABI
+  // (eVC4/VS2008 compiled ARM CE binaries soft-float as well, and CeGCC
+  // defaults to --with-float=soft), so the CE default is soft.
+  case llvm::Triple::WinCE:
+    return FloatABI::Soft;
+
   case llvm::Triple::Win32:
     // It is incorrect to select hard float ABI on MachO platforms if the ABI is
     // "apcs-gnu".

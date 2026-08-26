@@ -233,6 +233,44 @@ add_custom_command(
   VERBATIM)
 
 #===------------------------------------------------------------------------===#
+# Prebuilt LLVM runtime staging (compiler-rt builtins, libunwind,
+# libc++abi, libc++).  The runtimes are cross-built by the LLVM runtimes
+# machinery (see docs/BUILDING.md stage 3) and staged here under the
+# names the WinCE driver's default link line expects:
+#   clang_rt.builtins-arm.lib, unwind.lib, c++abi.lib, c++.lib
+#===------------------------------------------------------------------------===#
+
+set(WINCE_RUNTIME_LIBS "" CACHE PATH
+    "Directory with prebuilt arm-pc-wince runtimes (libc++.a, libc++abi.a, libunwind.a, clang_rt.builtins-arm.*)")
+
+if (WINCE_RUNTIME_LIBS)
+  function(stage_runtime src dst)
+    foreach(ext .lib .a)
+      if (EXISTS "${WINCE_RUNTIME_LIBS}/${src}${ext}")
+        add_custom_command(
+          OUTPUT "${WINCERT_SYSROOT}/lib/${dst}.lib"
+          COMMAND ${CMAKE_COMMAND} -E copy
+                  "${WINCE_RUNTIME_LIBS}/${src}${ext}"
+                  "${WINCERT_SYSROOT}/lib/${dst}.lib"
+          DEPENDS "${WINCE_RUNTIME_LIBS}/${src}${ext}"
+          VERBATIM)
+        list(APPEND WINCERT_RUNTIME_STAGED "${WINCERT_SYSROOT}/lib/${dst}.lib")
+        set(WINCERT_RUNTIME_STAGED "${WINCERT_RUNTIME_STAGED}" PARENT_SCOPE)
+        return()
+      endif()
+    endforeach()
+    message(WARNING "wince-crt: runtime source not found in ${WINCE_RUNTIME_LIBS}: ${src}")
+  endfunction()
+
+  stage_runtime(clang_rt.builtins-arm clang_rt.builtins-arm)
+  stage_runtime(unwind unwind)
+  stage_runtime(libunwind unwind)
+  stage_runtime(libc++abi c++abi)
+  stage_runtime(libc++ c++)
+  list(APPEND WINCERT_IMPLIB_TARGETS ${WINCERT_RUNTIME_STAGED})
+endif()
+
+#===------------------------------------------------------------------------===#
 # Header overlay
 #===------------------------------------------------------------------------===#
 

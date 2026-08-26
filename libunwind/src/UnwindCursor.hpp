@@ -1696,8 +1696,14 @@ bool UnwindCursor<A, R>::getInfoFromEHABISection(
       }
     }
   } else {
+#if defined(__WINCE__)
+    // Windows CE extab entries hold absolute addresses (ADDR32), so the
+    // personality word is the routine's VA rather than a PREL31 offset.
+    pint_t personalityAddr = exceptionTableData;
+#else
     pint_t personalityAddr =
         exceptionTableAddr + signExtendPrel31(exceptionTableData);
+#endif
     personalityRoutine = personalityAddr;
 
     // ARM EHABI # 6.2, # 9.2

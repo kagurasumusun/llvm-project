@@ -186,8 +186,7 @@ bool translateGNUFlag(const ArgList &Args, ArrayRef<const char *> Vals,
   }
   if (V == "--dll" || V == "-dll") {
     HaveDLL = true;
-    CmdArgs.push_back("/dll");
-    return true;
+    return true; // rendered once, below, with -shared/-mdll
   }
   if (V == "--def" || V == "-def") {
     StringRef S = Next();
@@ -219,8 +218,12 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // --- Output file --------------------------------------------------------
   SmallString<128> OutFile(Output.getFilename());
-  const bool IsDLL = Args.hasArg(options::OPT_shared) ||
-                     Args.hasArg(options::OPT_mdll);
+  // clang-cl's /LD (and /LDd) create a DLL, like -shared/-mdll do.
+  const bool WantDLL = Args.hasArg(options::OPT__SLASH_LD) ||
+                       Args.hasArg(options::OPT__SLASH_LDd) ||
+                       Args.hasArg(options::OPT_shared) ||
+                       Args.hasArg(options::OPT_mdll);
+  const bool IsDLL = WantDLL;
   if (!llvm::sys::path::has_extension(OutFile))
     llvm::sys::path::replace_extension(OutFile, IsDLL ? ".dll" : ".exe");
   CmdArgs.push_back(Args.MakeArgString(Twine("/out:") + OutFile));
@@ -313,6 +316,9 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
                                          Twine(MinorImageVer < 0 ? 0 : MinorImageVer)));
 
   // --- Windows CE image defaults ------------------------------------------
+  if (IsDLL || HaveDLL)
+    // -shared/-mdll/-Wl,--dll: produce a DLL image.
+    CmdArgs.push_back("/dll");
   if (!HaveSubsystem)
     // CeGCC/binutils arm-wince emulation default:
     // IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (9).

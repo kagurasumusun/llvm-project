@@ -792,14 +792,21 @@ void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
 
   // FIXME: It's more complicated than this and we don't really support
   // interworking.
-  // Windows on ARM does not "support" interworking
-  if (5 <= ArchVersion && ArchVersion <= 8 && !getTriple().isOSWindows())
+  // Windows on ARM does not "support" interworking.  Windows CE does:
+  // the CE loader switches mode on the Thumb bit and the runtime is
+  // built with interworking (binutils arm-wince defines it for v5T+).
+  if (5 <= ArchVersion && ArchVersion <= 8 &&
+      (!getTriple().isOSWindows() || getTriple().isWindowsCE()))
     Builder.defineMacro("__THUMB_INTERWORK__");
 
   if (ABI == "aapcs" || ABI == "aapcs-linux" || ABI == "aapcs-vfp") {
     // Embedded targets on Darwin follow AAPCS, but not EABI.
     // Windows on ARM follows AAPCS VFP, but does not conform to EABI.
-    if (!getTriple().isOSBinFormatMachO() && !getTriple().isOSWindows())
+    // Windows CE follows the full EABI runtime conventions: __aeabi_
+    // helper functions (compiler-rt builtins) and the ARM EHABI unwind
+    // tables, exactly like any other ARM EABI target.
+    if (!getTriple().isOSBinFormatMachO() &&
+        (!getTriple().isOSWindows() || getTriple().isWindowsCE()))
       Builder.defineMacro("__ARM_EABI__");
     Builder.defineMacro("__ARM_PCS", "1");
   }

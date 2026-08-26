@@ -102,10 +102,12 @@ extern char __eh_frame_hdr_start;
 extern char __eh_frame_hdr_end;
 #endif
 
-#elif defined(_LIBUNWIND_ARM_EHABI) && defined(_LIBUNWIND_IS_BAREMETAL)
+#elif defined(_LIBUNWIND_ARM_EHABI) &&                                          \
+    (defined(_LIBUNWIND_IS_BAREMETAL) || defined(__WINCE__))
 
-// When statically linked on bare-metal, the symbols for the EH table are looked
-// up without going through the dynamic loader.
+// When statically linked on bare-metal or on Windows CE, the symbols for the
+// EH table are looked up without going through the dynamic loader (on CE the
+// COFF linker binds them to the .ARM.exidx output-section bounds).
 extern char __exidx_start;
 extern char __exidx_end;
 
@@ -557,8 +559,6 @@ inline bool LocalAddressSpace::findUnwindSections(
   // __exidx_start/__exidx_end to the .ARM.exidx output-section bounds.
   info.arm_section =        (uintptr_t)(&__exidx_start);
   info.arm_section_length = (size_t)(&__exidx_end - &__exidx_start);
-  if (info.arm_section && info.arm_section_length)
-    return true;
   _LIBUNWIND_TRACE_UNWINDING("findUnwindSections: section %p length %p",
                              (void *)info.arm_section, (void *)info.arm_section_length);
   if (info.arm_section && info.arm_section_length)

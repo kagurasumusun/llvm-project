@@ -419,6 +419,14 @@ void WinCOFFWriter::defineSymbol(const MCSymbolCOFF &MCSym) {
 
   if (Local) {
     Local->Data.Value = getSymbolValue(MCSym, *Asm);
+    // Windows CE ARM (IMAGE_FILE_MACHINE_ARM) images interwork between ARM
+    // and Thumb code: Thumb function symbols carry bit 0 set in their value
+    // (the coff-arm convention; the CE loader and tools switch code mode on
+    // it).  ARMNT images are uniformly Thumb and keep the value plain.
+    if (OWriter.TargetObjectWriter->getMachine() ==
+            COFF::IMAGE_FILE_MACHINE_ARM &&
+        !MCSym.isCommon() && Asm->isThumbFunc(&MCSym))
+      Local->Data.Value |= 1;
 
     auto &SymbolCOFF = static_cast<const MCSymbolCOFF &>(MCSym);
     Local->Data.Type = SymbolCOFF.getType();
