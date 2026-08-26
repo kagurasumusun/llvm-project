@@ -72,3 +72,14 @@
 // CXX: -lunwind
 
 int x;
+
+/// clang-cl mode on WinCE: same toolchain selection and image defaults.
+// RUN: %clang_cl --target=arm-pc-wince -c %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CLMODE
+// CLMODE: "-fms-extensions"
+// CLMODE: "-fms-compatibility"
+
+// RUN: %clang_cl --target=arm-pc-wince %s -o /dev/null -fuse-ld=lld -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CLLINK
+// CLLINK: lld-link
+// CLLINK: /subsystem:windowsce
