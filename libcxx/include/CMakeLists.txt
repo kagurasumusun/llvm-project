@@ -540,6 +540,7 @@ set(files
   __locale_dir/support/newlib.h
   __locale_dir/support/no_locale/characters.h
   __locale_dir/support/no_locale/strtonum.h
+  __locale_dir/support/wince.h
   __locale_dir/support/windows.h
   __locale_dir/time.h
   __locale_dir/wbuffer_convert.h
