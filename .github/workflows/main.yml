@@ -1,0 +1,180 @@
+name: wince-llvm-toolchain
+
+on:
+  workflow_dispatch:
+    inputs:
+      ce_target:
+        description: "WinCE target triple"
+        default: "arm-pc-wince"
+        type: choice
+        options: [arm-pc-wince, i386-pc-wince]
+  
+permissions:
+  contents: read
+
+concurrency:
+  group: wince-llvm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: WinCE toolchain (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    env:
+      TARGET: ${{ inputs.ce_target || 'arm-pc-wince' }}
+      CC: gcc
+      CXX: g++
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build cmake python3 zlib1g-dev libzstd-dev \
+            gcc g++ make lld
+
+      - name: Report runner resources
+        run: nproc && free -h && df -h .
+
+      # -----------------------------------------------------------------
+      # Stage 1: host LLVM/Clang/LLD + the binary tools the sysroot needs
+      # -----------------------------------------------------------------
+      - name: "Stage 1: configure (WinCE cache)"
+        run: |
+          cmake -G Ninja -S llvm -B build \
+            -C clang/cmake/caches/WinCE.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/install/wince-llvm" \
+            -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON
+
+      - name: "Stage 1: build clang + lld + tools"
+        run: |
+          cmake --build build --target clang lld llvm-ar llvm-ranlib \
+            llvm-dlltool llvm-nm llvm-mc llvm-readobj llvm-objdump FileCheck
+
+      - name: "Stage 1: install (isolated prefix)"
+        run: |
+          cmake --install build
+          # keep the resource dir + libs inside the prefix: nothing leaks
+          # into /usr, and a second LLVM installed on the machine is never
+          # touched (no generic `clang` is added to any global PATH).
+
+      # -----------------------------------------------------------------
+      # Stage 2: WinCE sysroot (mingwrt + w32api + pthreads4w, in-tree)
+      # -----------------------------------------------------------------
+      - name: "Stage 2: assemble sysroot"
+        run: |
+          utils/wince/build-wince-sysroot.sh \
+            --toolchain "$PWD/install/wince-llvm/bin" \
+            --target "$TARGET" \
+            --prefix "$PWD/install/wince-llvm/wince-sysroot" \
+            --jobs "$(nproc)"
+
+      - name: "Stage 2: smoke-check (defines + link line)"
+        run: |
+          CLANG="$PWD/install/wince-llvm/bin/clang"
+          printf 'int __attribute__((constructor)) c(void){return 0;}\nint main(void){return 0;}\n' > smoke.c
+          "$CLANG" --target="$TARGET" -c smoke.c -o smoke.o
+          "$CLANG" --target="$TARGET" -### smoke.c -o smoke.exe 2>&1 | head -20
+
+      # -----------------------------------------------------------------
+      # Stage 3: compiler-rt builtins + libunwind/libc++abi/libc++
+      # -----------------------------------------------------------------
+      - name: "Stage 3: runtimes"
+        run: |
+          utils/wince/build-wince-runtimes.sh \
+            --toolchain "$PWD/install/wince-llvm/bin" \
+            --sysroot "$PWD/install/wince-llvm/wince-sysroot" \
+            --target "$TARGET" \
+            --build-dir "$PWD/build-wince-runtimes"
+
+      # -----------------------------------------------------------------
+      # Package: isolated, side-by-side-safe toolchain tarball
+      # -----------------------------------------------------------------
+      - name: "Package (isolated install + target-prefixed wrappers)"
+        run: |
+          PREFIX="$PWD/install/wince-llvm"
+          BIN="$PREFIX/bin"
+
+          # Target-prefixed wrappers: `arm-pc-wince-clang` carries the
+          # --target automatically, and the generic `clang` inside this
+          # prefix never collides with a system clang because only this
+          # prefix's bin is (optionally) prepended to PATH.
+          for t in clang clang++ gcc g++ cc c++ ld.lld; do
+            if [ -e "$BIN/$t" ] || [ -L "$BIN/$t" ]; then
+              ln -sf "$t" "$BIN/arm-pc-wince-$t"
+            fi
+          done
+          # convenience: lld-link and the binary tools under CE names
+          for t in lld-link llvm-ar llvm-ranlib llvm-dlltool llvm-nm \
+                   llvm-mc llvm-readobj llvm-objdump; do
+            [ -e "$BIN/$t" ] && ln -sf "$t" "$BIN/arm-pc-wince-$t"
+          done
+
+          cat > "$PREFIX/wince-llvm-env.sh" <<'ENV'
+          # source me: export PATH=/opt/wince-llvm/bin:$PATH
+          _wl_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+          case ":$PATH:" in
+            *":$_wl_dir/bin:"*) ;;
+            *) export PATH="$_wl_dir/bin:$PATH" ;;
+          esac
+          ENV
+          chmod +x "$PREFIX/wince-llvm-env.sh"
+
+          # provenance + usage
+          cat > "$PREFIX/WINCE-README.txt" <<DOC
+          Windows CE LLVM/Clang toolchain
+          target : $TARGET
+          source : ${{ github.repository }} @ ${{ github.sha }}
+          layout : bin/ (clang, lld-link, target-prefixed wrappers)
+                   wince-sysroot/ (mingwrt + w32api + pthreads4w +
+                                   compiler-rt + libc++ - the default
+                                   sysroot the driver finds by itself)
+          install: tar -C /opt -xzf <tarball>   (self-contained;
+                   safe next to any other LLVM/Clang installation)
+          usage  : source /opt/wince-llvm/wince-llvm-env.sh
+                   arm-pc-wince-clang hello.c -o hello.exe
+          DOC
+
+          # reproducible-ish archive
+          TAR="wince-llvm-$TARGET-${{ runner.os }}-${{ github.sha }}.tar.zst"
+          tar --zstd -cf "$TAR" -C install wince-llvm
+          sha256sum "$TAR" > "$TAR.sha256"
+
+      - name: "Package sanity: install to /opt and compile"
+        run: |
+          TAR=$(ls wince-llvm-*.tar.zst | head -1)
+          sudo tar --zstd -xf "$TAR" -C /opt
+          source /opt/wince-llvm/wince-llvm-env.sh
+          printf 'int main(void){return 42;}\n' > /tmp/hi.c
+          arm-pc-wince-clang --target=$TARGET /tmp/hi.c -o /tmp/hi.exe
+          "$PWD/install/wince-llvm/bin/llvm-readobj" --file-headers /tmp/hi.exe \
+            | grep -E "Machine|Subsystem"
+
+      - name: Upload toolchain artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wince-llvm-${{ inputs.ce_target || 'arm-pc-wince' }}-${{ matrix.os }}
+          path: |
+            wince-llvm-*.tar.zst
+            wince-llvm-*.tar.zst.sha256
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Upload build logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wince-llvm-logs-${{ matrix.os }}
+          path: |
+            build-wince-sysroot/**/*.log
+            build-wince-runtimes/**/*.log
+          if-no-files-found: ignore
