@@ -164,9 +164,45 @@ Known caveats from the audit (not fixable without semantic changes):
 `pthread-win32` and `pthreads4w` are the same code lineage: the project
 was renamed pthreads4w for v3 (sourceware -> GitHub), and
 `GerHobbelt/pthread-win32` is the actively maintained combined fork of
-that tree.  The vendored directory keeps the fork's name.
+that tree.  The vendored directory tracks the fork's `master`
+(`06e7608`, current HEAD upstream) plus the three WinCE fixes - i.e. we
+are on the newest available code of the newest available lineage.
 
-### mingwrt language-generation updates
+### fork emulation: ecosystem survey
+
+No existing project implements fork on Windows CE (surveyed: Cygwin
+itself needed kernel cooperation it only partly got on Windows; WSL1
+implemented fork *inside the Windows kernel*; no CE equivalent exists -
+CE has no COW, no handle enumeration, no child-image primitive, and the
+required process-memory APIs are not in the COREDLL def surface).  The
+only CE-relevant finds are emulators (`gweslab/cerf`) and the CeGCC
+continuation forks (`salman-javed-nz/cegcc-build`, GCC 14.2) - neither
+provides fork.  Conclusion stands: exec/spawn substitution only.
+
+### mingwrt language-generation updates (recommended: C17)
+
+Recommended target generation for a mingwrt refresh: **C17 (gnu17)** -
+fully supported by clang, no C23 keyword-absorption risk (`bool`/`true`/
+`false` becoming keywords would collide with mingwrt's own typedefs),
+and mechanically reachable.  C23 is a later optional step.  Benefits of
+the refresh: implicit-declaration bugs become build errors, modern
+warning coverage, stdckdint-style checked arithmetic becomes available,
+and the codebase stops depending on pre-C99 idioms.  Device behavior is
+unchanged under the ABI-freeze + equivalence-review policy.
+
+### Performance
+
+* Language refresh: no measurable change (same optimizer, same codegen;
+  potentially marginal gains from clearer aliasing).
+* emutls (`thread_local`): each access is a TlsGetValue + indirect load -
+  measurably slower than native TLS and slower than desktop emutls-
+  with-caching; use thread_local sparingly on CE.
+* `-auto-import`: dllimport data gets a .refptr indirection (same cost
+  CeGCC paid).
+* `-pg`: sampling runs in a below-normal-priority thread; expect a few
+  percent under profiling.
+* Everything else (ctor/dtor bracketing, def completion) is link/load
+  time only.
 
 Updating the vendored mingwrt sources to modern C (C99/C11/C23
 conformance) is compile-time-only: the device-visible behavior changes
@@ -203,7 +239,23 @@ audited end to end:
 | atexit / `_onexit` | complete: mingwrt's private atexit table (COREDLL exports neither), flushed by `_cexit` at the end of `crt3`/`dllcrt1` |
 | argv / WinMain | complete: mingwrt `crt3.c` dispatches to `WinMain`; `winmain_ce.o` in libmingw32 provides the `WinMain -> main` adapter, `mainCRTStartup` builds argv from `GetCommandLineW` |
 | runtime pseudo relocations & import thunks | complete: ARM-mode `ldr ip,[pc]` thunks identical to binutils `jmp_arm_bytes`, `_pei386_runtime_relocator` handles imported-data offsets |
-| thread-local storage | **supported via emutls**: CE has exported `TlsAlloc`/`TlsFree` since CE 1.0 (MSDN, "Windows CE OS 1.0 and later") - the CeGCC `coredll.def` simply omitted them; the vendored def files list them now. `thread_local`/`__thread` lower to emutls (`__emutls_v.*` + `__emutls_get_address` from compiler-rt, whose Windows path uses TlsAlloc), and `Triple::hasDefaultEmulatedTLS()` covers WinCE so `-femulated-tls` is the driver default. Caveat: mingwrt's `_errno()` remains a single shared static |
+| thread-local storage | **supported via emutls**: CE has exported `TlsAlloc`/`TlsFree` since CE 1.0 (MSDN, "Windows CE OS 1.0 and later") - the CeGCC `coredll.def` simply omitted them; the vendored def files list them now.
+
+### COREDLL def completeness (web-verified)
+
+The authoritative completeness reference is a `dumpbin /EXPORTS
+coredll.dll` dump of a real CE image (the 2010 CE5/WM6 dump archived on
+cnblogs: 1799 functions).  565 sampled names across the alphabet
+(chunks 0/1/4/7) were diffed against the vendored defs: **only 30 gaps,
+all added** (CeMapArgument, allPrivilege, and 28 C++-mangled
+operator-new/delete / std-internal / IME exports that CeGCC omitted on
+purpose).  Spot checks of the C surface (chunks 1/4/7, 624 names) had
+ZERO gaps - the CeGCC def is effectively complete for C development.
+`utils/wince/audit-coredll.py` mechanizes this: run it against a
+`dumpbin /EXPORTS` of YOUR device's CoreDLL.dll (OEM variation is real)
+and it lists def gaps/extra entries.  Name collisions with libc++ (the
+mangled operator new/delete) are harmless: import libraries resolve
+only referenced symbols. `thread_local`/`__thread` lower to emutls (`__emutls_v.*` + `__emutls_get_address` from compiler-rt, whose Windows path uses TlsAlloc), and `Triple::hasDefaultEmulatedTLS()` covers WinCE so `-femulated-tls` is the driver default. Caveat: mingwrt's `_errno()` remains a single shared static |
 | profiling (`-pg`, `gcrt3.o`/`libgmon`) | not provided by the mingw32ce build of mingwrt (the `profile/` sources are desktop-CRT only); CeGCC's LIB_SPEC kept the hook but nothing satisfied it |
 
 ## Version policy (nothing is hard-wired to a single generation)
