@@ -263,6 +263,10 @@ def kill_at : F<"kill-at">;
 defm lld_allow_duplicate_weak : B_priv<"lld-allow-duplicate-weak">;
 def lldemit : P<"lldemit", "Specify output type">;
 def lldmingw : F<"lldmingw">;
+// Windows CE image mode: the clang WinCE driver passes this to enable the
+// MinGW-style .ctors/.dtors list bracketing (mingwrt's gccmain.c walks
+// __CTOR_LIST__/__DTOR_LIST__ for global C++ constructors/destructors).
+def wince : F<"wince">;
 def noseh : F<"noseh">;
 def osversion : P_priv<"osversion">;
 def output_def : Joined<["/", "-", "/?", "-?"], "output-def:">;

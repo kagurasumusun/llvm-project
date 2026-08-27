@@ -1309,6 +1309,10 @@ void Writer::createMiscChunks() {
   if (config->mingw) {
     insertCtorDtorSymbols();
     insertBssDataStartEndSymbols();
+  } else if (config->wince) {
+    // mingwrt's gccmain.c walks __CTOR_LIST__/__DTOR_LIST__ (head sentinel
+    // -1, terminating 0) for global C++ constructors/destructors.
+    insertCtorDtorSymbols();
   }
 
   // Windows CE: bind __exidx_start/__exidx_end to the .ARM.exidx output

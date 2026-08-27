@@ -1650,6 +1650,7 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   // Handle /lldmingw early, since it can potentially affect how other
   // options are handled.
   config->mingw = args.hasArg(OPT_lldmingw);
+  config->wince = args.hasArg(OPT_wince);
   if (config->mingw)
     ctx.e.errorLimitExceededMsg = "too many errors emitted, stopping now"
                                   " (use --error-limit=0 to see all errors)";

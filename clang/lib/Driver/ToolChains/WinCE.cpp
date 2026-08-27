@@ -86,6 +86,14 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
       DriverArgs.hasFlag(options::OPT_pthread, options::OPT_no_pthread,
                          false))
     CC1Args.push_back("-D_MT");
+  // CeGCC's GCC and the eMbedded Visual C++ headers use the pre-C99
+  // "extern __inline" convention; default to GNU89 inline semantics so
+  // headers and sources written for those compilers keep behaving
+  // (extern inline stays an external definition, not a C99 inline
+  // declaration).  Overridable with -fno-gnu89-inline.
+  if (DriverArgs.hasFlag(options::OPT_fgnu89_inline,
+                         options::OPT_fno_gnu89_inline, true))
+    CC1Args.push_back("-fgnu89-inline");
 
   // Unwind tables: getDefaultUnwindTableLevel() returns Asynchronous for
   // this target, which makes the driver pass -fasynchronous-unwind-tables
@@ -284,6 +292,11 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   ArgStringList CmdArgs;
 
   CmdArgs.push_back("lld-link");
+  // Windows CE image mode: bracket .ctors/.dtors into __CTOR_LIST__ /
+  // __DTOR_LIST__ (mingwrt's __main walks them for global C++
+  // constructors/destructors) and otherwise treat the image as CeGCC's
+  // arm-wince emulation did.
+  CmdArgs.push_back("-wince");
 
   // --- Output file --------------------------------------------------------
   SmallString<128> OutFile(Output.getFilename());

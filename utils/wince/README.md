@@ -116,12 +116,35 @@ the CeGCC link line on lld-link:
 | arm-wince emulation defaults     | `/subsystem:windowsce /base:0x10000 /fixed` (DLLs: `0x10000000`, keep `.reloc`) |
 | `%{mthreads:-lmingwthrd} -lmingw32 -lgcc -lceoldname -lmingwex -lcoredll` | `-mthreads`/`-pthread`: `libmingwthrd.a` (mingwrt, as CeGCC) + `libpthread.a` (pthreads4w) and `-D_MT`; then `libmingw32.a`, `libclang_rt.builtins-*.a`, `libceoldname.a`, `libmingwex.a`, `libcoredll.a` |
 | `%{mthreads:-D_MT}` (CPP_SPEC)   | `-D_MT` at compile time                             |
+| (GNU ld pe.em: __CTOR_LIST__/__DTOR_LIST__ bracketing) | clang emits global ctors/dtors in the GNU convention for WinCE (`.ctors`/`.dtors`, priority subsections `.ctors.NNNNN`, associative grouping); lld-link `-wince` sorts and brackets them with the -1 head sentinel and 0 terminator, `__CTOR_LIST__`/`__DTOR_LIST__` point at the head, and mingwrt's `__main` (`gccmain.c`) walks them: global C++ constructors run before `main`/`WinMain`, destructors run through the atexit table.  (The MSVC `.CRT$XCU`/`.CRT$XTX` tables would need `__xc_a` startup objects that the CE runtime does not provide — verified not used for this target.) |
+| (GCC default: gnu89 inline)      | `-fgnu89-inline` by default — the pre-C99 `extern __inline` convention used by eMbedded Visual C++ / old mingwrt headers keeps its external-definition semantics (`-fno-gnu89-inline` to override) |
 
 Libraries are probed GNU-first (`lib<name>.a`) with MS-style (`<name>.lib`)
 fallback so both sysroot layouts resolve.  `-Wl,` GNU spellings
 (`-subsystem`, `-e/--entry`, `--image-base`, `--stack`, `--dll`, `--def`,
 `--out-implib`, `--major/--minor-image-version`, `--dynamicbase`) are
 translated to their lld-link forms.
+
+## Architecture baseline (ARM926EJ-S / i.MX28 / ARMv5TE / armel)
+
+* Default CPU: **arm926ej-s** — the ARMv5TE generation core of the
+  Freescale i.MX28 family (the dominant WinCE 5.0/6.0 SoC and the one
+  eVC4/Platform Builder shipped for).  Implemented in
+  `llvm/lib/TargetParser/ARMTargetParser.cpp` (`Triple::WinCE` case of
+  the OS-default-CPU rule), so it applies to the clang driver and to
+  llvm-mc alike.
+* Default ABI: soft-float (`FloatABI::Soft` for WinCE in
+  `clang/lib/Driver/ToolChains/Arch/ARM.cpp`) — AAPCS with no VFP, i.e.
+  the **armel**-equivalent ABI and the COREDLL floating-point calling
+  convention.  The sysroot stage builds with `-march=armv5te
+  -mfloat-abi=soft` by default.
+* Older hardware: override per invocation — `-march=armv4t` (ARM920T /
+  i.MX21, i.MX1/S3C2410-class), `-mcpu=arm920t`, or any other ARMv4T/5TE
+  CPU; the sysroot stage honors `WINCE_ARCH_FLAGS` the same way.
+* Thumb: supported by the code generator, but CeGCC's own toolchain
+  shipped it as broken on WinCE ("Thumb support for arm-wince-pe does not
+  appear to be working in binutils yet"), so ARM mode remains the
+  default; interworking data is emitted so Thumb objects still link.
 
 ## Target-level support ported from the CeGCC GCC fork
 

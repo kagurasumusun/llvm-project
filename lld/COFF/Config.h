@@ -331,6 +331,7 @@ struct Configuration {
   bool appContainer = false;
   bool mergeDebugDirectory = true;
   bool mingw = false;
+  bool wince = false;
   bool warnMissingOrderSymbol = true;
   bool warnLocallyDefinedImported = true;
   bool warnDebugInfoUnusable = true;

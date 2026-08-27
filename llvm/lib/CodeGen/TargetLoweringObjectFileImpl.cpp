@@ -1995,8 +1995,12 @@ void TargetLoweringObjectFileCOFF::Initialize(MCContext &Ctx,
   TargetLoweringObjectFile::Initialize(Ctx, TM);
   this->TM = &TM;
   const Triple &T = TM.getTargetTriple();
-  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment() ||
-      T.isWindowsCE()) {
+  // Windows CE keeps the GNU convention: the C runtime is mingwrt, whose
+  // __main walks __CTOR_LIST__/__DTOR_LIST__ over .ctors/.dtors (bracketed
+  // by lld-link -wince).  .CRT$XCU/.CRT$XTX are the MSVC CRT tables and
+  // would need __xc_a/__xc_z startup objects that the CE runtime does not
+  // provide.
+  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
     StaticCtorSection =
         Ctx.getCOFFSection(".CRT$XCU", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
                                            COFF::IMAGE_SCN_MEM_READ);
@@ -2018,8 +2022,7 @@ static MCSectionCOFF *getCOFFStaticStructorSection(MCContext &Ctx,
                                                    unsigned Priority,
                                                    const MCSymbol *KeySym,
                                                    MCSectionCOFF *Default) {
-  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment() ||
-      T.isWindowsCE()) {
+  if (T.isWindowsMSVCEnvironment() || T.isWindowsItaniumEnvironment()) {
     // If the priority is the default, use .CRT$XCU, possibly associative.
     if (Priority == 65535)
       return Ctx.getAssociativeCOFFSection(Default, KeySym, 0);

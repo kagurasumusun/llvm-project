@@ -19,6 +19,7 @@
 // MSFLAGS: "-fdelayed-template-parsing"
 // MSFLAGS: "-fms-compatibility-version=1900"
 // MSFLAGS: "-funwind-tables"
+// MSFLAGS: "-fgnu89-inline"
 
 /// WinCE predefined macros.  The default deployment is Windows Embedded CE
 /// 6.0 (0x600 == 1536).
@@ -49,6 +50,7 @@
 // RUN: %clang -target arm-pc-wince %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LINK
 // LINK: lld-link
+// LINK: "-wince"
 // LINK: /subsystem:windowsce
 // LINK: /entry:WinMainCRTStartup
 // LINK: /base:0x10000
