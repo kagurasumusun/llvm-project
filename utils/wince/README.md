@@ -177,26 +177,65 @@ runtime was written:
   above would require changing the WinCE platform itself, which is out of
   scope by definition.
 
-## -pg profiling: feasibility study
+## -pg profiling (implemented)
 
-The default `LIB_SPEC`/`STARTFILE_SPEC` hooks exist (`%{pg:-lgmon}`,
-`%{pg:gcrt3%O%s}`) but the mingw32ce build of mingwrt ships neither
-`gcrt3.o` nor `libgmon`, so today `-pg` fails at link time.  It **can** be
-provided without touching the WinCE platform (user-mode only):
+`-pg` is fully wired: the driver links `gcrt3.o` (mingwrt's crt3 startup
+wrapped with the profiler lifecycle, replacing `crt3.o` per CeGCC's
+`%{pg:gcrt3%O%s}`) and `libgmon.a` (CeGCC's `%{pg:-lgmon}` position).
+Both live in `wince-sysroot/gmon/` and are built by the sysroot stage
+(user-mode only; no WinCE platform behavior is touched).
 
-* `gcrt3.o`: a variant of `crt3.c` plus an `mcount(frompc, selfpc)` hook
-  installed by a constructor.
-* `libgmon`: a gmon.out-compatible profiler running a **sampling thread**
-  (CE lacks POSIX timers/signals, but exports
-  `SuspendThread`/`GetThreadContext`/`ResumeThread`,
-  `QueryPerformanceCounter` and `CreateThread` - all verified present in
-  `coredll.def`), sampling the main thread's PC at a fixed interval and
-  writing `gmon.out` through `CreateFile` at `atexit`.
-* Driver: `-pg` -> link `gcrt3.o` + `libgmon` (replacing the compiler-rt
-  builtins position CeGCC used for `-lgmon`).
+* What you get: a BSD/gprof `gmon.out` written next to the executable at
+  exit, containing a `GMON_TAG_TIME_HIST` histogram over the module image
+  (`gprof ./program.exe gmon.out` gives the flat profile).  The sampler
+  runs in a below-normal-priority thread (10 ms interval,
+  `SuspendThread`/`GetThreadContext`/`ResumeThread`), so it covers
+  `main`/`WinMain` and the atexit/destructor phase alike.
+* What you do not get: the call-graph arc table.  clang's `-pg` emits a
+  plain `bl mcount` without the EABI `__gnu_mcount_nc` frame contract, so
+  `mcount` cannot recover `frompc`; it is provided as a no-op so `-pg`
+  links everywhere the attribute is emitted.  (Sampled-PC histograms are
+  exactly what gprof falls back to when arcs are absent.)
+* History of CE generations: the toolchain targets the COREDLL surface as
+  of CE 5.0/6.0 (CeGCC lineage).  CE 4.2 is reachable (`arm-pc-wince4.2`,
+  `_WIN32_WCE=0x420`, ARMv4T `-march=armv4t` for SA-1110/ARM720T), but the
+  import surface comes from the CE 5.0 `coredll.def`, so CE <= 4.1 devices
+  need a generation-matched `coredll3.def` added to mingwrt (a def-only,
+  ABI-frozen change per the update policy).  MIPS/SH3/SH4 - the other
+  historical CE CPUs - would additionally need lld COFF import thunks
+  (lld supports x86/ARM/ARM64 today); codegen exists, the linker piece is
+  the gap.
 
-This is new runtime code (not a mingwrt change), so it is parked here as a
-design awaiting approval; say the word and it gets implemented.
+## mingw-w64 update safety
+
+Copying code from mingw-w64 is safe **only for self-contained parts**
+(gdtoa, `_pformat`, pure computation): they make no OS calls.  Anything
+that touches startup, TLS, process/environment, console or heap - i.e.
+anything against msvcrt/desktop APIs (`VirtualAlloc` with
+MEM_RESET, `FlsAlloc`, `GetConsoleWindow`, `_beginthreadex`, ...) - will
+not run on WinCE and must not be ported into the CE mingwrt.  The same
+rule that protects the ABI also protects the platform boundary.
+
+## Modern development conveniences: what else is feasible
+
+Already in the sysroot: libc++ (C++11/14/17, most of C++20 minus
+`thread_local`), pthreads4w, the mingwex POSIX subset, gprof profiling.
+Feasible additions (evaluations, not commitments):
+
+* `threads.h` (C11 threads) - a thin header over pthreads4w; trivial,
+  safe, additive.
+* `std::filesystem` for CE - libc++'s backend maps to C++17 filesystem
+  APIs; a CE backend over `CreateFileW`/`FindFirstFile`/`RemoveDirectory`
+  is implementable (CE 6.0 has a real object store with paths).  Medium
+  effort; the blocker is libc++'s per-platform filesystem config points.
+* `backtrace()`/`backtrace_symbols()` - a thin wrapper over libunwind
+  (`unw_step`), which is already linked for exceptions; small and safe.
+* Sanitizers (ASan/UBSan) - not feasible: they need page-granular
+  memory control (`VirtualAlloc` granularity is 4 KB on CE but the
+  kernel lacks guard-page commit semantics and ASan's shadow mapping
+  assumptions); UBSan alone (no ASan) might work but is untested.
+* Objective-C / OpenMP / sanitizer-coverage - require target work with
+  no known WinCE demand; not pursued.
 
 ## mingwrt update policy (no WinCE-behavior changes)
 

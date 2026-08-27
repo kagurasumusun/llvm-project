@@ -172,7 +172,7 @@ namespace {
 // fail visibly instead of silently.
 bool translateGNUFlag(const ArgList &Args, ArrayRef<const char *> Vals,
                       unsigned &Idx, ArgStringList &CmdArgs, bool &HaveEntry,
-                      bool &HaveBase, bool &HaveSubsystem, bool &WantConsole,
+                      bool &HaveBase, bool &HaveSubsystem,
                       bool &HaveDynamicBase, bool &HaveDLL,
                       int &MajorImageVer, int &MinorImageVer) {
   StringRef V(Vals[Idx]);
@@ -184,9 +184,10 @@ bool translateGNUFlag(const ArgList &Args, ArrayRef<const char *> Vals,
   if (V == "-subsystem") {
     StringRef S = Next();
     HaveSubsystem = true;
-    if (S == "console")
-      WantConsole = true;
-    CmdArgs.push_back(Args.MakeArgString(Twine("/subsystem:") + S));
+    // CE: every image is subsystem 9, console or not (see OPT_mconsole).
+    CmdArgs.push_back(Args.MakeArgString(
+        Twine("/subsystem:") + (S == "console" ? StringRef("windowsce")
+                                               : S)));
     return true;
   }
   if (V == "-e" || V == "-entry" || V == "--entry") {
@@ -328,7 +329,7 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // --- Translate GCC-style flags ------------------------------------------
   bool HaveSubsystem = false, HaveEntry = false, HaveBase = false;
-  bool HaveDynamicBase = false, WantConsole = false, HaveDLL = false;
+  bool HaveDynamicBase = false, HaveDLL = false;
   int MajorImageVer = -1, MinorImageVer = -1;
 
   for (const Arg *A : Args) {
@@ -358,14 +359,13 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back(Args.MakeArgString(Twine("/entry:") + A->getValue()));
       break;
     case options::OPT_mwindows:
-      HaveSubsystem = true;
-      WantConsole = false;
-      CmdArgs.push_back("/subsystem:windowsce");
-      break;
     case options::OPT_mconsole:
+      // Windows CE images are always IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (9) -
+      // CeGCC's arm-wince emulation forces 9 for both -mconsole and
+      // -mwindows; "console apps" are just programs with main(), bridged
+      // by mingwrt's winmain_ce.o WinMain adapter.
       HaveSubsystem = true;
-      WantConsole = true;
-      CmdArgs.push_back("/subsystem:console");
+      CmdArgs.push_back("/subsystem:windowsce");
       break;
     case options::OPT_Xlinker:
       CmdArgs.push_back(A->getValue());
@@ -375,7 +375,7 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
       ArrayRef<const char *> Vals = A->getValues();
       for (unsigned I = 0; I < Vals.size(); ++I) {
         if (!translateGNUFlag(Args, Vals, I, CmdArgs, HaveEntry, HaveBase,
-                              HaveSubsystem, WantConsole, HaveDynamicBase,
+                              HaveSubsystem, HaveDynamicBase,
                               HaveDLL, MajorImageVer, MinorImageVer)) {
           // Unrecognized: forward raw.  lld-link reports a visible error for
           // anything it does not understand.
@@ -393,8 +393,6 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
           continue;
         if (V.starts_with_insensitive("/subsystem:")) {
           HaveSubsystem = true;
-          if (V.starts_with_insensitive("/subsystem:console"))
-            WantConsole = true;
         } else if (V.starts_with_insensitive("/entry:")) {
           HaveEntry = true;
         } else if (V.starts_with_insensitive("/base:")) {
@@ -427,13 +425,11 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
       // CeGCC LINK_SPEC: %{shared|mdll: -e DllMainCRTStartup}
       CmdArgs.push_back("/entry:DllMainCRTStartup");
     else
-      // The ld pe.em default entry table governs EXEs: subsystem 9 ->
-      // WinMainCRTStartup, console subsystem -> mainCRTStartup.  Both CRT
-      // entries dispatch to main() (or, through mingwrt's winmain_ce.c
-      // adapter, to WinMain), so either default is safe for either user
-      // entry point.
-      CmdArgs.push_back(WantConsole ? "/entry:mainCRTStartup"
-                                    : "/entry:WinMainCRTStartup");
+      // mingwrt's crt3.o defines exactly one EXE entry,
+      // WinMainCRTStartup(hInst, hPrev, lpCmdLine, nShow) - the CE loader
+      // contract.  Programs with main() get the WinMain adapter from
+      // winmain_ce.o in libmingw32.a; mainCRTStartup does not exist.
+      CmdArgs.push_back("/entry:WinMainCRTStartup");
   }
   if (!HaveBase)
     // arm-wince emulation defaults: EXE base 0x10000, DLL base 0x10000000.
@@ -456,16 +452,22 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   const bool WantThreads =
       Args.hasArg(options::OPT_mthreads) ||
       Args.hasFlag(options::OPT_pthread, options::OPT_no_pthread, false);
+  // CeGCC LIB_SPEC/STARTFILE_SPEC: %{pg:-lgmon} + %{pg:gcrt3%O%s}.  gcrt3.o
+  // is mingwrt's crt3.c wrapped with the profiler lifecycle; libgmon.a is
+  // the user-mode sampling profiler (wince-sysroot/gmon).
+  const bool WantProfiling = Args.hasArg(options::OPT_pg);
 
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     // CeGCC STARTFILE_SPEC:
-    //   %{shared|mdll:dllcrt3%O%s} %{!shared:%{!mdll:crt3%O%s}}
+    //   %{shared|mdll:dllcrt3%O%s} %{!shared:%{!mdll:crt3%O%s}} %{pg:gcrt3%O%s}
     // Both are built by mingwrt itself (CRT0S for *-mingw32ce hosts); the
     // main()<->WinMain() glue is mingwrt's own winmain_ce.o inside
     // libmingw32.a. Must precede all user objects.
+    const char *StartFile =
+        IsDLL || HaveDLL ? "dllcrt3.o" : (WantProfiling ? "gcrt3.o" : "crt3.o");
     SmallString<128> Crt(LibDir);
-    llvm::sys::path::append(Crt, IsDLL || HaveDLL ? "dllcrt3.o" : "crt3.o");
+    llvm::sys::path::append(Crt, StartFile);
     CmdArgs.push_back(Args.MakeArgString(Crt));
   }
 
@@ -485,6 +487,8 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     addCompilerRTBuiltins(TC, Args, CmdArgs, LibDir);
     addWinCELibrary(Args, CmdArgs, LibDir, "ceoldname");
     addWinCELibrary(Args, CmdArgs, LibDir, "mingwex");
+    if (WantProfiling)
+      addWinCELibrary(Args, CmdArgs, LibDir, "gmon");
     // COREDLL import library by OS generation: coredll6.a carries the
     // CE 6.0-only exports (CeGetThreadPriority, FindFirstDevice, ...),
     // coredll.a the CE 5.0 surface.  The deployment default is CE 6.0;

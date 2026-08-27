@@ -70,6 +70,21 @@
 // LINK50: lld-link
 // LINK50: coredll.lib
 
+/// -mconsole: CE images are always subsystem 9 and always enter through
+/// WinMainCRTStartup (main() is bridged by mingwrt's winmain_ce.o).
+// RUN: %clang -target arm-pc-wince -mconsole %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CONSOLE
+// CONSOLE: lld-link
+// CONSOLE: /subsystem:windowsce
+// CONSOLE: /entry:WinMainCRTStartup
+
+/// -pg: gcrt3.o startfile + the sampling profiler archive.
+// RUN: %clang -target arm-pc-wince -pg %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=PG
+// PG: lld-link
+// PG: gcrt3.o
+// PG: libgmon.a
+
 /// DLL link: dllcrt3.o, DllMainCRTStartup (CeGCC LINK_SPEC), DLL base,
 /// no /fixed.
 // RUN: %clang -target arm-pc-wince -shared %s -o /dev/null -### 2>&1 \
