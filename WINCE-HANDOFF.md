@@ -1,0 +1,362 @@
+# Windows CE × LLVM/Clang ツールチェーン — 完全引き継ぎ資料 (HANDOFF)
+
+> 最終更新: 2026-08-27 / ブランチ: `arena/01a0419b-llvm-project` / HEAD: `5df0f7c97`
+> この文書はセッション引き継ぎ用。後続のエージェントまたは人間が**この文書 alone で**作業を継続できることを目標に書かれている。
+
+---
+
+## 0. 30秒サマリ
+
+- **目的**: `kagurasumusun/llvm-project`(LLVM 22.1.8ベースのフォーク)を、**Windows CE (CE 6.0中心、5.0/4.x/3.0/2.xまで設定で対応) の完全なクロス開発ツールチェーン**にすること。
+- **方針**: 独自ランタイムは作らない。**kagurasumusun/mingwrt + kagurasumusun/w32api(CeGCC系)+ pthreads4w を in-tree ベンダーし、それぞれ自身の configure/make で clang を使ってビルドする**。LLVM/Clang/LLD 側の改修は「正規の機構」として in-tree で行う。
+- **現状**: アプリ/ドライバ/OAL 開発に必要な一式はほぼ実装済み・検証済み(下記)。OS イメージ(sysgen/makeimg/BIB)のビルド基盤は **AE600 ソース(ユーザー手元)が前提**で、実装計画は確定済み・未実装。
+- **直近のブロッカー**: ユーザーの GitHub private リポ `kagurasumusun/wince-source` に**トークンからアクセスできない**(404)。トークンへのリポ追加待ち。ARM32 WinEH (SEH) 実装の参考ソースがそこにある。
+
+---
+
+## 1. リポジトリ/ブランチ/認証の現状
+
+| 項目 | 値 |
+|---|---|
+| ワークスペース | `/home/user/llvm-project` |
+| ブランチ | `arena/01a0419b-llvm-project`(セッション固定。他ブランチに切り替えないこと) |
+| リモート | `origin` = `https://github.com/kagurasumusun/llvm-project.git` |
+| HEAD | `5df0f7c97` "WinCE: armasm as a proper in-LLVM mechanism (ARMCOFFMasmParser)" |
+| プッシュ | **全コミット push 済み**(`Everything up-to-date` 状態) |
+| upstream tag | `refs/tags/upstream-22.1.8`(差分確認用に fetch 済み) |
+
+### 認証(重要な罠)
+
+- ユーザー提供の fine-grained トークン(`github_pat_11CD5...`)は **`llvm-project` のみ有効**。
+  - `llvm-project` への push/blob 作成: ✅
+  - `kagurasumusun/mingwrt`, `pthread-win32` への書き込み: ❌ 403(過去に拒否された経緯あり → ユーザーの指示で「他人リポはいじるな」になり、pthread への直接コミットは撤回済み)
+  - `kagurasumusun/wince-source`(private): ❌ **404 = トークンの Repository access に含まれていない**
+- サンドボックスにはシステム側の GitHub 認証(ボット)もあり、`git push origin` は `llvm-project` に限定して動く。**トークンを URL 埋め込みで push すると bot 認証が優先され 403 になる**ことがある → `llvm-project` 以外への push は REST API 経脈か、ユーザー自身が行う。
+- **ユーザーへの依頼中の事項**:
+  1. fine-grained トークンに `wince-source` を追加(Contents: Read で可)
+  2. `kagurasumusun/mingwrt` にローカルコミット `5ed3cc4` "Build with LLVM/Clang in addition to GCC" を push(clang対応のため。llvm-project 側のベンダーツリーには同変更済みなので、push は整合性のためだけに必要)
+
+---
+
+## 2. ディレクトリマップ(追加・変更したもの)
+
+```
+wince-sysroot/                    ← 登録済み LLVM ランタイムプロジェクト本体
+├── CMakeLists.txt                ランタイム登録(LLVM_ENABLE_RUNTIMES=wince-sysroot)
+├── include-overlay/              sysroot include に最後に重ねるヘッダ(SAL, intrin.h)
+├── mingwrt/                      kagurasumusun/mingwrt@7c35691 + clang対応コミット相当
+│                                 (include/_mingw.h __declspecプローブに __clang__ 追加、
+│                                  Makefile.in の .def 前処理から -C 除去、
+│                                  coredll_stubs.c setlocale引数の名前化)
+├── w32api/                       kagurasumusun/w32api@51de0ad 無修正
+├── pthread-win32/                GerHobbelt/pthread-win32@06e7608(=上流HEAD)+ WinCE修正3点
+│                                 (詳細は同dir README.llvmvendor.md)
+├── gmon/                         -pg サンプリングプロファイラ (gcrt3.c, libgmon.c)
+└── posix/                        execv/execl(p)/system/waitpid/popen/pclose/signal/alarm
+    └── sys/wait.h
+
+utils/wince/
+├── build-wince-sysroot.sh        ステージ2(sysroot組み立て)本体。検証済み
+├── build-wince-runtimes.sh       ステージ3(compiler-rt/libunwind/libcxx)ドライバ
+├── audit-coredll.py              dumpbin出力 vs def 突合ツール
+├── armasm/armasm-convert.py      armasm→GNU 変換器(フォールバック用。後述)
+└── README.md                     ★全仕様・監査表・検証状況の一次資料(必読)
+
+clang/cmake/caches/WinCE.cmake    ステージ1(ホストビルド)キャッシュ
+clang/test/Driver/wince.c         ドライバ lit テスト(更新済)
+clang/test/Driver/wince-x86.c     i386-mingw32ce テスト
+clang/test/Driver/wince-ctors.c?  → 実ファイルは clang/test/CodeGen/ARM/wince-global-ctors.c
+clang/test/CodeGen/ARM/wince-*.c  EHABI テーブル / グローバル ctor テスト
+clang/test/Parser/ms-pragmas-full.c  MSVCプラグマ実装テスト
+clang/test/Sema/ms-extern.c       extern extern 等の MSVC 構文テスト
+lld/test/COFF/wince-*.s           lld の CE 挙動テスト(image/ctors/relocs/thunk/exidx)
+llvm/test/MC/ARM/wince-*.s        MCレベルのCEテスト
+.actions/build-wince-llvm.yml     CI(ユーザーが .github/workflows/main.yml へ移動済み)
+```
+
+削除したもの: `wince-crt/`(旧ベスポークCRT)、`.gitmodules`+`third-party/*` サブモジュール(すべて in-tree 化)、`utils/wince/patches/`(不要化)。
+
+---
+
+## 3. 実装済み内容(コンポーネント別・検証状態つき)
+
+### 3.1 ターゲット定義(clang/lib/Basic/Targets)
+
+- **ARM**: `WinCEARMTargetInfo`(既存を強化)。GenericARM C++ ABI、TLS=emutls 有効、`_WIN32_WCE` 既定 **0x600**、トリプルのバージョン(wince5.0等)を反映、UNDER_CE/_WIN32_WCE/WINCE/__MINGW32CE__ を `addWinCEDefines()`(OSTargets.cpp)に集約。
+- **X86-32**: `WinCETargetInfo` を新規追加(CeGCC i386/mingw32ce.h の移植)。`__stdcall` 等を cdecl 属性マクロへリライト、呼出規約は受けて無視、`__CEGCC_VERSION__` 等の定義。
+- トリプル: `arm-pc-wince`、`arm-mingw32ce`(エイリアス)、`i386-pc-wince`、`i386-mingw32ce`、バージョン付き `winceN.M`。llvm/TargetParser/Triple.cpp で canonical 化。
+- **TLS**: `Triple::hasDefaultEmulatedTLS()` に WinCE を追加 → `-femulated-tls` 既定。`__thread`/`thread_local` 動作(emutls は TlsAlloc 系を使用、def に記載済み)。
+- CPU 既定: `arm926ej-s`(ARMv5TE / i.MX28系)。`-march=armv4t` 等で変更可。soft-float(armel 相当)。
+
+### 3.2 ドライバ(clang/lib/Driver/ToolChains/WinCE.cpp)
+
+GCC風オプションを lld-link へ翻訳。CeGCC の SPECS を再現:
+
+- STARTFILE: `crt3.o`(EXE) / `dllcrt3.o`(DLL) / `-pg`で`gcrt3.o`
+- ENTRY: EXE 常に `WinMainCRTStartup`(crt3.o はこれしか持たない。main は winmain_ce.o がブリッジ)。DLL は `DllMainCRTStartup`
+- LIB順: `%{mthreads:-lmingwthrd} -lmingw32 -lgcc -lceoldname -lmingwex -lposix(追加) -lcoredll6|coredll`
+  - `-lgcc` → `libclang_rt.builtins-<arch>.a`、`-mthreads/-pthread` → `libmingwthrd.a`+`libpthread.a` と `-D_MT`
+  - **ライブラリ名は sysroot に GNU 名があれば `libX.a`、無ければ `X.lib` を probe**
+- イメージ既定: `/subsystem:windowsce /base:0x10000 /fixed`(DLLは `0x10000000`、/fixed無し)
+- `-wince` を lld-link に渡す(ctors/dtors ブラケット + `__text_start__` バインド用)
+- `-auto-import -runtime-pseudo-reloc` を渡す(dllimportデータ経路)
+- COREDLL 選択: トリプルバージョン < 6.0 なら `coredll`、それ以外 `coredll6`
+- sysroot 不在時に分かりやすい警告(`warn_drv_wince_sysroot_missing`)
+- C++ 標準ライブラリ: `-lc++ -lc++abi -lunwind` 相当(GNU名 probe)
+- `-fgnu89-inline` を既定で付与(eVC/旧mingwrtヘッダの `extern __inline` 規約)
+
+### 3.3 LLD(lld/COFF)
+
+- `config->wince` フラグ(新設、`-wince`)で:
+  - `.ctors/.dtors` を `__CTOR_LIST__/__DTOR_LIST__` にブラケット(-1ヘッド/0終端)。mingwrt の `__main`(gccmain.c)がこれを歩く → **グローバルC++コンストラクタ/デストラクタが動く**
+  - `__text_start__/__text_end__` を .text 境界にバインド(pseudo-reloc.c がイメージベース導出に使用)
+- `__exidx_start/__exidx_end` バインド(既存実装、参照駆動)
+- `-auto-import` + `-runtime-pseudo-reloc` はドライバが明示指定 → dllimport データがリンク可能(`__RUNTIME_PSEUDO_RELOC_LIST__` を mingwrt の `_pei386_runtime_relocator` が処理)
+- subsystem/entry/base の CE 既定(DriverUtils.cpp の windowsce 等、既存部分も維持)
+
+### 3.4 llvm(MC/CodeGen)
+
+- `ARMCOFFMasmParser.cpp`(新規、295→322行): armasm 方言のディレクティブを MC 拡張として実装。ARMCOFFMasmParser 詳細は §6.2
+- `TargetLoweringObjectFileCOFF`: WinCE のグローバル ctor/dtor を `.ctors/.dtors`(GNU形式)に出力。**MSVCの`.CRT$XCU`は使わない**(CEランタイムに `__xc_a` が無いため。過去にここが壊れていた)
+- llvm-dlltool: def ファイルの `;` コメント外文法は変えず、mingwrt 側で `-C` を外して解決
+
+### 3.5 MSVC 互換(clang)
+
+- **既定フラグ**(WinCE ターゲット時): `-fms-extensions -fms-compatibility -fdelayed-template-parsing -fms-compatibility-version=1900 -fgnu89-inline`
+- プラグマ実装: `auto_inline(on/off)`→noinline範囲適用、`check_stack(on/off)`→no_stack_protector、`setlocale`/`conform` は完全文法解析+マッピング警告、`runtime_checks` は受入無視
+- `extern extern` 等の重複ストレージクラスは拡張警告で許可(clang本体機能、テスト `ms-extern.c`)
+- `__uuidof`/`__declspec(uuid)`: clang本体が対応済み(追加不要だった)
+- SAL: `wince-sysroot/include-overlay/sal.h` を新規作成(`_In_/_Out_` 系 + 旧 `__in` 系の no-op 定義)
+- `<intrin.h>`: `include-overlay/intrin.h` 新規。**ARMv5TE では arm_acle.h を include しない**(LLVMのACLEヘッダの `__dmb` は v6+ 専用 intrinsic で v5 で codegen エラーになる)。v5 は `CacheSync` ベースの `__dmb/__dsb/__isb` を提供、v6+ は ACLE。`_CountLeadingZeros` も実装
+
+### 3.6 sysroot(ステージ2)
+
+`build-wince-sysroot.sh` が実施(検証済み・EXIT=0):
+
+1. mingwrt を patch 無しで in-tree から configure/make(host_alias=arm-mingw32ce)。dlltool は `llvm-dlltool -m armce` への sh アダプタ(`--def`→`-d`、`--as`除去、`--output-def`は llvm-nm で合成)
+2. 生成物: `crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o libmingw32.a libm.a libmingwex.a libceoldname.a libcoredll.a libcoredll6.a` + **`libmingwthrd.a`(crtmt.o を直接アーカイブ。mingwrt 自身のルールは DLLリンクを巻き込むため回避)**
+3. ヘッダ: mingwrt install-headers → sysroot/include
+4. w32api: libce の全 def→`lib*.a`(71個)+ ヘッダコピー
+5. pthreads4w: `pthread.c` ジャンボビルド(`-D_MT -DPTW32_STATIC_LIB -D__CLEANUP_C -D__PTHREAD_JUMBO_BUILD__`)→ `libpthread.a`、ヘッダ5個
+6. gmon: `gcrt3.o` + `libgmon.a`
+7. posix: `libposix.a`(process/popen/signal)+ `sys/wait.h`
+
+最終ライブラリ数 76、ヘッダ 426+。`include-overlay`(sal.h, intrin.h)もステージ済み。
+
+### 3.7 ステージ3
+
+`build-wince-runtimes.sh`: compiler-rt builtins(`libclang_rt.builtins-arm.a`)、libunwind/libc++abi/libc++ 静的(`LIBCXX_HAS_PTHREAD_API=ON`、filesystem OFF、WinCEロケールバックエンド `libcxx/src/support/wince/locale_wince.cpp` 既存使用)。**実ビルドは未実行**(ステージ1の clang が必要なため。CI で回る想定)。
+
+### 3.8 -pg プロファイラ(実装済み)
+
+- `gcrt3.o`: crt3 のライフサイクル + `__gmon_start/__gmon_stop`
+- `libgmon.a`: BSD gmon.out(TIME_HIST)を書く。サンプラースレッド(10ms、低優先度、SuspendThread/GetThreadContext/ResumeThread)。`mcount` は no-op(clang の `-pg` は `bl mcount` のみで、EABI フレーム契約がないためアーク収集不可 — フラットプロファイルのみ)
+- 使い方: `clang --target=arm-pc-wince -pg hello.c -o hello.exe` → 実行 → `gmon.out` を gprof で解析
+
+### 3.9 POSIX 層(libposix.a)
+
+- `execv/execvp/execl/execlp`: CreateProcess → 待機 → 子の終了コードで自exit(POSIX近似)
+- `system()`: CreateProcess 直(CEにシェルなし)。戻り値は waitpid エンコーディング
+- `waitpid`: ランタイム子テーブル + WNOHANG
+- `popen/pclose`: **"r"は子完了後にテンポラリファイルを開く(CEは子stdoutリダイレクト不可という文書化済み限界)、"w"は子をpcloseまで遅延**
+- `signal/raise/alarm`: レジストリ+協調配送、SIGALRM はタイマスレッド。フォルト起因のSIGSEGV等は要VEH(def未記載、カーネル側は存在の可能性→要確認)
+- `fork`: **不可能**(CEにCOWなし。CygwinモデルはOSレイヤープロジェクト)
+
+### 3.10 coredll.def 完全化
+
+- アーカイブ済み CE5/WM6 dumpbinダンプ(1,799関数)**全9チャンクを照合、欠落30名を追加**(CeMapArgument, allPrivilege, C++マングル28個)
+- `TlsAlloc/TlsFree` を追加(MSDN確認: CE 1.0+に存在。CeGCC def の漏れ)
+- `audit-coredll.py`: 実機 dumpbin 出力との照合ツール
+- 注意: `wcsdup` は `_wcsdup` と記載されており名前不一致 → mingwex/wince/wcsdup.c でローカル提供
+
+### 3.11 armasm 対応(2経路)
+
+- **Path A(フォールバック)**: `utils/wince/armasm/armasm-convert.py`。AREA/PROC/ENDP/EXPORT/IMPORT/DCB/DCD/EQU/IF/MACRO($パラメータ)/GET 等を GNU へ変換。CEドライバ風ソースとマクロテストの両方で assemble 検証済み
+- **Path B(正規・実装済み)**: `llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp`(新規)。MASM系パーサ拡張として AREA/PROC/ENDP/EXPORT/IMPORT/EXPORTAS/ALIGN/ENTRY/END + 無視ディレクティブ群を実装。CMake 登録、`createARMCOFFMasmParser()` を MCAsmParser.h に宣言。cc1as に `Opts.MasmDialect`(=2でarmasm)を追加し、ARM/Thumb トリプルで拡張をアタッチ。**clang ドライバは WinCE 向け `.s` 入力に `-masm=armasm` を既定転送**
+- これで `clang --target=arm-pc-wince -c driver.asm` が直接動くはず(**実機検証はステージ1ビルド待ち**)
+
+### 3.12 MSVC PRAGMA・その他の言語機能
+
+- `ms-pragmas-full.c` テスト参照。Sema 経由の auto_inline/check_stack は `SemaAttr.cpp` に実装
+- `__declspec` 系、`__int64` 等の型マッピング、`__uuidof` は clang 本体機能でカバー
+
+---
+
+## 4. 検証の現状(何が済んでいて何が済んでいないか)
+
+### 検証済み(zig bundled clang 18/21 をホストスタンドインとして使用)
+
+- sysroot フルビルド(76 ライブラリ、426+ ヘッダ、libpthread/libposix/libgmon 含む)
+- シンボルレベル監査: 301オブジェクトの未解決参照を自作パーサで抽出 → **残存ゼロ**(リンカ提供シンボルと `__aeabi_*` を除く)
+- クライアント TU(windows.h/pthread.h/tchar.h)がステージ済み sysroot のみでコンパイル可能
+- 厳格 C17 スイープ(`-std=c17`/`-std=gnu17`): **警告ゼロ**。言語世代更新は完了
+- armasm 変換器 → zig clang で ARM COFF オブジェクト生成まで
+- lit テスト群はソース上更新済みだが、**lit 実行は未**(ステージ1が必要)
+
+### 未検証/未実施
+
+1. **ステージ1(LLVM/Clang自体のビルド)** — このサンドボックス(2コア/3GB)では不可能。CI(`.actions/build-wince-llvm.yml` → ユーザーが `.github/workflows/main.yml` に移動済み)で実行される想定
+2. **ステージ3の実ビルド** — 同上
+3. **実機テスト** — 一切未実施。旧 `wince-crt/docs/DEVICE-TESTING.md` は削除済み(必要なら履歴から復元)
+4. coredll dump の残チャンク2/3/5/6の `audit-coredll.py` 検収(チャンク0/1/4/7は手動照合済み。2/3/5/6も現在は全部照合済みという記載に更新するのを忘れていた可能性 → **要確認**: 実際には §3.10 の通り全9チャンク照合・欠落30追加が完了している)
+
+---
+
+## 5. 重要な設計判断と理由(後続者が再検討しないよう記録)
+
+1. **ベスポークCRTを廃止した理由**: ユーザー指摘どおり、mingwrt/w32api をそのまま使う方が正しい。wince-crt は削除済み
+2. **サブモジュール廃止 → in-tree vendoring**: ユーザー指摘。LLVMの構造ではランタイムが自身のソースを所有(compiler-rt と同型)
+3. **`third-party/` ではない場所に置く**: ユーザー指摘で `wince-sysroot/` ランタイムプロジェクト直下に移動
+4. **global ctor/dtor を GNU 形式にした理由**: `.CRT$XCU` は MSVC CRT の `__xc_a` 起動オブジェクトを要求し、CEランタイムに存在しない。mingwrt の `__main` が歩くのは `__CTOR_LIST__`
+5. **EXE エントリを常に WinMainCRTStartup にした理由**: crt3.o が定義する唯一のエントリ。`mainCRTStartup` はどこにも存在しない(過去に -mconsole リンクが必ず失敗していた)
+6. **libmingwthrd.a を crtmt.o 直アーカイブにした理由**: mingwrt の正規ルールは def 生成→DLLリンクを巻き込む。静的リンクに必要なのは crtmt.o のみ
+7. **`__declspec` を clang 側でマクロ定義しない**: 当初 clang 側ブリッジを試したが、ユーザー指示で mingwrt 側修正(`__clang__` をプローブに追加)に変更し、clang 側は revert 済み
+8. **pthread-win32 に直接コミットしない**: ユーザー指示(他人リポジトリのため)。修正はベンダーツリー内に適用済み(注: ユーザーが後に `kagurasumusun/pthread-win32` フォークを作成したので、将来的にそちらへ upstream するのが望ましい)
+9. **C17 ピン留め**: C23 はキーワード吸収(bool等)リスクがあるため C17 で停止。`-fgnu89-inline` 併用
+10. **ARMv5TE で arm_acle.h を include しない**: clangのACLEヘッダの `__dmb` は v6+ 専用 intrinsic で、v5 では codegen が fallback しない(検証済みエラー)。v5 は CacheSync バリア
+
+---
+
+## 6. 未完了作業(引き継ぎタスク)
+
+### 6.1 【ブロック中】wince-source アクセス → ARM32 WinEH CE 実装
+
+**現状**: トークンが `kagurasumusun/wince-source`(private)にアクセスできない。404。トークンの Repository access に追加が必要(Contents: Read で十分)。ユーザーは AE600(CE6 + R2/R3 抽出ソース)をそこに置いたと発言。
+
+**アクセス可能になり次第の実装計画(調査済み・詳細)**:
+
+参考にする既存 in-tree 資産(全て存在確認済み):
+
+| 資産 | 場所 | 状態 |
+|---|---|---|
+| `EncodingType::CE` enum | llvm/include/llvm/MC/MCAsmInfo.h:48 | 宣言のみ、エミッタなし |
+| `ARMCOFFMCAsmInfoMicrosoft` | ARMMCAsmInfo.cpp:115 | WinEH + Itanium エンコーディング設定済み |
+| `ARMWinCOFFStreamer` + `Win64EH::ARMUnwindEmitter` | ARMWinCOFFStreamer.cpp | .pdata/.xdata 出力、**パックドアンワインド命令コード実装済み**(`ARMEmitUnwindInfo` with TryPacked, MCWin64EH.cpp:2517) |
+| ARMAsmParser の `.seh_*` ディレクティブ | ARMAsmParser.cpp | 存在 |
+| `WinEHPrepare` パス | TargetPassConfig.cpp:943 | ターゲット非依存で存在 |
+| `WinException` | WinException.cpp | isThumb 対応、!isAArch64 パスあり |
+
+**実装ステップ**:
+
+1. **wince-source から CE 形式の実データを確認**:
+   - `PRIVATE\WINCEOS\COREOS\CORE\` 配下の coredll 関連、SEH 使用箇所
+   - CE の RUNTIME_FUNCTION / UNWIND_INFO 形式(ARM NT とどこが違うか。恐らく同一またはサブセット)
+   - `__CxxFrameHandler`(v1)が期待する FuncInfo/TryBlockMap レイアウト
+2. **`EncodingType::CE` の実装**:
+   - `ARMMCAsmInfo.cpp` の `ARMCOFFMCAsmInfoMicrosoft` で CE トリプル時に `WinEHEncodingType = EncodingType::CE` を選択
+   - `ARMWinCOFFStreamer::emitWindowsUnwindTables` と `MCWin64EH.cpp::ARMEmitUnwindInfo` に CE 分岐を追加(恐らく ARM NT とほぼ同一。差分は coredll.def/実機ダンプで確認)
+   - `AsmPrinter.cpp:647` の switch に `EncodingType::CE` ケースを追加(`WinException` を使う)
+3. **SEH(`__try/__except`)の配線**:
+   - coredll6.def に `__C_specific_handler` **存在確認済み**(行1213)。SEH はこれで動く
+   - `WinCEARMTargetInfo` / ドライバで CE 時に `ExceptionHandling::WinEH` を選択するフラグを追加(現状は `ExceptionHandling::ARM`=EHABI。**注意**: C++ 例外(EHABI)と SEH は別経路。カーネルソースの `__try` は SEH なので WinEH が必要だが、libc++ の C++ 例外は EHABI を使い続ける設計。両立方法は `WinException` 側で SEH C フレームのみ処理する形を検討)
+   - 実装の詳細な分岐設計は wince-source の実データを見てから
+4. **C++ 例外(`__CxxFrameHandler` v1)**:
+   - coredll6.def 行1214 に `__CxxFrameHandler` あり(`3`は無し)
+   - clang の WinException は `__CxxFrameHandler3` 用テーブルを出す。**v1 形式への対応 or 互換サンク**(coredll に v1 ラッパーを差し込む)のどちらか。AE600 の `__CxxFrameHandler` 実装を参照して決定
+   - なお本ツールチェーンの C++ 例外は libc++ + EHABI(GenericARM)が既定なので、**SEH が動けば C++ の WinEH 化は必須ではない**。優先度は低い
+5. **lld**: `.pdata` の FixupV2 等の CE 向け調整
+6. **検証**: AE600 の SEH 使用ソース(カーネル or ドライバ)を実際に `clang --target=arm-pc-wince -c` し、`llvm-readobj` で unwind 情報を確認
+
+**工数の目安**: SEH のみなら数日。`__CxxFrameHandler` v1 までだと 1-2週。
+
+### 6.2 【すぐできる】小タスク
+
+- [ ] `utils/wince/README.md` の「COREDLL def completeness」節: 「chunks 0/1/4/7 spot-check」の記述を「全9チャンク照合完了・欠落30追加・残ゼロ」に更新(§3.10 の通り作業は完了済み。README の記述だけ古い箇所が残っている可能性)
+- [ ] `.actions/build-wince-llvm.yml` と `.github/workflows/main.yml` の重複解消(ユーザーが main.yml に移動済み。`.actions` 側は残置。ユーザー判断で削除可と伝える)
+- [ ] `kagurasumusun/mingwrt` への push リマインド(コミット `5ed3cc4`。現在は llvm-project 内ベンダーに同内容があるためブロッカーではない)
+- [ ] `wince-sysroot/posix/` の `signal.c` — VEH(`AddVectoredExceptionHandler`)が CE カーネルに存在するか coredll.def に追記するかの検討(フォルト起因 SIGSEGV 対応のため)
+- [ ] errno のスレッド対応(TlsAlloc が解禁されたので実装可能に。ただしランタイム意味論の変更なので要承認)
+
+### 6.3 【将来】OS ビルド基盤(AE600 前提で実装可能と結論済み)
+
+- `build.exe` クローン(sources/dirs ツリーウォーカ)
+- `sysgen` クローン(SYSGEN_XXX → def フィルタ。**これが AE600 のフル def と我々の完全 def を繋ぐ役割**)
+- `makeimg`/BIB/REG/DAT コンパイラ(形式は文書化済みで安定)
+- 詳細は `utils/wince/README.md` の「OS build platform」節
+
+### 6.4 【継続的】
+
+- 実機テスト(デバイスなし)。`gweslab/cerf`(CEエミュレータ)が検証に使える可能性あり
+- 上流 LLVM へのフィードバック(ARMCOFFMasmParser、EncodingType::CE 等)
+
+---
+
+## 7. ビルド & テスト手順(後続者がそのまま実行できる形)
+
+### ステージ1(ホストツールチェーン)
+
+```bash
+cmake -G Ninja -S llvm -B build -C clang/cmake/caches/WinCE.cmake \
+  -DCMAKE_BUILD_TYPE=Release
+ninja -C build clang lld llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc \
+  llvm-readobj llvm-objdump FileCheck
+ninja -C build install   # install/wince-llvm に入る
+```
+
+マシン要件: 8コア/16GB+ 推奨(このサンドボックスでは不可能だった)。CI で実行推奨。
+
+### ステージ2(sysroot)
+
+```bash
+utils/wince/build-wince-sysroot.sh \
+  --toolchain <install>/bin --target arm-pc-wince \
+  --prefix <install>/wince-sysroot --jobs $(nproc)
+```
+
+スモークスタンドイン(本ツールチェーン無しで動作確認するトリック):
+zig bundled clang を `/tmp/fake-tc/bin/{clang,llvm-ar,llvm-ranlib,llvm-dlltool}` にラッパーとして置き、`/tmp/wince-defines.h`(CEプリディファイン集)を `-include` する。過去の検証はすべてこの方法。詳細は git 履歴の会話ログではなく、スクリプト自体を見れば分かる構造。
+
+### ステージ3(ランタイム)
+
+```bash
+utils/wince/build-wince-runtimes.sh --toolchain <install>/bin \
+  --sysroot <install>/wince-sysroot
+```
+
+### lit テスト
+
+```bash
+ninja -C build check-clang-driver check-lld-coff  # 関連のみ
+# 個別:
+build/bin/llvm-lit -sv clang/test/Driver/wince.c lld/test/COFF/wince-ctors.s
+```
+
+---
+
+## 8. 罠・学び(同じ轍を踏まないために)
+
+1. **zig cc は `--target=arm-pc-wince` を解釈しない** → `arm-freestanding-eabi -mcpu=arm926ej_s -fms-extensions -fshort-wchar` に書き換えるラッパーで検証する
+2. **zig の builtin ヘッダ(float.h/stdarg.h/arm_acle.h)が本家 clang と異なる**。特に arm_acle.h の `__dmb` は v5 で codegen 死。CE ソース側では ACLE に直接依存しない
+3. **mingwrt の def 生成規則は `-C -E -P`** — C コメントが def に残り llvm-dlltool が死ぬ。`-C` 除去で解決済み(マージ済み)
+4. **`llvm-dlltool -m armce`**: `armce` は llvm 独自の別名(ARM 0x01c0)。`-m arm` は ARMNT になるので混同しない
+5. **posix ラッパーソースの先頭コメントに `exec*/system` と書くと `*/` でコメントが閉じる** → `exec* / system` と書くこと(実際にやった)
+6. **cc1as に新しい Opts を足すときは Opts 構造体(cc1as_main.cpp 内)とパース両方**
+7. **fine-grained トークンは Repository access に入っていないリポを404で隠す**
+8. **ドキュメントの分かりやすさのため、README(utils/wince/README.md)が一次資料**。本資料と矛盾したら README を疑う(README の方が細かい)
+9. ユーザーの指示は日本語。返信は日本語。コミットメッセージは英語(リポ慣習)
+10. ユーザーは「勝手に他人のリポジトリを触るな」「パッチファイルより直接修正」→「他人のは直接触るな」と方針が進化した。**最終方針: 自分たちのリポは直接修正、他人のリポは修正しない**
+
+---
+
+## 9. ユーザーとの約定事項・経緯メモ
+
+1. 最初は CeGCC 参照の wince 対応 → wince-crt 作成(他人のセッション)
+2. ユーザー: 「mingwrt/w32api を使え。wince-crt は不適切」→ wince-crt 廃止
+3. ユーザー: 「mingwrt 自体を clang でビルドできるように(パッチではなく)」→ mingwrt に直接コミット
+4. ユーザー: 「勝手に他人のリポを触るな。kagurasumusun だけにしろ」→ pthread はパッチ方式へ
+5. ユーザー: 「サブモジュールではなく正規の llvm&clang の一部として」→ in-tree vendoring(third-party は不適切と指摘され wince-sysroot/ へ)
+6. ユーザー: 「断線経路を全部確認」「SEH/デストラクタが壊れている」→ 各種修正
+7. ユーザー: 「-pg 実装して」「posix 実装して」「armasm 正規実装して」「C17 更新して」→ 実施
+8. ユーザー: 「AE600 があるので OS ビルド基盤も自前実装可能では?」→ 実装計画策定(未実装)
+9. ユーザー: 「wince-source から参考ソースを取得して WinEH 実装して」→ **トークン権限不足でブロック中**
+
+---
+
+## 10. 関連ドキュメント
+
+- `utils/wince/README.md` — 一次資料(最も詳細)。矛盾があればこちらを優先し本資料を更新
+- `wince-sysroot/*/README.llvmvendor.md` — ベンダー証跡
+- `clang/cmake/caches/WinCE.cmake` — ステージ1設定
+- 各テストファイル — 期待動作の仕様書を兼ねる
+
+(以上)
