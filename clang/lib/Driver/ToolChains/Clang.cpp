@@ -8644,6 +8644,19 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
 
   getToolChain().addClangCC1ASTargetOptions(Args, CmdArgs);
 
+  // armasm dialect (Windows CE PB sources): forward -masm=armasm to the
+  // integrated assembler; the WinCE toolchain defaults to it.
+  if (Arg *A = Args.getLastArg(options::OPT_masm_EQ)) {
+    StringRef V = A->getValue();
+    if (V == "armasm") {
+      CmdArgs.push_back("-masm=armasm");
+      A->claim();
+    }
+  } else if (Triple.isWindowsCE()) {
+    // The WinCE toolchain assembles PB-style sources by default.
+    CmdArgs.push_back("-masm=armasm");
+  }
+
   // Set the output mode, we currently only expect to be used as a real
   // assembler.
   CmdArgs.push_back("-filetype");

@@ -31,6 +31,7 @@
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
@@ -131,6 +132,8 @@ struct AssemblerInvocation {
   /// @{
 
   unsigned OutputAsmVariant;
+  /// 0 = GNU as syntax, 1 = MASM x86, 2 = armasm (ARM MASM dialect).
+  unsigned MasmDialect;
   LLVM_PREFERRED_TYPE(bool)
   unsigned ShowEncoding : 1;
   LLVM_PREFERRED_TYPE(bool)
@@ -356,6 +359,12 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   // Transliterate Options
   Opts.OutputAsmVariant =
       getLastArgIntValue(Args, OPT_output_asm_variant, 0, Diags);
+  // -masm=armasm -> 2 (parsed by the clang driver, forwarded here)
+  {
+    StringRef Masm = Args.getLastArgValue(OPT_masm_EQ);
+    Opts.MasmDialect =
+        StringSwitch<unsigned>(Masm).Case("armasm", 2).Default(0);
+  }
   Opts.ShowEncoding = Args.hasArg(OPT_show_encoding);
   Opts.ShowInst = Args.hasArg(OPT_show_inst);
 
@@ -616,6 +625,17 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
 
   std::unique_ptr<MCAsmParser> Parser(
       createMCAsmParser(SrcMgr, Ctx, *Str, *MAI));
+
+  // armasm dialect (-masm=armasm): attach the ARM armasm directive
+  // extension (AREA/PROC/ENDP/EXPORT/IMPORT/ALIGN...) so Windows CE
+  // Platform Builder sources assemble natively.  The regular ARM
+  // instruction parser handles the mnemonics.
+  if (Opts.MasmDialect == /*armasm*/ 2 &&
+      (TheTriple.getArch() == Triple::arm ||
+       TheTriple.getArch() == Triple::thumb)) {
+    if (MCAsmParserExtension *Ext = createARMCOFFMasmParser())
+      Ext->Initialize(*Parser);
+  }
 
   // FIXME: init MCTargetOptions from sanitizer flags here.
   std::unique_ptr<MCTargetAsmParser> TAP(

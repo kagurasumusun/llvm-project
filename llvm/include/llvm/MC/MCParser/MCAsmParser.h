@@ -347,6 +347,10 @@ LLVM_ABI MCAsmParser *createMCMasmParser(SourceMgr &, MCContext &, MCStreamer &,
                                          const MCAsmInfo &, struct tm,
                                          unsigned CB = 0);
 
+/// Extension factory: armasm (MASM-ARM) dialect directives on top of the
+/// regular ARM AsmParser.  Used for Windows CE Platform Builder sources.
+LLVM_ABI MCAsmParserExtension *createARMCOFFMasmParser();
+
 } // end namespace llvm
 
 #endif // LLVM_MC_MCPARSER_MCASMPARSER_H
