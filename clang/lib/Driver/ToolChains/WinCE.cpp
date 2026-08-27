@@ -297,6 +297,11 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // constructors/destructors) and otherwise treat the image as CeGCC's
   // arm-wince emulation did.
   CmdArgs.push_back("-wince");
+  // CeGCC's binutils default: --enable-auto-import + runtime pseudo relocs.
+  // mingwrt's _pei386_runtime_relocator (in libmingw32) processes the
+  // __RUNTIME_PSEUDO_RELOC_LIST__ lld-link synthesizes.
+  CmdArgs.push_back("-auto-import");
+  CmdArgs.push_back("-runtime-pseudo-reloc");
 
   // --- Output file --------------------------------------------------------
   SmallString<128> OutFile(Output.getFilename());

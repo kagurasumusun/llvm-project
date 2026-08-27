@@ -125,6 +125,22 @@ fallback so both sysroot layouts resolve.  `-Wl,` GNU spellings
 `--out-implib`, `--major/--minor-image-version`, `--dynamicbase`) are
 translated to their lld-link forms.
 
+## Linkage/runtime chain audit
+
+Every startup path from the compiler through the linker to the runtime,
+audited end to end:
+
+| chain | status |
+|---|---|
+| C/C++ global constructors & destructors | complete: clang emits GNU `.ctors`/`.dtors` (priority subsections, associative) -> lld-link `-wince` brackets `__CTOR_LIST__`/`__DTOR_LIST__` (-1 head, 0 tail) -> mingwrt `__main` walks them; dtors via `atexit` |
+| dllimport data (`__declspec(dllimport)` direct references) | complete: lld-link `-auto-import` (CeGCC's binutils default `--enable-auto-import`) synthesizes `.refptr` per-object stubs and `-runtime-pseudo-reloc` emits `__RUNTIME_PSEUDO_RELOC_LIST__`, processed at startup by mingwrt's `_pei386_runtime_relocator` (in libmingw32) |
+| C++ exceptions / unwinding | complete: ARM EHABI `.ARM.exidx` from clang, `__exidx_start/__exidx_end` bound by lld-link, libunwind + libc++abi (`GenericARM` C++ ABI) |
+| atexit / `_onexit` | complete: mingwrt's private atexit table (COREDLL exports neither), flushed by `_cexit` at the end of `crt3`/`dllcrt1` |
+| argv / WinMain | complete: mingwrt `crt3.c` dispatches to `WinMain`; `winmain_ce.o` in libmingw32 provides the `WinMain -> main` adapter, `mainCRTStartup` builds argv from `GetCommandLineW` |
+| runtime pseudo relocations & import thunks | complete: ARM-mode `ldr ip,[pc]` thunks identical to binutils `jmp_arm_bytes`, `_pei386_runtime_relocator` handles imported-data offsets |
+| thread-local storage | **unsupported by the platform**: COREDLL exports no `TlsAlloc`/`TlsFree` (CE allocates TLS per-DLL through the `DllMain` `reserved` parameter), so neither native TLS nor the emutls fallback (whose Windows path requires `TlsAlloc`) can run; `__thread`/`thread_local` are diagnosed as unsupported, exactly as eMbedded Visual C++ did. The WinCE targets document this and do NOT claim emutls lowering |
+| profiling (`-pg`, `gcrt3.o`/`libgmon`) | not provided by the mingw32ce build of mingwrt (the `profile/` sources are desktop-CRT only); CeGCC's LIB_SPEC kept the hook but nothing satisfied it |
+
 ## Architecture baseline (ARM926EJ-S / i.MX28 / ARMv5TE / armel)
 
 * Default CPU: **arm926ej-s** — the ARMv5TE generation core of the
@@ -184,6 +200,14 @@ implemented (see `clang/lib/Parse/ParsePragma.cpp`):
   mode, and the clang mapping is reported.
 * `#pragma runtime_checks` remains accepted-and-ignored (it guards
   /RTC checks, which have no clang equivalent).
+
+Storage-class syntax: redundant identical specifiers — `extern extern`,
+`static static`, `inline extern` orderings, `extern __inline`, and
+`extern __forceinline` — are accepted with the extension warning
+(`-Wduplicate-decl-specifier`), matching MSVC's tolerance for these
+machine-generated and ported-header patterns; mixing *different* storage
+classes remains an error (MSVC C2159 likewise).
+See `clang/test/Sema/ms-extern.c`.
 
 ## Verification status
 

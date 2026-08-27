@@ -51,6 +51,8 @@
 // RUN:   | FileCheck %s --check-prefix=LINK
 // LINK: lld-link
 // LINK: "-wince"
+// LINK: "-auto-import"
+// LINK: "-runtime-pseudo-reloc"
 // LINK: /subsystem:windowsce
 // LINK: /entry:WinMainCRTStartup
 // LINK: /base:0x10000

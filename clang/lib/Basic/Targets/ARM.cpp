@@ -1502,8 +1502,12 @@ WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
                                        const TargetOptions &Opts)
     : WindowsARMTargetInfo(Triple, Opts) {
   TheCXXABI.set(TargetCXXABI::GenericARM);
-  TLSSupported = false; // WinCE provides no static-TLS loader support;
-                        // __thread is lowered to emutls by the compiler.
+  // COREDLL exports no TlsAlloc/TlsFree (CE uses a per-DLL slot via the
+  // DllMain 'reserved' parameter instead), so neither native TLS nor the
+  // emutls fallback (whose Windows path is built on TlsAlloc) can work:
+  // __thread / thread_local are diagnosed as unsupported, exactly like
+  // the eMbedded Visual C++ compiler for this platform.
+  TLSSupported = false;
 }
 
 void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,

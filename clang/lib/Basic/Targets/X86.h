@@ -644,7 +644,10 @@ class LLVM_LIBRARY_VISIBILITY WinCETargetInfo : public WindowsX86_32TargetInfo {
 public:
   WinCETargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : WindowsX86_32TargetInfo(Triple, Opts) {
-    TLSSupported = false; // no static-TLS loader on WinCE; __thread -> emutls
+    // COREDLL exports no TlsAlloc/TlsFree, so neither native TLS nor the
+    // emutls fallback (built on TlsAlloc) is available; __thread /
+    // thread_local are diagnosed as unsupported, matching eMbedded VC++.
+    TLSSupported = false;
   }
 
   void getTargetDefines(const LangOptions &Opts,
