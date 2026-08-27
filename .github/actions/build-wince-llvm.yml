@@ -8,20 +8,7 @@ on:
         default: "arm-pc-wince"
         type: choice
         options: [arm-pc-wince, i386-pc-wince]
-  push:
-    branches: ["**wince**"]
-    paths:
-      - "clang/**"
-      - "lld/**"
-      - "llvm/**"
-      - "compiler-rt/**"
-      - "libcxx/**"
-      - "libcxxabi/**"
-      - "libunwind/**"
-      - "wince-sysroot/**"
-      - "utils/wince/**"
-      - ".actions/build-wince-llvm.yml"
-
+  
 permissions:
   contents: read
 
