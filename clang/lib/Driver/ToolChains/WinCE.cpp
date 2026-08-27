@@ -13,6 +13,7 @@
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Options/Options.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/TargetParser/Host.h"
 
@@ -228,6 +229,12 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     llvm::sys::path::replace_extension(OutFile, IsDLL ? ".dll" : ".exe");
   CmdArgs.push_back(Args.MakeArgString(Twine("/out:") + OutFile));
 
+  // Needed early: the -l translation below probes the sysroot lib dir to
+  // decide between the GNU ("lib<name>.a") and MS ("<name>.lib") spellings.
+  const auto &WinCETC = static_cast<const toolchains::WinCE &>(TC);
+  SmallString<128> LibDir(WinCETC.getSysRootPath());
+  llvm::sys::path::append(LibDir, "lib");
+
   // --- Translate GCC-style flags ------------------------------------------
   bool HaveSubsystem = false, HaveEntry = false, HaveBase = false;
   bool HaveDynamicBase = false, WantConsole = false, HaveDLL = false;
@@ -250,10 +257,23 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     case options::OPT_s:
       // Consumed here or handled through other channels; nothing to forward.
       break;
-    case options::OPT_l:
-      // lld-link searches "<name>.lib" in the /libpath: directories.
-      CmdArgs.push_back(Args.MakeArgString(Twine(A->getValue()) + ".lib"));
+    case options::OPT_l: {
+      // Our wince-crt sysroot names its import libraries/archives
+      // "<name>.lib" (see wince-crt/CMakeLists.txt), which is what
+      // lld-link looks for by default. If a user or a future sysroot
+      // build (e.g. a straight, unmodified mingwrt/w32api `make install`
+      // via utils/wince/build-wince-sysroot.sh) instead installs GNU-style
+      // "lib<name>.a" dlltool archives, prefer that spelling when it is
+      // actually present so both sysroot layouts resolve correctly.
+      StringRef Name = A->getValue();
+      SmallString<128> GNUName(LibDir);
+      llvm::sys::path::append(GNUName, (Twine("lib") + Name + ".a").str());
+      if (llvm::sys::fs::exists(GNUName))
+        CmdArgs.push_back(Args.MakeArgString(Twine("lib") + Name + ".a"));
+      else
+        CmdArgs.push_back(Args.MakeArgString(Name + ".lib"));
       break;
+    }
     case options::OPT_e:
       HaveEntry = true;
       CmdArgs.push_back(Args.MakeArgString(Twine("/entry:") + A->getValue()));
@@ -341,14 +361,22 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("/fixed");
 
   // --- Runtime objects and default libraries ------------------------------
-  const auto &WinCETC = static_cast<const toolchains::WinCE &>(TC);
-  SmallString<128> LibDir(WinCETC.getSysRootPath());
-  llvm::sys::path::append(LibDir, "lib");
+  // The sysroot layout mirrors a stock CeGCC install tree: mingwrt and
+  // w32api are built (see utils/wince/build-wince-sysroot.sh) against this
+  // very toolchain and staged as <sysroot>/{include,lib}, exactly as they
+  // would be under real arm-mingw32ce binutils/gcc. This lets clang consume
+  // an unmodified mingwrt/w32api checkout instead of a bespoke CRT.
   CmdArgs.push_back(Args.MakeArgString(Twine("/libpath:") + LibDir));
+
+  const bool WantThreads = Args.hasArg(options::OPT_mthreads);
 
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
-    // C runtime startup object: must precede all user objects.
+    // wce.lib's crt0.obj/dllcrt0.obj are now compiled directly from
+    // mingwrt's own crt3.c/dllcrt1.c (mingwrt's CRT0S picks exactly these
+    // two sources for *-*-mingw32ce* hosts; see mingwrt/Makefile.in) plus
+    // mingwrt/winmain_ce.c for the main()<->WinMain() adapter -- see
+    // wince-crt/CMakeLists.txt. Must precede all user objects.
     SmallString<128> Crt(LibDir);
     llvm::sys::path::append(Crt, IsDLL || HaveDLL ? "dllcrt0.obj" : "crt0.obj");
     CmdArgs.push_back(Args.MakeArgString(Crt));
@@ -358,9 +386,15 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
       !Args.hasArg(options::OPT_nodefaultlibs)) {
     // Ordering follows the CeGCC link line
     //   -lmingw32 -lgcc -lceoldname -lmingwex -lcoredll
-    // with libgcc replaced by compiler-rt builtins and libwce carrying the
-    // mingw32/crt glue (main<->WinMain adapters, pseudo-relocation, thread
-    // glue, pthread shims for the C++ runtime).
+    // with libgcc replaced by compiler-rt builtins. wce.lib now holds only
+    // the pthread shim libc++'s threading backend needs (no pthreads API
+    // exists on WinCE/mingwrt/w32api) plus the handful of mingwrt .c files
+    // CeGCC's own libmingw32.a would have pulled in as objects rather than
+    // an archive; the CRT startup objects and main/WinMain glue linked
+    // above are mingwrt's own crt3.c/dllcrt1.c/winmain_ce.c, compiled
+    // as-is -- see wince-crt/CMakeLists.txt.
+    (void)WantThreads; // mingwrt's -mthreads variant (libmingwthrd) is not
+                       // wired up in the sysroot build yet; see the roadmap.
     CmdArgs.push_back("wce.lib");
     CmdArgs.push_back("mingwex.lib");
     CmdArgs.push_back("clang_rt.builtins-arm.lib");
