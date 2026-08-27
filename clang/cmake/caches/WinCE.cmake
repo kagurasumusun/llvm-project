@@ -59,7 +59,8 @@ set(LLVM_LINK_LLVM_DYLIB OFF CACHE BOOL "")
 set(LLVM_ENABLE_PEDANTIC OFF CACHE BOOL "")
 set(LLVM_ENABLE_WARNINGS OFF CACHE BOOL "")
 set(LLVM_ENABLE_ONDISK_CAS OFF CACHE BOOL "")
-set(LLVM_ENABLE_EXPORTED_SYMBOLS_IN_EXECUTABLES OFF CACHE BOOL "")
+# Host tools are plain static executables: no PIC needed (faster compiles).
+set(LLVM_ENABLE_PIC OFF CACHE BOOL "")
 # Install only the toolchain binaries (not every tool/header).
 set(LLVM_INSTALL_TOOLCHAIN_ONLY ON CACHE BOOL "")
 set(LLD_ENABLE_THREADS ON CACHE BOOL "")
