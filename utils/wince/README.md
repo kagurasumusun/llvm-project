@@ -387,7 +387,35 @@ rule that protects the ABI also protects the platform boundary.
 | `<windows.h>` | provided (w32api CE 255-header SDK: windef/winbase/wingdi/winuser/winsock/... + pshpack/poppack) |
 | C++ (libc++) | C++11/14/17 + most C++20; `thread_local` via emutls |
 
-## armasm syntax support: IMPLEMENTED (`utils/wince/armasm/armasm-convert.py`)
+## armasm as a proper LLVM mechanism
+
+Two integration paths exist; the LLVM codebase already contains 80% of
+the second one:
+
+* **Path A (shipped here): the pre-assembler**
+  (`utils/wince/armasm/armasm-convert.py`).  Zero LLVM changes,
+  maintains upstream cleanliness, full armasm surface covered.  This is
+  what the build uses today.
+* **Path B (in-tree, the "正規の機構" form): a real ARM MASM parser.**
+  LLVM already ships `llvm/lib/MC/MCParser/MasmParser.cpp` (6269 lines)
+  + `COFFMasmParser.cpp` + the `llvm-ml` tool: a full MASM dialect
+  parser driving the same MCStreamer as the GNU parser.  It is x86-only
+  only because `COFFMasmParser` implements the COFF section/symbol
+  handlers that x86 needs and nobody registered ARM equivalents - the
+  mnemonic parsing itself is done by the target's AsmParser, which for
+  ARM already exists (ARMAsmParser, 13k lines).  Proper implementation =
+  1. add `ARMCOFFMasmParser` (an `MCAsmParserExtension` like the COFF
+  x86 one: `.AREA`->section, `PROC/ENDP/END`, `EXPORT/IMPORT`, DCD/DCB
+  data directives, `;` comments, APCS register aliases), 2. register it
+  in `createMCMasmParser` for the ARM triple, 3. teach
+  `ARMAsmParser::parseDirectiveSyntax` to accept `.syntax divided`
+  (currently hard-rejected) or normalize at the extension layer, 4. add
+  `-masm=armasm` plumbing in the driver (the `-masm=` option already
+  exists for intel/att).  Estimated diff: one new ~800-line parser
+  extension + ~100 lines of plumbing.  That is the "in LLVM properly"
+  route and is what should be upstreamed if you want it in-tree; the
+  pre-assembler remains as the no-upstream fallback.  (Both can coexist;
+  armasm's macro processor via MasmParser's existing macro engine.)
 
 A complete armasm -> GNU unified-syntax translator.  Pipeline:
 `armasm source -> armasm-convert.py -> GNU .s -> clang -x
@@ -428,7 +456,51 @@ directive = labeled directive; identifier + operands = instruction) -
 armasm itself has the same ambiguity, and PB sources place such labels
 on their own line.
 
-## Platform Builder build-system replacement
+## OS build platform: feasibility with self-provided full CE sources
+
+With the OS full source tree provided by you (not the MS shared-source
+tree), the entire chain is implementable as an open build platform:
+
+* **Compiler/assembler/linker**: this toolchain (clang/llvm-mc/lld-link)
+  + the armasm path above.  Kernel-safe subset documented separately.
+* **build.exe replacement**: CE's `build.exe` is a directory-tree walker
+  driven by `sources`/`dirs` files with `_TGTCPU`/`_TGTPLAT`
+  environment expansion.  A Python/Make reimplementation is mechanical
+  (~1-2k lines); it just compiles each directory with fixed flags.
+* **sysgen**: SYStem GENeration - the phase that turns SYSGEN_XXX
+  environment variables (set by the OS design) into *filtered* .def
+  files and link lists.  Concretely: `cesysgen.bat`+`nmake` run
+  `cefilter` over e.g. `COREDLL.DEF`, keeping only exports whose
+  component SYSGEN var is set (that is why our def files looked
+  "incomplete" - the pristine tree is the full surface; sysgen prunes
+  it per design).  Reimplementable as: read SYSGEN vars -> per-module
+  component lists (from CEBAT/ceconfig data) -> filter .def + generate
+  link libs.  Pure text processing, fully open.
+* **makeimg / BIB / REG / DAT / DB**: all are documented text formats
+  compiled into the NK.BIN image (BIB = module/file sections with
+  memory layout; REG = registry hive source; DAT = filesystem init;
+  DB = database init).  Each compiler (romimage/makeimg, regcomp...)
+  is a self-contained converter; reimplementations exist in the
+  community (e.g. CE6 imaging tools) and the formats are stable.  The
+  loader (BIN format with e32/o32 headers) is understood - lld already
+  emits the PE/COFF the records point at.
+* **Catalog items**: the IDE's component database is just metadata
+  mapping SYSGEN vars <-> optional modules; with self-owned sources
+  you define your own manifest (YAML/JSON) and the sysgen tool above
+  consumes it.
+* **HAL/OAL**: normal C + the armasm path; links against the kernel
+  (kitl, coredll) your sources provide.
+* **What remains MSVC-only even with full sources**: nothing in the
+  *build tooling* - but your kernel sources must avoid MSVC-only
+  extensions (`__try` in kernel code, SEH unwinding info in Nk.lib,
+  MSVC name mangling for C++ kernel components).  If your CE source
+  tree is a clean-room/free implementation (e.g. a CE-compatible
+  kernel), everything is buildable with this toolchain end to end.
+
+Summary: OS image building = compiler(this repo) + build.exe clone +
+sysgen clone(def filter) + makeimg/BIB/REG compilers + your own
+component manifest.  All implementable; none require Microsoft tools
+once the sources are yours.
 
 Feasible in scope: the PB *driver/application* build (sources file ->
 cl/armasm -> link against coredll) is reproducible with this toolchain
