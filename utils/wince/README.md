@@ -26,7 +26,15 @@ stage 3  compiler-rt + libunwind/libc++abi/libc++  (utils/wince/build-wince-runt
         [--target arm-pc-wince] [--prefix <sysroot>] [--jobs N]
 
 `<sysroot>` defaults to `<prefix>/../wince-sysroot`, the location the WinCE
-driver probes.  Resulting layout (CeGCC-compatible, GNU-named):
+driver probes.  The same flow is available through the standard LLVM
+runtimes machinery — `wince-sysroot` is a registered runtime project
+(`wince-sysroot/CMakeLists.txt`):
+
+    cmake -G Ninja -S llvm -B build -C clang/cmake/caches/WinCE.cmake
+    ninja -C build wince-sysroot           # or -DLLVM_ENABLE_RUNTIMES=wince-sysroot
+    ninja -C build install/wince-sysroot   # stages to <install-prefix>/wince-sysroot
+
+Resulting layout (CeGCC-compatible, GNU-named):
 
     include/              mingwrt C headers + w32api WinCE headers + pthreads
     lib/
@@ -50,47 +58,32 @@ Tool substitutions (GNU -> LLVM):
 
 ### Third-party source policy
 
-* **`third-party/mingwrt` (kagurasumusun/mingwrt) — modified in-tree.**
-  The tree carries first-class LLVM/Clang build support as regular commits
-  (see `git -C third-party/mingwrt log`); the submodule pointer in this
-  repository references that commit.  The changes are compiler-compat
-  only, no runtime semantics:
-  1. `include/_mingw.h`: the `#ifdef __declspec` probe that selects the
-     `__DECLSPEC_SUPPORTED` / `__MINGW_IMPORT` / `_CRTIMP` declarations now
-     also accepts `__clang__` — GCC's PE targets predefine `__declspec` as
-     a macro while Clang implements it as a keyword, so the probe used to
-     fail and the headers silently fell back to the no-dllimport paths
-     (breaking `MB_CUR_MAX` and the `__COREDLL__` import declarations).
-  2. `Makefile.in`: the generated `.def` files (moldname-coredll etc.) are
-     preprocessed without `-C`; the C comments `-C` preserves are outside
-     the def-file grammar `llvm-dlltool` implements (GNU dlltool's parser
-     skipped them silently).  Comment stripping is the preprocessor
-     default, so GCC builds are unaffected.
-  These commits must be pushed to GitHub (branch `master`) for fresh
-  clones to resolve the submodule.
+The three trees are **vendored directly into this monorepo** (no
+submodules), each with a provenance note in its `README.llvmvendor.md`:
 
-* **`third-party/w32api` (kagurasumusun/w32api) — unmodified.**  Builds as-is.
-
-* **`third-party/pthread-win32` (GerHobbelt/pthread-win32) — third-party
-  fork, patched at build time.**  This is not a kagurasumusun repository,
-  so no commits are made to it; the fixes live in
-  `utils/wince/patches/pthread-win32-wince.patch` and are applied to a
-  scratch copy by the sysroot script.  Fork selection rationale: upstream
-  pthreads4w has been dormant for years; the GerHobbelt tree is the
-  actively maintained combined successor (updates within the last years)
-  and retains the historical Windows CE support hooks (`NEED_SEM`,
-  `NEED_CREATETHREAD`, `ptw32_getprocessors()==1`, ...).  The patch adds
-  the three pieces WinCE 6.0 still needs:
+* **`third-party/mingwrt`** — kagurasumusun/mingwrt @ `7c35691` plus one
+  compiler-compat commit (also pushed upstream): `include/_mingw.h` accepts
+  `__clang__` at the `#ifdef __declspec` probe that selects the
+  `__DECLSPEC_SUPPORTED` / `__MINGW_IMPORT` / `_CRTIMP` declarations
+  (GCC's PE targets predefine `__declspec` as a macro, Clang implements it
+  as a keyword), and `Makefile.in` preprocesses the generated `.def` files
+  without `-C` (the preserved C comments are outside the def-file grammar
+  llvm-dlltool implements).  No runtime-semantic changes.
+* **`third-party/w32api`** — kagurasumusun/w32api @ `51de0ad`, unmodified.
+* **`third-party/pthread-win32`** — GerHobbelt/pthread-win32 (the actively
+  maintained combined successor of pthreads-win32/pthreads4w; upstream
+  pthreads4w is dormant) @ `06e7608` plus three WinCE 6.0 build fixes
+  committed in-tree:
   1. thread entry/exit take the `_beginthreadex`/`_endthreadex` paths,
      which `implement.h` maps to `CreateThread`/`ExitThread` under
      `NEED_CREATETHREAD` (the guards keyed on `__MINGW32__`/`__MSVCRT__`
-     only, and CeGCC-style builds define `__MINGW32__`, which routed them
-     to the CRTDLL `_beginthread()` that COREDLL does not export);
+     only routed CeGCC-style builds to the CRTDLL `_beginthread()` that
+     COREDLL does not export);
   2. the GNU interlocked block is restricted to x86 — it emits x86 inline
-     assembly (`cmpxchgl` + `"a"` constraint) for any `__GNUC__` target;
-     ARM must use the COREDLL `Interlocked*` exports;
-  3. `_ptw32.h`'s `#if ! defined __declspec` guard accepts clang (keyword,
-     not macro — same root cause as the mingwrt `_mingw.h` probe).
+     assembly for any `__GNUC__` target; ARM must use the COREDLL
+     `Interlocked*` exports;
+  3. `_ptw32.h` accepts clang at the `#if ! defined __declspec` guard
+     (same root cause as the mingwrt `_mingw.h` probe).
 
 ## Stage 3: compiler runtime + C++ runtime
 

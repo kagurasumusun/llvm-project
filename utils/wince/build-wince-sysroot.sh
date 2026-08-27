@@ -1,12 +1,12 @@
 #!/bin/sh
 #===- utils/wince/build-wince-sysroot.sh - WinCE sysroot assembler -------===#
 #
-# Assembles the Windows CE sysroot from the unmodified third-party trees
-# that this repository vendors as git submodules:
+# Assembles the Windows CE sysroot from the third-party trees vendored
+# directly into this monorepo (see third-party/*/README.llvmvendor.md):
 #
-#   third-party/mingwrt        kagurasumusun/mingwrt   (CeGCC mingw-runtime)
-#   third-party/w32api         kagurasumusun/w32api    (WinCE w32api, libce)
-#   third-party/pthread-win32  GerHobbelt/pthread-win32 (pthreads4w fork)
+#   third-party/mingwrt        CeGCC-lineage mingw-runtime (kagurasumusun/mingwrt)
+#   third-party/w32api         WinCE w32api + libce defs   (kagurasumusun/w32api)
+#   third-party/pthread-win32  pthreads4w fork             (GerHobbelt, + WinCE fixes)
 #
 # mingwrt and w32api are built *as-is* through their own configure/make
 # with the LLVM/Clang WinCE cross compiler in place of GCC/binutils:
@@ -16,14 +16,9 @@
 #   dlltool      -> llvm-dlltool (via a small compatibility shim)
 #   gas          -> llvm-mc (unused by the WinCE objects; all C)
 #
-# The pthreads4w fork receives the two upstream-but-unapplied Windows CE
-# fixes carried in utils/wince/patches/pthread-win32-wince.patch:
-#   1. the _beginthread/_endthread guards must let WINCE take the
-#      _beginthreadex path (implement.h maps those to CreateThread /
-#      ExitThread under NEED_CREATETHREAD), and
-#   2. the GNU interlocked-operation block in implement.h must not select
-#      the x86 inline-asm variant on ARM (COREDLL provides the
-#      Interlocked* exports).
+# The vendored trees carry the handful of compiler/build-compat fixes
+# (documented in their README.llvmvendor.md files); no patching happens
+# at build time.
 #
 # Result layout (CeGCC-compatible, GNU-named):
 #   <sysroot>/include/...      mingwrt + w32api + pthreads headers
@@ -102,9 +97,9 @@ W32API_SRC="$REPO_ROOT/third-party/w32api"
 PTHREAD_SRC="$REPO_ROOT/third-party/pthread-win32"
 
 for d in "$MINGWRT_SRC" "$W32API_SRC" "$PTHREAD_SRC"; do
-  if [ ! -e "$d/configure" ] && [ ! -e "$d/GNUmakefile" ] && [ ! -e "$d/pthread.c" ]; then
-    echo "$PROGRAM: $d is empty; run:" >&2
-    echo "  git -C $REPO_ROOT submodule update --init --depth 1" >&2
+  if [ ! -e "$d" ] || [ -z "$(ls -A "$d" 2>/dev/null)" ]; then
+    echo "$PROGRAM: $d is missing (the vendored trees are part of this" >&2
+    echo "  monorepo; your checkout appears incomplete)" >&2
     exit 1
   fi
 done
@@ -222,37 +217,28 @@ cp -r "$W32API_SRC/include/." "$SYSROOT/include/"
 
 # --- pthreads4w -------------------------------------------------------------
 echo "== [3/3] pthread-win32 (pthreads4w static library)"
-# pthreads4w is a third-party fork (GerHobbelt/pthread-win32); its two
-# missing WinCE fixes are carried as a patch in this repository and applied
-# to a scratch copy, never to the submodule checkout:
-#   * thread entry/exit must take the _beginthreadex/_endthreadex paths,
-#     which implement.h maps to CreateThread/ExitThread under
-#     NEED_CREATETHREAD (the only thread primitives COREDLL provides), and
-#   * the GNU interlocked block hardcodes x86 inline asm; ARM must use the
-#     COREDLL InterlockedCompareExchange/Exchange/ExchangeAdd/... exports.
+# Built straight from the vendored tree; the WinCE build fixes (thread
+# entry/exit via CreateThread/ExitThread, ARM-safe interlocked operations,
+# clang-proof __declspec probe) are part of the vendored sources.
 PTHREAD_BUILD="$BUILD/pthread-win32"
 rm -rf "$PTHREAD_BUILD"
-cp -r "$PTHREAD_SRC" "$PTHREAD_BUILD"
-(cd "$PTHREAD_BUILD" && \
- patch -p1 < "$REPO_ROOT/utils/wince/patches/pthread-win32-wince.patch") \
- > "$BUILD/pthread-patch.log" 2>&1 || \
- { tail -10 "$BUILD/pthread-patch.log"; exit 1; }
+mkdir -p "$PTHREAD_BUILD"
 
 # PTW32_CLEANUP_C: structured-exception unwinding does not exist on WinCE;
 # the setjmp/longjmp C cleanup variant is the supported configuration.
 PTHREAD_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
  -fms-extensions -nostdinc \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
- -I $PTHREAD_BUILD -DHAVE_CONFIG_H \
+ -I $PTHREAD_SRC -DHAVE_CONFIG_H \
  -DPTW32_STATIC_LIB -D__CLEANUP_C -D__PTHREAD_JUMBO_BUILD__"
 (cd "$PTHREAD_BUILD" && \
- $CLANG $PTHREAD_CFLAGS -c pthread.c -o pthread.o) \
+ $CLANG $PTHREAD_CFLAGS -c "$PTHREAD_SRC/pthread.c" -o pthread.o) \
  > "$BUILD/pthread-build.log" 2>&1 || \
  { tail -30 "$BUILD/pthread-build.log"; exit 1; }
 "$LLVM_AR" rcs "$SYSROOT/lib/libpthread.a" "$PTHREAD_BUILD/pthread.o"
 "$LLVM_RANLIB" "$SYSROOT/lib/libpthread.a"
 for h in pthread.h sched.h semaphore.h _ptw32.h need_errno.h; do
-  install -m 644 "$PTHREAD_BUILD/$h" "$SYSROOT/include/$h"
+  install -m 644 "$PTHREAD_SRC/$h" "$SYSROOT/include/$h"
 done
 
 echo "== done: $SYSROOT"
