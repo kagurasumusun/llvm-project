@@ -8,7 +8,7 @@ int* _errno()
   return &e;
 }
 
-char* setlocale(int, const char*)
+char* setlocale(int category, const char *locale)
 {
   return 0;
 }

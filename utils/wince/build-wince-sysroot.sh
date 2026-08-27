@@ -248,7 +248,7 @@ mkdir -p "$PTHREAD_BUILD"
 # PTW32_CLEANUP_C: structured-exception unwinding does not exist on WinCE;
 # the setjmp/longjmp C cleanup variant is the supported configuration.
 PTHREAD_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
- -fms-extensions -nostdinc \
+ -fms-extensions -std=c17 -nostdinc \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
  -I $PTHREAD_SRC -DHAVE_CONFIG_H \
  -D_MT -DPTW32_STATIC_LIB -D__CLEANUP_C -D__PTHREAD_JUMBO_BUILD__"
@@ -269,7 +269,7 @@ GMON_BUILD="$BUILD/gmon"
 rm -rf "$GMON_BUILD"
 mkdir -p "$GMON_BUILD"
 GMON_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
- -fms-extensions -nostdinc \
+ -fms-extensions -std=c17 -nostdinc \
  -D__COREDLL__ -U__CRTDLL__ -U__MSVCRT__ -fgnu89-inline \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
  -iwithprefixbefore include"
@@ -290,7 +290,7 @@ POSIX_BUILD="$BUILD/posix"
 rm -rf "$POSIX_BUILD"
 mkdir -p "$POSIX_BUILD"
 POSIX_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
- -fms-extensions -nostdinc \
+ -fms-extensions -std=c17 -nostdinc \
  -D_MT -D__COREDLL__ -U__CRTDLL__ -U__MSVCRT__ -fgnu89-inline \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
  -iwithprefixbefore include -I $POSIX_SRC"

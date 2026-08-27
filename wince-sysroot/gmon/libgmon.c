@@ -97,7 +97,7 @@ void mcount(void) { }
 static DWORD WINAPI
 gmon_sampler (LPVOID arg)
 {
-  __declspec(align(16)) CONTEXT ctx;
+  __attribute__((aligned(16))) CONTEXT ctx; /* CONTEXT needs 16B (x86 FPU) */
 
   (void) arg;
 

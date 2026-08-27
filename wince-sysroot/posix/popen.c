@@ -1,34 +1,27 @@
-#include <stdarg.h>   /* __gnuc_va_list for mingwrt stdio.h */
 /*
  * popen/pclose for Windows CE.
  *
- * Platform reality (all verified against the CE API surface):
+ * Platform reality (verified against the CE API surface):
  *   - COREDLL exports no CreatePipe, and CE CreateProcess has no child
  *     std-handle inheritance, so a parent cannot capture a child's
- *     stdout.  (CE 6 named pipes require the optional npfs driver.)
- *   - Therefore "capture the child's output" is impossible on this
- *     platform without changing it.
+ *     stdout.  True streaming IPC would require either the optional
+ *     npfs named-pipe driver or an OS change.
  *
- * What IS provided, as close to POSIX as the platform allows:
- *   - popen(cmd, "r"): the command runs to completion via the posix
- *     process layer, and the returned stream is a readable temp file
- *     (empty unless the command itself writes to the agreed path).
- *     Applications can read the child's intended output if the command
- *     writes to the file named by the POPEN_OUT environment contract of
- *     the caller.
- *   - popen(cmd, "w"): the returned stream is a temp file the caller
- *     can write; its contents are not delivered to the child (the child
- *     would have to open the same path).
- *   - pclose(): waits for the child and returns its exit status in the
- *     waitpid encoding.
- * Documented platform limitation: true streaming IPC requires either a
- * named-pipe driver or child std redirection, neither of which exists
- * in the CE API set this runtime targets.
+ * What is provided - as close to POSIX as the platform allows, and
+ * deterministic:
+ *   - popen(cmd, "r"): the command runs to completion FIRST (it cannot
+ *     write our stream), then the returned stream is the agreed temp
+ *     file, so a cooperating child that writes the file (or a caller
+ *     that inspects it) works; reading yields whatever the command left.
+ *   - popen(cmd, "w"): the stream is the temp file; the command is
+ *     DEFERRED to pclose, so the caller writes the file completely
+ *     before the child (which may read that path) ever runs.
+ *   - pclose(): runs the deferred child ("w" mode), waits, deletes the
+ *     temp file and returns the exit status in waitpid encoding.
  */
 
-#include <stdarg.h>   /* __gnuc_va_list for mingwrt stdio.h */
-
 #define WIN32_LEAN_AND_MEAN
+#include <stdarg.h>   /* __gnuc_va_list for mingwrt stdio.h */
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,11 +31,12 @@
 #define POPEN_MAGIC 0x706F7065 /* "pope" */
 
 struct popen_file {
-  FILE *stream;
-  HANDLE hChild;
-  int   is_read;
+  FILE   *stream;
+  HANDLE  hChild;      /* NULL while the child is deferred ("w" mode) */
+  int     is_read;
+  char   *command;     /* deferred command line ("w" mode)            */
   wchar_t path[MAX_PATH];
-  int magic;
+  int     magic;
 };
 
 static wchar_t *
@@ -62,14 +56,36 @@ popen_temp_path (wchar_t *buf, DWORD size)
   return buf;
 }
 
-FILE *
-popen (const char *command, const char *mode)
+static char *
+popen_ansi_path (const wchar_t *wpath)
+{
+  static char apath[MAX_PATH];
+  WideCharToMultiByte (CP_ACP, 0, wpath, -1, apath, MAX_PATH, NULL, NULL);
+  return apath;
+}
+
+static BOOL
+popen_spawn (const wchar_t *wcmd, HANDLE *out_child)
 {
   STARTUPINFOW si;
   PROCESS_INFORMATION pi;
+
+  memset (&si, 0, sizeof (si));
+  si.cb = sizeof (si);
+  if (!CreateProcessW (NULL, (LPWSTR) wcmd, NULL, NULL, FALSE, 0,
+                       NULL, NULL, &si, &pi))
+    return FALSE;
+  *out_child = pi.hProcess;
+  CloseHandle (pi.hThread);
+  return TRUE;
+}
+
+FILE *
+popen (const char *command, const char *mode)
+{
   struct popen_file *pf;
   wchar_t wcmd[2048];
-  wchar_t *path;
+  const char *apath;
 
   if (command == NULL || mode == NULL ||
       (mode[0] != 'r' && mode[0] != 'w'))
@@ -80,57 +96,61 @@ popen (const char *command, const char *mode)
 
   pf = (struct popen_file *) calloc (1, sizeof (*pf));
   if (pf == NULL)
-    return NULL;
-
-  path = popen_temp_path (pf->path, MAX_PATH);
-  if (path == NULL)
+    {
+      errno = ENOMEM;
+      return NULL;
+    }
+  if (popen_temp_path (pf->path, MAX_PATH) == NULL)
     {
       free (pf);
       errno = ENOMEM;
       return NULL;
     }
-
-  /* Start the child; it runs to completion before the stream is used.
-     (No std redirection exists on CE - see the file comment.)  */
-  MultiByteToWideChar (CP_UTF8, 0, command, -1, wcmd, 2048);
-  memset (&si, 0, sizeof (si));
-  si.cb = sizeof (si);
-  if (!CreateProcessW (NULL, wcmd, NULL, NULL, FALSE, 0,
-                       NULL, NULL, &si, &pi))
-    {
-      free (pf);
-      errno = ENOENT;
-      return NULL;
-    }
-  pf->hChild = pi.hProcess;
-  CloseHandle (pi.hThread);
-  pf->is_read = (mode[0] == 'r');
-  pf->magic = POPEN_MAGIC;
-
   {
-    /* Use ANSI fopen: _wfopen availability varies across CE generations
-       and the temp path is ASCII on every device we target.  */
-    char apath[MAX_PATH];
-    WideCharToMultiByte (CP_UTF8, 0, path, -1, apath, MAX_PATH, NULL, NULL);
-    if (pf->is_read)
+    size_t n = strlen (command) + 1;
+    pf->command = (char *) malloc (n);
+    if (pf->command == NULL)
       {
-        /* "r": the child has finished by the time we open the temp file,
-           which the command was expected to write when cooperating.  */
-        WaitForSingleObject (pi.hProcess, INFINITE);
-        pf->stream = fopen (apath, "rb");
+        free (pf);
+        errno = ENOMEM;
+        return NULL;
       }
-    else
-      {
-        /* "w": create/truncate the agreed temp file for the caller.  */
-        pf->stream = fopen (apath, "wb");
-      }
+    memcpy (pf->command, command, n);
   }
+  pf->magic = POPEN_MAGIC;
+  pf->is_read = (mode[0] == 'r');
+  apath = popen_ansi_path (pf->path);
+  MultiByteToWideChar (CP_ACP, 0, command, -1, wcmd, 2048);
+
+  if (pf->is_read)
+    {
+      /* "r": child first (it cannot write our stream), then hand the
+         caller the agreed temp file it was expected to fill.  */
+      if (!popen_spawn (wcmd, &pf->hChild))
+        {
+          int e = errno;
+          free (pf->command);
+          free (pf);
+          errno = e;
+          return NULL;
+        }
+      WaitForSingleObject (pf->hChild, INFINITE);
+      pf->stream = fopen (apath, "rb");
+    }
+  else
+    {
+      /* "w": caller writes; the child is spawned by pclose().  */
+      pf->stream = fopen (apath, "wb");
+    }
 
   if (pf->stream == NULL)
     {
-      CloseHandle (pf->hChild);
+      int e = errno;
+      if (pf->hChild != NULL)
+        CloseHandle (pf->hChild);
+      free (pf->command);
       free (pf);
-      errno = ENOENT;
+      errno = e;
       return NULL;
     }
   return (FILE *) pf;
@@ -140,6 +160,7 @@ int
 pclose (FILE *stream)
 {
   struct popen_file *pf = (struct popen_file *) stream;
+  wchar_t wcmd[2048];
   DWORD code = (DWORD) -1;
   int status;
 
@@ -151,12 +172,24 @@ pclose (FILE *stream)
 
   fclose (pf->stream);
 
-  if (WaitForSingleObject (pf->hChild, INFINITE) == WAIT_OBJECT_0)
-    GetExitCodeProcess (pf->hChild, &code);
+  if (pf->hChild == NULL && pf->command != NULL)
+    {
+      /* deferred "w" child: run it now that the temp file is closed */
+      MultiByteToWideChar (CP_ACP, 0, pf->command, -1, wcmd, 2048);
+      if (popen_spawn (wcmd, &pf->hChild))
+        WaitForSingleObject (pf->hChild, INFINITE);
+    }
+
+  if (pf->hChild != NULL)
+    {
+      if (WaitForSingleObject (pf->hChild, INFINITE) == WAIT_OBJECT_0)
+        GetExitCodeProcess (pf->hChild, &code);
+      CloseHandle (pf->hChild);
+    }
 
   DeleteFileW (pf->path);
-  CloseHandle (pf->hChild);
   status = (int) ((code & 0xFF) << 8);
+  free (pf->command);
   free (pf);
   return status;
 }

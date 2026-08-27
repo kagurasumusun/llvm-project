@@ -280,5 +280,6 @@ system (const char *command)
   CloseHandle (pi.hThread);
   CloseHandle (pi.hProcess);
 
-  return (int) code;
+  /* POSIX encoding so WEXITSTATUS() works on system()'s result */
+  return (int) ((code & 0xFF) << 8);
 }

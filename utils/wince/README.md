@@ -179,16 +179,19 @@ only CE-relevant finds are emulators (`gweslab/cerf`) and the CeGCC
 continuation forks (`salman-javed-nz/cegcc-build`, GCC 14.2) - neither
 provides fork.  Conclusion stands: exec/spawn substitution only.
 
-### mingwrt language-generation updates (recommended: C17)
+### mingwrt language-generation update: DONE (C17, one pass)
 
-Recommended target generation for a mingwrt refresh: **C17 (gnu17)** -
-fully supported by clang, no C23 keyword-absorption risk (`bool`/`true`/
-`false` becoming keywords would collide with mingwrt's own typedefs),
-and mechanically reachable.  C23 is a later optional step.  Benefits of
-the refresh: implicit-declaration bugs become build errors, modern
-warning coverage, stdckdint-style checked arithmetic becomes available,
-and the codebase stops depending on pre-C99 idioms.  Device behavior is
-unchanged under the ABI-freeze + equivalence-review policy.
+The entire CE build set (CRT0S, MINGW_OBJS(ce), the full CE mingwex
+set, pthreads4w, gmon, posix - 290+ objects) is now **pinned and
+verified at C17**: the sysroot stage compiles with explicit
+`-std=c17`/`-std=gnu17` (GNU inline semantics stay pinned via
+`-fgnu89-inline`), and the strict pass compiles the whole set with
+**zero compiler warnings and zero errors**.  Fixes made during the
+pass: named parameters in coredll_stubs.c, the gmon CONTEXT alignment
+spelling, posix `_strdup`/stdarg dependencies, popen "w"-mode
+determinism (child deferred to pclose), and system() returning the
+POSIX wait-status encoding.  Device behavior is unchanged (ABI frozen;
+same exports, same semantics).
 
 ### Performance
 
@@ -245,17 +248,16 @@ audited end to end:
 
 The authoritative completeness reference is a `dumpbin /EXPORTS
 coredll.dll` dump of a real CE image (the 2010 CE5/WM6 dump archived on
-cnblogs: 1799 functions).  565 sampled names across the alphabet
-(chunks 0/1/4/7) were diffed against the vendored defs: **only 30 gaps,
-all added** (CeMapArgument, allPrivilege, and 28 C++-mangled
-operator-new/delete / std-internal / IME exports that CeGCC omitted on
-purpose).  Spot checks of the C surface (chunks 1/4/7, 624 names) had
-ZERO gaps - the CeGCC def is effectively complete for C development.
-`utils/wince/audit-coredll.py` mechanizes this: run it against a
-`dumpbin /EXPORTS` of YOUR device's CoreDLL.dll (OEM variation is real)
-and it lists def gaps/extra entries.  Name collisions with libc++ (the
-mangled operator new/delete) are harmless: import libraries resolve
-only referenced symbols. `thread_local`/`__thread` lower to emutls (`__emutls_v.*` + `__emutls_get_address` from compiler-rt, whose Windows path uses TlsAlloc), and `Triple::hasDefaultEmulatedTLS()` covers WinCE so `-femulated-tls` is the driver default. Caveat: mingwrt's `_errno()` remains a single shared static |
+cnblogs: 1799 functions).  **All 9 chunks have now been ingested: every
+one of the ~1799 export names was diffed against the vendored defs, and
+the complete missing set - 30 names (CeMapArgument, allPrivilege, and
+28 C++-mangled operator-new/delete / std-internal / IME exports that
+CeGCC omitted on purpose) - has been added.**  Zero gaps remain
+(27KB of mangled names are inert under libc++: import libraries resolve
+only referenced symbols).  `utils/wince/audit-coredll.py` mechanizes
+re-verification: run it against a `dumpbin /EXPORTS` of YOUR device's
+CoreDLL.dll (OEM variation is real) and it lists def gaps/extra
+entries. `thread_local`/`__thread` lower to emutls (`__emutls_v.*` + `__emutls_get_address` from compiler-rt, whose Windows path uses TlsAlloc), and `Triple::hasDefaultEmulatedTLS()` covers WinCE so `-femulated-tls` is the driver default. Caveat: mingwrt's `_errno()` remains a single shared static |
 | profiling (`-pg`, `gcrt3.o`/`libgmon`) | not provided by the mingw32ce build of mingwrt (the `profile/` sources are desktop-CRT only); CeGCC's LIB_SPEC kept the hook but nothing satisfied it |
 
 ## Version policy (nothing is hard-wired to a single generation)
