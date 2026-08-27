@@ -251,7 +251,7 @@ PTHREAD_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
  -fms-extensions -nostdinc \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
  -I $PTHREAD_SRC -DHAVE_CONFIG_H \
- -DPTW32_STATIC_LIB -D__CLEANUP_C -D__PTHREAD_JUMBO_BUILD__"
+ -D_MT -DPTW32_STATIC_LIB -D__CLEANUP_C -D__PTHREAD_JUMBO_BUILD__"
 (cd "$PTHREAD_BUILD" && \
  $CLANG $PTHREAD_CFLAGS -c "$PTHREAD_SRC/pthread.c" -o pthread.o) \
  > "$BUILD/pthread-build.log" 2>&1 || \

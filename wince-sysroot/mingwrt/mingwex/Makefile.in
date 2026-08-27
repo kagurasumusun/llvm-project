@@ -248,7 +248,8 @@ WINCE_OBJS = \
 	close.o isalnum.o isalpha.o iscntrl.o isgraph.o islower.o isprint.o \
 	ispunct.o isspace.o isupper.o isxdigit.o _tolower.o _toupper.o \
 	mb_cur_max.o rename.o stat.o chmod.o utime.o futime.o timeutil.o \
-	ctime.o chsize.o findfile.o bsearch.o access.o mkdir.o rmdir.o lfind.o
+	ctime.o chsize.o findfile.o bsearch.o access.o mkdir.o rmdir.o lfind.o \
+	copysign.o finite.o hypot.o mathl.o ecvt.o carg_ce.o wcsdup.o imp_pow.o
 MATHCE_OBJS = \
 	e_acosf.o e_acosh.o e_acoshf.o e_asinf.o e_atan2f.o e_atanh.o e_coshf.o \
 	e_expf.o e_gamma_r.o e_gammaf_r.o e_lgamma_r.o e_lgammaf_r.o e_log10f.o \

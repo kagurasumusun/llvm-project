@@ -125,6 +125,71 @@ fallback so both sysroot layouts resolve.  `-Wl,` GNU spellings
 `--out-implib`, `--major/--minor-image-version`, `--dynamicbase`) are
 translated to their lld-link forms.
 
+## Linkage/runtime chain audit (symbol-level, exhaustive)
+
+Beyond the behavioral chains below, the sysroot stage is audited at the
+COFF/ELF symbol level: every archive object's undefined references are
+extracted and checked against (a) the other archives and (b) the
+COREDLL import surface.  As of the current tree the residual is **zero**
+(only linker-provided symbols - __CTOR_LIST__/__DTOR_LIST__/__ImageBase/
+__text_start__/main - and compiler-rt `__aeabi_*` helpers remain, by
+design).  Breakages this audit caught and fixed:
+
+* `pseudo-reloc.o -> __text_start__` - now bound by lld-link -wince
+  (.text bounds; mingwrt derives the image base from it on WinMo 6.1+
+  loaders).
+* `pthread.o -> errno` (data import) - pthreads4w's need_errno.h picks
+  the `extern int errno` branch without `-D_MT`; the stage now builds
+  with `-D_MT` so errno resolves through mingwrt's `_errno()`.
+* mingwex CE set was missing `copysign/finite/hypot/ecvt/fcvt`, the
+  whole `*l` math family, `carg/cargf` (referenced by clog/cpow despite
+  the CE filter), `wcsdup` (coredll6.def exports `_wcsdup` - a desktop
+  underscore leftover - so it never matched) and the `_imp__pow`
+  dllimport-pointer used by cpow.  All provided additively in
+  `mingwex/wince/` (policy: additive, ABI untouched).
+
+Known caveats from the audit (not fixable without semantic changes):
+
+* `errno` on this runtime is a **single shared static** (mingwrt's
+  `_errno()` returns `&static`): two threads doing failing operations
+  race on errno.  A thread-aware `_errno()` would need a TLS slot,
+  which CE does not allocate (see TLS row above).  Documented;
+  changing it is a runtime-semantics decision, not a link fix.
+* pthreads4w + raw `CreateThread` mixing is supported for API calls,
+  but `pthread_exit` must not be called from an implicitly-created
+  thread (pthreads4w documented limitation on all platforms).
+
+### Naming note
+
+`pthread-win32` and `pthreads4w` are the same code lineage: the project
+was renamed pthreads4w for v3 (sourceware -> GitHub), and
+`GerHobbelt/pthread-win32` is the actively maintained combined fork of
+that tree.  The vendored directory keeps the fork's name.
+
+### mingwrt language-generation updates
+
+Updating the vendored mingwrt sources to modern C (C99/C11/C23
+conformance) is compile-time-only: the device-visible behavior changes
+only if (a) an exported symbol's ABI changes or (b) code semantics
+differ.  Under the ABI-freeze policy (exports/CRT0S/MINGW_OBJS frozen)
+plus a behavioral-equivalence review, refreshed sources produce
+binaries that run identically on real devices.  The practical risks to
+gate in review are C23 keyword absorption (`bool`/`true`/`false`
+becoming keywords), inline-semantics drift (we pin `-fgnu89-inline`
+everywhere the CRT builds), and implicit-declaration removal - all
+mechanical, all verifiable by the device test procedure.
+
+### WinCE generations 1-6 and historical CPUs
+
+| generation | build | notes |
+|---|---|---|
+| CE 6.0 | yes (default) | `coredll6` surface |
+| CE 5.0 | yes | `arm-pc-wince5.0` -> `coredll` surface |
+| CE 4.2 / 4.1 / 4.0 (.NET) | yes, with caveat | `arm-pc-wince4.2` + `_WIN32_WCE=0x400/420`; import surface is still the CE 5.0 def - a generation-matched `coredll4.def` (def-only, ABI-frozen) closes it fully |
+| CE 3.0 (Pocket PC 2000/2002, HPC2000) | same as 4.x | ARMv4T CPUs (ARM720T/ARM920T) via `-march=armv4t`; StrongARM SA-1100/1110 via `-mcpu=strongarm`/`-march=armv4` (no Thumb, codegen supports it) |
+| CE 2.x / 1.0 | same mechanism | radically smaller API surface; needs a generation def file; H/PC Pro era |
+| CPUs | ARM (v4/v4T/v5TE) and x86 (CEPC, i386-mingw32ce) are end-to-end (codegen + lld COFF import thunks + CRT).  **SH3/SH4 have no LLVM backend.  MIPS codegen exists but lld's COFF import thunks are x86/ARM/ARM64 only** - adding MIPS thunks in lld is the remaining linker-side work.  PPC (CE 1.0/2.0) has no LLVM COFF backend. |
+
 ## Linkage/runtime chain audit
 
 Every startup path from the compiler through the linker to the runtime,
@@ -171,11 +236,46 @@ runtime was written:
   `time`/`gmtime`/`localtime`/`mktime`/`strftime`/`gettimeofday`/
   `basename`/`dirname`/`tsearch` family, wide-char variants, `imax*`
   inttypes - each backed by the closest COREDLL Win32 call.
-* A fuller POSIX layer (fork/exec, signals, select-on-anything) cannot be
-  provided without an OS-level subsystem: CE has no fork, no signal
-  delivery and a Win32-only process model.  Anything beyond the surface
-  above would require changing the WinCE platform itself, which is out of
-  scope by definition.
+* A full POSIX layer (fork/exec, signals, select-on-anything) cannot be
+  provided without an OS-level subsystem.  **Substitute evaluation**
+  (all against verified coredll exports):
+  * `exec*`/`system()`: feasible - `CreateProcess` + `ExitProcess` +
+    `GetExitCodeProcess`/`WaitForSingleObject` exist; POSIX image-
+    replacement semantics are approximated (spawn + self-exit).
+  * `popen()`: needs pipes - `CreatePipe` is NOT exported by COREDLL
+    (CE 6 has named pipes via a driver, anonymous pipes not in coredll);
+    a temp-file fallback is possible but ugly.  Half-feasible.
+  * `waitpid`: approximable via process-handle tables +
+    `GetExitCodeProcess` (same handle-limitation as _WIN32: only
+    children you created and kept handles for).
+  * `signal()`: synchronous signals are feasible - `raise`/`abort` plus
+    a vectored-exception-handler mapping for SIGSEGV/SIGILL/SIGFPE -
+    but COREDLL does not export `AddVectoredExceptionHandler` in the
+    CeGCC def set, so it would need that export verified/added to the
+    def (a def-only change if the CE kernel exports it - CE5/6 kernels
+    do export VEH, the def file lags).  Asynchronous signals (SIGALRM)
+    would be cooperative-only (timer thread + flag checks).
+  * `fork`: impossible - CE has no COW/child-image primitive; POSIX
+    programs that genuinely need fork cannot be supported without an
+    OS-level layer.
+
+## POSIX / native mixing
+
+Mixing POSIX-style and native Win32 code in one binary is safe by
+construction, with two documented caveats:
+
+* File descriptors ARE kernel handles: mingwrt's CE `open()` family
+  (`mingwex/wince/open.c`) returns the `HANDLE` from `CreateFileW` cast
+  to `int`, and `_get_osfhandle(fd)` is the identity (`coredll_stubs.c`).
+  So `read(fd)` on an fd you created with `CreateFileW` works, and
+  mixing `fopen`/`fread` with `CreateFileW`/`ReadFile` on the same file
+  is ordinary Win32 sharing semantics.
+* Caveat 1 - errno: shared single static (see audit caveat above); do
+  not rely on errno across threads after failures.
+* Caveat 2 - threads: pthreads4w threads are plain CE threads
+  (`NEED_CREATETHREAD` -> `CreateThread`), so raw `CreateThread` threads
+  may call pthread mutexes/condvars/semaphores; they must not call
+  `pthread_exit` (implicit-thread limitation, all platforms).
 
 ## -pg profiling (implemented)
 

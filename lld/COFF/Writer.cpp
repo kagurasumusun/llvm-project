@@ -244,6 +244,7 @@ private:
   void insertCtorDtorSymbols();
   void insertBssDataStartEndSymbols();
   void insertEXIdxBoundsSymbols();
+  void insertTextStartEndSymbols();
   void markSymbolsWithRelocations(ObjFile *file, SymbolRVASet &usedSymbols);
   void createGuardCFTables();
   void markSymbolsForRVATable(ObjFile *file,
@@ -1313,6 +1314,10 @@ void Writer::createMiscChunks() {
     // mingwrt's gccmain.c walks __CTOR_LIST__/__DTOR_LIST__ (head sentinel
     // -1, terminating 0) for global C++ constructors/destructors.
     insertCtorDtorSymbols();
+    // mingwrt's pseudo-reloc derives the image base from __text_start__
+    // on CE loaders that refuse out-of-image relocations (Windows Mobile
+    // 6.1+); bind it like the arm-wince ld emulation did.
+    insertTextStartEndSymbols();
   }
 
   // Windows CE: bind __exidx_start/__exidx_end to the .ARM.exidx output
@@ -2483,6 +2488,24 @@ void Writer::insertCtorDtorSymbols() {
     ctorsSec->splitECChunks();
     dtorsSec->splitECChunks();
   }
+}
+
+// Windows CE specific: bind __text_start__ / __text_end__ to the bounds
+// of the .text output section (mingwrt's pseudo-reloc derives the image
+// base from __text_start__; GNU ld's arm-wince emulation defined these).
+void Writer::insertTextStartEndSymbols() {
+  OutputSection *textSec = findSection(".text");
+  if (!textSec || textSec->chunks.empty())
+    return;
+  Symbol *startSym = ctx.symtab.find("__text_start__");
+  Symbol *endSym = ctx.symtab.find("__text_end__");
+  Chunk *last = textSec->chunks.back();
+  if (startSym)
+    replaceSymbol<DefinedSynthetic>(startSym, startSym->getName(),
+                                    textSec->chunks.front());
+  if (endSym)
+    replaceSymbol<DefinedSynthetic>(endSym, endSym->getName(), last,
+                                    last->getSize());
 }
 
 // Windows CE specific: bind __exidx_start / __exidx_end to the bounds of
