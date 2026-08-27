@@ -9,7 +9,7 @@ llvm, and this runtime project (`wince-crt`, an LLVM runtime).  The goal:
 MSVC-compatible C/C++ source
         │  clang / clang-cl  --target=arm-pc-wince
         ▼
-        LLVM IR  →  LLVM ARM backend (AAPCS, soft-float, ARMv4T baseline)
+        LLVM IR  →  LLVM ARM backend (AAPCS, soft-float, ARMv5TE baseline: arm926ej-s / i.MX28 default)
         ▼
         COFF objects (IMAGE_FILE_MACHINE_ARM, WinCE relocations)
         ▼

@@ -75,52 +75,79 @@ Result: `wince-sysroot/` containing
 ## 3. Stage 3: compiler runtime + C++ runtime
 
 The ARM builtins (compiler-rt) and the C++ stack (libunwind, libc++abi,
-libc++) are cross-built by the LLVM runtimes machinery against the stage-2
-sysroot.  The compiler driver finds its sysroot automatically once the
-sysroot is at `<prefix>/wince-sysroot`:
+libc++) are cross-built against the stage-2 sysroot.  Stages 2 and 3 are
+automated by `wince-crt/scripts/build-runtimes.sh`:
 
-    cmake -G Ninja -S runtimes -B build-runtimes \
+    wince-crt/scripts/build-runtimes.sh $PWD/build/install $PWD bld3
+
+which configures two cross builds:
+
+* compiler-rt builtins (`compiler-rt/lib/builtins`, `COMPILER_RT_BAREMETAL`
+  probing, EABI helper set for the ARMv5TE baseline — see the WinCE branch
+  in `compiler-rt/lib/builtins/CMakeLists.txt`), and
+* the static C++ runtime stack through the runtimes umbrella, with the
+  libc++ WinCE configuration: `LIBCXX_HAS_PTHREAD_API` (the pthread shim
+  in `wce.lib`; the win32 thread API needs SRWLOCK/INIT_ONCE, which WinCE
+  does not have), the WinCE locale backend
+  (`libcxx/src/support/wince/locale_wince.cpp`: "C" locale CRT semantics
+  + device NLS `GetLocaleInfoW` data for `localeconv`), and the WinCE
+  clock paths in `libcxx/src/chrono.cpp` (`GetSystemTime` +
+  `SystemTimeToFileTime` for `system_clock`, QPC for `steady_clock`).
+
+The exact flags, for reference:
+
+    # builtins
+    cmake -G Ninja -S compiler-rt/lib/builtins -B build-builtins \
       -DCMAKE_BUILD_TYPE=Release \
-      -DLLVM_ENABLE_RUNTIMES="compiler-rt;libunwind;libcxxabi;libcxx" \
-      -DLLVM_RUNTIME_TARGETS=arm-pc-wince \
+      -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
       -DCMAKE_C_COMPILER=$PWD/build/install/bin/clang \
-      -DCMAKE_CXX_COMPILER=$PWD/build/install/bin/clang++ \
+      -DCMAKE_C_COMPILER_TARGET=arm-pc-wince \
+      -DCMAKE_ASM_COMPILER_TARGET=arm-pc-wince \
       -DCMAKE_AR=$PWD/build/install/bin/llvm-ar \
       -DCMAKE_RANLIB=$PWD/build/install/bin/llvm-ranlib \
-      -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
-      -DCOMPILER_RT_BUILD_XRAY=OFF \
-      -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
-      -DCOMPILER_RT_BUILD_PROFILE=OFF \
-      -DCOMPILER_RT_BUILD_MEMPROF=OFF \
-      -DCOMPILER_RT_BUILD_ORC=OFF \
-      -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
       -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
-      -DCOMPILER_RT_BAREMETAL=ON \
-      -DLIBUNWIND_ENABLE_SHARED=OFF \
-      -DLIBCXXABI_ENABLE_SHARED=OFF \
+      -DCOMPILER_RT_BAREMETAL_BUILD=ON
+
+    # C++ runtime stack
+    cmake -G Ninja -S runtimes -B build-runtimes \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+      -DCMAKE_C_COMPILER=$PWD/build/install/bin/clang \
+      -DCMAKE_CXX_COMPILER=$PWD/build/install/bin/clang++ \
+      -DCMAKE_C_COMPILER_TARGET=arm-pc-wince \
+      -DCMAKE_CXX_COMPILER_TARGET=arm-pc-wince \
+      -DCMAKE_AR=$PWD/build/install/bin/llvm-ar \
+      -DCMAKE_RANLIB=$PWD/build/install/bin/llvm-ranlib \
+      -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx" \
+      -DLLVM_INCLUDE_TESTS=OFF \
+      -DLIBUNWIND_ENABLE_SHARED=OFF -DLIBCXXABI_ENABLE_SHARED=OFF \
       -DLIBCXX_ENABLE_SHARED=OFF \
-      -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-      -DLIBCXXABI_ENABLE_PIC=OFF \
-      -DLIBUNWIND_ENABLE_PIC=OFF \
+      -DLIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY=ON \
+      -DLIBCXXABI_ENABLE_PIC=OFF -DLIBUNWIND_ENABLE_PIC=OFF \
       -DLIBCXX_ENABLE_PIC=OFF \
       -DLIBCXX_ENABLE_MONOTONIC_CLOCK=ON \
-      -DLIBCXX_HAS_WIN32_THREAD_API=ON
-    ninja -C build-runtimes
+      -DLIBCXX_HAS_PTHREAD_API=ON \
+      -DLIBCXX_ENABLE_FILESYSTEM=OFF \
+      -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBUNWIND_USE_COMPILER_RT=ON
 
-The resulting static libraries (`clang_rt.builtins-arm.lib`,
-`unwind.lib`, `libc++abi.lib`, `c++.lib`) are copied into the sysroot
-`lib/` directory, where the WinCE driver's default link line expects
-them (`clang_rt.builtins-arm.lib`) and where `-lc++ -lc++abi -lunwind`
-resolve.
+The resulting static libraries (`clang_rt.builtins-arm`, `libc++abi.a`,
+`libc++.a`, `libunwind.a`) are staged into the sysroot `lib/` directory
+by the wince-crt build (`WINCE_RUNTIME_LIBS`) under the names the WinCE
+driver's default link line expects (`clang_rt.builtins-arm.lib`,
+`c++abi.lib`, `c++.lib`, `unwind.lib`), and the complete sysroot is
+published at `<prefix>/wince-sysroot`.
 
 Notes:
 
 * `COMPILER_RT_BAREMETAL` selects compile-only target probing in
   compiler-rt's configure (the WinCE target cannot execute host-side
   configure binaries); the builtins themselves are ordinary ARM code.
-* Threading in libc++ uses the Win32/CE API through the pthread shim in
-  `wce.lib` (`LIBCXX_HAS_WIN32_THREAD_API` maps libc++ onto
-  `CreateThread`/`WaitForSingleObject` coredll exports directly).
+* Threading in libc++ uses the pthread shim in `wce.lib` over the
+  coredll thread/CS/event/semaphore exports (the win32 thread API's
+  SRWLOCK/CONDITION_VARIABLE/INIT_ONCE do not exist on WinCE).
+* Locale data comes from the device NLS (`GetLocaleInfoW`,
+  `LOCALE_USER_DEFAULT`); CRT conversions are C-locale, because coredll
+  has no `setlocale`.
 * Exceptions use the ARM EHABI (`.ARM.exidx`/`.ARM.extab`) through
   LLVM libunwind; `__exidx_start`/`__exidx_end` are bound by LLD.
 

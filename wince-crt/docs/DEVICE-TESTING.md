@@ -24,9 +24,10 @@ built with the completed toolchain).
 
 Copy the built EXE/DLL files to the device (`\\pc\` share via
 Windows Mobile Device Center, a storage card, or `CeCopy`).  ARM builds
-target ARMv4T baseline and run on ARM9/StrongARM/XScale devices
-(Windows CE 4.2/5.0/6.0); choose `-march=armv5te` for XScale-specific
-builds.
+default to the ARMv5TE baseline (arm926ej-s, e.g. the Freescale i.MX28)
+and run on ARM926EJ-S/ARM920T/XScale devices (Windows CE 4.2/5.0/6.0);
+pass `-march=armv4t` when targeting ARMv4T-only hardware (ARM7TDMI,
+StrongARM SA-1100).
 
 ## Verification checklist on device
 

@@ -112,6 +112,11 @@
 #    include <__locale_dir/support/freebsd.h>
 #  elif defined(__NetBSD__)
 #    include <__locale_dir/support/netbsd.h>
+#  elif defined(__WINCE__)
+// Windows CE: coredll has no setlocale/MSVCRT _l functions; the backend
+// is the C locale plus the WinCE NLS query surface.  Tested before the
+// MSVCRT-like branch because _WIN32 is defined for WinCE targets.
+#    include <__locale_dir/support/wince.h>
 #  elif defined(_LIBCPP_MSVCRT_LIKE)
 #    include <__locale_dir/support/windows.h>
 #  elif defined(__Fuchsia__)

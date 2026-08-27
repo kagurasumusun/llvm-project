@@ -71,7 +71,30 @@ namespace chrono {
 // system_clock
 //
 
-#if defined(_LIBCPP_WIN32API)
+#if defined(__WINCE__)
+
+// Windows CE: coredll exports neither GetSystemTimeAsFileTime nor
+// GetSystemTimePreciseAsFileTime, and there is no kernel32.dll to
+// dynamically probe for them.  Compose the FILETIME from GetSystemTime
+// + SystemTimeToFileTime (both exported by coredll on every CE device).
+static system_clock::time_point __libcpp_system_clock_now() {
+  // FILETIME is in 100ns units
+  using filetime_duration =
+      std::chrono::duration<__int64, std::ratio_multiply<std::ratio<100, 1>, nanoseconds::period>>;
+
+  // The Windows epoch is Jan 1 1601, the Unix epoch Jan 1 1970.
+  static constexpr const seconds nt_to_unix_epoch{11644473600};
+
+  SYSTEMTIME st;
+  FILETIME ft;
+  GetSystemTime(&st);
+  SystemTimeToFileTime(&st, &ft);
+
+  filetime_duration d{(static_cast<__int64>(ft.dwHighDateTime) << 32) | static_cast<__int64>(ft.dwLowDateTime)};
+  return system_clock::time_point(duration_cast<system_clock::duration>(d - nt_to_unix_epoch));
+}
+
+#elif defined(_LIBCPP_WIN32API)
 
 #  if _WIN32_WINNT < _WIN32_WINNT_WIN8
 

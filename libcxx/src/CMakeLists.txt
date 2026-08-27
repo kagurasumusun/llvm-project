@@ -95,7 +95,20 @@ if (LIBCXX_ENABLE_LOCALIZATION)
     )
 endif()
 
-if(WIN32)
+if(LIBCXX_TARGETS_WINCE)
+  # Windows CE (arm-pc-wince cross builds): the MSVCRT-based win32
+  # support layer does not apply (coredll has no setlocale, no _l
+  # functions, no SRWLOCK/CONDITION_VARIABLE/INIT_ONCE, no wcrtomb_s).
+  # The C locale + WinCE NLS backend replaces locale_win32, threading
+  # goes through the pthread shim in the wince-crt sysroot, and the
+  # compiler-rt builtins provide the complex arithmetic that
+  # compiler_rt_shims.cpp would.  Keyed on the target triple (not the
+  # CMake WIN32 variable) so it applies regardless of how the cross
+  # build set CMAKE_SYSTEM_NAME.
+  list(APPEND LIBCXX_SOURCES
+    support/wince/locale_wince.cpp
+    )
+elseif(WIN32)
   list(APPEND LIBCXX_SOURCES
     support/win32/compiler_rt_shims.cpp
     support/win32/locale_win32.cpp

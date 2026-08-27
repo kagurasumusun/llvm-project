@@ -605,7 +605,22 @@ set(arm_min_SOURCES
   ${arm_EABI_SOURCES}
 )
 
-if(MINGW)
+if(COMPILER_RT_DEFAULT_TARGET_TRIPLE MATCHES "-wince" OR CMAKE_C_COMPILER_TARGET MATCHES "-wince")
+  # Windows CE (arm-pc-wince): EABI runtime conventions (__aeabi_
+  # helpers, soft-float, interworking) on the ARMv5TE baseline
+  # (arm926ej-s / i.MX28 default), COFF objects.  Same source set as
+  # the pre-v7 EABI targets (arm_min): no v6+ ldrex/strex atomics
+  # (WinCE code synchronizes through the coredll Interlocked* exports)
+  # and no NT chkstk probing.
+  set(arm_SOURCES
+    ${arm_or_thumb2_base_SOURCES}
+    ${arm_EABI_SOURCES}
+  )
+  set(thumb1_SOURCES
+    ${thumb1_base_SOURCES}
+    ${arm_EABI_SOURCES}
+  )
+elseif(MINGW)
   set(arm_SOURCES
     arm/aeabi_idivmod.S
     arm/aeabi_ldivmod.S

@@ -54,6 +54,7 @@ abs_to_ms (const struct timespec *abstime)
 {
   /* Convert an absolute deadline to a relative wait in milliseconds.
    * Returns INFINITE when abstime is NULL. */
+  SYSTEMTIME st;
   FILETIME now_ft, end_ft;
   ULARGE_INTEGER now, end;
   ULONGLONG delta_ms;
@@ -61,7 +62,11 @@ abs_to_ms (const struct timespec *abstime)
   if (!abstime)
     return INFINITE;
 
-  GetSystemTimeAsFileTime (&now_ft);
+  /* coredll exports neither GetSystemTimeAsFileTime nor
+   * GetSystemTimePreciseAsFileTime; compose the FILETIME from the two
+   * calls every CE device provides. */
+  GetSystemTime (&st);
+  SystemTimeToFileTime (&st, &now_ft);
   now.LowPart = now_ft.dwLowDateTime;
   now.HighPart = now_ft.dwHighDateTime;
 

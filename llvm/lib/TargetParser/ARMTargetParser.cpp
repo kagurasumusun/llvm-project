@@ -638,6 +638,13 @@ StringRef ARM::getARMCPUForArch(const llvm::Triple &Triple, StringRef MArch) {
   switch (Triple.getOS()) {
   case llvm::Triple::Haiku:
     return "arm1176jzf-s";
+  case llvm::Triple::WinCE:
+    // Windows CE: the toolchain baseline is the ARMv5TE generation -
+    // ARM926EJ-S (e.g. the Freescale i.MX28 family), the dominant
+    // WinCE 5.0/6.0 SoC and the target eVC4/Platform Builder shipped
+    // for.  Older ARMv4T hardware is selected explicitly with
+    // -march=armv4t.
+    return "arm926ej-s";
   case llvm::Triple::NetBSD:
     switch (Triple.getEnvironment()) {
     case llvm::Triple::EABI:

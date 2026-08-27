@@ -59,5 +59,19 @@ pass "exception runtime symbols linked"
     "$HERE/cpp_app.cpp" -o "$OUT/cpp_t.exe" || fail "compile/link thumb C++"
 pass "Thumb C++ EXE linked"
 
+# --- 6. Standard library sample: iostreams + locale + chrono + containers -------
+"$CLANGXX" --target=$TARGET --sysroot="$SYS" -O1 \
+    "$HERE/cpp_stdlib_app.cpp" -o "$OUT/cpp_std.exe" || fail "compile/link cpp_stdlib_app.cpp"
+pass "C++ stdlib EXE linked (iostream + locale + chrono)"
+
+STDNM=$("$BIN/llvm-nm" "$OUT/cpp_std.exe" 2>/dev/null || true)
+echo "$STDNM" | grep -q "__2snprintf\|__snprintf" \
+  || echo "note: __locale::__snprintf inlined (acceptable)"
+echo "$STDNM" | grep -q "GetLocaleInfoW" \
+  || fail "WinCE NLS locale backend not linked in (GetLocaleInfoW absent)"
+echo "$STDNM" | grep -q "QueryPerformanceCounter" \
+  || fail "steady_clock QPC path not linked in"
+pass "WinCE NLS locale + QPC chrono paths linked"
+
 echo
 echo "ALL C++ E2E CHECKS PASSED ($OUT)"

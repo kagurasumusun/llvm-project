@@ -47,8 +47,8 @@ set(W32API_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third-party/w32api" CACHE PATH
     "Path to the w32api (WinCE headers) submodule")
 set(WINCERT_SYSROOT "${CMAKE_CURRENT_BINARY_DIR}/wince-sysroot" CACHE PATH
     "Sysroot output directory")
-set(WINCERT_ARCH_FLAGS "-march=armv4t" CACHE STRING
-    "Baseline ARM architecture flags (ARMv4T runs on all CE devices)")
+set(WINCERT_ARCH_FLAGS "-march=armv5te" CACHE STRING
+    "Baseline ARM architecture flags (default ARMv5TE = ARM926EJ-S, e.g. i.MX28; override with armv4t for ARMv4T-only hardware)")
 
 # --- Tool discovery -------------------------------------------------------
 
@@ -132,8 +132,10 @@ endforeach()
 # The new port layer: LLVM/LLD-specific startup and glue.
 # crt0.c/dllcrt0.c are adapted from mingwrt crt3.c/dllcrt1.c; crtxcu.c
 # dispatches .CRT$XCU/.CRT$XTU; init_args.c builds argv; winmain.c holds
-# the WinMain<->main adapters; pthread.c is the coredll pthread shim;
-# crt_extra.c provides MB_CUR_MAX for the mingw __COREDLL__ headers.
+# the WinMain<->main adapters; pthread.c is the coredll pthread shim.
+# (__mb_cur_max for the __COREDLL__ headers comes from the mingwex
+# supplement below: mingwex/wince/mb_cur_max.c reports the real device
+# code page via GetCPInfo, which mbrtowc's DBCS handling relies on.)
 set(WINCERT_PORT_SOURCES
     lib/crt0.c
     lib/dllcrt0.c
@@ -141,15 +143,18 @@ set(WINCERT_PORT_SOURCES
     lib/init_args.c
     lib/winmain.c
     lib/pthread.c
-    lib/crt_extra.c
 )
 
 # Files consumed unchanged from the CeGCC mingw-runtime (public domain):
-# exactly the members of the CeGCC libmingw32.a that a WinCE build uses.
+# exactly the members of the CeGCC libmingw32.a that a WinCE build uses
+# (abort/isascii are "only needed on Windows CE" there; coredll exports
+# neither abort() nor any narrow is* classification).
 set(WINCERT_MINGWRT_SOURCES
     atexit.c
+    abort.c
     assert.c
     coredll_stubs.c
+    isascii.c
     strcasecmp.c
     strncasecmp.c
 )
@@ -199,9 +204,21 @@ add_custom_command(
   VERBATIM)
 
 #===------------------------------------------------------------------------===#
-# mingwex supplement (portable subset; COREDLL.dll provides the rest)
+# mingwex supplement
 #===------------------------------------------------------------------------===#
-
+#
+# The portable subset, plus the two WinCE-specific CeGCC supplement
+# groups without which coredll is not a C library:
+#
+#   mingwex/wince/  - the classic WinCE CRT gap fillers: narrow ctype
+#                     (coredll exports only _isctype), the ANSI time
+#                     functions (no clock/mktime/gmtime/localtime/
+#                     strftime in coredll), MB_CUR_MAX (GetCPInfo) and
+#                     bsearch;
+#   mingwex/stdio/  - the CeGCC C99 printf engine (pformat): snprintf,
+#                     vsnprintf and the rest of the family, replacing
+#                     the desktop-only _snprintf redirections.
+#
 set(WINCERT_MINGWEX_SOURCES
     _Exit.c atoll.c basename.c dirname.c btowc.c fwide.c getopt.c
     gettimeofday.c imaxabs.c imaxdiv.c isblank.c iswblank.c
@@ -210,7 +227,24 @@ set(WINCERT_MINGWEX_SOURCES
     wcstoimax.c wcstoumax.c strtoimax.c strtoumax.c
     tdelete.c tfind.c tsearch.c twalk.c
     mingw-aligned-malloc.c usleep.c
-    wmemchr.c wmemcmp.c wmemcpy.c wmemmove.c wmemset.c)
+    wmemchr.c wmemcmp.c wmemcpy.c wmemmove.c wmemset.c
+    wince/_tolower.c wince/_toupper.c
+    wince/asctime.c wince/ctime.c wince/gmtime.c wince/localtime.c
+    wince/mktime.c wince/time.c wince/timeutil.c
+    wince/strftime.c wince/wcsftime.c
+    wince/isalnum.c wince/isalpha.c wince/iscntrl.c wince/isgraph.c
+    wince/islower.c wince/isprint.c wince/ispunct.c wince/isspace.c
+    wince/isupper.c wince/isxdigit.c
+    wince/bsearch.c wince/mb_cur_max.c
+    stdio/pformat.c stdio/snprintf.c stdio/vsnprintf.c
+    stdio/sprintf.c stdio/vsprintf.c
+    stdio/printf.c stdio/vprintf.c
+    stdio/fprintf.c stdio/vfprintf.c)
+
+# C99 strto* relatives that mingwrt declares but ships nowhere: built
+# from the port layer (see lib/c99_strto.c).
+set(WINCERT_MINGWEX_PORT_SOURCES
+    lib/c99_strto.c)
 
 set(WINCERT_MINGWEX_OBJS)
 foreach(src ${WINCERT_MINGWEX_SOURCES})
@@ -221,6 +255,18 @@ foreach(src ${WINCERT_MINGWEX_SOURCES})
     COMMAND ${WINCE_CLANG} ${WINCERT_C_FLAGS}
             -c "${MINGWRT_DIR}/mingwex/${src}" -o "${obj}"
     DEPENDS "${MINGWRT_DIR}/mingwex/${src}"
+    VERBATIM)
+  list(APPEND WINCERT_MINGWEX_OBJS "${obj}")
+endforeach()
+
+foreach(src ${WINCERT_MINGWEX_PORT_SOURCES})
+  get_filename_component(obj "${src}" NAME_WE)
+  set(obj "${CMAKE_CURRENT_BINARY_DIR}/obj/mingwex_${obj}.obj")
+  add_custom_command(
+    OUTPUT "${obj}"
+    COMMAND ${WINCE_CLANG} ${WINCERT_C_FLAGS}
+            -c "${CMAKE_CURRENT_SOURCE_DIR}/${src}" -o "${obj}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${src}"
     VERBATIM)
   list(APPEND WINCERT_MINGWEX_OBJS "${obj}")
 endforeach()
