@@ -311,7 +311,7 @@ option(LIBCXX_HAS_EXTERNAL_THREAD_API
 # Windows in CMake terms but need their own libc++ support layer (coredll
 # instead of MSVCRT): select the wince sources and force the pthread
 # threading API (implemented by the pthreads4w static library in the
-# sysroot, third-party/pthread-win32); the win32
+# sysroot, wince-sysroot/pthread-win32); the win32
 # thread API uses SRWLOCK/CONDITION_VARIABLE/INIT_ONCE, which do not
 # exist on Windows CE.
 if(CMAKE_C_COMPILER_TARGET MATCHES "(-|^)wince" OR CMAKE_CXX_COMPILER_TARGET MATCHES "(-|^)wince")

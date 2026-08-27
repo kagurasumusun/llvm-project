@@ -1,6 +1,6 @@
 # mingwrt (vendored)
 
-Vendored copy of the mingw-runtime ("mingwrt") used as the C runtime for
+Vendored in-tree copy of the mingw-runtime ("mingwrt") used as the C runtime for
 the Windows CE target.  Built **as-is** through its own configure/make by
 `utils/wince/build-wince-sysroot.sh`; it is not wrapped or re-implemented.
 

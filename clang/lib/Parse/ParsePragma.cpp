@@ -515,16 +515,18 @@ void Parser::initializePragmaHandlers() {
     PP.AddPragmaHandler(MSIntrinsic.get());
     MSFenvAccess = std::make_unique<PragmaMSFenvAccessHandler>();
     PP.AddPragmaHandler(MSFenvAccess.get());
-    // Pragmas MSVC accepts (its CRT / eMbedded Visual C++ headers use
-    // them); they carry no codegen effect here, matching the treatment of
-    // "#pragma runtime_checks": accept the syntax, ignore the effect.
-    MSSetLocale = std::make_unique<EmptyPragmaHandler>("setlocale");
+    // Full-syntax MSVC pragmas: setlocale, check_stack, conform and
+    // auto_inline are parsed with the MSVC grammar (see the
+    // HandlePragmaMS{SetLocale,CheckStack,Conform,AutoInline} below); the
+    // first two carry semantics via Sema, the latter two validate and
+    // report their clang mapping.
+    MSSetLocale = std::make_unique<PragmaMSPragma>("setlocale");
     PP.AddPragmaHandler(MSSetLocale.get());
-    MSCheckStack = std::make_unique<EmptyPragmaHandler>("check_stack");
+    MSCheckStack = std::make_unique<PragmaMSPragma>("check_stack");
     PP.AddPragmaHandler(MSCheckStack.get());
-    MSConform = std::make_unique<EmptyPragmaHandler>("conform");
+    MSConform = std::make_unique<PragmaMSPragma>("conform");
     PP.AddPragmaHandler(MSConform.get());
-    MSAutoInline = std::make_unique<EmptyPragmaHandler>("auto_inline");
+    MSAutoInline = std::make_unique<PragmaMSPragma>("auto_inline");
     PP.AddPragmaHandler(MSAutoInline.get());
   }
 
@@ -1052,7 +1054,11 @@ void Parser::HandlePragmaMSPragma() {
           .Case("function", &Parser::HandlePragmaMSFunction)
           .Case("alloc_text", &Parser::HandlePragmaMSAllocText)
           .Case("optimize", &Parser::HandlePragmaMSOptimize)
-          .Case("intrinsic", &Parser::HandlePragmaMSIntrinsic);
+          .Case("intrinsic", &Parser::HandlePragmaMSIntrinsic)
+          .Case("auto_inline", &Parser::HandlePragmaMSAutoInline)
+          .Case("check_stack", &Parser::HandlePragmaMSCheckStack)
+          .Case("setlocale", &Parser::HandlePragmaMSSetLocale)
+          .Case("conform", &Parser::HandlePragmaMSConform);
 
   if (!(this->*Handler)(PragmaName, PragmaLocation)) {
     // Pragma handling failed, and has been diagnosed.  Slurp up the tokens
@@ -3861,6 +3867,192 @@ bool Parser::HandlePragmaMSOptimize(StringRef PragmaName,
     return false;
 
   Actions.ActOnPragmaMSOptimize(FirstTok.getLocation(), IsOn);
+  return true;
+}
+
+/// Handle the Microsoft \#pragma auto_inline extension:
+/// \code
+///   #pragma auto_inline([on | off])
+/// \endcode
+/// Functions between an 'off' and the next 'on' are not inlined (MSVC
+/// semantics); 'on' restores the command-line inlining behavior.
+bool Parser::HandlePragmaMSAutoInline(StringRef PragmaName,
+                                      SourceLocation PragmaLocation) {
+  Token FirstTok = Tok;
+  bool IsOn = true;
+  if (Tok.is(tok::l_paren)) {
+    PP.Lex(Tok); // (
+    if (Tok.isNot(tok::r_paren)) {
+      IdentifierInfo *II = Tok.getIdentifierInfo();
+      if (!II || (!II->isStr("on") && !II->isStr("off"))) {
+        PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+            << PP.getSpelling(Tok) << PragmaName << /*Expected=*/true
+            << "'on' or 'off'";
+        return false;
+      }
+      IsOn = II->isStr("on");
+      PP.Lex(Tok); // on | off
+      if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                           PragmaName))
+        return false;
+    } else {
+      PP.Lex(Tok); // empty () == on
+    }
+  }
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  Actions.ActOnPragmaMSAutoInline(FirstTok.getLocation(), IsOn);
+  return true;
+}
+
+/// Handle the Microsoft \#pragma check_stack extension:
+/// \code
+///   #pragma check_stack([on | off])
+/// \endcode
+/// 'off' turns off stack probes (/GS stack frames) for the functions that
+/// follow; 'on' restores them (equivalent to __declspec(safebuffers) on
+/// the following functions).
+bool Parser::HandlePragmaMSCheckStack(StringRef PragmaName,
+                                      SourceLocation PragmaLocation) {
+  Token FirstTok = Tok;
+  bool IsOn = true;
+  if (Tok.is(tok::l_paren)) {
+    PP.Lex(Tok); // (
+    if (Tok.isNot(tok::r_paren)) {
+      IdentifierInfo *II = Tok.getIdentifierInfo();
+      if (!II || (!II->isStr("on") && !II->isStr("off"))) {
+        PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+            << PP.getSpelling(Tok) << PragmaName << /*Expected=*/true
+            << "'on' or 'off'";
+        return false;
+      }
+      IsOn = II->isStr("on");
+      PP.Lex(Tok); // on | off
+      if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                           PragmaName))
+        return false;
+    } else {
+      PP.Lex(Tok); // empty () == on
+    }
+  }
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  Actions.ActOnPragmaMSCheckStack(FirstTok.getLocation(), IsOn);
+  return true;
+}
+
+/// Handle the Microsoft \#pragma setlocale extension:
+/// \code
+///   #pragma setlocale("<locale>")
+/// \endcode
+/// MSVC uses the locale to pick the codepage for narrow string literals.
+/// Clang fixes the narrow execution charset per translation unit via
+/// -fexec-charset, so the pragma is validated against the MSVC locale
+/// grammar and the clang equivalent is reported.
+bool Parser::HandlePragmaMSSetLocale(StringRef PragmaName,
+                                     SourceLocation PragmaLocation) {
+  if (ExpectAndConsume(tok::l_paren, diag::warn_pragma_expected_lparen,
+                       PragmaName))
+    return false;
+
+  if (Tok.isNot(tok::string_literal)) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_expected_string) << PragmaName;
+    return false;
+  }
+  ExprResult StringResult = ParseStringLiteralExpression();
+  if (StringResult.isInvalid())
+    return false; // Already diagnosed.
+  StringLiteral *Locale = cast<StringLiteral>(StringResult.get());
+  if (Locale->getCharByteWidth() != 1) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_expected_non_wide_string)
+        << PragmaName;
+    return false;
+  }
+
+  if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                       PragmaName))
+    return false;
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  PP.Diag(PragmaLocation, diag::warn_pragma_setlocale_charset)
+      << Locale->getString();
+  return true;
+}
+
+/// Handle the Microsoft \#pragma conform extension:
+/// \code
+///   #pragma conform(name, on | off [, push | pop [, identifier]])
+/// \endcode
+/// MSVC toggles Zc:forScope ('for'-statement scope conformance) from this
+/// point on; clang fixes the scoping mode per translation unit, so the
+/// pragma is validated against the full MSVC grammar and the clang
+/// mapping is reported.
+bool Parser::HandlePragmaMSConform(StringRef PragmaName,
+                                   SourceLocation PragmaLocation) {
+  if (ExpectAndConsume(tok::l_paren, diag::warn_pragma_expected_lparen,
+                       PragmaName))
+    return false;
+
+  // First argument: the literal identifier 'name'.
+  IdentifierInfo *NameII = Tok.getIdentifierInfo();
+  if (!NameII || !NameII->isStr("name")) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+        << PP.getSpelling(Tok) << PragmaName << /*Expected=*/true << "'name'";
+    return false;
+  }
+  PP.Lex(Tok); // name
+
+  if (ExpectAndConsume(tok::comma, diag::warn_pragma_expected_comma,
+                       PragmaName))
+    return false;
+
+  IdentifierInfo *OnOff = Tok.getIdentifierInfo();
+  if (!OnOff || (!OnOff->isStr("on") && !OnOff->isStr("off"))) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+        << PP.getSpelling(Tok) << PragmaName << /*Expected=*/true
+        << "'on' or 'off'";
+    return false;
+  }
+  PP.Lex(Tok); // on | off
+
+  // Optional [, push | pop [, identifier]]
+  if (Tok.is(tok::comma)) {
+    PP.Lex(Tok); // ,
+    IdentifierInfo *PushPop = Tok.getIdentifierInfo();
+    if (!PushPop || (!PushPop->isStr("push") && !PushPop->isStr("pop"))) {
+      PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+          << PP.getSpelling(Tok) << PragmaName << /*Expected=*/true
+          << "'push' or 'pop'";
+      return false;
+    }
+    PP.Lex(Tok); // push | pop
+    if (Tok.is(tok::comma)) {
+      PP.Lex(Tok); // ,
+      if (Tok.isNot(tok::identifier)) {
+        PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+            << PP.getSpelling(Tok) << PragmaName << /*Expected=*/true
+            << "an identifier";
+        return false;
+      }
+      PP.Lex(Tok); // identifier
+    }
+  }
+
+  if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                       PragmaName))
+    return false;
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  PP.Diag(PragmaLocation, diag::warn_pragma_conform_for_scope)
+      << (OnOff->isStr("on") ? StringRef("on") : StringRef("off"));
   return true;
 }
 

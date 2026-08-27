@@ -2128,6 +2128,18 @@ public:
   /// (i.e. `ModifyFnAttributeMSPragmaOptimze()` does nothing)
   bool MSPragmaOptimizeIsOn = true;
 
+  /// Set to the location of a \#pragma auto_inline(off) that is still in
+  /// effect (invalid once the matching 'on' appears).  Functions declared
+  /// after the pragma get a noinline attribute (MSVC auto_inline
+  /// semantics); see AddRangeBasedMSAutoInline.
+  SourceLocation MSPragmaAutoInlineOffLoc;
+
+  /// Set to the location of a \#pragma check_stack(off) that is still in
+  /// effect.  Functions declared after the pragma get a
+  /// no_stack_protector attribute (MSVC check_stack(off) semantics); see
+  /// AddRangeBasedMSCheckStack.
+  SourceLocation MSPragmaCheckStackOffLoc;
+
   /// Set of no-builtin functions listed by \#pragma function.
   llvm::SmallSetVector<StringRef, 4> MSFunctionNoBuiltins;
 
@@ -2333,6 +2345,20 @@ public:
   /// in scope, consider changing the function's attributes based on the
   /// optimization list passed to the pragma.
   void ModifyFnAttributesMSPragmaOptimize(FunctionDecl *FD);
+
+  /// \#pragma auto_inline(on|off) - MSVC extension.
+  void ActOnPragmaMSAutoInline(SourceLocation Loc, bool IsOn);
+
+  /// \#pragma check_stack(on|off) - MSVC extension.
+  void ActOnPragmaMSCheckStack(SourceLocation Loc, bool IsOn);
+
+  /// Apply the in-effect \#pragma auto_inline(off) to a function
+  /// definition (noinline; __forceinline keeps winning, like MSVC).
+  void AddRangeBasedMSAutoInline(FunctionDecl *FD);
+
+  /// Apply the in-effect \#pragma check_stack(off) to a function
+  /// definition (no_stack_protector, i.e. MSVC's __declspec(safebuffers)).
+  void AddRangeBasedMSCheckStack(FunctionDecl *FD);
 
   /// Only called on function definitions; if there is a pragma in scope
   /// with the effect of a range-based no_builtin, consider marking the function

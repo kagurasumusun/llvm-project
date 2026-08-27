@@ -11069,6 +11069,8 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
   // attributes (i.e. optnone and no_builtin) due to a pragma.
   if (D.isFunctionDefinition()) {
     AddRangeBasedOptnone(NewFD);
+    AddRangeBasedMSAutoInline(NewFD);
+    AddRangeBasedMSCheckStack(NewFD);
     AddImplicitMSFunctionNoBuiltinAttr(NewFD);
     AddSectionMSAllocText(NewFD);
     ModifyFnAttributesMSPragmaOptimize(NewFD);

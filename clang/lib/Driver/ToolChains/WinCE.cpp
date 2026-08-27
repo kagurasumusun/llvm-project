@@ -450,10 +450,12 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
       !Args.hasArg(options::OPT_nodefaultlibs)) {
     // Ordering follows the CeGCC LIBGCC_SPEC + LIB_SPEC link line
     //   %{mthreads:-lmingwthrd} -lmingw32 -lgcc -lceoldname -lmingwex -lcoredll
-    // with libgcc replaced by compiler-rt builtins and libmingwthrd (the
-    // CeGCC thread glue) replaced by the pthreads4w static library that
-    // the sysroot stage builds from third-party/pthread-win32 (which also
-    // serves as libc++'s threading API on this target).
+    // with libgcc replaced by compiler-rt builtins.  -mthreads/-pthread
+    // additionally pulls the pthreads4w static library (libpthread.a,
+    // built by the sysroot stage from wince-sysroot/pthread-win32), which
+    // also serves as libc++'s threading API on this target.
+    if (WantThreads)
+      addWinCELibrary(Args, CmdArgs, LibDir, "mingwthrd");
     if (WantThreads)
       addWinCELibrary(Args, CmdArgs, LibDir, "pthread");
     addWinCELibrary(Args, CmdArgs, LibDir, "mingw32");

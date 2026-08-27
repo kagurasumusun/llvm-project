@@ -1,6 +1,6 @@
 # w32api (vendored)
 
-Vendored copy of w32api providing the Windows CE platform headers and the
+Vendored in-tree copy of w32api providing the Windows CE platform headers and the
 `libce/*.def` module-definition files from which the system-DLL import
 libraries are generated (`llvm-dlltool -m armce`).
 

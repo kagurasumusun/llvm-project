@@ -7099,6 +7099,14 @@ private:
                                SourceLocation PragmaLocation);
 
   // #pragma optimize("gsty", on|off)
+  bool HandlePragmaMSAutoInline(StringRef PragmaName,
+                                SourceLocation PragmaLocation);
+  bool HandlePragmaMSCheckStack(StringRef PragmaName,
+                                SourceLocation PragmaLocation);
+  bool HandlePragmaMSSetLocale(StringRef PragmaName,
+                               SourceLocation PragmaLocation);
+  bool HandlePragmaMSConform(StringRef PragmaName,
+                             SourceLocation PragmaLocation);
   bool HandlePragmaMSOptimize(StringRef PragmaName,
                               SourceLocation PragmaLocation);
 

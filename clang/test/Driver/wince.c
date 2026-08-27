@@ -71,16 +71,19 @@
 // DLL: dllcrt3.o
 // DLL-NOT: /fixed
 
-/// -mthreads (or -pthread) selects -D_MT at compile time and the
-/// pthreads4w static library at link time.
+/// -mthreads (or -pthread) selects -D_MT at compile time and links
+/// mingwrt's thread glue plus the pthreads4w static library at link time
+/// (CeGCC order: %{mthreads:-lmingwthrd} -lmingw32 ...).
 // RUN: %clang -target arm-pc-wince -mthreads %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=THREADS
 // THREADS: "-D_MT"
+// THREADS: mingwthrd.lib
 // THREADS: pthread.lib
 
 // RUN: %clang -target arm-pc-wince -pthread %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=PTHREAD
 // PTHREAD: "-D_MT"
+// PTHREAD: mingwthrd.lib
 // PTHREAD: pthread.lib
 
 /// C++ pulls in libc++/libc++abi/libunwind (GNU-named sysroot archives).

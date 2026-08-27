@@ -1,8 +1,8 @@
 #===- wince-sysroot/CMakeLists.txt - Windows CE sysroot ------------------===#
 #
 # The Windows CE sysroot as a first-class LLVM runtime project: it assembles
-# <sysroot>/{include,lib} from the trees vendored under third-party/
-# (mingwrt, w32api, pthread-win32) by building them with their own
+# <sysroot>/{include,lib} from the trees vendored in this project
+# (mingwrt/, w32api/, pthread-win32/) by building them with their own
 # configure/make using the LLVM/Clang WinCE cross compiler in place of
 # GCC/binutils.  The build steps live in
 # utils/wince/build-wince-sysroot.sh; this project drives them through the

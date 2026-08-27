@@ -1278,6 +1278,16 @@ def warn_pragma_expected_integer : Warning<
 def warn_pragma_ms_struct : Warning<
   "incorrect use of '#pragma ms_struct on|off' - ignored">,
   InGroup<IgnoredPragmas>;
+def warn_pragma_setlocale_charset : Warning<
+  "'#pragma setlocale(%0)': narrow string literal encoding is fixed by"
+  " -fexec-charset in clang; under MSVC this selects the codepage"
+  " (e.g. 'japanese' -> 932, 'english_us' -> 1252)">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_conform_for_scope : Warning<
+  "'#pragma conform(%0)': 'for'-statement scope conformance is fixed by"
+  " the language mode (-fms-compatibility) and cannot be toggled after"
+  " the translation unit has started">,
+  InGroup<IgnoredPragmas>;
 def warn_pragma_ms_fenv_access : Warning<
   "incorrect use of '#pragma fenv_access (on|off)' - ignored">,
   InGroup<IgnoredPragmas>;

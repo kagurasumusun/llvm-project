@@ -1,6 +1,6 @@
 # pthread-win32 / pthreads4w (vendored)
 
-Vendored copy of the pthreads4w (pthreads-win32) POSIX threads library,
+Vendored in-tree copy of the pthreads4w (pthreads-win32) POSIX threads library,
 providing `pthread.h` / `sched.h` / `semaphore.h` and the static
 `libpthread.a` for the Windows CE target (the Win32 thread API needs
 SRWLOCK/INIT_ONCE, which WinCE does not have).

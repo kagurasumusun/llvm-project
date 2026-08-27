@@ -12,7 +12,11 @@ and platform headers are the **unmodified** CeGCC-lineage
 plus the pthreads4w static thread library.  There is no bespoke CRT: the
 sysroot is assembled by building those trees **with their own
 configure/make**, with Clang in place of GCC and the LLVM binary tools in
-place of binutils — the same role CeGCC's GCC played.
+place of binutils — the same role CeGCC's GCC played.  All three trees are
+vendored in-tree under `wince-sysroot/` (this runtime project), matching
+LLVM's structure: `wince-sysroot` is a registered runtime
+(`LLVM_ENABLE_RUNTIMES=wince-sysroot`) whose subdirectories hold the
+imported sources.
 
 ```
 stage 1  clang/lld/llvm-tools host build     (clang/cmake/caches/WinCE.cmake)
@@ -45,6 +49,7 @@ Resulting layout (CeGCC-compatible, GNU-named):
       libceoldname.a      old-name aliases via COREDLL (mingwrt rules)
       libcoredll.a libcoredll6.a   COREDLL import libraries (mingwrt)
       lib*.a              w32api libce/*.def import libraries (llvm-dlltool)
+      libmingwthrd.a      mingwrt's -mthreads CRT glue (crtmt.o)
       libpthread.a        pthreads4w static library (PTW32_CLEANUP_C)
 
 Tool substitutions (GNU -> LLVM):
@@ -58,10 +63,9 @@ Tool substitutions (GNU -> LLVM):
 
 ### Third-party source policy
 
-The three trees are **vendored directly into this monorepo** (no
-submodules), each with a provenance note in its `README.llvmvendor.md`:
+Each tree carries a provenance note in its `README.llvmvendor.md`:
 
-* **`third-party/mingwrt`** — kagurasumusun/mingwrt @ `7c35691` plus one
+* **`wince-sysroot/mingwrt`** — kagurasumusun/mingwrt @ `7c35691` plus one
   compiler-compat commit (also pushed upstream): `include/_mingw.h` accepts
   `__clang__` at the `#ifdef __declspec` probe that selects the
   `__DECLSPEC_SUPPORTED` / `__MINGW_IMPORT` / `_CRTIMP` declarations
@@ -69,8 +73,8 @@ submodules), each with a provenance note in its `README.llvmvendor.md`:
   as a keyword), and `Makefile.in` preprocesses the generated `.def` files
   without `-C` (the preserved C comments are outside the def-file grammar
   llvm-dlltool implements).  No runtime-semantic changes.
-* **`third-party/w32api`** — kagurasumusun/w32api @ `51de0ad`, unmodified.
-* **`third-party/pthread-win32`** — GerHobbelt/pthread-win32 (the actively
+* **`wince-sysroot/w32api`** — kagurasumusun/w32api @ `51de0ad`, unmodified.
+* **`wince-sysroot/pthread-win32`** — GerHobbelt/pthread-win32 (the actively
   maintained combined successor of pthreads-win32/pthreads4w; upstream
   pthreads4w is dormant) @ `06e7608` plus three WinCE 6.0 build fixes
   committed in-tree:
@@ -110,7 +114,7 @@ the CeGCC link line on lld-link:
 | `-e DllMainCRTStartup` (DLL)     | `/entry:DllMainCRTStartup`                          |
 | pe.em subsystem-9 default entry  | `/entry:WinMainCRTStartup` (console: `mainCRTStartup`) |
 | arm-wince emulation defaults     | `/subsystem:windowsce /base:0x10000 /fixed` (DLLs: `0x10000000`, keep `.reloc`) |
-| `%{mthreads:-lmingwthrd} -lmingw32 -lgcc -lceoldname -lmingwex -lcoredll` | `libpthread.a` (`-mthreads`/`-pthread`, plus `-D_MT`), `libmingw32.a`, `libclang_rt.builtins-*.a`, `libceoldname.a`, `libmingwex.a`, `libcoredll.a` |
+| `%{mthreads:-lmingwthrd} -lmingw32 -lgcc -lceoldname -lmingwex -lcoredll` | `-mthreads`/`-pthread`: `libmingwthrd.a` (mingwrt, as CeGCC) + `libpthread.a` (pthreads4w) and `-D_MT`; then `libmingw32.a`, `libclang_rt.builtins-*.a`, `libceoldname.a`, `libmingwex.a`, `libcoredll.a` |
 | `%{mthreads:-D_MT}` (CPP_SPEC)   | `-D_MT` at compile time                             |
 
 Libraries are probed GNU-first (`lib<name>.a`) with MS-style (`<name>.lib`)
@@ -141,10 +145,22 @@ is libc++, the builtins runtime is compiler-rt):
 For maximum compatibility with eMbedded Visual C++ / Platform Builder era
 sources (this target always compiles with `-fms-extensions
 -fms-compatibility -fdelayed-template-parsing
--fms-compatibility-version=1900`), the following MSVC pragmas — previously
-diagnosed as unknown — are now accepted and ignored (same treatment as
-`#pragma runtime_checks`): `setlocale`, `check_stack`, `conform`,
-`auto_inline` (see `clang/lib/Parse/ParsePragma.cpp`).
+-fms-compatibility-version=1900`), the era's MSVC pragmas are fully
+implemented (see `clang/lib/Parse/ParsePragma.cpp`):
+
+* `#pragma auto_inline([on|off])` — functions in an `off` range get
+  `noinline` (`__forceinline` still wins, matching MSVC); Sema applies it
+  range-based, exactly like `#pragma optimize`.
+* `#pragma check_stack([on|off])` — functions in an `off` range get
+  `no_stack_protector` (the attribute behind `__declspec(safebuffers)`).
+* `#pragma setlocale("<locale>")` — full MSVC grammar with diagnostics;
+  clang fixes the narrow-literal charset per translation unit via
+  `-fexec-charset`, so the mapping is reported (MSVC codepage equivalent).
+* `#pragma conform(name, on|off[, push|pop[, id]])` — full MSVC grammar
+  with diagnostics; `'for'`-scope conformance is fixed by the language
+  mode, and the clang mapping is reported.
+* `#pragma runtime_checks` remains accepted-and-ignored (it guards
+  /RTC checks, which have no clang equivalent).
 
 ## Verification status
 
