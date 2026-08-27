@@ -1537,6 +1537,17 @@ void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("__MINGW32__");
   Builder.defineMacro("WIN32");
   Builder.defineMacro("WINNT");
+  // w32api's include/cegcc.h.in hard-errors ("__CEGCC_VERSION__ isn't
+  // defined by the compiler") unless this is predefined; it then #undefs
+  // and recomputes it from __CEGCC_VERSION_{MAJOR,MINOR,PATCHLEVEL}__, so
+  // the numeric value predefined here is never actually observed by user
+  // code. Kept in sync with the historical CeGCC value.
+  Builder.defineMacro("__CEGCC_VERSION__", "0x090909");
+  // Real Windows CE builds are Unicode-only (there is no ANSI Win32 subset
+  // on the platform); mingwrt/w32api's headers assume these are always
+  // set, matching upstream CeGCC's arm/wince-pe.h TARGET_OS_CPP_BUILTINS.
+  Builder.defineMacro("_UNICODE");
+  Builder.defineMacro("UNICODE");
   // eMbedded Visual C++ / Platform Builder style arch macros.
   Builder.defineMacro("_ARM_");
   Builder.defineMacro("ARM");
