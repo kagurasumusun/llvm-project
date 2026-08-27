@@ -40,6 +40,11 @@ static std::string findDefaultSysRoot(const Driver &D, const ArgList &Args) {
 WinCE::WinCE(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
     : Generic_GCC(D, Triple, Args) {
   SysRootPath = findDefaultSysRoot(D, Args);
+  if (!llvm::sys::fs::exists(SysRootPath)) {
+    D.Diag(diag::warn_drv_wince_sysroot_missing)
+        << SysRootPath
+        << "utils/wince/build-wince-sysroot.sh";
+  }
 }
 
 Tool *WinCE::getTool(Action::ActionClass AC) const {
@@ -480,7 +485,15 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     addCompilerRTBuiltins(TC, Args, CmdArgs, LibDir);
     addWinCELibrary(Args, CmdArgs, LibDir, "ceoldname");
     addWinCELibrary(Args, CmdArgs, LibDir, "mingwex");
-    addWinCELibrary(Args, CmdArgs, LibDir, "coredll");
+    // COREDLL import library by OS generation: coredll6.a carries the
+    // CE 6.0-only exports (CeGetThreadPriority, FindFirstDevice, ...),
+    // coredll.a the CE 5.0 surface.  The deployment default is CE 6.0;
+    // a versioned triple (arm-pc-wince5.0) selects the CE 5.0 surface.
+    llvm::VersionTuple OSVer = TC.getTriple().getOSVersion();
+    StringRef CoreDll = "coredll6";
+    if (OSVer.getMajor() && OSVer.getMajor() < 6)
+      CoreDll = "coredll";
+    addWinCELibrary(Args, CmdArgs, LibDir, CoreDll);
   }
 
   // --- Inputs (objects, archives, reserved C++ stdlib marker) --------------

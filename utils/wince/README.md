@@ -141,6 +141,78 @@ audited end to end:
 | thread-local storage | **unsupported by the platform**: COREDLL exports no `TlsAlloc`/`TlsFree` (CE allocates TLS per-DLL through the `DllMain` `reserved` parameter), so neither native TLS nor the emutls fallback (whose Windows path requires `TlsAlloc`) can run; `__thread`/`thread_local` are diagnosed as unsupported, exactly as eMbedded Visual C++ did. The WinCE targets document this and do NOT claim emutls lowering |
 | profiling (`-pg`, `gcrt3.o`/`libgmon`) | not provided by the mingw32ce build of mingwrt (the `profile/` sources are desktop-CRT only); CeGCC's LIB_SPEC kept the hook but nothing satisfied it |
 
+## Version policy (nothing is hard-wired to a single generation)
+
+| knob | default | override |
+|---|---|---|
+| CE OS generation | Windows Embedded CE 6.0 (`_WIN32_WCE=0x600`) | versioned triple `arm-pc-wince5.0` / `arm-pc-wince6.0` (also feeds `_WIN32_WCE`), or `-D_WIN32_WCE=...` |
+| COREDLL import surface | `libcoredll6.a` (CE 6.0-only exports: `CeGetThreadPriority`, `FindFirstDevice`, ...) | link-time: chosen from the triple version - `arm-pc-wince5.0` selects `libcoredll.a` (the CE 5.0 surface) |
+| MSVC compat persona | VS2015 (`-fms-compatibility-version=1900`) | `-fms-compatibility-version=1400` when importing eVC4/VS2005-era SDK headers that probe `_MSC_VER` |
+| GCC persona | GCC 14.2 (`-fgnuc-version=14.2`) | `-fgnuc-version=X.Y` for headers with `__GNUC__`-version gates |
+| CPU | arm926ej-s (ARMv5TE) | `-march=`/`-mcpu=`; sysroot stage: `WINCE_ARCH_FLAGS` |
+
+So neither the MSVC generation, the GCC persona, the CE generation nor the
+CPU is baked in - the defaults simply match the dominant deployment
+(CE 6.0 on i.MX28-class hardware).  Tools driven by these macros (mingwrt/
+w32api headers) check capabilities, not personas, and behave identically
+for any of the overrides above.
+
+## POSIX surface (beyond pthreads)
+
+The POSIX surface comes from two already-vendored layers - no additional
+runtime was written:
+
+* **pthreads4w** (`wince-sysroot/pthread-win32`): `pthread_*`,
+  `sem_*`, `sched_*` - threads, mutexes, condvars, semaphores, barriers,
+  rwlocks, spinlocks, cancellation.
+* **mingwrt's CE mingwex set** (linked as `libmingwex.a`): `open`/`read`/
+  `write`/`close`/`lseek`/`access`/`chmod`/`stat`/`rename`/`mkdir`/
+  `rmdir`/`unlink`/`utime`/`futime`/`fdopen`/`dirent`/`getopt`/
+  `time`/`gmtime`/`localtime`/`mktime`/`strftime`/`gettimeofday`/
+  `basename`/`dirname`/`tsearch` family, wide-char variants, `imax*`
+  inttypes - each backed by the closest COREDLL Win32 call.
+* A fuller POSIX layer (fork/exec, signals, select-on-anything) cannot be
+  provided without an OS-level subsystem: CE has no fork, no signal
+  delivery and a Win32-only process model.  Anything beyond the surface
+  above would require changing the WinCE platform itself, which is out of
+  scope by definition.
+
+## -pg profiling: feasibility study
+
+The default `LIB_SPEC`/`STARTFILE_SPEC` hooks exist (`%{pg:-lgmon}`,
+`%{pg:gcrt3%O%s}`) but the mingw32ce build of mingwrt ships neither
+`gcrt3.o` nor `libgmon`, so today `-pg` fails at link time.  It **can** be
+provided without touching the WinCE platform (user-mode only):
+
+* `gcrt3.o`: a variant of `crt3.c` plus an `mcount(frompc, selfpc)` hook
+  installed by a constructor.
+* `libgmon`: a gmon.out-compatible profiler running a **sampling thread**
+  (CE lacks POSIX timers/signals, but exports
+  `SuspendThread`/`GetThreadContext`/`ResumeThread`,
+  `QueryPerformanceCounter` and `CreateThread` - all verified present in
+  `coredll.def`), sampling the main thread's PC at a fixed interval and
+  writing `gmon.out` through `CreateFile` at `atexit`.
+* Driver: `-pg` -> link `gcrt3.o` + `libgmon` (replacing the compiler-rt
+  builtins position CeGCC used for `-lgmon`).
+
+This is new runtime code (not a mingwrt change), so it is parked here as a
+design awaiting approval; say the word and it gets implemented.
+
+## mingwrt update policy (no WinCE-behavior changes)
+
+Upgrading/refreshing the vendored mingwrt is possible under the "WinCE
+spec never changes" constraint, as long as updates are limited to:
+
+1. warning/C99-conformance fixes and errno/locale additions (the existing
+   upstream activity on the fork),
+2. mechanical refreshes of self-contained third-party parts (gdtoa,
+   `_pformat`) from newer mingw-w64 - license-compatible, no CRT0S /
+   MINGW_OBJS(ce) / export-set changes,
+3. keeping `CRT0S(ce)`, `MINGW_OBJS(ce)`, the `LIBS(ce)` set and
+   `coredll*.def` byte-identical - these define the platform ABI.
+
+Any change to (3) would be a WinCE-spec change and is rejected by policy.
+
 ## Architecture baseline (ARM926EJ-S / i.MX28 / ARMv5TE / armel)
 
 * Default CPU: **arm926ej-s** — the ARMv5TE generation core of the

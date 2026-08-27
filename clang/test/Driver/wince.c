@@ -62,7 +62,13 @@
 // LINK: clang_rt.builtins-arm.lib
 // LINK: ceoldname.lib
 // LINK: mingwex.lib
-// LINK: coredll.lib
+// LINK: coredll6.lib
+
+/// CE 5.0 triple selects the CE 5.0 COREDLL surface.
+// RUN: %clang -target arm-pc-wince5.0 %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINK50
+// LINK50: lld-link
+// LINK50: coredll.lib
 
 /// DLL link: dllcrt3.o, DllMainCRTStartup (CeGCC LINK_SPEC), DLL base,
 /// no /fixed.

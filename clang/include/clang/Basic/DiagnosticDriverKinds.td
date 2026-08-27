@@ -515,6 +515,11 @@ def warn_drv_overriding_deployment_version
 def warn_drv_overriding_complex_range : Warning<
   "'%1' sets complex range to \"%3\" overriding the setting of \"%2\" that was implied by '%0'">,
   InGroup<DiagGroup<"overriding-complex-range">>;
+def warn_drv_wince_sysroot_missing : Warning<
+  "Windows CE sysroot '%0' does not exist; compiling is possible but "
+  "linking will fail - assemble it with %1 in the llvm-project source "
+  "tree (or pass --sysroot=)">,
+  InGroup<DiagGroup<"wince-sysroot-missing">>;
 def warn_drv_treating_input_as_cxx : Warning<
   "treating '%0' input as '%1' when in C++ mode, this behavior is deprecated">,
   InGroup<Deprecated>;
