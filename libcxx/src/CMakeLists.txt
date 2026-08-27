@@ -100,7 +100,7 @@ if(LIBCXX_TARGETS_WINCE)
   # support layer does not apply (coredll has no setlocale, no _l
   # functions, no SRWLOCK/CONDITION_VARIABLE/INIT_ONCE, no wcrtomb_s).
   # The C locale + WinCE NLS backend replaces locale_win32, threading
-  # goes through the pthread shim in the wince-crt sysroot, and the
+  # goes through pthreads4w (libpthread.a) in the sysroot, and the
   # compiler-rt builtins provide the complex arithmetic that
   # compiler_rt_shims.cpp would.  Keyed on the target triple (not the
   # CMake WIN32 variable) so it applies regardless of how the cross

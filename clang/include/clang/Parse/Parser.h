@@ -7024,6 +7024,13 @@ private:
   std::unique_ptr<PragmaHandler> MSFunction;
   std::unique_ptr<PragmaHandler> MSOptimize;
   std::unique_ptr<PragmaHandler> MSFenvAccess;
+  // MSVC pragmas accepted (and ignored) for source compatibility, like
+  // "#pragma runtime_checks": the Windows CE-era CRT / eMbedded Visual C++
+  // project headers sprinkle these throughout.
+  std::unique_ptr<PragmaHandler> MSSetLocale;
+  std::unique_ptr<PragmaHandler> MSCheckStack;
+  std::unique_ptr<PragmaHandler> MSConform;
+  std::unique_ptr<PragmaHandler> MSAutoInline;
   std::unique_ptr<PragmaHandler> MSAllocText;
   std::unique_ptr<PragmaHandler> CUDAForceHostDeviceHandler;
   std::unique_ptr<PragmaHandler> OptimizeHandler;

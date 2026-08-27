@@ -634,6 +634,86 @@ public:
   }
 };
 
+// x86-32 Windows CE target (i386-pc-wince / the legacy CeGCC spelling
+// i386-mingw32ce).  Mirrors the CeGCC GCC configuration
+// gcc/config/i386/mingw32ce.h: the x86 flavor keeps the i386 PE
+// leading-underscore decoration (unlike the ARM flavor) and redirects the
+// Win32 calling-convention keywords to cdecl, which is the only call ABI
+// WinCE x86 defines (matching what windef.h does under MSVC for WinCE).
+class LLVM_LIBRARY_VISIBILITY WinCETargetInfo : public WindowsX86_32TargetInfo {
+public:
+  WinCETargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
+      : WindowsX86_32TargetInfo(Triple, Opts) {
+    TLSSupported = false; // no static-TLS loader on WinCE; __thread -> emutls
+  }
+
+  void getTargetDefines(const LangOptions &Opts,
+                        MacroBuilder &Builder) const override {
+    WindowsX86_32TargetInfo::getTargetDefines(Opts, Builder);
+    addWinCEDefines(getTriple(), Builder);
+    // CeGCC gcc/config/i386/mingw32ce.h EXTRA_OS_CPP_BUILTINS.
+    Builder.defineMacro("__CEGCC_VERSION__", "0x090909");
+    Builder.defineMacro("__COREDLL__");
+    Builder.defineMacro("__MINGW32__");
+    Builder.defineMacro("WIN32");
+    Builder.defineMacro("WINNT");
+    // CeGCC gcc/config/i386/mingw32ce.h TARGET_OS_CPP_BUILTINS.
+    Builder.defineMacro("_X86_", "1");
+    // Real Windows CE builds are Unicode-only.
+    Builder.defineMacro("_UNICODE");
+    Builder.defineMacro("UNICODE");
+    // Unlike the CeGCC ARM flavor (which neutralizes stdcall entirely),
+    // the i386 flavor redefines the calling-convention keywords to cdecl:
+    // "This is what VS2008 does in windef.h when compiling for WinCE."
+    // __fastcall/__thiscall keep their GNU attribute spellings; they are
+    // ignored at the ABI level for this target (see
+    // checkCallingConvention above).
+    Builder.defineMacro("__stdcall", "__attribute__((__cdecl__))");
+    Builder.defineMacro("__fastcall", "__attribute__((__fastcall__))");
+    Builder.defineMacro("__thiscall", "__attribute__((__thiscall__))");
+    Builder.defineMacro("__cdecl", "__attribute__((__cdecl__))");
+    if (Opts.GNUMode) {
+      Builder.defineMacro("_stdcall", "__attribute__((__cdecl__))");
+      Builder.defineMacro("_fastcall", "__attribute__((__fastcall__))");
+      Builder.defineMacro("_thiscall", "__attribute__((__thiscall__))");
+      Builder.defineMacro("_cdecl", "__attribute__((__cdecl__))");
+    }
+    // Even though linkonce works with static libs, this is needed to
+    // compare typeinfo symbols across dll boundaries (CeGCC keeps these
+    // macros; the values are inert under libc++).
+    Builder.defineMacro("__GXX_MERGED_TYPEINFO_NAMES", "0");
+    Builder.defineMacro("__GXX_TYPEINFO_EQUALITY_INLINE", "0");
+  }
+
+  TargetInfo::CallingConvCheckResult
+  checkCallingConvention(CallingConv CC) const override {
+    // WinCE x86 defines a single call ABI (cdecl); the Win32 calling
+    // conventions are accepted but ignored, exactly like MSVC's
+    // "for WinCE" behavior that windef.h implements by macro, and exactly
+    // like the ARM WinCE flavor treats them.  The GNU spellings are
+    // additionally rewritten to cdecl by predefined macros (below).
+    switch (CC) {
+    case CC_X86StdCall:
+    case CC_X86ThisCall:
+    case CC_X86FastCall:
+    case CC_X86VectorCall:
+    case CC_X86Pascal:
+    case CC_X86RegCall:
+      return CCCR_Ignore;
+    case CC_C:
+    case CC_DeviceKernel:
+    case CC_PreserveMost:
+    case CC_PreserveAll:
+    case CC_Swift:
+    case CC_SwiftAsync:
+      return CCCR_OK;
+    default:
+      return CCCR_Warning;
+    }
+  }
+};
+
+
 // x86-32 Cygwin target
 class LLVM_LIBRARY_VISIBILITY CygwinX86_32TargetInfo : public X86_32TargetInfo {
 public:

@@ -869,6 +869,12 @@ public:
 void addWindowsDefines(const llvm::Triple &Triple, const LangOptions &Opts,
                        MacroBuilder &Builder);
 
+/// Predefines shared by every Windows CE target (ARM and x86).  Mirrors the
+/// TARGET_OS_CPP_BUILTINS / EXTRA_OS_CPP_BUILTINS of the CeGCC compiler
+/// configurations (gcc/config/arm/wince-pe.h + arm/mingw32.h and
+/// gcc/config/i386/mingw32ce.h in the CeGCC GCC fork).
+void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder);
+
 // Windows target
 template <typename Target>
 class LLVM_LIBRARY_VISIBILITY WindowsTargetInfo : public OSTargetInfo<Target> {

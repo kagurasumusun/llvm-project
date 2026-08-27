@@ -515,6 +515,17 @@ void Parser::initializePragmaHandlers() {
     PP.AddPragmaHandler(MSIntrinsic.get());
     MSFenvAccess = std::make_unique<PragmaMSFenvAccessHandler>();
     PP.AddPragmaHandler(MSFenvAccess.get());
+    // Pragmas MSVC accepts (its CRT / eMbedded Visual C++ headers use
+    // them); they carry no codegen effect here, matching the treatment of
+    // "#pragma runtime_checks": accept the syntax, ignore the effect.
+    MSSetLocale = std::make_unique<EmptyPragmaHandler>("setlocale");
+    PP.AddPragmaHandler(MSSetLocale.get());
+    MSCheckStack = std::make_unique<EmptyPragmaHandler>("check_stack");
+    PP.AddPragmaHandler(MSCheckStack.get());
+    MSConform = std::make_unique<EmptyPragmaHandler>("conform");
+    PP.AddPragmaHandler(MSConform.get());
+    MSAutoInline = std::make_unique<EmptyPragmaHandler>("auto_inline");
+    PP.AddPragmaHandler(MSAutoInline.get());
   }
 
   if (getLangOpts().CUDA) {

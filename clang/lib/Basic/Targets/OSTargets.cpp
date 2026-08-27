@@ -287,5 +287,26 @@ void addWindowsDefines(const llvm::Triple &Triple, const LangOptions &Opts,
     addVisualCDefines(Opts, Builder);
 }
 
+void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder) {
+  // The WinCE version may be encoded in the triple (e.g. arm-pc-wince6.00);
+  // default to Windows Embedded CE 6.0, the deployment this toolchain
+  // primarily targets.  CeGCC defaulted to 5.0; overridable per invocation
+  // with -D_WIN32_WCE=0x500 (or a versioned triple, wince5.0).
+  unsigned _WIN32_WCE = 0x0600;
+  llvm::VersionTuple OSVer = Triple.getOSVersion();
+  if (OSVer.getMajor()) {
+    _WIN32_WCE = OSVer.getMajor() * 0x100;
+    if (OSVer.getMinor())
+      _WIN32_WCE += OSVer.getMinor().value();
+  }
+  Builder.defineMacro("_WIN32_WCE", Twine(_WIN32_WCE));
+  Builder.defineMacro("UNDER_CE", Twine(_WIN32_WCE));
+  Builder.defineMacro("WINCE");
+  Builder.defineMacro("__WINCE__");
+  // CeGCC/CeGCC-header compatibility: the mingwrt and w32api sources
+  // guard their WinCE support behind this macro.
+  Builder.defineMacro("__MINGW32CE__");
+}
+
 } // namespace targets
 } // namespace clang

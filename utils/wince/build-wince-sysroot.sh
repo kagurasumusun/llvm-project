@@ -1,0 +1,264 @@
+#!/bin/sh
+#===- utils/wince/build-wince-sysroot.sh - WinCE sysroot assembler -------===#
+#
+# Assembles the Windows CE sysroot from the unmodified third-party trees
+# that this repository vendors as git submodules:
+#
+#   third-party/mingwrt        kagurasumusun/mingwrt   (CeGCC mingw-runtime)
+#   third-party/w32api         kagurasumusun/w32api    (WinCE w32api, libce)
+#   third-party/pthread-win32  GerHobbelt/pthread-win32 (pthreads4w fork)
+#
+# mingwrt and w32api are built *as-is* through their own configure/make
+# with the LLVM/Clang WinCE cross compiler in place of GCC/binutils:
+#
+#   GCC          -> clang --target=<target>
+#   ar/ranlib    -> llvm-ar / llvm-ranlib
+#   dlltool      -> llvm-dlltool (via a small compatibility shim)
+#   gas          -> llvm-mc (unused by the WinCE objects; all C)
+#
+# The pthreads4w fork receives the two upstream-but-unapplied Windows CE
+# fixes carried in utils/wince/patches/pthread-win32-wince.patch:
+#   1. the _beginthread/_endthread guards must let WINCE take the
+#      _beginthreadex path (implement.h maps those to CreateThread /
+#      ExitThread under NEED_CREATETHREAD), and
+#   2. the GNU interlocked-operation block in implement.h must not select
+#      the x86 inline-asm variant on ARM (COREDLL provides the
+#      Interlocked* exports).
+#
+# Result layout (CeGCC-compatible, GNU-named):
+#   <sysroot>/include/...      mingwrt + w32api + pthreads headers
+#   <sysroot>/lib/
+#     crt3.o dllcrt3.o         CRT startup objects (mingwrt CRT0S)
+#     libmingw32.a libm.a      mingwrt glue libraries (MINGW_OBJS(ce))
+#     libmingwex.a             mingwrt C library supplement (CE object set)
+#     libceoldname.a           old-name aliases via COREDLL (mingwrt)
+#     libcoredll.a libcoredll6.a  COREDLL import libraries (mingwrt)
+#     lib*.a                   w32api libce import libraries
+#     libpthread.a             pthreads4w static library
+#
+# Stage 3 (compiler-rt builtins + libunwind/libc++abi/libc++) is driven by
+# utils/wince/build-wince-runtimes.sh.
+#
+# Usage:
+#   build-wince-sysroot.sh --toolchain <dir> [--target <triple>] \
+#       [--prefix <dir>] [--jobs N] [--keep-build]
+#
+#===------------------------------------------------------------------------===#
+
+set -e
+
+PROGRAM="$(basename "$0")"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+TARGET="arm-pc-wince"
+PREFIX=""
+TOOLCHAIN=""
+JOBS=2
+KEEP_BUILD=0
+
+usage() {
+  sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
+  exit 1
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --toolchain) TOOLCHAIN="$2"; shift 2 ;;
+    --target)    TARGET="$2"; shift 2 ;;
+    --prefix)    PREFIX="$2"; shift 2 ;;
+    --jobs)      JOBS="$2"; shift 2 ;;
+    --keep-build) KEEP_BUILD=1; shift ;;
+    -h|--help)   usage ;;
+    *) echo "$PROGRAM: unknown option: $1" >&2; usage ;;
+  esac
+done
+
+case "$TARGET" in
+  arm-pc-wince*|arm-mingw32ce*) HOST_ALIAS="arm-mingw32ce"; DLLTOOL_MACHINE="armce" ;;
+  i386-pc-wince*|i386-mingw32ce) HOST_ALIAS="i386-mingw32ce"; DLLTOOL_MACHINE="i386" ;;
+  *) echo "$PROGRAM: unsupported WinCE target '$TARGET'" >&2; exit 1 ;;
+esac
+
+if [ -z "$TOOLCHAIN" ]; then
+  echo "$PROGRAM: --toolchain <dir-with-clang> is required" >&2
+  exit 1
+fi
+if [ -x "$TOOLCHAIN/bin/clang" ]; then
+  TOOLCHAIN="$TOOLCHAIN/bin"
+elif [ ! -x "$TOOLCHAIN/clang" ]; then
+  echo "$PROGRAM: clang not found under $TOOLCHAIN (build stage 1 first," >&2
+  echo "  see clang/cmake/caches/WinCE.cmake)" >&2
+  exit 1
+fi
+
+if [ -z "$PREFIX" ]; then
+  # The WinCE toolchain driver's default sysroot location: <prefix>/wince-sysroot
+  PREFIX="$TOOLCHAIN/../wince-sysroot"
+fi
+SYSROOT="$(cd "$(dirname "$PREFIX")" 2>/dev/null && pwd)/$(basename "$PREFIX")"
+
+MINGWRT_SRC="$REPO_ROOT/third-party/mingwrt"
+W32API_SRC="$REPO_ROOT/third-party/w32api"
+PTHREAD_SRC="$REPO_ROOT/third-party/pthread-win32"
+
+for d in "$MINGWRT_SRC" "$W32API_SRC" "$PTHREAD_SRC"; do
+  if [ ! -e "$d/configure" ] && [ ! -e "$d/GNUmakefile" ] && [ ! -e "$d/pthread.c" ]; then
+    echo "$PROGRAM: $d is empty; run:" >&2
+    echo "  git -C $REPO_ROOT submodule update --init --depth 1" >&2
+    exit 1
+  fi
+done
+
+# --- Tools -----------------------------------------------------------------
+CLANG="$TOOLCHAIN/clang"
+LLVM_AR="$(ls "$TOOLCHAIN"/llvm-ar* 2>/dev/null | head -1)"
+LLVM_RANLIB="$(ls "$TOOLCHAIN"/llvm-ranlib* 2>/dev/null | head -1)"
+LLVM_DLLTOOL="$(ls "$TOOLCHAIN"/llvm-dlltool* 2>/dev/null | head -1)"
+LLVM_MC="$(ls "$TOOLCHAIN"/llvm-mc* 2>/dev/null | head -1)"
+for t in "$LLVM_AR" "$LLVM_RANLIB" "$LLVM_DLLTOOL"; do
+  [ -n "$t" ] || { echo "$PROGRAM: required LLVM binary tool missing in $TOOLCHAIN" >&2; exit 1; }
+done
+
+BUILD="$REPO_ROOT/build-wince-sysroot"
+mkdir -p "$BUILD/bin" "$SYSROOT/lib"
+
+# Baseline ARMv5TE (ARM926EJ-S class devices, e.g. i.MX28), soft-float:
+# the WinCE/COREDLL FP ABI.  Override with WINCE_ARCH_FLAGS.
+case "$TARGET" in
+  arm*) ARCH_FLAGS="${WINCE_ARCH_FLAGS:--march=armv5te -mfloat-abi=soft}" ;;
+  *)    ARCH_FLAGS="${WINCE_ARCH_FLAGS:-}" ;;
+esac
+
+TARGET_CC="$CLANG --target=$TARGET $ARCH_FLAGS"
+
+# --- llvm-dlltool compatibility shim ---------------------------------------
+# mingwrt/w32api Makefiles invoke dlltool with GNU-only spellings that
+# llvm-dlltool does not implement (--def, -U) or ignores (--as).  Translate.
+cat > "$BUILD/bin/dlltool" <<EOF
+#!/bin/sh
+# Generated by $PROGRAM: GNU dlltool -> llvm-dlltool adapter.
+ARGS=""
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    --def)   shift; ARGS="\$ARGS -d \$1" ;;
+    --def=*) ARGS="\$ARGS -d \$(echo \$1 | sed 's/^--def=//')" ;;
+    -U)      ;; # symbol decoration: llvm-dlltool infers from the machine
+    --as|-S) shift ;; # assembler name: ignored by llvm-dlltool
+    --as=*)  ;;
+    *)       ARGS="\$ARGS \$1" ;;
+  esac
+  shift
+done
+exec $LLVM_DLLTOOL -m $DLLTOOL_MACHINE \$ARGS
+EOF
+chmod +x "$BUILD/bin/dlltool"
+
+echo "== WinCE sysroot: target $TARGET (host alias $HOST_ALIAS)"
+echo "== sysroot: $SYSROOT"
+
+# --- mingwrt ----------------------------------------------------------------
+echo "== [1/3] mingwrt (CRT + mingwex + COREDLL import libraries)"
+# third-party/mingwrt carries first-class LLVM/Clang build support (see its
+# git log: "Build with LLVM/Clang in addition to GCC"); configure out of
+# tree so the source checkout stays clean.
+MINGWRT_BUILD="$BUILD/mingwrt"
+rm -rf "$MINGWRT_BUILD"
+mkdir -p "$MINGWRT_BUILD"
+cd "$MINGWRT_BUILD"
+if [ ! -f Makefile ]; then
+  CC="$TARGET_CC" \
+  AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
+  AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
+  CFLAGS="-O2 -g0 -fno-ident -fgnu89-inline -fms-extensions" \
+  W32API_INCLUDE="-I $W32API_SRC/include" \
+  /bin/sh "$MINGWRT_SRC/configure" \
+    --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
+    --prefix="$SYSROOT" \
+    --disable-shared \
+    > configure.log 2>&1 || { tail -20 configure.log; exit 1; }
+fi
+# CRT0S(ce) + MINGW_OBJS(ce) archives + COREDLL import libraries (their rules).
+make -j "$JOBS" crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
+     libmingw32.a libm.a libcoredll.a libcoredll6.a libceoldname.a \
+     >> build.log 2>&1 || { tail -30 build.log; exit 1; }
+# mingwex CE object set (the Makefile selects MATHCE/STDIO_CE/etc. by host).
+make -j "$JOBS" -C mingwex libmingwex.a >> mingwex.log 2>&1 || \
+  { tail -30 mingwex.log; exit 1; }
+
+install -m 644 crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
+  libmingw32.a libm.a libceoldname.a \
+  libcoredll.a libcoredll6.a "$SYSROOT/lib/"
+install -m 644 mingwex/libmingwex.a "$SYSROOT/lib/"
+# C library headers go in first: w32api's .c helpers and its import-library
+# build include <string.h> & co. from the C library, exactly like a stock
+# CeGCC target tree.
+make -C "$MINGWRT_BUILD" install-headers inst_includedir="$SYSROOT/include" \
+  >> "$BUILD/install.log" 2>&1 || {
+  mkdir -p "$SYSROOT/include"
+  cp -r "$MINGWRT_SRC/include/." "$SYSROOT/include/"
+}
+
+# --- w32api -----------------------------------------------------------------
+echo "== [2/3] w32api (WinCE platform headers + libce import libraries)"
+mkdir -p "$BUILD/w32api"
+cd "$BUILD/w32api"
+if [ ! -f Makefile ]; then
+  CC="$TARGET_CC" \
+  AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
+  AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
+  CFLAGS="-O2 -g0 -nostdinc -isystem $MINGWRT_SRC/include -isystem $SYSROOT/include" \
+  /bin/sh "$W32API_SRC/configure" \
+    --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
+    --prefix="$SYSROOT" \
+    > configure.log 2>&1 || { tail -20 configure.log; exit 1; }
+fi
+make -j "$JOBS" >> build.log 2>&1 || { tail -30 build.log; exit 1; }
+# Import libraries (libce/*.def -> lib*.a).  Headers are staged flat, the
+# CeGCC layout (w32api headers share <sysroot>/include with mingwrt's).
+find "$BUILD/w32api/libce" -maxdepth 1 -name 'lib*.a' \
+  -exec install -m 644 {} "$SYSROOT/lib/" \; || true
+mkdir -p "$SYSROOT/include"
+cp -r "$W32API_SRC/include/." "$SYSROOT/include/"
+
+# --- pthreads4w -------------------------------------------------------------
+echo "== [3/3] pthread-win32 (pthreads4w static library)"
+# pthreads4w is a third-party fork (GerHobbelt/pthread-win32); its two
+# missing WinCE fixes are carried as a patch in this repository and applied
+# to a scratch copy, never to the submodule checkout:
+#   * thread entry/exit must take the _beginthreadex/_endthreadex paths,
+#     which implement.h maps to CreateThread/ExitThread under
+#     NEED_CREATETHREAD (the only thread primitives COREDLL provides), and
+#   * the GNU interlocked block hardcodes x86 inline asm; ARM must use the
+#     COREDLL InterlockedCompareExchange/Exchange/ExchangeAdd/... exports.
+PTHREAD_BUILD="$BUILD/pthread-win32"
+rm -rf "$PTHREAD_BUILD"
+cp -r "$PTHREAD_SRC" "$PTHREAD_BUILD"
+(cd "$PTHREAD_BUILD" && \
+ patch -p1 < "$REPO_ROOT/utils/wince/patches/pthread-win32-wince.patch") \
+ > "$BUILD/pthread-patch.log" 2>&1 || \
+ { tail -10 "$BUILD/pthread-patch.log"; exit 1; }
+
+# PTW32_CLEANUP_C: structured-exception unwinding does not exist on WinCE;
+# the setjmp/longjmp C cleanup variant is the supported configuration.
+PTHREAD_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
+ -fms-extensions -nostdinc \
+ -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
+ -I $PTHREAD_BUILD -DHAVE_CONFIG_H \
+ -DPTW32_STATIC_LIB -D__CLEANUP_C -D__PTHREAD_JUMBO_BUILD__"
+(cd "$PTHREAD_BUILD" && \
+ $CLANG $PTHREAD_CFLAGS -c pthread.c -o pthread.o) \
+ > "$BUILD/pthread-build.log" 2>&1 || \
+ { tail -30 "$BUILD/pthread-build.log"; exit 1; }
+"$LLVM_AR" rcs "$SYSROOT/lib/libpthread.a" "$PTHREAD_BUILD/pthread.o"
+"$LLVM_RANLIB" "$SYSROOT/lib/libpthread.a"
+for h in pthread.h sched.h semaphore.h _ptw32.h need_errno.h; do
+  install -m 644 "$PTHREAD_BUILD/$h" "$SYSROOT/include/$h"
+done
+
+echo "== done: $SYSROOT"
+echo "   next: utils/wince/build-wince-runtimes.sh --toolchain $TOOLCHAIN \\"
+echo "         --sysroot $SYSROOT"
+
+if [ "$KEEP_BUILD" = 0 ]; then
+  rm -rf "$BUILD"
+fi

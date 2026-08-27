@@ -15,8 +15,10 @@
 #   ninja -C build clang lld llvm-ar llvm-ranlib llvm-dlltool \
 #                llvm-readobj llvm-objdump llvm-nm llvm-mc FileCheck
 #
-# Stage 2 (WinCE sysroot) and stage 3 (C++ runtime) are driven by
-# wince-crt/scripts/build-runtimes.sh; see wince-crt/docs/BUILDING.md.
+# Stage 2 (WinCE sysroot: mingwrt + w32api + pthreads4w) and stage 3
+# (compiler-rt builtins + libunwind/libc++abi/libc++) are driven by
+# utils/wince/build-wince-sysroot.sh and utils/wince/build-wince-runtimes.sh;
+# see utils/wince/README.md.
 #
 #===------------------------------------------------------------------------===#
 
@@ -26,7 +28,7 @@ set(LLVM_ENABLE_PROJECTS "clang;lld" CACHE STRING "")
 # --- Backends: ARM only (WinCE devices); no native host backend needed ----
 set(LLVM_TARGETS_TO_BUILD "ARM" CACHE STRING "")
 
-# --- Runtimes are built as separate cross stages (wince-crt docs) ----------
+# --- Runtimes are built as separate cross stages (utils/wince) -------------
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING "")
 
 # --- Disable everything the WinCE toolchain does not need ------------------
