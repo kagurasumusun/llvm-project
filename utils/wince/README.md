@@ -387,18 +387,46 @@ rule that protects the ABI also protects the platform boundary.
 | `<windows.h>` | provided (w32api CE 255-header SDK: windef/winbase/wingdi/winuser/winsock/... + pshpack/poppack) |
 | C++ (libc++) | C++11/14/17 + most C++20; `thread_local` via emutls |
 
-## armasm syntax support
+## armasm syntax support: IMPLEMENTED (`utils/wince/armasm/armasm-convert.py`)
 
-**Feasible: yes - as a source-translation preassembler, not in LLVM MC.**
-LLVM's integrated ARM assembler only accepts GNU unified syntax.  The
-MSVC `armasm` dialect differs in directives (`AREA`, `PROC`/`ENDP`,
-`DCD`/`DCB`, `EXPORT`/`IMPORT`, `;` comments, `IF/ELSE/ENDIF`) but is a
-small, mechanical language (unlike MASM's macro machinery).  A
-`armasm-convert` filter (AREA->.section/.text, DCD->.word, DCB->.byte,
-EXPORT->.globl, IMPORT->.extern, PROC/ENDP removed, `;`->`@` comments,
-`EQU`->`=`-set, IF/ELSE/ENDIF -> preprocessor) covers typical CE driver
-helpers.  This is parked as a standalone tool - say the word and it
-gets built.
+A complete armasm -> GNU unified-syntax translator.  Pipeline:
+`armasm source -> armasm-convert.py -> GNU .s -> clang -x
+assembler-with-cpp (integrated ARM as) -> COFF object`.
+
+Covered (full armasm statement surface):
+
+* **Directives**: AREA (CODE/DATA/READONLY/READWRITE/NOINIT/ALIGN=n ->
+  .section with flags + .align), PROC/FUNC & ENDP/ENDFUNC (framed with
+  .size), EXPORT/GLOBAL/IMPORT/EXTERN/EXPORTAS, DCD/DCDU/DCI, DCB
+  (strings + numbers), DCW/DCWU, DCQ/DCQU, DCFS/DCFD, SPACE/FILL,
+  ALIGN, EQU (`*`/`=` forms), RN/CN/CP register aliasing, GBLA/GBLL/
+  GBLS/LCLA/LCLL/LCLS/SETA/SETL/SETS (passed to cpp), IF/ELSE/ENDIF and
+  WHILE/WEND (constant-folded, :DEF: aware), **MACRO/MEND** (positional
+  and keyword parameters, `$`-substitution with longest-first
+  word-boundary matching), GET/INCLUDE (files inlined), LNK, INCBIN,
+  ASSERT (-> .error), ATTR, PRESERVE8/REQUIRE8, THUMB/ARM/CODE16/
+  CODE32, LTORG, NOFP, ENTRY, ROUT, KEEP, NOCROSSREF, OPT/TTL/SUBT.
+* **Expressions**: `{PC}`->`.`, `{TRUE}/{FALSE}`, `:CHR:`,
+  `:LOWERCASE:`/`:UPPERCASE:`, `:DEF:`, `:AND:/:OR:/:EOR:/:MOD:/:SHL:/
+  :SHR:`, `2_1010`/`%1010`/`&ff` binary/hex markers, `*` = current
+  location.
+* **Registers**: full APCS/ATPCS spellings (a1-a4, v1-v8, sb/sl/fp/ip/
+  sp/lr/pc) auto-mapped to r0-r15.
+* **Comments**: `;` -> `@` (string- and `||`-aware).
+* **Mnemonics**: SWI->SVC spelling update; condition codes are already
+  GNU-compatible.
+
+Verified end-to-end: a CE-driver-style source (AREA/PROC/IMPORT/EXPORT,
+APCS aliases, literal pools `=imm`/`=label`, conditional branches,
+DCB strings, DCD tables, ALIGN/SPACE) and a macro test (EQU, IF/ELSE
+constant folding, MACRO with `$`-parameters) both translate and
+assemble to ARM COFF objects with the in-tree toolchain.
+
+Known simplification: labels that collide with mnemonic prefixes are
+disambiguated heuristically (bare identifier = label; identifier +
+directive = labeled directive; identifier + operands = instruction) -
+armasm itself has the same ambiguity, and PB sources place such labels
+on their own line.
 
 ## Platform Builder build-system replacement
 
