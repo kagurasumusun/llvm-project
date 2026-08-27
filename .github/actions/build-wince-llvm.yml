@@ -1,26 +1,3 @@
-# =============================================================================
-#  Windows CE LLVM/Clang toolchain - Linux build workflow
-# =============================================================================
-#  NOTE: kept in .actions/ on purpose - move to .github/workflows/ to enable.
-#
-#  Builds the complete Windows CE cross toolchain on a standard Linux
-#  runner, entirely from this monorepo:
-#
-#    stage 1  LLVM/Clang/LLD host build       (clang/cmake/caches/WinCE.cmake)
-#    stage 2  WinCE sysroot                   (utils/wince/build-wince-sysroot.sh;
-#             mingwrt + w32api + pthread-win32 are vendored in-tree)
-#    stage 3  compiler-rt + libunwind/libcxx  (utils/wince/build-wince-runtimes.sh)
-#    package  self-contained tarball that installs side-by-side with any
-#             other LLVM/Clang (isolated prefix + target-prefixed wrappers;
-#             nothing is installed into /usr and no generic name is put on
-#             the global PATH)
-#
-#  The produced artifact installs like:
-#      tar -C /opt -xzf wince-llvm-*.tar.zst
-#      export PATH=/opt/wince-llvm/bin:$PATH      # optional
-#      arm-pc-wince-clang hello.c -o hello.exe
-# =============================================================================
-
 name: wince-llvm-toolchain
 
 on:
