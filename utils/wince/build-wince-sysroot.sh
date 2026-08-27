@@ -235,6 +235,12 @@ find "$BUILD/w32api/libce" -maxdepth 1 -name 'lib*.a' \
   -exec install -m 644 {} "$SYSROOT/lib/" \; || true
 mkdir -p "$SYSROOT/include"
 cp -r "$W32API_SRC/include/." "$SYSROOT/include/"
+# This project's header overlay (sal.h - MSVC SAL annotations; files CE-era
+# SDK headers lack that ported modern sources expect).  Last wins.
+OVERLAY="$REPO_ROOT/wince-sysroot/include-overlay"
+if [ -d "$OVERLAY" ]; then
+  cp -r "$OVERLAY/." "$SYSROOT/include/"
+fi
 
 # --- pthreads4w -------------------------------------------------------------
 echo "== [3/5] pthread-win32 (pthreads4w static library)"

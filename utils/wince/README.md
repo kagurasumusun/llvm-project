@@ -370,7 +370,48 @@ MEM_RESET, `FlsAlloc`, `GetConsoleWindow`, `_beginthreadex`, ...) - will
 not run on WinCE and must not be ported into the CE mingwrt.  The same
 rule that protects the ABI also protects the platform boundary.
 
-## Modern development conveniences: what else is feasible
+## MSVC source-compat inventory (the full checklist)
+
+| MSVC feature | status here |
+|---|---|
+| SAL annotations (`_In_`/`_Out_` + old `__in` style) | **provided**: `wince-sysroot/include-overlay/sal.h` (standard no-op spellings, analysis-off mode, old-style kept); CE-era headers use none/old-style and now both compile |
+| `<intrin.h>` (ARM) | **provided**: overlay `intrin.h` - MSVC spellings mapped (barrier/cache-flush/CLZ); `__dmb/__dsb/__isb` use native instructions on ARMv6+ and a CacheSync system barrier on the ARMv5TE baseline (the clang ACLE header has no v5 lowering) |
+| MSVC CRT | **by design replaced** by mingwrt (that IS the CeGCC CRT contract); `_MSC_VER`-conditional MSVC-CRT-specific extensions (e.g. `__dbg` heap APIs) are out of scope |
+| MSVC type mapping (`__int64`, `SIZE_T`, `DWORD_PTR`, ...) | provided: mingwrt/w32api headers define the full set; `__int64` is a clang keyword alias |
+| `__uuidof` / `__declspec(uuid)` | clang supports both (Sema `ActOnCXXUuidof`, `UuidAttr`); `__uuidof` returns the compiler-generated GUID per C++ ABI (GenericARM Itanium mangling); MSVC-style `__uuidof` template capture works |
+| operator new/delete from COREDLL | verified present in the def (mangled `??2@...`/`??3@...`/`??_U@...`/`??_V@...`); libc++ uses its own operators, C code never imports them |
+| SEH (`__try`/`__except`/`__finally`) | **arch-gated, by design**: Sema/IR-gen support x86 and AArch64 WinEH; the ARM32 Windows-EH unwinder data (`R11`-chain) is not produced by this target, and CE never had ARM32 SEH unwinding (eVC used it only for kernel debugging). C++ exceptions on CE go through ARM EHABI + libunwind (implemented). `__try` on arm-pc-wince is diagnosed as unsupported rather than silently mis-generated |
+| `<fcntl.h>` `<conio.h>` `<io.h>` `<process.h>` | provided by mingwrt (verified: `_getch/_kbhit/_putch`, `_findfirst` family, spawn/exec decls) |
+| `<tchar.h>` | provided (87 `_tcs*` mappings, `_T()`), UNICODE build assumed like eVC |
+| `<wincrypt.h>` | provided (w32api CE), backed by the Crypt* exports in the def (verified) |
+| `<windows.h>` | provided (w32api CE 255-header SDK: windef/winbase/wingdi/winuser/winsock/... + pshpack/poppack) |
+| C++ (libc++) | C++11/14/17 + most C++20; `thread_local` via emutls |
+
+## armasm syntax support
+
+**Feasible: yes - as a source-translation preassembler, not in LLVM MC.**
+LLVM's integrated ARM assembler only accepts GNU unified syntax.  The
+MSVC `armasm` dialect differs in directives (`AREA`, `PROC`/`ENDP`,
+`DCD`/`DCB`, `EXPORT`/`IMPORT`, `;` comments, `IF/ELSE/ENDIF`) but is a
+small, mechanical language (unlike MASM's macro machinery).  A
+`armasm-convert` filter (AREA->.section/.text, DCD->.word, DCB->.byte,
+EXPORT->.globl, IMPORT->.extern, PROC/ENDP removed, `;`->`@` comments,
+`EQU`->`=`-set, IF/ELSE/ENDIF -> preprocessor) covers typical CE driver
+helpers.  This is parked as a standalone tool - say the word and it
+gets built.
+
+## Platform Builder build-system replacement
+
+Feasible in scope: the PB *driver/application* build (sources file ->
+cl/armasm -> link against coredll) is reproducible with this toolchain
+(a `sources`-file parser + Make/CMake generator is mechanical, and the
+CE-target compile flags are fully emulated here).  What is NOT
+reproducible: the OS-image build (sysgen, makeimg, BIB/REG/DAT
+compilation, catalog items, the kernel HAL, and the MSVC-only kernel
+components) - that is an OS-build platform, not a compiler, and the CE6
+shared-source kernel still expects armasm + MSVC for several
+components.  A `wince-build` tool covering driver/app projects is
+another parked, implementable tool.
 
 Already in the sysroot: libc++ (C++11/14/17, most of C++20 minus
 `thread_local`), pthreads4w, the mingwex POSIX subset, gprof profiling.
