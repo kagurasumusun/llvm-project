@@ -487,6 +487,7 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     addCompilerRTBuiltins(TC, Args, CmdArgs, LibDir);
     addWinCELibrary(Args, CmdArgs, LibDir, "ceoldname");
     addWinCELibrary(Args, CmdArgs, LibDir, "mingwex");
+    addWinCELibrary(Args, CmdArgs, LibDir, "posix");
     if (WantProfiling)
       addWinCELibrary(Args, CmdArgs, LibDir, "gmon");
     // COREDLL import library by OS generation: coredll6.a carries the

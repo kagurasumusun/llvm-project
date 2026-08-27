@@ -1135,6 +1135,8 @@ ThreadBaseFunc
 ThreadDetachAllDLLs
 ThreadExceptionExit
 TlsCall
+TlsAlloc
+TlsFree
 TlsGetValue
 TlsSetValue
 TouchCalibrate

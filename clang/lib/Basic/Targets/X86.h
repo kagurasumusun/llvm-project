@@ -644,10 +644,11 @@ class LLVM_LIBRARY_VISIBILITY WinCETargetInfo : public WindowsX86_32TargetInfo {
 public:
   WinCETargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : WindowsX86_32TargetInfo(Triple, Opts) {
-    // COREDLL exports no TlsAlloc/TlsFree, so neither native TLS nor the
-    // emutls fallback (built on TlsAlloc) is available; __thread /
-    // thread_local are diagnosed as unsupported, matching eMbedded VC++.
-    TLSSupported = false;
+    // TLS via emutls: CE exports TlsAlloc/TlsFree since CE 1.0 (the CeGCC
+    // def omitted them; the vendored defs list them now).  See the ARM
+    // WinCE target for the full note; -femulated-tls is the triple
+    // default.
+    TLSSupported = true;
   }
 
   void getTargetDefines(const LangOptions &Opts,

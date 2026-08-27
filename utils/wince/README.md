@@ -203,7 +203,7 @@ audited end to end:
 | atexit / `_onexit` | complete: mingwrt's private atexit table (COREDLL exports neither), flushed by `_cexit` at the end of `crt3`/`dllcrt1` |
 | argv / WinMain | complete: mingwrt `crt3.c` dispatches to `WinMain`; `winmain_ce.o` in libmingw32 provides the `WinMain -> main` adapter, `mainCRTStartup` builds argv from `GetCommandLineW` |
 | runtime pseudo relocations & import thunks | complete: ARM-mode `ldr ip,[pc]` thunks identical to binutils `jmp_arm_bytes`, `_pei386_runtime_relocator` handles imported-data offsets |
-| thread-local storage | **unsupported by the platform**: COREDLL exports no `TlsAlloc`/`TlsFree` (CE allocates TLS per-DLL through the `DllMain` `reserved` parameter), so neither native TLS nor the emutls fallback (whose Windows path requires `TlsAlloc`) can run; `__thread`/`thread_local` are diagnosed as unsupported, exactly as eMbedded Visual C++ did. The WinCE targets document this and do NOT claim emutls lowering |
+| thread-local storage | **supported via emutls**: CE has exported `TlsAlloc`/`TlsFree` since CE 1.0 (MSDN, "Windows CE OS 1.0 and later") - the CeGCC `coredll.def` simply omitted them; the vendored def files list them now. `thread_local`/`__thread` lower to emutls (`__emutls_v.*` + `__emutls_get_address` from compiler-rt, whose Windows path uses TlsAlloc), and `Triple::hasDefaultEmulatedTLS()` covers WinCE so `-femulated-tls` is the driver default. Caveat: mingwrt's `_errno()` remains a single shared static |
 | profiling (`-pg`, `gcrt3.o`/`libgmon`) | not provided by the mingw32ce build of mingwrt (the `profile/` sources are desktop-CRT only); CeGCC's LIB_SPEC kept the hook but nothing satisfied it |
 
 ## Version policy (nothing is hard-wired to a single generation)
@@ -236,28 +236,26 @@ runtime was written:
   `time`/`gmtime`/`localtime`/`mktime`/`strftime`/`gettimeofday`/
   `basename`/`dirname`/`tsearch` family, wide-char variants, `imax*`
   inttypes - each backed by the closest COREDLL Win32 call.
-* A full POSIX layer (fork/exec, signals, select-on-anything) cannot be
-  provided without an OS-level subsystem.  **Substitute evaluation**
-  (all against verified coredll exports):
-  * `exec*`/`system()`: feasible - `CreateProcess` + `ExitProcess` +
-    `GetExitCodeProcess`/`WaitForSingleObject` exist; POSIX image-
-    replacement semantics are approximated (spawn + self-exit).
-  * `popen()`: needs pipes - `CreatePipe` is NOT exported by COREDLL
-    (CE 6 has named pipes via a driver, anonymous pipes not in coredll);
-    a temp-file fallback is possible but ugly.  Half-feasible.
-  * `waitpid`: approximable via process-handle tables +
-    `GetExitCodeProcess` (same handle-limitation as _WIN32: only
-    children you created and kept handles for).
-  * `signal()`: synchronous signals are feasible - `raise`/`abort` plus
-    a vectored-exception-handler mapping for SIGSEGV/SIGILL/SIGFPE -
-    but COREDLL does not export `AddVectoredExceptionHandler` in the
-    CeGCC def set, so it would need that export verified/added to the
-    def (a def-only change if the CE kernel exports it - CE5/6 kernels
-    do export VEH, the def file lags).  Asynchronous signals (SIGALRM)
-    would be cooperative-only (timer thread + flag checks).
-  * `fork`: impossible - CE has no COW/child-image primitive; POSIX
-    programs that genuinely need fork cannot be supported without an
-    OS-level layer.
+* **Implemented POSIX process/signal layer** (`wince-sysroot/posix/`,
+  built as `libposix.a`, linked by default; headers: `sys/wait.h`):
+  * `execv`/`execvp`/`execl`/`execlp` - CreateProcess-based image
+    replacement approximation (create, wait, exit with the child's
+    code, so a waiting parent observes the right status).
+  * `system()` - CreateProcess directly (CE has no shell; documented).
+  * `waitpid` - runtime child table (exec/system/popen children) over
+    WaitForSingleObject + GetExitCodeProcess; WNOHANG supported.
+  * `popen`/`pclose` - implemented with a documented platform limit:
+    CE cannot redirect a child's stdout (no `CreatePipe`, no child
+    std-handle inheritance), so the stream carries nothing from the
+    child; pclose still returns the real exit status.
+  * `signal`/`raise`/`alarm` - registry + cooperative delivery,
+    SIGALRM via a timer thread; fault-delivered SIGSEGV/SIGFPE need
+    the vectored-exception export which the CeGCC def does not list
+    (kernel-level availability would be a def-only follow-up).
+  * `fork`: impossible - CE has no COW/child-image primitive; the
+    CreateProcess + state-rebuild route (the Cygwin model) would
+    require tracking every allocation/handle/thread - an OS-layer
+    project, not a runtime function.
 
 ## POSIX / native mixing
 
@@ -270,8 +268,10 @@ construction, with two documented caveats:
   So `read(fd)` on an fd you created with `CreateFileW` works, and
   mixing `fopen`/`fread` with `CreateFileW`/`ReadFile` on the same file
   is ordinary Win32 sharing semantics.
-* Caveat 1 - errno: shared single static (see audit caveat above); do
-  not rely on errno across threads after failures.
+* Caveat 1 - errno: mingwrt's `_errno()` returns a single shared
+  static (thread-aware errno would need a TLS slot; now that
+  TlsAlloc is in the def set this is implementable - a runtime
+  semantics decision, parked).
 * Caveat 2 - threads: pthreads4w threads are plain CE threads
   (`NEED_CREATETHREAD` -> `CreateThread`), so raw `CreateThread` threads
   may call pthread mutexes/condvars/semaphores; they must not call

@@ -1502,12 +1502,14 @@ WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
                                        const TargetOptions &Opts)
     : WindowsARMTargetInfo(Triple, Opts) {
   TheCXXABI.set(TargetCXXABI::GenericARM);
-  // COREDLL exports no TlsAlloc/TlsFree (CE uses a per-DLL slot via the
-  // DllMain 'reserved' parameter instead), so neither native TLS nor the
-  // emutls fallback (whose Windows path is built on TlsAlloc) can work:
-  // __thread / thread_local are diagnosed as unsupported, exactly like
-  // the eMbedded Visual C++ compiler for this platform.
-  TLSSupported = false;
+  // TLS: CE has exported TlsAlloc/TlsFree since CE 1.0 (MSDN "TlsAlloc,
+  // Windows CE 1.0 and later") - the CeGCC coredll.def simply omitted
+  // them; the vendored def files now list them.  CE has no native ELF-
+  // style TLS relocations, so thread_local lowers to emutls
+  // (__emutls_v.* objects + __emutls_get_address from compiler-rt);
+  // Triple::hasDefaultEmulatedTLS() covers WinCE, so the driver passes
+  // -femulated-tls by default (-fno-emulated-tls overrides).
+  TLSSupported = true;
 }
 
 void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,

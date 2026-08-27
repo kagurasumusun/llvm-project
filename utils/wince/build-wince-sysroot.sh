@@ -167,7 +167,7 @@ echo "== WinCE sysroot: target $TARGET (host alias $HOST_ALIAS)"
 echo "== sysroot: $SYSROOT"
 
 # --- mingwrt ----------------------------------------------------------------
-echo "== [1/4] mingwrt (CRT + mingwex + COREDLL import libraries)"
+echo "== [1/5] mingwrt (CRT + mingwex + COREDLL import libraries)"
 # third-party/mingwrt carries first-class LLVM/Clang build support (see its
 # git log: "Build with LLVM/Clang in addition to GCC"); configure out of
 # tree so the source checkout stays clean.
@@ -215,7 +215,7 @@ make -C "$MINGWRT_BUILD" install-headers inst_includedir="$SYSROOT/include" \
 }
 
 # --- w32api -----------------------------------------------------------------
-echo "== [2/4] w32api (WinCE platform headers + libce import libraries)"
+echo "== [2/5] w32api (WinCE platform headers + libce import libraries)"
 mkdir -p "$BUILD/w32api"
 cd "$BUILD/w32api"
 if [ ! -f Makefile ]; then
@@ -237,7 +237,7 @@ mkdir -p "$SYSROOT/include"
 cp -r "$W32API_SRC/include/." "$SYSROOT/include/"
 
 # --- pthreads4w -------------------------------------------------------------
-echo "== [3/4] pthread-win32 (pthreads4w static library)"
+echo "== [3/5] pthread-win32 (pthreads4w static library)"
 # Built straight from the vendored tree; the WinCE build fixes (thread
 # entry/exit via CreateThread/ExitThread, ARM-safe interlocked operations,
 # clang-proof __declspec probe) are part of the vendored sources.
@@ -263,7 +263,7 @@ for h in pthread.h sched.h semaphore.h _ptw32.h need_errno.h; do
 done
 
 # --- -pg profiling (gcrt3.o + libgmon.a) ------------------------------------
-echo "== [4/4] gmon (-pg sampling profiler)"
+echo "== [4/5] gmon (-pg sampling profiler)"
 GMON_SRC="$REPO_ROOT/wince-sysroot/gmon"
 GMON_BUILD="$BUILD/gmon"
 rm -rf "$GMON_BUILD"
@@ -282,6 +282,29 @@ done
 install -m 644 "$GMON_BUILD/gcrt3.o" "$SYSROOT/lib/gcrt3.o"
 "$LLVM_AR" rcs "$SYSROOT/lib/libgmon.a" "$GMON_BUILD/libgmon.o"
 "$LLVM_RANLIB" "$SYSROOT/lib/libgmon.a"
+
+# --- POSIX process/signal/popen layer (libposix.a) --------------------------
+echo "== [5/5] posix (exec/system/waitpid/popen/signal)"
+POSIX_SRC="$REPO_ROOT/wince-sysroot/posix"
+POSIX_BUILD="$BUILD/posix"
+rm -rf "$POSIX_BUILD"
+mkdir -p "$POSIX_BUILD"
+POSIX_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
+ -fms-extensions -nostdinc \
+ -D_MT -D__COREDLL__ -U__CRTDLL__ -U__MSVCRT__ -fgnu89-inline \
+ -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
+ -iwithprefixbefore include -I $POSIX_SRC"
+for f in process popen signal; do
+  (cd "$POSIX_BUILD" && \
+   $CLANG $POSIX_CFLAGS -c "$POSIX_SRC/$f.c" -o "$f.o") \
+   >> "$BUILD/posix-build.log" 2>&1 || \
+   { tail -30 "$BUILD/posix-build.log"; exit 1; }
+done
+"$LLVM_AR" rcs "$SYSROOT/lib/libposix.a" "$POSIX_BUILD/process.o" \
+  "$POSIX_BUILD/popen.o" "$POSIX_BUILD/signal.o"
+"$LLVM_RANLIB" "$SYSROOT/lib/libposix.a"
+mkdir -p "$SYSROOT/include/sys"
+install -m 644 "$POSIX_SRC/sys/wait.h" "$SYSROOT/include/sys/wait.h"
 
 echo "== done: $SYSROOT"
 echo "   next: utils/wince/build-wince-runtimes.sh --toolchain $TOOLCHAIN \\"
