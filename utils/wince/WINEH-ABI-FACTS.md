@@ -163,6 +163,76 @@ brace/paren balance and field-type consistency by hand) but **has not been
 compiled**. Treat it as a reviewed draft, not verified-working code, until
 someone builds `check-llvm-mc` (or equivalent) against it.
 
+## 4b. The real remaining blocker — precisely located (2026-08-28, this session)
+
+Traced exactly where SEH/EHABI coexistence breaks down, to avoid a previous
+overly-vague "architecture undesigned" framing.
+
+**Good news — personality selection is already per-function, not per-target.**
+`clang::EHPersonality::get()` (`clang/lib/CodeGen/CGException.cpp`) already
+picks `MSVC_C_specific_handler` for any individual `FunctionDecl` where
+`FD->usesSEHTry()` is true, and the plain C++ personality otherwise --
+per-function, already generic, already works regardless of target arch (the
+non-x86 branch of `getSEHPersonalityMSVC()` already returns
+`MSVC_C_specific_handler` for ARM). So Sema/CodeGen-level `__try` support
+and mixed SEH+EHABI-C++ in the same translation unit is **not** blocked at
+that layer.
+
+**The actual blocker is one level down, in a target-wide (not per-function)
+MC gate.** Whether the backend ever emits `.seh_*` WinCFI directives for a
+function (which populate `WinEH::FrameInfo::PrologEnd`/`FuncletOrFuncEnd` --
+exactly what `EmitCE()` from section 4a needs) is controlled by
+`MCAsmInfo::usesWindowsCFI()`:
+
+```
+bool usesWindowsCFI() const {
+  return ExceptionsType == ExceptionHandling::WinEH &&
+         (WinEHEncodingType != WinEH::EncodingType::Invalid &&
+          WinEHEncodingType != WinEH::EncodingType::X86);
+}
+```
+
+This is a **single boolean derived from the whole target's `MCAsmInfo`**,
+not something any per-function codegen decision can currently override.
+Since `ARMMCTargetDesc.cpp` forces `ExceptionsType = ExceptionHandling::ARM`
+unconditionally for `isWindowsCE()`, `usesWindowsCFI()` is always false on
+this target today -- so no function, no matter its personality, can
+currently trigger `.seh_endprologue`/`.seh_endproc`/etc. emission, and
+`EmitCE()` from section 4a has no way to become reachable as things stand.
+
+By contrast, the *existing* ARM EHABI `.fnstart`/`.fnend` emission
+(`ARMWinCOFFStreamer::isEHABI()`) is gated purely on
+`getTargetTriple().isWindowsCE()` -- triple-based, not `ExceptionsType`-based
+-- which is exactly why EHABI already works unconditionally today regardless
+of this issue.
+
+**Two design options, not yet chosen (needs a build-and-test iteration
+loop, which was out of scope this session):**
+
+1. Make `usesWindowsCFI()` (generic LLVM MC code, shared by every Windows
+   target: x86, x64, ARM64, ARM) sensitive to something finer-grained than
+   a single per-target `ExceptionsType`/`WinEHEncodingType` pair -- e.g. a
+   per-`MachineFunction` or per-`MCContext` override. This is a
+   target-independent core-MC change with real blast radius; wrong-by-inspection
+   risk is high without building and running the existing x86/AArch64 WinEH
+   test suites to check for regressions.
+2. Keep `usesWindowsCFI()` untouched, and instead add ARM/WinCE-specific
+   logic (contained to `ARMAsmPrinter`/ARM `SelectionDAG` lowering) that
+   calls the WinCFI-emission APIs (`emitARMWinCFIPrologEnd` etc.) directly
+   for SEH-personality functions on this target, bypassing the generic gate
+   entirely for this one case. Smaller blast radius (ARM-target-local), more
+   plausible to land without destabilizing other Windows targets, but
+   requires locating exactly where `ARMAsmPrinter`/ISel currently branches
+   on `isEHABI()`-equivalent state during function prologue/epilogue codegen
+   to add the parallel SEH-personality branch -- not yet located in this
+   pass.
+
+Recommendation for whoever picks this up next: **option 2**, and start by
+finding where in `ARMAsmPrinter.cpp` / `ARMFrameLowering.cpp` the decision
+to call EHABI `.fnstart` happens, since the SEH branch needs to sit right
+next to it, keyed off `EHPersonality::get(...)`-equivalent per-function
+state rather than the target-wide `usesWindowsCFI()`.
+
 ## 5. `__CxxFrameHandler` v1 — still blocked
 
 `coredll6.def` exports `__CxxFrameHandler` (no `3` suffix), confirming the v1-era C++ EH
