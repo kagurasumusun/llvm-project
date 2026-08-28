@@ -290,6 +290,65 @@ thread it into each site above one at a time, verifying with
 `check-llvm-codegen-arm` plus a hand-written mixed EHABI+SEH test case
 after each site.
 
+## 4d. Implemented: safe additive per-function dispatch (2026-08-28, this session)
+
+Added `llvm/lib/Target/ARM/ARMWinCFI.h` — a shared `functionUsesWinCFI(MF)`
+predicate — and wired it into the two clearly-understood, minimal-risk
+sites:
+
+- `ARMFrameLowering.cpp`'s `needsWinCFI()` (controls whether
+  `SEH_*` pseudo-instructions get inserted into a function's prologue/
+  epilogue at all).
+- `ARMAsmPrinter.cpp`'s `emitInstruction()` gate on
+  `EmitUnwindingInstruction` (the EHABI `.save`/`.setfp`/`.pad` MachineInstr
+  translator) -- now also excludes functions where `functionUsesWinCFI`
+  is true, which is required for correctness: those functions' FrameSetup
+  instructions include `SEH_*` pseudo-ops that the EHABI translator's
+  switch does not recognize and would otherwise hit its
+  `llvm_unreachable("Unsupported opcode for unwinding information")`
+  fallback -- i.e. without this exclusion, a compiled CE `__try` function
+  would crash the compiler, not just emit wrong output.
+
+**Why these two sites are safe to have written without a build**: for
+every function that is not "Windows CE and has an `MSVC_TableSEH`/
+`MSVC_X86SEH` IR personality" (i.e. every currently-reachable CE function
+today, since nothing currently produces that combination end-to-end -- see
+§4e), `functionUsesWinCFI(MF)` evaluates to exactly what
+`MAI->usesWindowsCFI()` evaluated to before this change (`false` for CE).
+Both edits are therefore behaviorally inert for all existing/tested code
+paths; they only add a new, previously-unreachable branch. This is a much
+narrower risk profile than option 1's target-wide flip (§4c).
+
+## 4e. Open question, not resolved by inspection: does CE's EHABI table
+actually get generated for *compiled* C++ today?
+
+While tracing where WinCFI's `.seh_*` directives get emitted from (to
+find the corresponding EHABI `.fnstart`/`.fnend` call site to also gate),
+`ARMTargetStreamer::emitFnStart()`/`emitFnEnd()` -- the calls that open
+and close a `.ARM.exidx`/`.ARM.extab` table entry
+(`ARMWinCOFFStreamer::EHABIemitFnStart`/`EHABIemitFnEnd`) -- were found to
+be called **only from `ARMAsmParser.cpp`** (i.e. when assembling `.s`
+source containing an explicit `.fnstart`/`.fnend` directive, such as
+`armasm`-authored files). No call site was found in `ARMAsmPrinter.cpp`,
+generic `AsmPrinter.cpp`, `ARMISelLowering.cpp`, or `ARMFrameLowering.cpp`
+that would invoke this for a function CodeGen compiled directly from C/C++
+source.
+
+This was **not resolved** -- it needs either (a) confirming there's a
+legitimate implicit/generic mechanism elsewhere that this pass didn't
+find, by tracing further or by building and inspecting the `.ARM.exidx`
+section of a compiled test binary, or (b) concluding that CodeGen-driven
+EHABI table generation for compiled (not hand-assembled) WinCE C++ is not
+actually wired up yet, independent of anything to do with SEH. Given the
+significance either way (this would be foundational to the "C++
+exceptions already work via EHABI" premise this whole SEH investigation
+has been resting on), **this should be checked with an actual build and
+a minimal `try { throw ...; } catch { ... }` compile-and-disassemble test
+before any further EH work on this target proceeds**, rather than assumed
+in either direction. Flagging this explicitly rather than guessing was
+judged safer than either asserting it works or silently leaving it
+unmentioned.
+
 ## 5. `__CxxFrameHandler` v1 — still blocked
 
 `coredll6.def` exports `__CxxFrameHandler` (no `3` suffix), confirming the v1-era C++ EH
