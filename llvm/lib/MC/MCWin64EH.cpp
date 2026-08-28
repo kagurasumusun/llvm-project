@@ -2874,3 +2874,83 @@ void llvm::Win64EH::ARMUnwindEmitter::EmitUnwindInfo(MCStreamer &Streamer,
   Streamer.switchSection(XData);
   ARMEmitUnwindInfo(Streamer, info, /* TryPacked = */ !HandlerData);
 }
+
+//===----------------------------------------------------------------------===//
+// WinEH::EncodingType::CE (Windows CE ARM OS-level SEH interop).
+//
+// See utils/wince/WINEH-ABI-FACTS.md for the ABI facts this section
+// implements against. Summary: CE's RUNTIME_FUNCTION is a plain
+// {BeginAddress, PrologEndAddress, EndAddress} triple of absolute
+// (IMGREL32) addresses -- there is no packed-unwind word and no xdata
+// record at all. The CE kernel's unwinder recovers register state by
+// re-executing the actual prologue machine code between BeginAddress and
+// PrologEndAddress in reverse (pattern-matching a small set of recognized
+// instruction idioms), rather than by decoding any encoded opcode stream.
+// This is architecturally distinct from every other WinEH::EncodingType
+// LLVM supports (all of which are table/opcode driven), which is why this
+// is a separate emission path rather than a branch inside
+// ARMEmitUnwindInfo/ARMEmitRuntimeFunction above.
+//===----------------------------------------------------------------------===//
+
+static void ARMEmitCERuntimeFunction(MCStreamer &streamer,
+                                     const WinEH::FrameInfo *info) {
+  streamer.emitValueToAlignment(Align(4));
+  // BeginAddress
+  EmitSymbolRefWithOfs(streamer, info->Begin, info->Begin);
+  // PrologEndAddress -- the compiler's contract with the CE unwinder is
+  // that every instruction between Begin and PrologEnd must be one of the
+  // idioms the OS unwinder's prologue interpreter recognizes (see
+  // WINEH-ABI-FACTS.md section 3). That is a codegen-level obligation this
+  // emission code cannot itself verify.
+  EmitSymbolRefWithOfs(streamer, info->Begin, info->PrologEnd);
+  // EndAddress
+  EmitSymbolRefWithOfs(streamer, info->Begin, info->FuncletOrFuncEnd);
+}
+
+static void ARMEmitCEUnwindInfo(MCStreamer &streamer, WinEH::FrameInfo *info) {
+  // Unlike the NT ARM path, there is no xdata blob to (re-)emit here, so
+  // "readiness" can't be tracked via info->Symbol pointing at an xdata
+  // label the way ARMEmitUnwindInfo does. Instead this directly validates
+  // and marks readiness for the RUNTIME_FUNCTION pass below.
+  if (info->Symbol)
+    return; // Already processed.
+  if (info->empty()) {
+    info->EmitAttempted = true;
+    return;
+  }
+  if (!info->PrologEnd) {
+    streamer.getContext().reportError(
+        SMLoc(), "Prologue in " + info->Function->getName() +
+                     " not correctly terminated (missing .seh_endprologue)");
+    return;
+  }
+  if (!info->FuncletOrFuncEnd) {
+    streamer.getContext().reportError(
+        SMLoc(), "FuncletOrFuncEnd not set for " + info->Function->getName());
+    return;
+  }
+  // No xdata section is touched for CE. Use Begin as the readiness marker
+  // consumed by EmitCE()'s second pass below (mirrors how the NT ARM path
+  // uses info->Symbol, but here it never denotes an xdata record).
+  info->Symbol = info->Begin;
+}
+
+void llvm::Win64EH::ARMUnwindEmitter::EmitCE(MCStreamer &Streamer) const {
+  // First pass: validate + mark readiness. No xdata section is written.
+  for (const auto &CFI : Streamer.getWinFrameInfos()) {
+    WinEH::FrameInfo *Info = CFI.get();
+    if (Info->empty())
+      continue;
+    ARMEmitCEUnwindInfo(Streamer, Info);
+  }
+
+  // Second pass: emit RUNTIME_FUNCTION_CE {Begin, PrologEnd, End} triples.
+  for (const auto &CFI : Streamer.getWinFrameInfos()) {
+    WinEH::FrameInfo *Info = CFI.get();
+    if (!Info->Symbol)
+      continue;
+    MCSection *PData = Streamer.getAssociatedPDataSection(CFI->TextSection);
+    Streamer.switchSection(PData);
+    ARMEmitCERuntimeFunction(Streamer, Info);
+  }
+}

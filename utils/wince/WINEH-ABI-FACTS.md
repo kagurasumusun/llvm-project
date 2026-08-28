@@ -116,6 +116,53 @@ end. No `.xdata` section is needed for this mechanism.
   walks — e.g. inside `coredll`/OAL/driver code compiled against this toolchain,
   or any frame the kernel's fault dispatcher walks through).
 
+## 4a. Implementation status (added 2026-08-28, this session)
+
+`llvm::Win64EH::ARMUnwindEmitter::EmitCE()` now exists
+(`llvm/lib/MC/MCWin64EH.{h,cpp}`) implementing exactly the narrow scope from
+§4 above: two passes over `Streamer.getWinFrameInfos()`, first validating
+each `WinEH::FrameInfo` has `PrologEnd` (from `.seh_endprologue`, already
+generic MC infrastructure) and `FuncletOrFuncEnd` set, then emitting a
+`{Begin, PrologEnd, FuncletOrFuncEnd}` triple of `IMGREL32` relocations per
+function into the associated `.pdata` section via
+`ARMEmitCERuntimeFunction`. No `.xdata` section is touched at all, matching
+§3's finding. This is written from scratch against the ABI facts above; it
+shares no code with `ARMEmitUnwindInfo`/`ARMEmitRuntimeFunction` (the NT ARM
+packed/xdata path) beyond calling the same low-level symbol-relocation
+helpers (`EmitSymbolRefWithOfs`) that both paths already used.
+
+**Status: 実装済み (untested/build-unverified) — not yet wired to any
+target.** Specifically still missing before this can fire for real code:
+
+1. **Encoding-type selection**: nothing currently sets
+   `WinEH::EncodingType::CE` on any `MCAsmInfo`, and `WinCE`'s target-triple
+   factory (`ARMMCTargetDesc.cpp`) currently forces
+   `ExceptionHandling::ARM` (EHABI) unconditionally, which is a different
+   `ExceptionsType` than `ExceptionHandling::WinEH` (required for any
+   `WinEH::EncodingType` to apply at all). Since C++ exceptions must keep
+   using EHABI (§4), this needs a **per-function** or **per-attribute**
+   selection mechanism (e.g. driven by `__try`/`__seh`-style codegen
+   attributes), not a blanket per-target switch. This is unresolved
+   architecture, not yet designed in detail.
+2. **Dispatch wiring**: `ARMWinCOFFStreamer::emitWindowsUnwindTables()` calls
+   the class's `Emit()`, not `EmitCE()` — nothing calls `EmitCE()` yet.
+   `AsmPrinter.cpp`'s `WinEH::EncodingType` switch (line ~647) also has no
+   `CE` case.
+3. **Clang-side `__try`/`__except` support for ARM**: unverified whether
+   Sema/CodeGen currently lower MS `__try` at all for the ARM target under
+   any exception model; this needs investigating before the above is
+   useful for anything.
+4. **No test coverage** — `llvm/test/MC/ARM/` has no CE-EncodingType test
+   yet, and none can usefully exist until (1)-(2) make this reachable from
+   real assembly/IR input.
+
+Given this session's build is explicitly out of scope, this code has been
+written carefully (mirrored line-by-line against the existing NT ARM
+`ARMEmitRuntimeFunction`/`ARMEmitUnwindInfo` patterns, checked for
+brace/paren balance and field-type consistency by hand) but **has not been
+compiled**. Treat it as a reviewed draft, not verified-working code, until
+someone builds `check-llvm-mc` (or equivalent) against it.
+
 ## 5. `__CxxFrameHandler` v1 — still blocked
 
 `coredll6.def` exports `__CxxFrameHandler` (no `3` suffix), confirming the v1-era C++ EH

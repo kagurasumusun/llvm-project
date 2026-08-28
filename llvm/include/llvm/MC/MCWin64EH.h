@@ -62,6 +62,20 @@ public:
   void Emit(MCStreamer &Streamer) const override;
   void EmitUnwindInfo(MCStreamer &Streamer, WinEH::FrameInfo *FI,
                       bool HandlerData) const override;
+
+  // WinEH::EncodingType::CE ".pdata" emission (Windows CE ARM/PowerPC/SH3/
+  // SH4 OS-level SEH interop). Unlike the NT ARM path above, this emits no
+  // xdata at all: the CE kernel unwinder recovers register state by
+  // re-executing the actual prologue machine code in reverse rather than by
+  // reading an encoded opcode stream. See utils/wince/WINEH-ABI-FACTS.md for
+  // the ABI facts this is derived from (clean-room; no code from Microsoft's
+  // wince-source is used here, only structural/layout facts).
+  //
+  // Not yet reachable from any target's default WinEH::EncodingType
+  // selection -- see WINCE-HANDOFF.md section 6.1 for the remaining wiring
+  // (target-triple encoding-type selection, AsmPrinter dispatch, and
+  // clang-side __try/__except Sema/CodeGen support for ARM WinCE).
+  void EmitCE(MCStreamer &Streamer) const;
 };
 
 class ARM64UnwindEmitter : public WinEH::UnwindEmitter {
