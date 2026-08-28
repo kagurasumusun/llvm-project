@@ -258,11 +258,11 @@ export しており(coredll6.def 1213-1214行、確認済み)、ARM 版アンワ
    - CE の RUNTIME_FUNCTION / UNWIND_INFO 形式(ARM NT とどこが違うか。恐らく同一またはサブセット)
    - `__CxxFrameHandler`(v1)が期待する FuncInfo/TryBlockMap レイアウト
 2. **`EncodingType::CE` の実装**(訂正: ARM NT とほぼ同一という当初の想定は誤りだったと判明。WINEH-ABI-FACTS.md §3 参照):
-   - `ARMMCAsmInfo.cpp` の CE トリプル時に `WinEHEncodingType = EncodingType::CE` を選択(現状は未選択。`EncodingType::CE` は enum に存在するのみでどこからも設定されていない)
-   - **既存の `ARMWinCOFFStreamer::emitWindowsUnwindTables` / `MCWin64EH.cpp::ARMEmitUnwindInfo`(パックドアンワインド + xdata 方式)は CE 向けには使えない** — CE のアンワインダは xdata を一切読まない。新規に、`{BeginAddress, PrologEndAddress, EndAddress}` の3ワード triple だけを `.pdata` に出す、xdata 無しの CE 専用パスが必要
-   - `PrologEndAddress` に対応するラベル(認識済みプロローグ列の終端)を CodeGen 側でマークする仕組みが新たに必要(NT ARM WinEH には無い概念)
-   - **実装リスクの所在**: エンコーディング側ではなく codegen 側にある。CE のアンワインダはプロローグ命令列をパターンマッチで解釈する best-effort インタプリタなので、バックエンドが実際に生成するプロローグが認識対象のイディオム集合に収まっているかどうかが正しさを左右する(WINEH-ABI-FACTS.md §3 のイディオム一覧参照)
-   - `AsmPrinter.cpp:647` の switch に `EncodingType::CE` ケースを追加(`WinException` を使うかは要検討 — ARM NT 自体も現状この switch には来ていない〈`ExceptionHandling::ARM` 止まり〉ため、CE 側の正しい接続点は要調査)
+   - ✅ **実装済み(未ビルド検証)**: `llvm::Win64EH::ARMUnwindEmitter::EmitCE()`(`llvm/lib/MC/MCWin64EH.{h,cpp}`)。`{BeginAddress, PrologEndAddress, EndAddress}` の3ワード triple を xdata 無しで `.pdata` に出す、CE 専用の独立したパス。既存の NT ARM 用 `ARMEmitUnwindInfo`/`ARMEmitRuntimeFunction` とはコードを共有せず(低レベルの `EmitSymbolRefWithOfs` ヘルパのみ共用)、新規実装。`.seh_endprologue` が既に汎用MCインフラとして `FrameInfo::PrologEnd` をセットする仕組みを持っていたため、ラベル基盤は新規追加不要だった(WINEH-ABI-FACTS.md §4a に詳細)
+   - ⬜ **未実装**: `WinEHEncodingType = EncodingType::CE` をどこからも選択していない。C++ 例外は EHABI のまま維持する必要があるため、ターゲット単位ではなく**関数単位**(`__try` 使用関数のみ)での選択機構が必要 — これは未設計
+   - ⬜ **未実装**: `ARMWinCOFFStreamer::emitWindowsUnwindTables()` は `Emit()` のみ呼んでおり `EmitCE()` を呼んでいない。`AsmPrinter.cpp:647` の switch にも `CE` ケース無し(ARM NT 自体もこの switch には来ていない点に注意 — 正しい接続点は要調査)
+   - ⬜ **未確認**: clang の `__try/__except` (MS SEH) が ARM ターゲットでそもそも Sema/CodeGen レベルで動くのか未調査。これが無いと上記は宙に浮く
+   - **実装リスクの所在(エンコーダ実装は完了したので、今後のリスクはここに移った)**: codegen 側。CE のアンワインダはプロローグ命令列をパターンマッチで解釈する best-effort インタプリタなので、バックエンドが実際に生成するプロローグが認識対象のイディオム集合に収まっているかどうかが正しさを左右する(WINEH-ABI-FACTS.md §3 のイディオム一覧参照)
 3. **SEH(`__try/__except`)の配線**:
    - coredll6.def に `__C_specific_handler` **存在確認済み**(行1213)。SEH はこれで動く
    - `WinCEARMTargetInfo` / ドライバで CE 時に `ExceptionHandling::WinEH` を選択するフラグを追加(現状は `ExceptionHandling::ARM`=EHABI。**注意**: C++ 例外(EHABI)と SEH は別経路。カーネルソースの `__try` は SEH なので WinEH が必要だが、libc++ の C++ 例外は EHABI を使い続ける設計。両立方法は `WinException` 側で SEH C フレームのみ処理する形を検討)
