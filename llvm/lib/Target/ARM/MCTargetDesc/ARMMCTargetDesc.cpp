@@ -341,10 +341,20 @@ static MCAsmInfo *createARMMCAsmInfo(const MCRegisterInfo &MRI,
   if (TheTriple.isOSDarwin() || TheTriple.isOSBinFormatMachO())
     MAI = new ARMMCAsmInfoDarwin(TheTriple);
   else if (TheTriple.isWindowsCE()) {
-    // Windows CE: userland ARM EHABI exception handling with .ARM.exidx
-    // unwind tables (no SEH-style OS support in the kernel).  This check
-    // must precede the MSVC environment test: an unspecified environment
-    // counts as MSVC there.
+    // Windows CE: userland C++ exceptions use ARM EHABI with .ARM.exidx/
+    // .ARM.extab unwind tables, via this toolchain's own libunwind/libc++abi.
+    // This check must precede the MSVC environment test: an unspecified
+    // environment counts as MSVC there.
+    //
+    // Note: the CE kernel *does* have its own OS-level SEH support (coredll
+    // exports __C_specific_handler and __CxxFrameHandler, and the ARM
+    // unwinder walks RUNTIME_FUNCTION{BeginAddress,PrologEndAddress,
+    // EndAddress} triples by re-executing recognized prologue instruction
+    // idioms in reverse -- see utils/wince/WINEH-ABI-FACTS.md). That OS-level
+    // mechanism is unrelated to the EHABI path selected here and is only
+    // needed for interop with __try/__except in OS/kernel/driver-level code;
+    // it is not yet wired up (WinEH::EncodingType::CE exists in
+    // MCAsmInfo.h but has no emitter). See WINCE-HANDOFF.md section 6.1.
     MAI = new ARMCOFFMCAsmInfoGNU();
     MAI->setExceptionsType(ExceptionHandling::ARM);
   } else if (TheTriple.isWindowsMSVCEnvironment())

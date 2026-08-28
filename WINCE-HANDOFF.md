@@ -219,11 +219,26 @@ GCC風オプションを lld-link へ翻訳。CeGCC の SPECS を再現:
 
 ## 6. 未完了作業(引き継ぎタスク)
 
-### 6.1 【ブロック中】wince-source アクセス → ARM32 WinEH CE 実装
+### 6.1 【一部進展】wince-source アクセス → ARM32 WinEH CE 実装
 
-**現状**: トークンが `kagurasumusun/wince-source`(private)にアクセスできない。404。トークンの Repository access に追加が必要(Contents: Read で十分)。ユーザーは AE600(CE6 + R2/R3 抽出ソース)をそこに置いたと発言。
+**更新 (2026-08-28)**: トークンの `wince-source` アクセスは解決済み(200 OK)。
+`DLL/ARM/unwind.c` と `CORELIBC/CRTW32/EH/*.cpp` を参照し、構造的事実(レイアウト・
+オフセット・マジックナンバーのみ、アルゴリズムコードはコピー禁止)を
+`utils/wince/WINEH-ABI-FACTS.md` に抽出した。**重要な訂正**:
+`ARMMCTargetDesc.cpp` に残っていた「CE カーネルに SEH 相当の OS サポートは無い」という
+コメントは誤り。実際には coredll が `__C_specific_handler`/`__CxxFrameHandler` を
+export しており(coredll6.def 1213-1214行、確認済み)、ARM 版アンワインダは
+`RUNTIME_FUNCTION{BeginAddress, PrologEndAddress, EndAddress}` という3ワード形式を
+使い、**xdata もパックドアンワインドコードも一切使わず、実際のプロローグ命令列を
+逆順再実行してレジスタを復元する**という、NT ARM WinEH とは全く異なる方式である
+(詳細は WINEH-ABI-FACTS.md §3)。コメントは訂正済み。C++ 例外(EHABI 経由)は
+この節と無関係で、影響を受けない。
 
-**アクセス可能になり次第の実装計画(調査済み・詳細)**:
+**未解決**: `ehdata.h`/`ehstate.h`(`FuncInfo`/`TryBlockMap` 等のレイアウトを宣言する
+ヘッダ)は今回の抽出(AE600 サブセット)に含まれていない。`__CxxFrameHandler` v1 の
+構造体レイアウトは依然ブロック中(優先度は元々低い — C++ 例外は EHABI で足りるため)。
+
+**当初の実装計画(調査済み・詳細。ARM WinEH 部分は上記の訂正済み事実を踏まえて読むこと)**:
 
 参考にする既存 in-tree 資産(全て存在確認済み):
 
@@ -242,10 +257,12 @@ GCC風オプションを lld-link へ翻訳。CeGCC の SPECS を再現:
    - `PRIVATE\WINCEOS\COREOS\CORE\` 配下の coredll 関連、SEH 使用箇所
    - CE の RUNTIME_FUNCTION / UNWIND_INFO 形式(ARM NT とどこが違うか。恐らく同一またはサブセット)
    - `__CxxFrameHandler`(v1)が期待する FuncInfo/TryBlockMap レイアウト
-2. **`EncodingType::CE` の実装**:
-   - `ARMMCAsmInfo.cpp` の `ARMCOFFMCAsmInfoMicrosoft` で CE トリプル時に `WinEHEncodingType = EncodingType::CE` を選択
-   - `ARMWinCOFFStreamer::emitWindowsUnwindTables` と `MCWin64EH.cpp::ARMEmitUnwindInfo` に CE 分岐を追加(恐らく ARM NT とほぼ同一。差分は coredll.def/実機ダンプで確認)
-   - `AsmPrinter.cpp:647` の switch に `EncodingType::CE` ケースを追加(`WinException` を使う)
+2. **`EncodingType::CE` の実装**(訂正: ARM NT とほぼ同一という当初の想定は誤りだったと判明。WINEH-ABI-FACTS.md §3 参照):
+   - `ARMMCAsmInfo.cpp` の CE トリプル時に `WinEHEncodingType = EncodingType::CE` を選択(現状は未選択。`EncodingType::CE` は enum に存在するのみでどこからも設定されていない)
+   - **既存の `ARMWinCOFFStreamer::emitWindowsUnwindTables` / `MCWin64EH.cpp::ARMEmitUnwindInfo`(パックドアンワインド + xdata 方式)は CE 向けには使えない** — CE のアンワインダは xdata を一切読まない。新規に、`{BeginAddress, PrologEndAddress, EndAddress}` の3ワード triple だけを `.pdata` に出す、xdata 無しの CE 専用パスが必要
+   - `PrologEndAddress` に対応するラベル(認識済みプロローグ列の終端)を CodeGen 側でマークする仕組みが新たに必要(NT ARM WinEH には無い概念)
+   - **実装リスクの所在**: エンコーディング側ではなく codegen 側にある。CE のアンワインダはプロローグ命令列をパターンマッチで解釈する best-effort インタプリタなので、バックエンドが実際に生成するプロローグが認識対象のイディオム集合に収まっているかどうかが正しさを左右する(WINEH-ABI-FACTS.md §3 のイディオム一覧参照)
+   - `AsmPrinter.cpp:647` の switch に `EncodingType::CE` ケースを追加(`WinException` を使うかは要検討 — ARM NT 自体も現状この switch には来ていない〈`ExceptionHandling::ARM` 止まり〉ため、CE 側の正しい接続点は要調査)
 3. **SEH(`__try/__except`)の配線**:
    - coredll6.def に `__C_specific_handler` **存在確認済み**(行1213)。SEH はこれで動く
    - `WinCEARMTargetInfo` / ドライバで CE 時に `ExceptionHandling::WinEH` を選択するフラグを追加(現状は `ExceptionHandling::ARM`=EHABI。**注意**: C++ 例外(EHABI)と SEH は別経路。カーネルソースの `__try` は SEH なので WinEH が必要だが、libc++ の C++ 例外は EHABI を使い続ける設計。両立方法は `WinException` 側で SEH C フレームのみ処理する形を検討)
