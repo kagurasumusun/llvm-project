@@ -233,6 +233,63 @@ to call EHABI `.fnstart` happens, since the SEH branch needs to sit right
 next to it, keyed off `EHPersonality::get(...)`-equivalent per-function
 state rather than the target-wide `usesWindowsCFI()`.
 
+## 4c. Mixed-mode dispatch — confirmed unsafe to attempt without a build (2026-08-28)
+
+Checked option 1 from §4b concretely before ruling it out for real, rather
+than by inspection-guess alone: **flipping `ExceptionsType` to `WinEH`
+target-wide would silently disable the EHABI unwind-directive translation
+that this toolchain's existing, working C++ exceptions depend on.**
+
+Confirmed by direct code reading, not speculation: in
+`ARMAsmPrinter.cpp`'s per-`MachineInstr` unwinding-instruction translator
+(`ATS.emitRegSave(...)`, `ATS.emitSetFP(...)`, `ATS.emitPad(...)` --
+i.e. the code that turns prologue `MachineInstr`s into `.save`/`.setfp`/
+`.pad` EHABI directives), **every one of these call sites is individually
+gated on `MAI->getExceptionHandlingType() == ExceptionHandling::ARM`**
+(`ARMAsmPrinter.cpp` lines ~1363, ~1414, and others following the same
+pattern). `MAI->getExceptionHandlingType()` returns the single
+target-wide `ExceptionsType` value -- so setting it to `WinEH` anywhere
+would make all of these branches stop firing everywhere, for every
+function, immediately. That is a silent, toolchain-wide correctness
+regression to already-working C++ exception handling, not a contained
+change. **Option 1 is confirmed unsafe; do not attempt it as a simple
+target-wide flip.**
+
+This means real mixed-mode support (EHABI for C++, WinEH/CE-SEH for
+`__try` functions, coexisting per-function in the same translation unit)
+requires threading **per-function** state through every one of these
+`ExceptionHandlingType`-gated call sites, replacing the blanket
+`MAI->getExceptionHandlingType() == ExceptionHandling::ARM` checks with
+something that also asks "does *this* function use EHABI or WinCFI",
+keyed off the same `EHPersonality`/`needsUnwindTableEntry()`-style
+per-function state that `ARMFrameLowering.cpp`'s `needsWinCFI()` already
+uses (see §4b) -- for at least:
+
+- `ARMAsmPrinter.cpp` ~1363, ~1414 (and any sibling branches in the same
+  unwinding-instruction translator not yet enumerated one-by-one here)
+- `AsmPrinter.cpp` ~610-625, ~633-643 (module-level EH streamer selection
+  switch), ~1344, ~1371-1374, ~4644
+- `ARMWinCOFFStreamer::isEHABI()` itself may need to become
+  function-aware too (currently pure triple check), or the two output
+  paths (`.fnstart`/`.fnend` EHABI vs `.seh_*`/pdata-triple CE) need a
+  clean per-function switch above this layer instead
+
+This is a real, multi-site refactor across shared ARM backend code with
+genuine regression risk to every existing WinCE C++ program if any one
+site is missed or miswired -- it needs a build-and-test iteration loop
+(building against the existing WinCE C++ exception test coverage, if any
+exists, plus new SEH-specific tests) that was out of scope this session.
+Writing this blind, without being able to compile and run it, is exactly
+the kind of unverified change this project's own conventions (see
+WINCE-HANDOFF.md/instructions: never claim untested code as complete, and
+especially never risk regressing a previously-working mechanism) argue
+against. Recommendation for whoever has build capability next: implement
+the per-function dispatch as a small, isolated helper (e.g.
+`bool ARMAsmPrinter::functionUsesEHABI(const MachineFunction &MF)`) and
+thread it into each site above one at a time, verifying with
+`check-llvm-codegen-arm` plus a hand-written mixed EHABI+SEH test case
+after each site.
+
 ## 5. `__CxxFrameHandler` v1 — still blocked
 
 `coredll6.def` exports `__CxxFrameHandler` (no `3` suffix), confirming the v1-era C++ EH
