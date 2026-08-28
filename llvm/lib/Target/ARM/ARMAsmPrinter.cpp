@@ -17,6 +17,7 @@
 #include "ARMMachineFunctionInfo.h"
 #include "ARMTargetMachine.h"
 #include "ARMTargetObjectFile.h"
+#include "ARMWinCFI.h"
 #include "MCTargetDesc/ARMInstPrinter.h"
 #include "MCTargetDesc/ARMMCAsmInfo.h"
 #include "TargetInfo/ARMTargetInfo.h"
@@ -1948,8 +1949,17 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
   }
 
   // Emit unwinding stuff for frame-related instructions
+  //
+  // On Windows CE, functions using an SEH personality (compiled from
+  // __try) need WinCFI (.seh_*) unwind info instead of ARM EHABI -- see
+  // ARMWinCFI.h and utils/wince/WINEH-ABI-FACTS.md section 4c. Their
+  // FrameSetup instructions include SEH_* pseudo-instructions that
+  // EmitUnwindingInstruction's EHABI translator below does not recognize
+  // (it would hit its "Unsupported opcode for unwinding information"
+  // fallback), so this must be excluded here, not just left for
+  // EmitUnwindingInstruction to reject internally.
   if (TM.getTargetTriple().isTargetEHABICompatible() &&
-      MI->getFlag(MachineInstr::FrameSetup))
+      !functionUsesWinCFI(*MF) && MI->getFlag(MachineInstr::FrameSetup))
     EmitUnwindingInstruction(MI);
 
   // Do any auto-generated pseudo lowerings.

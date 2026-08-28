@@ -113,6 +113,7 @@
 #include "ARMConstantPoolValue.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMSubtarget.h"
+#include "ARMWinCFI.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "Utils/ARMBaseInfo.h"
@@ -420,8 +421,7 @@ static int getArgumentStackToRestore(MachineFunction &MF,
 
 static bool needsWinCFI(const MachineFunction &MF) {
   const Function &F = MF.getFunction();
-  return MF.getTarget().getMCAsmInfo()->usesWindowsCFI() &&
-         F.needsUnwindTableEntry();
+  return functionUsesWinCFI(MF) && F.needsUnwindTableEntry();
 }
 
 // Given a load or a store instruction, generate an appropriate unwinding SEH
