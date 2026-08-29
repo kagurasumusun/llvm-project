@@ -1,6 +1,13 @@
 # Windows CE × LLVM/Clang ツールチェーン — 完全引き継ぎ資料 (HANDOFF)
 
-> 最終更新: 2026-08-27 / ブランチ: `arena/01a0419b-llvm-project` / HEAD: `5df0f7c97`
+> 最終更新: 2026-08-30 (Phase 2) / ブランチ: `llvm-wince` / HEAD: `23644c7075`
+>
+> **NOTE (2026-08-30):** §6.1 was rewritten and §11 added during Phase 2.
+> Everything dated before that describes an older tree: the
+> `EncodingType::CE` triple emitter in `MCWin64EH.cpp` mentioned there was
+> **removed** (`84aec8c1`), `EmitCE()` no longer exists, and ARM SEH is
+> implemented through a completely different (per-function) route.  Read
+> §11 first, then the rest.
 > この文書はセッション引き継ぎ用。後続のエージェントまたは人間が**この文書 alone で**作業を継続できることを目標に書かれている。
 
 ---
@@ -18,10 +25,11 @@
 
 | 項目 | 値 |
 |---|---|
-| ワークスペース | `/home/user/llvm-project` |
-| ブランチ | `arena/01a0419b-llvm-project`(セッション固定。他ブランチに切り替えないこと) |
+| ワークスペース | なし(サンドボックス制約のためクローンを作らず GitHub REST API で作業。2026-08-30 時点) |
+| ブランチ | `llvm-wince`(デフォルトブランチ。**作業対象はこれ**) |
 | リモート | `origin` = `https://github.com/kagurasumusun/llvm-project.git` |
-| HEAD | `5df0f7c97` "WinCE: armasm as a proper in-LLVM mechanism (ARMCOFFMasmParser)" |
+| HEAD | `23644c7075` (Phase 2 のコミット適用後) |
+| 注意 | `arena/wince-wineh-ce` は **diverged (ahead 7 / behind 35)**。SEH を別方式(ターゲット全体 WinEH)で実装した未統合分岐。詳細は §11.3 |
 | プッシュ | **全コミット push 済み**(`Everything up-to-date` 状態) |
 | upstream tag | `refs/tags/upstream-22.1.8`(差分確認用に fetch 済み) |
 
@@ -221,6 +229,15 @@ GCC風オプションを lld-link へ翻訳。CeGCC の SPECS を再現:
 
 ### 6.1 【一部進展】wince-source アクセス → ARM32 WinEH CE 実装
 
+> **⚠ 更新 (2026-08-30): この節の「実装計画」は失効。** ARM WinEH は
+> 計画された `EncodingType::CE` ルートではなく、**関数単位の WinCFI 切り替え**
+> (`llvm/lib/Target/ARM/ARMWinCFI.h` の `functionUsesWinCFI()`)＋
+> `ARMWinCOFFStreamer::CEEmitUnwindInfo` の圧縮 CE `.pdata` で実装済み。
+> `MCWin64EH.cpp` の `EmitCE()` は削除された(`84aec8c1`)。以下の記述は
+> 「なぜその経路を採らなかったか」の記録として残してある。**現状は §11 を読むこと。**
+> また §4 の「CE カーネルに SEH 相当の OS サポートは無い」という前提は誤りで、
+> 訂正済み(coredll は `__C_specific_handler` を export している)。
+
 **更新 (2026-08-28)**: トークンの `wince-source` アクセスは解決済み(200 OK)。
 `DLL/ARM/unwind.c` と `CORELIBC/CRTW32/EH/*.cpp` を参照し、構造的事実(レイアウト・
 オフセット・マジックナンバーのみ、アルゴリズムコードはコピー禁止)を
@@ -377,3 +394,64 @@ build/bin/llvm-lit -sv clang/test/Driver/wince.c lld/test/COFF/wince-ctors.s
 - 各テストファイル — 期待動作の仕様書を兼ねる
 
 (以上)
+
+---
+
+## 11. Phase 2 (2026-08-30): 調査で見つかった問題の修正
+
+Phase 1(環境構築 + 全量調査)の結果。**ビルド・lit 実行は一切しておらず、
+すべてソースレベルの解析に基づく**。根拠は各コミットメッセージに記載。
+
+### 11.1 修正したバグ(いずれも実行未確認・既存テスト未実行)
+
+| # | 場所 | 内容 | 状態 |
+|---|---|---|---|
+| B1 | `clang/include/clang/Options/Options.td` | `-masm=` に `CC1AsOption` が無く、cc1as が unknown argument でエラー → **WinCE の全 `.s`/`.S` アセンブルが失敗** | 修正 |
+| B2 | `lld/COFF/Chunks.cpp` | PROLOG 疑似再配置が `off-8`(FUNCLEN 用)を共用し、**別ワードを書き換え** → PrologLen が常に 0 | 修正 |
+| B3 | `lld/COFF/Chunks.cpp` | 疑似再配置で **inline addend を未加算** → FuncLen/PrologLen が `.text` 先頭基準の不正値 | 修正 |
+| B4 | `llvm/lib/Target/ARM/.../ARMWinCOFFStreamer.cpp` | pFuncStart に Thumb マーカー(bit 0)が載らない(一時ラベルはセクション再配置になるため) → CE カーネルが Thumb/ARM デコーダを選べない | 修正(式に +1 を畳み込み) |
+| B5 | `llvm/lib/MC/MCParser/AsmParser.cpp` | ドット無しディレクティブがディスパッチされず、armasm 拡張が**完全にデッドコード** | 修正(+ 大文字小文字を無視) |
+| B6 | `llvm/tools/llvm-mc/llvm-mc.cpp` | `llvm-mc` に armasm 方言オプションが無く、MC テストから到達不能 | 修正(`-masm-armasm`) |
+| B7 | `llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp` | `AREA \|.text\|` のパイプ形式(Platform Builder の標準記法)を読めない | 修正 |
+| B8 | `llvm/lib/TargetParser/Triple.cpp` | `getDefaultFormat` の `case WinCE:` のインデント違反(clang-format) | 修正 |
+| B9 | `lld/COFF/Writer.cpp` | `insertEXIdxBoundsSymbols()` が無条件呼び出し(WinCE 専用ヘルパ) | WinCE 時のみに限定 |
+| B10 | `clang/include/clang/Basic/TargetInfo.h` | `isSEHTrySupported()` が x86 CE でも SEH を許可 → ARM 専用の CE `.pdata` が無くデスクトップ形式を出し「暗黙の誤生成」 | ARM/Thumb のみに限定 |
+
+### 11.2 プロセス修正
+
+* **CI が lit を実行していなかった**: `.github/workflows/main.yml` に WinCE
+  テスト一式を実行するステップを追加(+ `split-file` のビルド追加)。これが
+  B2/B3 が長期間見過ごされた直接の原因。
+
+### 11.3 `arena/wince-wineh-ce` 分岐(未統合・要判断)
+
+`llvm-wince` と **diverged (ahead 7 / behind 35)**。分岐側だけにある差分:
+
+* `AsmPrinter.cpp` に `WinEH::EncodingType::CE` → `WinException` を割当
+  (= **ターゲット全体**を WinEH に切り替える方式。WINEH-ABI-FACTS §4c で
+  「EHABI を壊すので危険」と結論済みの方針。`llvm-wince` は関数単位方式を採用)
+* `EHPersonalities.cpp` の v1 `__CxxFrameHandler` 対応(+4)
+* `ARMMCAsmInfo.{h,cpp}` の `WinEHEncodingType = CE` 設定
+* `lld/COFF/{Writer,Chunks}.cpp` と `ARMWinCOFFStreamer.cpp` の別実装
+* `utils/wince/WINCE-WINEH-{DESIGN,STATUS}.md` (llvm-wince 側に**存在しない**設計資料)
+* `clang/lib/Driver/ToolChains/WinCE.h` / `TargetInfo.h` / `DiagnosticDriverKinds.td`
+
+**判断が必要**: (a) 設計資料だけ取り込む / (b) v1 `__CxxFrameHandler`
+personality も取り込む(優先度低: C++ 例外は EHABI 経路)/ (c) 分岐を廃止。
+`llvm-wince` の方式は分岐の方式を概ね supersede しているため、最低限
+**設計資料の取り込み**と**分岐の扱いの明記**が必要。
+
+### 11.4 残課題(優先度順)
+
+1. **実ビルド + lit 実行**(本セッションでは対象外)。CI を回して WinCE
+   テスト一式を通すことが最優先。特に `lld/test/COFF/wince-pdata.test` の
+   byte 期待値は**手計算で再導出したもの**であり要検証。
+2. armasm Path B の完全化: カラム 0 ラベル(`Foo PROC`)、`;` コメント、
+   `DCD`/`DCB`/`SPACE`/`EQU`、マクロ、条件アセンブリ。実用経路は
+   `utils/wince/armasm/armasm-convert.py`(Path A)のまま。
+3. x86 CE の SEH(B10 で診断するようにしただけ。実装は未)。
+4. `WINEH-ABI-FACTS.md` §4g の `dwSlot` 値など、private リポ
+   `wince-source` 由来の前提の一次確認(今回は未参照)。
+5. `.actions/build-wince-llvm.yml` と `.github/workflows/main.yml` の重複解消
+   (ユーザー判断事項として残置)。
+6. 実機検証(デバイス無し)。
