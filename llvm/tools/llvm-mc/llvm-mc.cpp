@@ -24,6 +24,8 @@
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCParser/AsmLexer.h"
+#include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
@@ -209,6 +211,11 @@ static cl::opt<bool> LexMasmHexFloats(
     cl::desc("Enable MASM-style hex float initializers (3F800000r)"),
     cl::cat(MCCategory));
 
+static cl::opt<bool> MasmArmasmDialect(
+    "masm-armasm",
+    cl::desc("Parse the ARM armasm dialect (Windows CE armasm sources)"),
+    cl::cat(MCCategory));
+
 static cl::opt<bool> LexMotorolaIntegers(
     "motorola-integers",
     cl::desc("Enable binary and hex Motorola integers (%110 and $ABC)"),
@@ -371,6 +378,17 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
   Parser->getLexer().setLexMasmIntegers(LexMasmIntegers);
   Parser->getLexer().setLexMasmHexFloats(LexMasmHexFloats);
   Parser->getLexer().setLexMotorolaIntegers(LexMotorolaIntegers);
+
+  // armasm dialect (Windows CE Platform Builder sources): attach the ARM
+  // armasm directive extension, exactly like clang -cc1as does for
+  // -masm=armasm.  The mnemonics keep being parsed by the ARM AsmParser.
+  if (MasmArmasmDialect) {
+    if (MCAsmParserExtension *Ext = createARMCOFFMasmParser())
+      Ext->Initialize(*Parser);
+    else
+      WithColor::warning(errs(), ProgName)
+          << "armasm dialect is only supported for ARM targets\n";
+  }
 
   int Res = Parser->Run(NoInitialTextSection);
 
