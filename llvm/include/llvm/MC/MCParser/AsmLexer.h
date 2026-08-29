@@ -71,6 +71,15 @@ class AsmLexer {
   unsigned DefaultRadix = 10;
   bool LexHLASMIntegers = false;
   bool LexHLASMStrings = false;
+  /// Accept the armasm-flavour integer literals: &FF (hex), %1010 (binary)
+  /// and n_xxxx (base n, e.g. 2_1010).  Only meaningful together with the
+  /// MASM-family statement syntax, so it is opt-in like the others.
+  bool LexArmasmIntegers = false;
+  /// Accept ';' as the start of a line comment in addition to the target's
+  /// own comment string.  The MASM-family dialects comment with ';' while
+  /// GNU-syntax ARM assembly for the very same target uses '@', so this
+  /// cannot be expressed through MCAsmInfo::getCommentString().
+  bool AllowSemicolonComments = false;
   AsmCommentConsumer *CommentConsumer = nullptr;
 
   LLVM_ABI AsmToken LexToken();
@@ -190,6 +199,17 @@ public:
   /// setting this option to true, will disable lexing for character and string
   /// literals.
   void setLexHLASMStrings(bool V) { LexHLASMStrings = V; }
+
+  /// Set whether to lex armasm-flavour integer literals: &FF [hex],
+  /// %1010 [binary] and n_xxxx [base n].  armasm accepts these in addition
+  /// to the 0x prefix the generic lexer already handles.
+  void setLexArmasmIntegers(bool V) { LexArmasmIntegers = V; }
+
+  /// Set whether ';' starts a line comment in addition to the target's own
+  /// comment string (MCAsmInfo::getCommentString()).  The MASM-family
+  /// dialects need this: they run on targets whose GNU-syntax assembly
+  /// comments with a different character.
+  void setSemicolonComments(bool V) { AllowSemicolonComments = V; }
 
   /// Set buffer to be lexed.
   /// `Buf` must be NULL-terminated. NULL terminator must reside at `Buf.end()`.
