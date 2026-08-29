@@ -38,10 +38,15 @@
 // CE5: #define _WIN32_WCE 1280
 
 /// The default CPU is the ARMv5TE baseline (arm926ej-s / i.MX28), soft-float
-/// (the WinCE/COREDLL FP ABI).
+/// (the WinCE/COREDLL FP ABI).  FloatABI::Soft maps to both the
+/// "+soft-float" and "+soft-float-abi" target features (software FP
+/// operations and software FP argument passing - the defining
+/// characteristics of the armel ABI).
 // RUN: %clang -target arm-pc-wince -### -c %s -o /dev/null 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CPU
 // CPU: arm926ej-s
+// CPU: "+soft-float"
+// CPU: "+soft-float-abi"
 // CPU: "-mfloat-abi=soft"
 
 /// Linker invocation: lld-link with the WinCE image defaults, the CeGCC
