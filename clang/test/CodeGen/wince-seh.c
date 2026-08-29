@@ -50,6 +50,26 @@ int filter_touches_parent(void) {
 // CHECK: call ptr @llvm.eh.recoverfp
 // CHECK: call ptr @llvm.localrecover
 
+int filter_exception_code(void) {
+  __try {
+    might_crash();
+  } __except (_exception_code() == 5) {
+    return 5;
+  }
+  return 0;
+}
+
+// _exception_code() also goes through the parent frame: the exception-code
+// slot lives in the parent, so the filter recovers the parent FP and
+// localrecover the slot, then reads ExceptionRecord->ExceptionCode from the
+// EXCEPTION_POINTERS first argument.
+// CHECK-LABEL: define internal i32 @"?filt$0@0@filter_exception_code@@"
+// CHECK: call ptr @llvm.eh.recoverfp
+// CHECK: call ptr @llvm.localrecover
+// CHECK: getelementptr
+// CHECK: load i32, ptr %{{.*}}
+// CHECK: icmp eq i32 %{{.*}}, 5
+
 void finally_basic(void) {
   __try {
     might_crash();
