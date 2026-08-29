@@ -629,9 +629,16 @@ See `clang/test/Sema/ms-extern.c`.
   `llvm/test/MC/ARM/wince-seh-pdata.s` (CE `.pdata` 16-byte records with
   FUNCLEN/PROLOG pseudo-relocations), `lld/test/COFF/wince-pdata.test`
   (compaction 16->8 bytes, pFuncStart sort, pair placement, exception
-  directory size).  Both were authored source-level only (no build in this
-  environment); their numeric expectations assume `.text` at 0x11000 and
-  `.pdata` at 0x12000 under the default `/base:0x10000 /fixed` link and
-  should be re-verified at first real build.
+  directory size), `clang/test/CodeGen/wince-seh.c` (CE ARM accepts
+  `__try`/`__except`/`__finally`; parents get the `__C_specific_handler`
+  personality; outlined filters/finallys use the parent-frame intrinsics),
+  `llvm/test/CodeGen/ARM/wince-seh-parent-frame.ll` (backend ISel of
+  `llvm.eh.recoverfp`/`llvm.localrecover`/`llvm.localaddress`/frame-escape
+  assignments on ARMv4T/ARMv5 and Thumb-2), and
+  `clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c` (EHABI C++ exceptions and
+  WinCFI SEH coexist per function in one TU).  All were authored source-level
+  only (no build in this environment); the `.pdata`-layout expectations
+  assume `.text` at 0x11000 and `.pdata` at 0x12000 under the default
+  `/base:0x10000 /fixed` link and should be re-verified at first real build.
 * On-device testing remains outstanding (no WinCE device in the build
   environment); see the procedure notes formerly in `wince-crt/docs`.
