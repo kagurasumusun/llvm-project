@@ -671,7 +671,12 @@ See `clang/test/Sema/ms-extern.c`.
   `llvm.eh.recoverfp`/`llvm.localrecover`/`llvm.localaddress`/frame-escape
   assignments on ARMv4T/ARMv5 and Thumb-2), and
   `clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c` (EHABI C++ exceptions and
-  WinCFI SEH coexist per function in one TU).  All were authored source-level
+  WinCFI SEH coexist per function in one TU).  armel baseline:
+  `llvm/test/CodeGen/ARM/wince-soft-float.ll` (default ARMv5TE CPU lowers
+  float/double to `__aeabi_*` helpers and i64 mul to `__aeabi_lmul` — no
+  VFP on the baseline), and the `arm926ej-s`/`+soft-float`/
+  `+soft-float-abi`/`-mfloat-abi=soft` checks in `clang/test/Driver/wince.c`.
+  All were authored source-level
   only (no build in this environment); the `.pdata`-layout expectations
   assume `.text` at 0x11000 and `.pdata` at 0x12000 under the default
   `/base:0x10000 /fixed` link and should be re-verified at first real build.
