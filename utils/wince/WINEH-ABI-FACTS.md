@@ -116,9 +116,20 @@ end. No `.xdata` section is needed for this mechanism.
   walks — e.g. inside `coredll`/OAL/driver code compiled against this toolchain,
   or any frame the kernel's fault dispatcher walks through).
 
-## 4a. Implementation status (added 2026-08-28, this session)
+## 4a. Implementation status (added 2026-08-28; **superseded** 2026-08-30)
 
-`llvm::Win64EH::ARMUnwindEmitter::EmitCE()` now exists
+> **⚠ This section describes code that no longer exists.**  `EmitCE()` was
+> removed again in `84aec8c1` ("remove the dead, ABI-incorrect
+> `EncodingType::CE` emitter from MCWin64EH") because nothing ever selected
+> `EncodingType::CE` - see §4b for the gate that made it unreachable.  The
+> CE `.pdata` support that *is* in the tree takes a different route:
+> `ARMWinCOFFStreamer::CEEmitUnwindInfo()` (compressed 16-byte intermediate
+> records, compacted to 8 bytes by lld), driven per function by
+> `functionUsesWinCFI()` (`llvm/lib/Target/ARM/ARMWinCFI.h`).  §4f lists the
+> commits.  What survives from this section is the ABI analysis in §2/§3,
+> which the implementation is still based on.
+
+`llvm::Win64EH::ARMUnwindEmitter::EmitCE()` existed
 (`llvm/lib/MC/MCWin64EH.{h,cpp}`) implementing exactly the narrow scope from
 §4 above: two passes over `Streamer.getWinFrameInfos()`, first validating
 each `WinEH::FrameInfo` has `PrologEnd` (from `.seh_endprologue`, already
@@ -350,6 +361,31 @@ judged safer than either asserting it works or silently leaving it
 unmentioned.
 
 ## 4g. CE exception dispatch & PDATA_EH — verified against exdsptch.c (2026-08-29)
+
+**Addendum (2026-08-30, Phase 2):** three defects in the emitter/linker side
+of this table were found by source analysis and fixed; all three are the kind
+of thing only a real build or the lld test would have shown, and none has been
+executed yet:
+
+* `pFuncStart` did **not** carry the Thumb marker.  `Frame->Begin`,
+  `FuncEnd` and `PrologEnd` are temporary labels, so llvm-mc emits them as
+  *section* relocations (`WinCOFFObjectWriter.cpp`: "Turn relocations for
+  temporary symbols into section relocations") and no symbol value carried
+  bit 0.  `CEEmitUnwindInfo` now folds `+1` into the emitted expression for
+  Thumb functions; the length relocations round the span up, so the marker
+  does not inflate FuncLen/PrologLen.
+* lld measured both lengths **from the start of `.text`**: for the same
+  reason, `s` in `applyRelARM` is the section RVA and the label offset is an
+  inline addend in the slot, which the code ignored.
+* lld patched the **wrong word** for `PROLOG`: the record start was computed
+  as `off - 8` for both relocations, but PROLOG lives at record offset 12, so
+  PrologLen never reached the flags word (and the values it computed started
+  from a `beginRVA` read out of the flags word).
+
+Unverified premise that these fixes rely on: `dwSlot` in the COMPRESSED
+lookup below (see item 2) — `wince-source` was not consulted in this session.
+
+---
 
 The CE kernel-side dispatch rules for the 8-byte PDATA_EH pair, traced in
 `PRIVATE/WINCEOS/COREOS/CORE/DLL/exdsptch.c` (`RtlLookupFunctionEntry`,
