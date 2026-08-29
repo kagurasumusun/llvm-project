@@ -136,9 +136,8 @@ bool ARMCOFFMasmParser::parseDirectiveArea(StringRef Directive, SMLoc Loc) {
         return Error(Loc, "unterminated section name in AREA (missing '|')");
       // Spaces are skipped by the lexer, so a section name containing one
       // would be joined without it; armasm section names are single words.
+      // PipePipe ("||") contributes both characters, i.e. the source text.
       NameStorage += getTok().getString();
-      if (getLexer().is(AsmToken::PipePipe))
-        NameStorage += "|";
       Lex();
     }
     Lex(); // the closing '|'
