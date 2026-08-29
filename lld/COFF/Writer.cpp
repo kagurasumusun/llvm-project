@@ -262,6 +262,7 @@ private:
   void writePEChecksum();
   void sortSections();
   template <typename T> void sortExceptionTable(ChunkRange &exceptionTable);
+  void sortCEExceptionTable(ChunkRange &exceptionTable);
   void sortExceptionTables();
   void sortCRTSectionChunks(std::vector<Chunk *> &chunks);
   void addSyntheticIdata();
@@ -1991,9 +1992,15 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
   if (exceptionTable.first) {
     dir[EXCEPTION_TABLE].RelativeVirtualAddress =
         exceptionTable.first->getRVA();
-    dir[EXCEPTION_TABLE].Size = exceptionTable.last->getRVA() +
-                                exceptionTable.last->getSize() -
-                                exceptionTable.first->getRVA();
+    uint64_t spanSize = exceptionTable.last->getRVA() +
+                        exceptionTable.last->getSize() -
+                        exceptionTable.first->getRVA();
+    // Windows CE .pdata is compacted from the 16-byte-per-function object
+    // form (used to carry the length pseudo relocations) to the 8-byte
+    // IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout by sortCEExceptionTable.
+    if (ctx.config.wince)
+      spanSize = (spanSize / 16) * 8;
+    dir[EXCEPTION_TABLE].Size = spanSize;
   }
   size_t relocSize = relocSec->getVirtualSize();
   if (ctx.dynamicRelocs)
@@ -2766,6 +2773,67 @@ void Writer::sortExceptionTable(ChunkRange &exceptionTable) {
                [](const T &a, const T &b) { return a.begin < b.begin; });
 }
 
+// Compact and sort the Windows CE compressed .pdata table.
+//
+// The object files carry a 16-byte-per-function intermediate form so the
+// FuncLen/PrologLen pseudo relocations can attach to their own words:
+//   [0] pFuncStart (absolute VA, ADDR32)
+//   [4] flags word  (PrologLen:8 | FuncLen:22 | ThirtyTwoBit | ExceptionFlag)
+//   [8] FUNCLEN reloc slot  (already resolved and the flags word patched)
+//   [12] PROLOG reloc slot  (same)
+// By the time this runs, SectionChunk::applyRelARM has resolved both pseudo
+// relocations into the flags word and discarded them (they are linker-
+// internal). We now compact each 16-byte record to the 8-byte
+// IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout (pFuncStart, flags) and sort by
+// pFuncStart (absolute VA), which is what the CE kernel binary-searches
+// (RtlLookupFunctionEntry in exdsptch.c).
+void Writer::sortCEExceptionTable(ChunkRange &exceptionTable) {
+  if (!exceptionTable.first)
+    return;
+
+  auto bufAddr = [&](Chunk *c) {
+    OutputSection *os = ctx.getOutputSection(c);
+    return buffer->getBufferStart() + os->getFileOff() + c->getRVA() -
+           os->getRVA();
+  };
+  uint8_t *begin = bufAddr(exceptionTable.first);
+  uint8_t *end = bufAddr(exceptionTable.last) + exceptionTable.last->getSize();
+  const size_t total = end - begin;
+  if (total % 16 != 0) {
+    Fatal(ctx) << "unexpected CE .pdata size: " << total
+               << " is not a multiple of 16";
+  }
+  const size_t count = total / 16;
+
+  struct CEEntry {
+    ulittle32_t funcStart;
+    ulittle32_t flags;
+  };
+  // Read the 16-byte intermediate records into a compact 8-byte vector.
+  MutableArrayRef<uint32_t> words(reinterpret_cast<uint32_t *>(begin),
+                                  total / 4);
+  for (size_t i = 0; i < count; ++i) {
+    // Record i occupies words [4i..4i+3]; copy [0]=funcStart, [1]=flags to
+    // the compact slot [2i..2i+1] (in-place, forward move is safe).
+    if (i != 0) {
+      words[2 * i] = words[4 * i];
+      words[2 * i + 1] = words[4 * i + 1];
+    }
+  }
+  // Zero the leftover tail words (the section's on-disk size still reflects
+  // the intermediate 16-byte stride; the PE exception-data directory length
+  // is set to the compact 8-byte stride in writeHeader).
+  for (size_t i = 2 * count; i < words.size(); ++i)
+    words[i] = 0;
+
+  MutableArrayRef<CEEntry> entries(reinterpret_cast<CEEntry *>(begin), count);
+  uint64_t imageBase = ctx.config.imageBase;
+  parallelSort(entries, [imageBase](const CEEntry &a, const CEEntry &b) {
+    return (uint32_t)(a.funcStart - imageBase) <
+           (uint32_t)(b.funcStart - imageBase);
+  });
+}
+
 // Sort .pdata section contents according to PE/COFF spec 5.5.
 void Writer::sortExceptionTables() {
   llvm::TimeTraceScope timeScope("Sort exception table");
@@ -2776,6 +2844,13 @@ void Writer::sortExceptionTables() {
   struct EntryArm {
     ulittle32_t begin, unwind;
   };
+
+  // Windows CE uses its own compressed 8-byte .pdata format (see
+  // sortCEExceptionTable).
+  if (ctx.config.wince) {
+    sortCEExceptionTable(pdata);
+    return;
+  }
 
   switch (ctx.config.machine) {
   case AMD64:

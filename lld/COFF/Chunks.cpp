@@ -287,6 +287,41 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
     break;
   case IMAGE_REL_ARM_SECREL:    applySecRel(this, off, os, s); break;
   case IMAGE_REL_ARM_REL32:     add32(off, sx - p - 4); break;
+  case IMAGE_REL_ARM_CE_PDATA_FUNCLEN:
+  case IMAGE_REL_ARM_CE_PDATA_PROLOG: {
+    // Windows CE compressed .pdata pseudo-relocation. In the object file each
+    // CE function table entry is 16 bytes:
+    //   [0] pFuncStart (ADDR32 = beginRVA + imageBase)
+    //   [4] flags word (PrologLen:8 | FuncLen:22 | ThirtyTwoBit | ExceptionFlag)
+    //   [8] FUNCLEN pseudo reloc -> function end symbol
+    //   [12] PROLOG pseudo reloc -> prologue end symbol
+    // lld patches the FuncLen/PrologLen bitfields of the flags word with the
+    // lengths in instructions and discards these relocations; the trailing
+    // two slots are removed when the table is compacted to the final 8-byte
+    // IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout (see
+    // Writer::sortCEExceptionTable).
+    //
+    // Both pseudo relocs target the entry's first word (offset 0), so the
+    // record starts 8 bytes before either slot; the flags word is at record
+    // start + 4.
+    uint8_t *recStart = off - 8;
+    uint8_t *flagsWord = recStart + 4;
+    uint32_t word1 = read32le(flagsWord);
+    uint32_t instSize = (word1 & 0x40000000u) ? 4u : 2u;
+    uint32_t beginRVA = read32le(recStart) - (uint32_t)imageBase;
+    // CE Thumb function symbols carry the Thumb bit (LSB) in their COFF
+    // value, so pFuncStart (and hence beginRVA) is begin+1 while the end
+    // labels are plain. Round the byte span up to whole instructions to
+    // cancel that 1-byte skew.
+    uint32_t instSpan = (uint32_t)((s - beginRVA + instSize - 1) / instSize);
+    if (type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN) {
+      word1 = (word1 & ~(0x003FFFFFu << 8)) | ((instSpan & 0x003FFFFFu) << 8);
+    } else {
+      word1 = (word1 & ~0xFFu) | (instSpan & 0xFFu);
+    }
+    write32le(flagsWord, word1);
+    break;
+  }
   default:
     error("unsupported relocation type 0x" + Twine::utohexstr(type) + " in " +
           toString(file));
@@ -595,6 +630,12 @@ static uint8_t getBaserelType(const coff_relocation &rel,
       return IMAGE_REL_BASED_HIGHLOW;
     if (rel.Type == IMAGE_REL_ARM_MOV32T)
       return IMAGE_REL_BASED_ARM_MOV32T;
+    // Windows CE compressed .pdata pseudo-relocations are linker-internal
+    // (patched into the flags word and discarded), so they never reach the
+    // final image and produce no base relocation.
+    if (rel.Type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN ||
+        rel.Type == IMAGE_REL_ARM_CE_PDATA_PROLOG)
+      return IMAGE_REL_BASED_ABSOLUTE;
     return IMAGE_REL_BASED_ABSOLUTE;
   case Triple::aarch64:
     if (rel.Type == IMAGE_REL_ARM64_ADDR64)
