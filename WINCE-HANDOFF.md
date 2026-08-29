@@ -446,8 +446,9 @@ personality も取り込む(優先度低: C++ 例外は EHABI 経路)/ (c) 分�
 1. **実ビルド + lit 実行**(本セッションでは対象外)。CI を回して WinCE
    テスト一式を通すことが最優先。特に `lld/test/COFF/wince-pdata.test` の
    byte 期待値は**手計算で再導出したもの**であり要検証。
-2. armasm Path B の完全化: カラム 0 ラベル(`Foo PROC`)、`;` コメント、
-   `DCD`/`DCB`/`SPACE`/`EQU`、マクロ、条件アセンブリ。実用経路は
+2. armasm Path B の完全化。**第 2 弾で主要部分を実装済み(§12)**。
+   残りは `%`/`&`/`n_` 数値リテラル、`DCFS`/`DCFD`、`GBLA`/`SETA`、
+   `MACRO`/`MEND`、`IF`/`ENDIF`。実用経路は
    `utils/wince/armasm/armasm-convert.py`(Path A)のまま。
 3. x86 CE の SEH(B10 で診断するようにしただけ。実装は未)。
 4. `WINEH-ABI-FACTS.md` §4g の `dwSlot` 値など、private リポ
@@ -455,3 +456,54 @@ personality も取り込む(優先度低: C++ 例外は EHABI 経路)/ (c) 分�
 5. `.actions/build-wince-llvm.yml` と `.github/workflows/main.yml` の重複解消
    (ユーザー判断事項として残置)。
 6. 実機検証(デバイス無し)。
+
+## 12. Phase 2 第 2 弾 (2026-08-30): armasm Path B のステートメント構文
+
+Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけでは armasm のソース
+は読めなかったため、続けて**文(statement)構文**を実装した。
+**繰り返しになるが、ビルドも lit 実行もしていない。すべてソースレベルの解析
+に基づく。**
+
+| # | ファイル | 内容 |
+|---|---|---|
+| C1 | `llvm/include/llvm/MC/MCParser/AsmLexer.h`<br>`llvm/lib/MC/MCParser/AsmLexer.cpp` | `;` を行コメント開始として追加受理する `setSemicolonComments()`。ARM の `MCAsmInfo::getCommentString()` は GNU 構文用の `@` なので、置換ではなく**追加**でなければならない |
+| C2 | `llvm/include/llvm/MC/MCParser/MCAsmParserExtension.h`<br>`llvm/lib/MC/MCParser/MCAsmParserExtension.cpp` | `emitMasmLabel()` を追加。既定実装はラベルを出力し、`doBeforeLabelEmit()`/`onLabelParsed()`(ARM は pending IT ブロックのフラッシュと `.thumb_func` に使う)も呼ぶ |
+| C3 | `llvm/include/llvm/MC/MCParser/MCAsmParser.h`<br>`llvm/lib/MC/MCParser/AsmParser.cpp` | `setMasmLabelExtension()` / `takeMasmLabel()` と `parseMasmLabelStatement()`。ドット無し識別子の**直後が方言自身のディレクティブ**か行末なら、それをラベルとして扱う。登録した拡張が無ければ無効なので GNU 構文には一切影響しない |
+| C4 | `llvm/lib/MC/MCParser/AsmParser.cpp` | ドット無しディレクティブ探索を `lookupMasmDirective()` に抽出(重複していたループを 1 か所に) |
+| C5 | `llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp` | `PROC`/`ENDP` が前置ラベルを名前として受け取るようにした。`ENDP` は開いている `PROC` との名前一致も警告する |
+| C6 | 同上 | `DCD`/`DCW`/`DCB`/`DCQ`(`DCB` は文字列も可)、`SPACE`、`FILL n{,value}`、`EQU` を追加 |
+| C7 | 同上 | `emitMasmLabel()` を override し、`ENDP`/`ENDFUNC`/`EQU` の前置ラベルは**出力しない**(`PROC` で出したシンボルの再定義になるため) |
+| C8 | 同上 | **バグ修正**: `EXPORT name` の後に `name PROC` を書くと `PROC` 側の `setExternal(false)` が輸出を取り消していた。armasm の標準形なので、`EXPORT` 済みの名前は local に戻さないようにした |
+| C9 | `llvm/test/MC/ARM/wince-armasm-labels.s` | 新規テスト。ラベル構文・`;` コメント・データ定義を固定 |
+| C10 | `.github/workflows/main.yml` | 新規テストを lit ステップに追加 |
+| C11 | `AsmLexer.h` / `AsmLexer.cpp` | `setLexArmasmIntegers()`: `&FF` [16進] / `%1010` [2進] / `n_xxxx` [基数 n] を受理。`0x` と 10 進は従来どおり |
+| C12 | `ARMCOFFMasmParser.cpp` | `DCFS`/`DCFD` を追加。`AsmParser` は浮動小数点リテラルを常に IEEE double として読むので、`DCFS` はここで単精度に丸める |
+
+### 12.1 設計メモ: なぜ「カラム 0」ではなく「直後のトークン」か
+
+本物の armasm は「ラベルは第 1 カラム開始」という規則だが、`AsmLexer` には
+「このトークンは行頭で始まったか」を外部から取る手段が無い
+(`IsAtStartOfLine` はトークン消費時に必ずクリアされ、字句解析器全体に触れる
+変更が必要)。そのため**直後のトークンが方言のディレクティブか行末か**で判定
+している。
+
+* 扱える: `Foo PROC` / `Foo ENDP` / `Foo DCD 1` / `Foo EQU 4` / 行末の `Foo`
+* 扱えない: `Foo mov r0, r1`(ラベルと命令が同一行)。Platform Builder の
+  ソースはラベルを単独行か `PROC`/データ系の前に置く書き方が殆どなので
+  実害は小さいと判断したが、**完全な armasm 互換ではない**。
+
+### 12.2 未実装(Path B)
+
+アラインメント未調整の `DCFU`/`DCFSU`/`DCFDU`/`DCQU`、`EQU` の文字列・
+論理演算子、`GBLA`/`SETA`、`MACRO`/`MEND`、`IF`/`ENDIF`。このためドライバは
+既定で armasm に切り替えない(第 1 弾の判断を維持)。
+
+### 12.3 追加で気をつけたい点
+
+* `n_xxxx` の判定は「数字の直後に `_` があること」で行っている。基数が
+  2〜16 の範囲外なら従来どおりの字句解析に流すので、`0x1F` や `1_000`
+  (基数 1 は不正)の挙動は変わらない。
+* `&` と `%` は `AsmToken::Amp` / `Percent` としても使われ得るが、
+  armasm 時のみ・直後が有効な数字のときだけ数値として読む。
+* `DCFS` の単精度変換は `APFloat::convert()` に依存。`DCFD` は
+  `AsmParser` が既に double で読むのでそのまま 8 バイト書くだけで正しい。
