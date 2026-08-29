@@ -61,6 +61,36 @@ jobs:
             llvm-dlltool llvm-nm llvm-mc llvm-readobj llvm-objdump FileCheck \
             split-file
 
+      - name: "Stage 1: WinCE lit tests"
+        # Every WinCE test in this tree was authored source-level and has
+        # never been executed, so run them here rather than only in
+        # someone's local build.  Only the WinCE test files are listed:
+        # running the whole clang/lld/llvm suites on a 2-core runner is not
+        # feasible, and these are the ones that describe this toolchain.
+        run: |
+          ./build/bin/llvm-lit -sv --timeout 900 \
+            clang/test/Driver/wince.c \
+            clang/test/Driver/wince-x86.c \
+            clang/test/CodeGen/wince-seh.c \
+            clang/test/CodeGen/ARM/wince-ehabi-tables.c \
+            clang/test/CodeGen/ARM/wince-global-ctors.c \
+            clang/test/CodeGen/ARM/wince-literal-pool.c \
+            clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c \
+            clang/test/CodeGen/ARM/wince-seh-scope-table.c \
+            clang/test/Parser/ms-pragmas-full.c \
+            clang/test/Sema/ms-extern.c \
+            lld/test/COFF/wince-arm-relocs.s \
+            lld/test/COFF/wince-ctors.s \
+            lld/test/COFF/wince-exidx-bounds.s \
+            lld/test/COFF/wince-image.s \
+            lld/test/COFF/wince-pdata.test \
+            lld/test/COFF/wince-thunk.s \
+            llvm/test/MC/ARM/wince-coff-relocs.s \
+            llvm/test/MC/ARM/wince-exidx.s \
+            llvm/test/MC/ARM/wince-seh-pdata.s \
+            llvm/test/CodeGen/ARM/wince-seh-parent-frame.ll \
+            llvm/test/CodeGen/ARM/wince-soft-float.ll
+
       - name: "Stage 1: install (isolated prefix)"
         run: |
           cmake --install build
