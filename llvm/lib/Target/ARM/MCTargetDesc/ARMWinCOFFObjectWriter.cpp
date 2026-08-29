@@ -31,7 +31,8 @@ public:
   // IMAGE_FILE_MACHINE_ARMNT (0x01c4).
   ARMWinCOFFObjectWriter(bool IsWinCE)
     : MCWinCOFFObjectTargetWriter(IsWinCE ? COFF::IMAGE_FILE_MACHINE_ARM
-                                          : COFF::IMAGE_FILE_MACHINE_ARMNT) {
+                                          : COFF::IMAGE_FILE_MACHINE_ARMNT),
+      IsWinCE(IsWinCE) {
   }
 
   ~ARMWinCOFFObjectWriter() override = default;
@@ -41,6 +42,9 @@ public:
                         const MCAsmBackend &MAB) const override;
 
   bool recordRelocation(const MCFixup &) const override;
+
+private:
+  const bool IsWinCE;
 };
 
 } // end anonymous namespace
@@ -55,7 +59,7 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
   // Absolute data references that carry an explicit COFF specifier (image
   // relative, or the Windows CE compressed-.pdata pseudo relocations) stay
   // absolute across sections; only plain cross-section 4-byte data fixups
-  // are encoded as the REL32 form.
+  // on desktop ARM are encoded as the REL32 form.
   const bool HasAbsoluteCOFFSpecifier =
       Spec == MCSymbolRefExpr::VK_COFF_IMGREL32 ||
       Spec == MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN ||
@@ -67,7 +71,11 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
       return COFF::IMAGE_REL_ARM_ADDR32;
     }
     FixupKind = FK_Data_4;
-    PCRel = !HasAbsoluteCOFFSpecifier;
+    // Windows CE images are fixed-address: every cross-section 4-byte data
+    // reference is an absolute VA (ADDR32), including the .ARM.exidx
+    // entries, the SEH scope table and the PDATA_EH pair. Only desktop ARM
+    // COFF keeps the upstream REL32 behavior.
+    PCRel = !IsWinCE && !HasAbsoluteCOFFSpecifier;
   }
 
 
