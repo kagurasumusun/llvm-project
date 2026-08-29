@@ -57,9 +57,9 @@ jobs:
 
       - name: "Stage 1: build clang + lld + tools"
         run: |
-          cmake --build build --target clang lld llvm-ar llvm-ranlib \
-            llvm-dlltool llvm-nm llvm-mc llvm-readobj llvm-objdump FileCheck \
-            split-file
+          cmake --build build --target clang clang-cl lld lld-link llc \
+            llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc llvm-readobj \
+            llvm-objdump llvm-lit FileCheck split-file not count
 
       - name: "Stage 1: WinCE lit tests"
         # Every WinCE test in this tree was authored source-level and has
