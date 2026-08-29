@@ -15,14 +15,13 @@
 // the instruction mnemonics themselves are parsed by the regular
 // ARMAsmParser.
 //
-// Still missing for full armasm: the &hex / %binary / n_xxxx integer
-// literals, DCFS/DCFD floating point data, the unaligned
-// DCFU/DCFSU/DCFDU/DCQU variants, GBLA/GBLL/GBLS variables with
-// SETA/SETL/SETS, MACRO/MEND and IF/ELSE/ENDIF.  See
-// utils/wince/README.md.
+// Still missing for full armasm: the unaligned DCFU/DCFSU/DCFDU/DCQU
+// variants, GBLA/GBLL/GBLS variables with SETA/SETL/SETS, MACRO/MEND and
+// IF/ELSE/ENDIF.  See utils/wince/README.md.
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringRef.h"
@@ -68,6 +67,9 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
   bool parseDirectiveDCW(StringRef, SMLoc);
   bool parseDirectiveDCB(StringRef, SMLoc);
   bool parseDirectiveDCQ(StringRef, SMLoc);
+  bool parseDirectiveDCF(StringRef, SMLoc, bool IsDouble);
+  bool parseDirectiveDCFS(StringRef, SMLoc);
+  bool parseDirectiveDCFD(StringRef, SMLoc);
   bool parseDirectiveSpace(StringRef, SMLoc);
   bool parseDirectiveFill(StringRef, SMLoc);
   bool parseDirectiveEqu(StringRef, SMLoc);
@@ -117,6 +119,8 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCW>("dcw");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCB>("dcb");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCQ>("dcq");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCFS>("dcfs");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCFD>("dcfd");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveSpace>("space");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveFill>("fill");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveEqu>("equ");
@@ -138,6 +142,10 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
     // which is what GNU-syntax ARM assembly uses, so this cannot be folded
     // into MCAsmInfo::getCommentString().
     getLexer().setSemicolonComments(true);
+
+    // armasm integer literals: &FF [hex], %1010 [binary] and n_xxxx
+    // [base n].  '0x' and plain decimal keep working as they always did.
+    getLexer().setLexArmasmIntegers(true);
   }
 
 public:
@@ -448,6 +456,102 @@ bool ARMCOFFMasmParser::parseDirectiveDCB(StringRef Directive, SMLoc Loc) {
 
 bool ARMCOFFMasmParser::parseDirectiveDCQ(StringRef Directive, SMLoc Loc) {
   return parseDirectiveDataValue(Directive, Loc, 8);
+}
+
+/// DCFS/DCFD expression{, expression} - single/double precision data.
+///
+/// AsmParser reads every floating point literal as an IEEE double, which is
+/// exactly what DCFD wants; DCFS narrows the value to single precision here
+/// rather than emitting the double bit pattern truncated to four bytes.
+bool ARMCOFFMasmParser::parseDirectiveDCF(StringRef Directive, SMLoc Loc,
+                                          bool IsDouble) {
+  if (getLexer().is(AsmToken::EndOfStatement))
+    return Error(Loc, "expected expression after " + Directive);
+
+  auto parseOp = [&]() -> bool {
+    if (getParser().checkForValidSection())
+      return true;
+    SMLoc ExprLoc = getLexer().getLoc();
+    if (!IsDouble && getLexer().is(AsmToken::Real)) {
+      APFloat Val(APFloat::IEEEdouble(), getTok().getString());
+      bool LosesInfo = false;
+      (void)Val.convert(APFloat::IEEEsingle(), APFloat::rmNearestTiesToEven,
+                        &LosesInfo);
+      Lex();
+      getStreamer().emitIntValue(Val.bitcastToAPInt().getZExtValue(), 4);
+      return false;
+    }
+    const MCExpr *Value;
+    if (getParser().parseExpression(Value))
+      return true;
+    getStreamer().emitValue(Value, IsDouble ? 8 : 4, ExprLoc);
+    return false;
+  };
+
+  return parseMany(parseOp);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCFS(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDCF(Directive, Loc, false);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCFD(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDCF(Directive, Loc, true);
+}
+
+/// SPACE expression - reserve that many zero bytes.
+bool ARMCOFFMasmParser::parseDirectiveSpace(StringRef, SMLoc Loc) {
+  int64_t NumBytes;
+  if (getParser().parseAbsoluteExpression(NumBytes))
+    return true;
+  while (getLexer().isNot(AsmToken::EndOfStatement))
+    Lex();
+  if (NumBytes < 0)
+    return Error(Loc, "invalid number of bytes");
+  if (getParser().checkForValidSection())
+    return true;
+  getStreamer().emitZeros((uint64_t)NumBytes);
+  return false;
+}
+
+/// FILL expression{, value} - reserve that many bytes, filled with `value`.
+///
+/// armasm's third operand, the element size, is not supported.
+bool ARMCOFFMasmParser::parseDirectiveFill(StringRef, SMLoc Loc) {
+  int64_t NumBytes;
+  if (getParser().parseAbsoluteExpression(NumBytes))
+    return true;
+  int64_t FillValue = 0;
+  if (getLexer().is(AsmToken::Comma)) {
+    Lex();
+    if (getParser().parseAbsoluteExpression(FillValue))
+      return true;
+  }
+  while (getLexer().isNot(AsmToken::EndOfStatement))
+    Lex();
+  if (NumBytes < 0)
+    return Error(Loc, "invalid number of bytes");
+  if (getParser().checkForValidSection())
+    return true;
+  getStreamer().emitFill((uint64_t)NumBytes, (uint8_t)FillValue);
+  return false;
+}
+
+/// NAME EQU expression
+///
+/// EQU defines a symbolic constant, so the name in front of the directive is
+/// deliberately not emitted as a label (see emitMasmLabel()).
+bool ARMCOFFMasmParser::parseDirectiveEqu(StringRef Directive, SMLoc Loc) {
+  MCSymbol *Sym = getParser().takeMasmLabel();
+  if (!Sym)
+    return Error(Loc, "EQU needs a name in front of it: 'NAME EQU value'");
+  const MCExpr *Value;
+  if (getParser().parseExpression(Value))
+    return true;
+  while (getLexer().isNot(AsmToken::EndOfStatement))
+    Lex();
+  getStreamer().emitAssignment(Sym, Value);
+  return false;
 }
 
 bool ARMCOFFMasmParser::emitMasmLabel(MCSymbol *Sym, SMLoc Loc,
