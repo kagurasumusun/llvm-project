@@ -121,16 +121,36 @@ bool ARMCOFFMasmParser::parseSectionSwitch(
 /// AREA name, attr{, attr...}
 ///   CODE -> .text   DATA + READWRITE -> .data
 ///   NOINIT/UNINIT -> .bss (nobits)     ALIGN=n -> 2^n alignment
+///
+/// The name may also be armasm's pipe form, |name|, which is how Platform
+/// Builder spells the standard sections (|.text|, |.data|, ...).  Those
+/// names start with a character the assembler lexer does not accept in an
+/// identifier, so they are collected token by token between the pipes.
 bool ARMCOFFMasmParser::parseDirectiveArea(StringRef Directive, SMLoc Loc) {
+  std::string NameStorage;
   StringRef Name;
-  if (getParser().parseIdentifier(Name))
-    return Error(Loc, "expected section name after AREA");
-
-  // Normalize: armasm uses |name| pipes for special characters.
+  if (getLexer().is(AsmToken::Pipe)) {
+    Lex(); // the opening '|'
+    while (getLexer().isNot(AsmToken::Pipe)) {
+      if (getLexer().is(AsmToken::EndOfStatement) || getLexer().is(AsmToken::Eof))
+        return Error(Loc, "unterminated section name in AREA (missing '|')");
+      // Spaces are skipped by the lexer, so a section name containing one
+      // would be joined without it; armasm section names are single words.
+      NameStorage += getTok().getString();
+      if (getLexer().is(AsmToken::PipePipe))
+        NameStorage += "|";
+      Lex();
+    }
+    Lex(); // the closing '|'
+    Name = NameStorage;
+  } else {
+    if (getParser().parseIdentifier(Name))
+      return Error(Loc, "expected section name after AREA");
+    // Some sources write the pipes without a leading '|' (trailing only).
+    while (Name.ends_with("|"))
+      Name = Name.drop_back();
+  }
   Name = Name.trim();
-  Name = Name.ltrim('|');
-  while (Name.ends_with("|"))
-    Name = Name.drop_back();
 
   unsigned Characteristics = 0;
   Align Alignment = Align(4);
