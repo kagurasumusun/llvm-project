@@ -395,6 +395,16 @@ enum RelocationTypesARM : unsigned {
   IMAGE_REL_ARM_BRANCH24T = 0x0014,
   IMAGE_REL_ARM_BLX23T = 0x0015,
   IMAGE_REL_ARM_PAIR = 0x0016,
+  // Windows CE internal-only relocations (never appear in a final image).
+  // Used by the compressed WinCE .pdata emitter to defer the FuncLen /
+  // PrologLen length encoding to the linker, where the final function layout
+  // is known. Both attach to 4-byte slots in the object-file form of a CE
+  // .pdata entry (16 bytes per function; lld patches the length bitfields of
+  // the flags word and compacts the entry to the 8-byte
+  // IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout). 0x0006/0x0007 are unused by the
+  // ARM COFF ABI (TOKEN=0x0005).
+  IMAGE_REL_ARM_CE_PDATA_FUNCLEN = 0x0006, // target = function end symbol
+  IMAGE_REL_ARM_CE_PDATA_PROLOG = 0x0007,  // target = prolog end symbol
 };
 
 enum RelocationTypesARM64 : unsigned {

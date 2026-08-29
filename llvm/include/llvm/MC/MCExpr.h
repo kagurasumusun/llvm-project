@@ -196,6 +196,11 @@ public:
   // a cleaner approach.
   enum VariantKind : uint16_t {
     VK_COFF_IMGREL32 = 3, // symbol@imgrel (image-relative)
+    // Windows CE compressed .pdata internal markers. Consumed and dropped by
+    // lld when it patches the 8-byte IMAGE_CE_RUNTIME_FUNCTION_ENTRY; never
+    // emitted into a final image. See ARMWinCOFFStreamer CE unwind emitter.
+    VK_COFF_CE_PDATA_FUNCLEN, // symbol = function end; encodes FuncLen
+    VK_COFF_CE_PDATA_PROLOG,  // symbol = prolog end; encodes PrologLen
 
     FirstTargetSpecifier,
   };

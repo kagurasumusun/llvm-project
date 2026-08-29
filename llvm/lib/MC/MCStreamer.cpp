@@ -713,7 +713,12 @@ void MCStreamer::emitCFIValOffset(int64_t Register, int64_t Offset, SMLoc Loc) {
 
 WinEH::FrameInfo *MCStreamer::EnsureValidWinFrameInfo(SMLoc Loc) {
   const MCAsmInfo *MAI = Context.getAsmInfo();
-  if (!MAI->usesWindowsCFI()) {
+  // Windows CE keeps MCAsmInfo in the ARM EHABI mode (ExceptionHandling::ARM)
+  // so that C++ exceptions keep emitting .ARM.exidx tables, but .seh_* is
+  // still legal there for MSVC-style __try/__except functions, which the
+  // ARMWinCOFFStreamer encodes into the compressed CE .pdata format. See
+  // ARMWinCFI.h and utils/wince/WINEH-ABI-FACTS.md section 4c/4d.
+  if (!MAI->usesWindowsCFI() && !Context.getTargetTriple().isWindowsCE()) {
     getContext().reportError(
         Loc, ".seh_* directives are not supported on this target");
     return nullptr;
@@ -728,7 +733,10 @@ WinEH::FrameInfo *MCStreamer::EnsureValidWinFrameInfo(SMLoc Loc) {
 
 void MCStreamer::emitWinCFIStartProc(const MCSymbol *Symbol, SMLoc Loc) {
   const MCAsmInfo *MAI = Context.getAsmInfo();
-  if (!MAI->usesWindowsCFI())
+  // Windows CE: .seh_* is allowed for __try/__except functions even though
+  // the target-wide MCAsmInfo stays in ARM EHABI mode (see
+  // EnsureValidWinFrameInfo above).
+  if (!MAI->usesWindowsCFI() && !Context.getTargetTriple().isWindowsCE())
     return getContext().reportError(
         Loc, ".seh_* directives are not supported on this target");
   if (CurrentWinFrameInfo && !CurrentWinFrameInfo->End)

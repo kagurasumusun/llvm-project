@@ -52,6 +52,14 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
                                               const MCAsmBackend &MAB) const {
   auto Spec = Target.getSpecifier();
   unsigned FixupKind = Fixup.getKind();
+  // Absolute data references that carry an explicit COFF specifier (image
+  // relative, or the Windows CE compressed-.pdata pseudo relocations) stay
+  // absolute across sections; only plain cross-section 4-byte data fixups
+  // are encoded as the REL32 form.
+  const bool HasAbsoluteCOFFSpecifier =
+      Spec == MCSymbolRefExpr::VK_COFF_IMGREL32 ||
+      Spec == MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN ||
+      Spec == MCSymbolRefExpr::VK_COFF_CE_PDATA_PROLOG;
   bool PCRel = false;
   if (IsCrossSection) {
     if (PCRel || FixupKind != FK_Data_4) {
@@ -59,7 +67,7 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
       return COFF::IMAGE_REL_ARM_ADDR32;
     }
     FixupKind = FK_Data_4;
-    PCRel = true;
+    PCRel = !HasAbsoluteCOFFSpecifier;
   }
 
 
@@ -75,6 +83,13 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
     switch (Spec) {
     case MCSymbolRefExpr::VK_COFF_IMGREL32:
       return COFF::IMAGE_REL_ARM_ADDR32NB;
+    case MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN:
+      // Windows CE internal pseudo-relocation: lld patches FuncLen/
+      // ThirtyTwoBit in the second word of a compressed .pdata entry.
+      return COFF::IMAGE_REL_ARM_CE_PDATA_FUNCLEN;
+    case MCSymbolRefExpr::VK_COFF_CE_PDATA_PROLOG:
+      // Windows CE internal pseudo-relocation: lld patches PrologLen.
+      return COFF::IMAGE_REL_ARM_CE_PDATA_PROLOG;
     case ARM::S_COFF_SECREL:
       return COFF::IMAGE_REL_ARM_SECREL;
     default:

@@ -55,6 +55,10 @@ struct FrameInfo {
   bool HandlesExceptions = false;
   bool EmitAttempted = false;
   bool Fragment = false;
+  // Windows CE only: set once the compressed .pdata entry has been emitted
+  // (re-entry guard for the CE emitter, mirroring how the desktop emitter
+  // uses Symbol). See ARMWinCOFFStreamer CE unwind emitter.
+  bool CEEmitted = false;
   constexpr static uint8_t DefaultVersion = 1;
   uint8_t Version = DefaultVersion;
 

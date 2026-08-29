@@ -42,6 +42,23 @@ public:
   void finishImpl() override;
 
   //===----------------------------------------------------------===//
+  // Windows CE compressed WinEH (.seh) unwinding.  CE does not use the
+  // desktop ARM .xdata/RUNTIME_FUNCTION layout: the exception data
+  // directory points at an array of 8-byte IMAGE_CE_RUNTIME_FUNCTION_ENTRY
+  // records, and the personality routine pointer + handler data live in the
+  // 8 bytes immediately preceding the function's first instruction.  See
+  // utils/wince/WINEH-ABI-FACTS.md and the CE6 kernel
+  // (PRIVATE/.../CORE/DLL/exdsptch.c).
+  //===----------------------------------------------------------===//
+
+  // True when .seh frames must be encoded in the CE compressed format.
+  bool isCEEH() const {
+    return getContext().getTargetTriple().isWindowsCE();
+  }
+
+  void CEEmitUnwindInfo(WinEH::FrameInfo *Frame);
+
+  //===----------------------------------------------------------===//
   // ARM EHABI (Windows CE) unwinding: state machine over .ARM.exidx /
   // .ARM.extab COFF sections, driven by the ARMTargetStreamer EHABI
   // directives (.fnstart ... .fnend and friends).  Entries hold absolute
@@ -297,8 +314,118 @@ void ARMWinCOFFStreamer::EHABIemitUnwindRaw(
   UnwindOpAsm.EmitRaw(Ops);
 }
 
+//===----------------------------------------------------------------------===//
+// Windows CE compressed WinEH emission
+//===----------------------------------------------------------------------===//
+
+namespace {
+// Bit layout of the second word of an IMAGE_CE_RUNTIME_FUNCTION_ENTRY
+// (little-endian), matching the CE kernel's PDATA bitfield:
+//   PrologLen:8 | FuncLen:22 | ThirtyTwoBit:1 | ExceptionFlag:1
+constexpr uint32_t CE_PDATA_PROLOG_LEN_SHIFT = 0;
+constexpr uint32_t CE_PDATA_FUNC_LEN_SHIFT = 8;
+constexpr uint32_t CE_PDATA_THIRTY_TWO_BIT = 0x40000000u;
+constexpr uint32_t CE_PDATA_EXCEPTION_FLAG = 0x80000000u;
+constexpr uint32_t CE_PDATA_LEN_MASK = 0x003FFFFFu; // 22-bit FuncLen field
+} // namespace
+
+/// Emit a function's Windows CE compressed .pdata entry.
+///
+/// The CE kernel's RtlLookupFunctionEntry decodes 8-byte
+/// IMAGE_CE_RUNTIME_FUNCTION_ENTRY records (see ce600 PRIVATE/.../CORE/DLL/
+/// exdsptch.c):
+///   word0 = pFuncStart (absolute VA; thumb bit preserved)
+///   word1 = PrologLen:8 | FuncLen:22 | ThirtyTwoBit:1 | ExceptionFlag:1
+///
+/// FuncLen/PrologLen are lengths in instructions (ARM=4B / Thumb=2B) and are
+/// only known at link time, so the object file carries a 16-byte-per-function
+/// intermediate form that lets the length relocations attach to their own
+/// words:
+///   [0] pFuncStart (ADDR32 = absolute VA)
+///   [4] flags word (PrologLen:8 | FuncLen:22 | ThirtyTwoBit | ExceptionFlag)
+///   [8] FUNCLEN pseudo reloc slot -> function end symbol
+///   [12] PROLOG pseudo reloc slot -> prologue end symbol
+/// lld resolves the internal pseudo relocations
+/// (IMAGE_REL_ARM_CE_PDATA_FUNCLEN/PROLOG) into the flags word, drops them,
+/// and compacts each record to the final 8-byte layout
+/// (Writer::sortCEExceptionTable).
+///
+/// The PDATA_EH pair (personality VA + handler-data VA) is NOT emitted here:
+/// the compiler places the SEH scope table followed by the pair immediately
+/// before the function's first instruction (ARMAsmPrinter), which keeps the
+/// pair in the 8 bytes right before pFuncStart exactly where the CE kernel
+/// reads it -- unlike a shared section, this stays correct for any number of
+/// SEH functions in a module.
+///
+/// CE needs no .xdata unwind codes: the OS unwinder (unwind.c) reverse-
+/// executes the prolog machine code, so only function/prologue extents and
+/// the handler location are recorded.
+void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
+  if (!Frame || Frame->CEEmitted)
+    return;
+  if (Frame->empty()) {
+    Frame->EmitAttempted = true;
+    return;
+  }
+  Frame->CEEmitted = true;
+
+  MCContext &Ctx = getContext();
+
+  const bool HasHandler = Frame->HandlesExceptions && Frame->ExceptionHandler;
+  const bool IsThumb = Frame->Function &&
+                       getAssembler().isThumbFunc(Frame->Function);
+
+  MCSectionCOFF *PData = Ctx.getCOFFSection(
+      ".pdata", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+                    COFF::IMAGE_SCN_MEM_READ | COFF::IMAGE_SCN_MEM_DISCARDABLE);
+  switchSection(PData);
+  emitValueToAlignment(Align(4));
+
+  // word0: pFuncStart (absolute VA; thumb bit preserved for thumb funcs).
+  emitValue(MCSymbolRefExpr::create(Frame->Begin, Ctx), 4);
+
+  // word1: static flags. The FuncLen / PrologLen bitfields (in instructions)
+  // are linker-filled from the symbols that follow, emitted as internal
+  // pseudo-relocations carrying the CE specifier; lld computes the lengths
+  // relative to word0's pFuncStart, patches the bitfields, and discards
+  // these relocations. Each pseudo reloc occupies its own 4-byte slot in the
+  // object; lld recognises and removes the slots so the final entry stays
+  // 8 bytes.
+  uint32_t Static = 0;
+  if (!IsThumb)
+    Static |= CE_PDATA_THIRTY_TWO_BIT; // ARM (32-bit instructions)
+  if (HasHandler)
+    Static |= CE_PDATA_EXCEPTION_FLAG;
+  emitIntValue(Static, 4);
+  const MCSymbol *FuncEnd = Frame->FuncletOrFuncEnd ? Frame->FuncletOrFuncEnd
+                                                    : Frame->End;
+  if (FuncEnd)
+    emitValue(MCSymbolRefExpr::create(
+                  FuncEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN, Ctx),
+              4);
+  if (Frame->PrologEnd)
+    emitValue(MCSymbolRefExpr::create(
+                  Frame->PrologEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_PROLOG,
+                  Ctx),
+              4);
+
+  // Return to the function's text section so later emission is unaffected.
+  switchSection(Frame->TextSection);
+}
+
 void ARMWinCOFFStreamer::emitWinEHHandlerData(SMLoc Loc) {
   MCStreamer::emitWinEHHandlerData(Loc);
+
+  if (isCEEH()) {
+    // Windows CE has no .xdata records: the SEH scope table and the in-text
+    // PDATA_EH pair are emitted by the compiler immediately before the
+    // function body (ARMAsmPrinter::emitFunctionEntryLabel), so there is
+    // nothing to emit here and no section to switch to. Hand-written
+    // assembly using .seh_handlerdata must place its own table + pair before
+    // the function; the .pdata entry itself is still produced by
+    // CEEmitUnwindInfo on .seh_endproc.
+    return;
+  }
 
   // We have to emit the unwind info now, because this directive
   // actually switches to the .xdata section!
@@ -307,12 +434,20 @@ void ARMWinCOFFStreamer::emitWinEHHandlerData(SMLoc Loc) {
 }
 
 void ARMWinCOFFStreamer::emitWindowsUnwindTables(WinEH::FrameInfo *Frame) {
-  EHStreamer.EmitUnwindInfo(*this, Frame, /* HandlerData = */ false);
+  if (isCEEH())
+    CEEmitUnwindInfo(Frame);
+  else
+    EHStreamer.EmitUnwindInfo(*this, Frame, /* HandlerData = */ false);
 }
 
 void ARMWinCOFFStreamer::emitWindowsUnwindTables() {
   if (!getNumWinFrameInfos())
     return;
+  if (isCEEH()) {
+    for (const auto &CFI : getWinFrameInfos())
+      CEEmitUnwindInfo(CFI.get());
+    return;
+  }
   EHStreamer.Emit(*this);
 }
 
