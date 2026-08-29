@@ -1898,6 +1898,20 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
     if (MCAsmMacro *M = getContext().lookupMacro(IDVal))
       return handleMacroEntry(M, IDLoc);
 
+  // The MASM-family dialects spell their directives without the leading '.'
+  // that the generic handling below requires.  Consult the extension map for
+  // those too: it only ever holds entries an *active* extension registered
+  // explicitly, and every in-tree extension except the ARM armasm one
+  // registers ".name" (and is handled below), so this is a no-op for GNU
+  // syntax assembly.  Extensions used by llvm-ml register dotless names as
+  // well, but they run on MasmParser, which has its own parseStatement.
+  if (!IDVal.empty() && !IDVal.starts_with(".")) {
+    std::pair<MCAsmParserExtension *, DirectiveHandler> Handler =
+        ExtensionDirectiveMap.lookup(IDVal);
+    if (Handler.first)
+      return (*Handler.second)(Handler.first, IDVal, IDLoc);
+  }
+
   // Otherwise, we have a normal instruction or directive.
 
   // Directives start with "."
