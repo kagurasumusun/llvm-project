@@ -694,8 +694,18 @@ See `clang/test/Sema/ms-extern.c`.
   VFP on the baseline), and the `arm926ej-s`/`+soft-float`/
   `+soft-float-abi`/`-mfloat-abi=soft` checks in `clang/test/Driver/wince.c`.
   All were authored source-level
-  only (no build in this environment); the `.pdata`-layout expectations
+  (no build in this environment); the `.pdata`-layout expectations
   assume `.text` at 0x11000 and `.pdata` at 0x12000 under the default
   `/base:0x10000 /fixed` link and should be re-verified at first real build.
+* **CI now runs them.**  `.github/workflows/main.yml` runs the WinCE lit
+  files listed above with the stage-1 `llvm-lit` before it packages the
+  toolchain, so the gap that let two CE `.pdata` bugs survive (the
+  FUNCLEN/PROLOG relocations measured lengths from the start of `.text`
+  and patched different words - see `lld/COFF/Chunks.cpp`) is closed for
+  everything that has a test.  The first CI run is still the first time
+  any of these tests executes, so treat "lit passes" as the milestone
+  that turns the source-level claims below into verified ones.
+* armasm: `llvm/test/MC/ARM/wince-armasm.s` covers the directive subset
+  that `-masm=armasm` implements (see the armasm section).
 * On-device testing remains outstanding (no WinCE device in the build
   environment); see the procedure notes formerly in `wince-crt/docs`.
