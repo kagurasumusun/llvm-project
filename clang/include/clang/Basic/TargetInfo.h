@@ -1657,9 +1657,12 @@ public:
 
   /// Whether the target supports SEH __try.
   bool isSEHTrySupported() const {
+    // Windows CE on ARM uses the compressed .pdata SEH mechanism via
+    // __C_specific_handler, like desktop Windows on ARM.
     return getTriple().isOSWindows() &&
            (getTriple().isX86() ||
-            getTriple().getArch() == llvm::Triple::aarch64);
+            getTriple().getArch() == llvm::Triple::aarch64 ||
+            getTriple().isWindowsCE());
   }
 
   /// Return true if {|} are normal characters in the asm string.

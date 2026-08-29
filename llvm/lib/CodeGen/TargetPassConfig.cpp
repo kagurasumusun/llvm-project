@@ -932,6 +932,16 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     [[fallthrough]];
   case ExceptionHandling::DwarfCFI:
   case ExceptionHandling::ARM:
+    // Windows CE keeps the target-wide exception model at ARM EHABI (C++
+    // exceptions use .ARM.exidx via this toolchain's libunwind), but also
+    // supports MSVC-style SEH (__try/__except) per function. Add the WinEH
+    // prepare pass too: it only transforms functions whose personality is a
+    // scoped (MSVC) one and is a no-op for every EHABI function, so both
+    // mechanisms coexist (see ARMWinCFI.h).
+    if (TM.getTargetTriple().isWindowsCE())
+      addPass(createWinEHPass());
+    addPass(createDwarfEHPass(getOptLevel()));
+    break;
   case ExceptionHandling::AIX:
   case ExceptionHandling::ZOS:
     addPass(createDwarfEHPass(getOptLevel()));
