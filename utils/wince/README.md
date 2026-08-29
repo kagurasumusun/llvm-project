@@ -568,6 +568,41 @@ Any change to (3) would be a WinCE-spec change and is rejected by policy.
   appear to be working in binutils yet"), so ARM mode remains the
   default; interworking data is emitted so Thumb objects still link.
 
+### armel equivalence (source-verified)
+
+The `arm-pc-wince` target is byte-for-byte the Debian-style **armel**
+ABI (ARM EABI, little-endian, soft-float), verified end-to-end in the
+source:
+
+* **Little-endian only**: `Triple::WinCE` maps to `WinCEARMTargetInfo`
+  (clang/lib/Basic/Targets.cpp), derived from `ARMleTargetInfo`; CE has
+  no big-endian variant (the CE loader is LE-only).  `arm-pc-wince`
+  canonicalizes to `arm` (LE).
+* **C ABI = AAPCS**: `ARMTargetInfo::ARMTargetInfo` calls
+  `setABI("aapcs")` for every Windows OS (clang/lib/Basic/Targets/ARM.cpp),
+  and `__ARM_EABI__` is defined for WinCE (full EABI runtime
+  conventions — `__aeabi_*` helper functions from the compiler-rt
+  builtins stage, and the ARM EHABI unwind tables).
+* **Soft-float**: `FloatABI::Soft` is the WinCE default
+  (clang/lib/Driver/ToolChains/Arch/ARM.cpp, `Triple::WinCE` case) —
+  no VFP, exactly the COREDLL floating-point calling convention.  This
+  is the defining characteristic of armel (vs. armhf).
+* **`va_list` = AAPCS `char *`**: `WindowsARMTargetInfo::getBuiltinVaListKind()`
+  returns `CharPtrBuiltinVaList`, the AAPCS stdarg form used by armel
+  targets.
+* **C++ ABI**: Generic ARM (Itanium-based) via `TargetCXXABI::GenericARM`,
+  served by libc++/libc++abi — the open-source C++ runtime this
+  toolchain builds (an armel-conventional C++ ABI, no MSVC name
+  decoration; `_M_ARM_NT` is deliberately not defined).
+* **Default CPU**: `arm926ej-s` via the `Triple::WinCE` case of
+  `ARM::getARMCPUForArch` (llvm/lib/TargetParser/ARMTargetParser.cpp),
+  so the clang driver and llvm-mc agree.  The core is ARMv5TE
+  (Jazelle-capable per the `arm926ej-s` entry, which maps to ARMV5TEJ —
+  a superset of ARMv5TE, so plain ARMv5TE devices run the same code).
+* **Interworking**: `__THUMB_INTERWORK__` is defined for 5 <= arch <= 8
+  on WinCE (the CE loader switches mode on the Thumb bit), matching the
+  binutils arm-wince convention.
+
 ## Target-level support ported from the CeGCC GCC fork
 
 The compiler-side pieces of
