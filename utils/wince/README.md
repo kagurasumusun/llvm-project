@@ -671,7 +671,13 @@ See `clang/test/Sema/ms-extern.c`.
   `llvm.eh.recoverfp`/`llvm.localrecover`/`llvm.localaddress`/frame-escape
   assignments on ARMv4T/ARMv5 and Thumb-2), and
   `clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c` (EHABI C++ exceptions and
-  WinCFI SEH coexist per function in one TU).  armel baseline:
+  WinCFI SEH coexist per function in one TU), and
+  `clang/test/CodeGen/ARM/wince-seh-scope-table.c` (parent functions emit
+  the scope table — count word + 16-byte absolute-address entries
+  `{BeginVA, EndVA, FilterOrFinally, Handler/Jump}` — plus the 8-byte
+  `PDATA_EH` pair `{__C_specific_handler, handler-data}` immediately before
+  the function label; filter / catch-all constant 1 / finally null-jump
+  entries).  armel baseline:
   `llvm/test/CodeGen/ARM/wince-soft-float.ll` (default ARMv5TE CPU lowers
   float/double to `__aeabi_*` helpers and i64 mul to `__aeabi_lmul` — no
   VFP on the baseline), and the `arm926ej-s`/`+soft-float`/
