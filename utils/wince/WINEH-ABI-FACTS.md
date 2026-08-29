@@ -384,31 +384,39 @@ check, but the wiring exists.
 | AsmPrinter | SEH functions open a WinCFI frame (ARMException); scope table + PDATA_EH pair emitted immediately before the function label (ARMAsmPrinter::emitCEHandlerData), absolute ADDR32 entries | 2ee56ac1 |
 | lld | resolves the pseudo relocations into the flags word, compacts 16->8 bytes, sorts by pFuncStart, exception dir size halved | ffbd4141 |
 | Cleanup | dead ABI-incorrect `EncodingType::CE` triple emitter removed from MCWin64EH | 84aec8c1 |
-| Tests | MC `.pdata` reloc test (`--expand-relocs`; readobj prints "Unknown" for all IMAGE_FILE_MACHINE_ARM reloc names), lld link test with two SEH functions linked in reverse order (sort/compaction/bitfields/pair placement) | 538df378, ffbd4141 |
+| Parent frame | `llvm.eh.recoverfp` identity + `llvm.localaddress`=SP+frame size + `ISD::LOCAL_RECOVER` via `ARMISD::Wrapper`; `LDRLIT_ga_abs` taught to take non-GlobalValue symbol operands (`ARMConstantPoolSymbol`); Thumb-2 covered by the existing `HasV8MBaseline` texternalsym pattern (implied by V6T2 — the extra pattern added initially was dropped) | b31ba42f, e39ae2af |
+| Tests | MC `.pdata` reloc test (`--expand-relocs`; readobj prints "Unknown" for all IMAGE_FILE_MACHINE_ARM reloc names), lld link test with two SEH functions linked in reverse order (sort/compaction/bitfields/pair placement), clang IR test (`wince-seh.c` incl. `_exception_code()`), backend ISel test (`wince-seh-parent-frame.ll`), EHABI+SEH mixed-TU test (`wince-seh-ehabi-mixed.c`) | 538df378, ffbd4141, fee05cf4, 86d9849a, 2ae5675e |
 
 **Known limitations (v1, by design, to be re-checked with a build):**
 
-1. *Funclet parent-frame references* (implemented 2026-08-29, commit
-   b31ba42f): `llvm.eh.recoverfp` (filters) lowers to the identity and
-   `llvm.localaddress` lowers to SP + frame size, with the frame size
-   assigned by the AsmPrinter to the `$parent_frame_offset` symbol.  This
-   adopts an **entry-SP convention** (CE's establisher frame), matching
-   AArch64's SEH model; `LOCAL_ESCAPE` offsets are entry-SP-relative
-   (`MFI.getObjectOffset`), and `ISD::LOCAL_RECOVER` materializes the
-   absolute frame-escape symbol value via `ARMISD::Wrapper` (movw/movt on
-   v6T2+/Thumb2, literal-pool load on ARMv5).  Rationale: the CE kernel
-   computes the establisher frame as the entry SP (prologue
+1. *Funclet parent-frame references* (implemented 2026-08-29, commits
+   b31ba42f + e39ae2af): `llvm.eh.recoverfp` (filters) lowers to the
+   identity and `llvm.localaddress` lowers to SP + frame size, with the
+   frame size assigned by the AsmPrinter to the `$parent_frame_offset`
+   symbol.  This adopts an **entry-SP convention** (CE's establisher
+   frame), matching AArch64's SEH model; `LOCAL_ESCAPE` offsets are
+   entry-SP-relative (`MFI.getObjectOffset`), and `ISD::LOCAL_RECOVER`
+   materializes the absolute frame-escape symbol value via
+   `ARMISD::Wrapper` (movw/movt via the existing texternalsym patterns —
+   `HasV8MBaselineOps` is implied by V6T2, so they cover v6T2+/Thumb-2;
+   literal-pool load on ARMv4T/ARMv5, where `LDRLIT_ga_abs` falls back to
+   `ARMConstantPoolSymbol` for non-GlobalValue operands).  Rationale: the
+   CE kernel computes the establisher frame as the entry SP (prologue
    reverse-executed), which differs from x64 (SP after prologue); an x64
    style "+SEHSetFrameOffset" recoverfp would be off by the caller's frame
    size in nested helpers, so the identity + entry-SP convention is the
    only one consistent between the normal path (localaddress) and the
    exception path (establisher frame).
 2. *Nested SEH helpers* (a `__try`/`__except` inside an outlined
-   `__finally`): not handled — the filter's FP conversion would need the
-   caller's frame size, which is not visible from the helper.  AArch64 has
-   the same limitation (its recoverfp is also the identity).  A nested
-   helper that uses `llvm.localaddress` would reference an unassigned
-   `$parent_frame_offset` symbol (link-time failure, not silent corruption).
+   `__finally`): **not verified** (v1 limitation).  The identity recoverfp
+   is actually friendlier to nesting than x64's "+offset" form (no
+   caller-frame-size adjustment is needed), and a nested `__finally` with
+   its own `__try` becomes an EH-funclet parent itself, so its
+   `$parent_frame_offset` would be assigned by the same path as any other
+   parent; but the whole nested-helper codegen path (EmitCapturedLocals
+   recovering the parent finally's `frame_pointer` argument via
+   `llvm.localrecover`) has not been traced end-to-end and needs a build
+   check.  Until then it is treated as unsupported.
 3. *Variable-sized objects* in a parent with SEH helpers: `llvm.localaddress`
    assumes a constant frame size (FIXME in ARMISelLowering; same AArch64
    limitation).
