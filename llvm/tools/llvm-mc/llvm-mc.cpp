@@ -359,6 +359,11 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
                          SourceMgr &SrcMgr, MCContext &Ctx, MCStreamer &Str,
                          MCAsmInfo &MAI, MCSubtargetInfo &STI,
                          MCInstrInfo &MCII, MCTargetOptions const &MCOptions) {
+  // Owns the armasm directive extension when -masm-armasm is used.  Declared
+  // before the parser so that it is destroyed after it: Initialize() hands
+  // the parser raw pointers to the extension object.
+  std::unique_ptr<MCAsmParserExtension> ArmasmExt;
+
   std::unique_ptr<MCAsmParser> Parser(
       createMCAsmParser(SrcMgr, Ctx, Str, MAI));
   std::unique_ptr<MCTargetAsmParser> TAP(
@@ -383,11 +388,8 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
   // armasm directive extension, exactly like clang -cc1as does for
   // -masm=armasm.  The mnemonics keep being parsed by the ARM AsmParser.
   if (MasmArmasmDialect) {
-    if (MCAsmParserExtension *Ext = createARMCOFFMasmParser())
-      Ext->Initialize(*Parser);
-    else
-      WithColor::warning(errs(), ProgName)
-          << "armasm dialect is only supported for ARM targets\n";
+    ArmasmExt.reset(createARMCOFFMasmParser());
+    ArmasmExt->Initialize(*Parser);
   }
 
   int Res = Parser->Run(NoInitialTextSection);
