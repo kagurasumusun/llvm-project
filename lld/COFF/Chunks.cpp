@@ -291,30 +291,44 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
   case IMAGE_REL_ARM_CE_PDATA_PROLOG: {
     // Windows CE compressed .pdata pseudo-relocation. In the object file each
     // CE function table entry is 16 bytes:
-    //   [0] pFuncStart (ADDR32 = beginRVA + imageBase)
-    //   [4] flags word (PrologLen:8 | FuncLen:22 | ThirtyTwoBit | ExceptionFlag)
-    //   [8] FUNCLEN pseudo reloc -> function end symbol
-    //   [12] PROLOG pseudo reloc -> prologue end symbol
+    //   [0]  pFuncStart (ADDR32; patched by the relocation at [0], which is
+    //        applied before this one because llvm-mc records relocations in
+    //        address order and lld applies them in that order)
+    //   [4]  flags word
+    //          PrologLen:8 | FuncLen:22 | ThirtyTwoBit:1 | ExceptionFlag:1
+    //   [8]  FUNCLEN slot -> function end label   (this relocation)
+    //   [12] PROLOG slot  -> prologue end label   (this relocation)
     // lld patches the FuncLen/PrologLen bitfields of the flags word with the
     // lengths in instructions and discards these relocations; the trailing
     // two slots are removed when the table is compacted to the final 8-byte
     // IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout (see
     // Writer::sortCEExceptionTable).
-    //
-    // Both pseudo relocs target the entry's first word (offset 0), so the
-    // record starts 8 bytes before either slot; the flags word is at record
-    // start + 4.
-    uint8_t *recStart = off - 8;
+    const bool IsFuncLen = type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN;
+    // Each slot is at its own offset within the record, so the record start
+    // depends on which pseudo relocation this is - FUNCLEN sits at +8 and
+    // PROLOG at +12 (the flags word is record start + 4 either way).
+    uint8_t *recStart = off - (IsFuncLen ? 8u : 12u);
     uint8_t *flagsWord = recStart + 4;
     uint32_t word1 = read32le(flagsWord);
-    uint32_t instSize = (word1 & 0x40000000u) ? 4u : 2u;
-    uint32_t beginRVA = read32le(recStart) - (uint32_t)imageBase;
-    // CE Thumb function symbols carry the Thumb bit (LSB) in their COFF
-    // value, so pFuncStart (and hence beginRVA) is begin+1 while the end
-    // labels are plain. Round the byte span up to whole instructions to
-    // cancel that 1-byte skew.
-    uint32_t instSpan = (uint32_t)((s - beginRVA + instSize - 1) / instSize);
-    if (type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN) {
+    // ThirtyTwoBit is set by the compiler for ARM (32-bit instruction)
+    // functions; Thumb functions are two bytes per instruction.
+    const uint32_t instSize = (word1 & 0x40000000u) ? 4u : 2u;
+    // pFuncStart, patched by the relocation at [0]: an absolute VA that
+    // carries the Thumb marker in bit 0 for Thumb functions.
+    const uint32_t beginVA = read32le(recStart);
+    // The end/prologue-end labels are temporary labels, so llvm-mc emitted
+    // this one as a *section* relocation: `s` is only the section RVA and the
+    // label's offset within the section is the addend MC left inline in the
+    // slot (WinCOFFObjectWriter.cpp only records a symbol-table based
+    // relocation for non-temporary symbols).  Using `s` alone - as this code
+    // did - measures the length from the section start rather than from the
+    // function, producing garbage bitfield values.
+    const uint32_t endVA = (uint32_t)s + read32le(off) + (uint32_t)imageBase;
+    // Byte span -> instruction count, rounded up so the Thumb marker on
+    // pFuncStart cannot shrink the count.
+    const uint32_t spanBytes = endVA > beginVA ? endVA - beginVA : 0u;
+    const uint32_t instSpan = (spanBytes + instSize - 1) / instSize;
+    if (IsFuncLen) {
       word1 = (word1 & ~(0x003FFFFFu << 8)) | ((instSpan & 0x003FFFFFu) << 8);
     } else {
       word1 = (word1 & ~0xFFu) | (instSpan & 0xFFu);
