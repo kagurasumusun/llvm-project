@@ -1363,13 +1363,13 @@ void emitCESEHActionsForRange(AsmPrinter &Asm, const WinEHFuncInfo &FuncInfo,
           MCSymbolRefExpr::create(getMCSymbolForMBB(&Asm, Handler), Ctx);
       ExceptOrNull = MCConstantExpr::create(0, Ctx);
     } else {
-    // For an except, the filter can be 1 (catch-all) or a function label.
-    FilterOrFinally = UME.Filter
-                          ? MCSymbolRefExpr::create(Asm.getSymbol(UME.Filter),
-                                                    Ctx)
-                          : MCConstantExpr::create(1, Ctx);
-    ExceptOrNull =
-        MCSymbolRefExpr::create(Handler->getSymbol(), Ctx);
+      // For an except, the filter can be 1 (catch-all) or a function label.
+      FilterOrFinally = UME.Filter
+                            ? MCSymbolRefExpr::create(Asm.getSymbol(UME.Filter),
+                                                      Ctx)
+                            : MCConstantExpr::create(1, Ctx);
+      ExceptOrNull =
+          MCSymbolRefExpr::create(Handler->getSymbol(), Ctx);
     }
 
     AddComment("LabelStart");

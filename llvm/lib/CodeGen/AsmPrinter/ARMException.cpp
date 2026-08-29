@@ -47,7 +47,7 @@ void ARMException::beginFunction(const MachineFunction *MF) {
             dyn_cast<Function>(F.getPersonalityFn()->stripPointerCasts());
         if (Per)
           Asm->OutStreamer->emitWinEHHandler(Asm->getSymbol(Per),
-                                             /*Unwind=*/true,
+                                             /*Unwind=*/false,
                                              /*Except=*/true);
       }
     }
