@@ -349,7 +349,53 @@ in either direction. Flagging this explicitly rather than guessing was
 judged safer than either asserting it works or silently leaving it
 unmentioned.
 
-## 5. `__CxxFrameHandler` v1 — still blocked
+## 4g. CE exception dispatch & PDATA_EH — verified against exdsptch.c (2026-08-29)
+
+The CE kernel-side dispatch rules for the 8-byte PDATA_EH pair, traced in
+`PRIVATE/WINCEOS/COREOS/CORE/DLL/exdsptch.c` (`RtlLookupFunctionEntry`,
+COMPRESSED_PDATA path ~line 1387; COMBINED_PDATA path ~line 1544):
+
+1. **Layout**: `PDATA_EH = { PEXCEPTION_ROUTINE pHandler; PVOID pHandlerData; }`
+   (exdsptch.c:933-936) — 8 bytes, sitting in the **8 bytes immediately
+   before the function's first instruction** (pFuncStart).
+2. **Lookup**: COMPRESSED path reads it as
+   `(PPDATA_EH)((pFuncStart & ~(InstSize-1)) + dwSlot) - 1`, i.e. it masks
+   off the Thumb +1 bit (and aligns for ARM) before backing up one slot.
+   COMBINED path reads `(PPDATA_EH)(pFuncStart + dwSlot) - 1` (does not
+   mask the thumb bit — relevant only if COMBINED tables are in use;
+   lld's output is the COMPRESSED 8-byte form, matching the COMPRESSED
+   path).
+3. **Gate**: the pair is consulted **only when the function's .pdata entry
+   has the ExceptionFlag bit set** (exdsptch.c:1385-1391); otherwise
+   ExceptionHandler/HandlerData are zero.
+4. **Invocation**: `RtlDispatchException` calls
+   `RtlpExecuteHandlerForException(pExr, (PVOID)EstablisherFrame, pCtx,
+   &DispatcherContext, FunctionEntry->ExceptionHandler)` with
+   `DispatcherContext.EstablisherFrame = EstablisherFrame`,
+   `DispatcherContext.HandlerData = pHandlerData` (via the assembler
+   thunk), i.e. **the x64-style 5-argument handler convention**, not an
+   ARM-specific one. Dispositions are the standard
+   ExceptionContinueSearch/ExecuteHandler/NestedException set;
+   ExecuteHandler unwinds with `RtlUnwind(EstablisherFrame,
+   DispatcherContext.ControlPc, ...)`.
+
+Correspondence with the implementation (all pushed):
+
+| Rule | Implementation |
+|------|----------------|
+| Pair = 8B {pHandler, pHandlerData}, before function start | `ARMAsmPrinter::emitFunctionEntryLabel` emits PDATA_EH (scope table then pair) immediately before the function label, gated on `functionUsesWinCFI && MF->hasEHFunclets` (parent functions only; ARMAsmPrinter.cpp:81-88) |
+| ExceptionFlag set ⇔ handler present | `ARMWinCOFFStreamer::CEEmitUnwindInfo`: `HasHandler = Frame->HandlesExceptions && Frame->ExceptionHandler` sets `CE_PDATA_EXCEPTION_FLAG` (ARMWinCOFFStreamer.cpp:363-420); funclets (no .seh_handler) carry no flag — matching the dispatcher's gate |
+| pHandler = `__C_specific_handler` | personality of the parent function (coredll6.def exports it); HandlerData = scope table count word (`emitCSpecificHandlerTable`) |
+| EstablisherFrame = entry SP | `RtlVirtualUnwind`/`unwind.c` sets `*EstablisherFrame = Register[13]` at function entry; matches the entry-SP convention of §4f item 1 |
+
+Still unverified (source not available): the body of
+`__C_specific_handler` itself — how it walks the scope table and invokes
+filters/finallys (the x64-convention assumption from §4f item 5 stands,
+and the dispatcher-side convention above is now confirmed, but the CRT
+handler internals are not in the reference extraction; crtdummy.cpp has
+only a stub). Filter/finally invocation convention remains a build-time
+runtime check item.
+
 
 `coredll6.def` exports `__CxxFrameHandler` (no `3` suffix), confirming the v1-era C++ EH
 ABI as the handoff already noted from the def file alone. The struct layouts needed to
