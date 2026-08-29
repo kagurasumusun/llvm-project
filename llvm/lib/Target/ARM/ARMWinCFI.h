@@ -34,7 +34,8 @@
 namespace llvm {
 
 /// Returns true if MF's prologue/epilogue unwind info should be emitted as
-/// WinCFI (.seh_* directives, eventually WinEH::EncodingType::CE .pdata)
+/// WinCFI (.seh_* directives feeding WinEH::EncodingType::CE .pdata, see
+/// utils/wince/WINEH-ABI-FACTS.md sections 4d/4f/4g)
 /// rather than ARM EHABI (.save/.setfp/.pad, .fnstart/.fnend).
 ///
 /// - On non-CE Windows ARM/ARM64 targets this is unconditionally true for

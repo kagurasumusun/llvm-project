@@ -353,8 +353,11 @@ static MCAsmInfo *createARMMCAsmInfo(const MCRegisterInfo &MRI,
     // idioms in reverse -- see utils/wince/WINEH-ABI-FACTS.md). That OS-level
     // mechanism is unrelated to the EHABI path selected here and is only
     // needed for interop with __try/__except in OS/kernel/driver-level code;
-    // it is not yet wired up (WinEH::EncodingType::CE exists in
-    // MCAsmInfo.h but has no emitter). See WINCE-HANDOFF.md section 6.1.
+    // it is wired up per function via functionUsesWinCFI (ARMWinCFI.h) and
+    // ARMWinCOFFStreamer::CEEmitUnwindInfo (WinEH::EncodingType::CE .pdata
+    // with the 8-byte PDATA_EH pair; the obsolete MCWin64EH EncodingType::CE
+    // triple emitter was removed). See utils/wince/WINEH-ABI-FACTS.md
+    // sections 4d/4f/4g.
     MAI = new ARMCOFFMCAsmInfoGNU();
     MAI->setExceptionsType(ExceptionHandling::ARM);
   } else if (TheTriple.isWindowsMSVCEnvironment())
