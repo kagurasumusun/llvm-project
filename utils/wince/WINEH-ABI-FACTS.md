@@ -431,3 +431,29 @@ check, but the wiring exists.
    to filters/finallys (x64 convention) is unverified by source: the
    implementation is not in the reference extraction (crtdummy.cpp provides
    only a stub).
+
+**Mixed EHABI + WinCFI in one TU (per-function dispatch, added 2026-08-29):**
+the dispatch is per-function, so a single TU (and object file) can freely
+mix EHABI functions and CE SEH functions:
+
+- *Non-SEH functions*: `ARMException::beginFunction()`/`endFunction()`
+  emit `.fnstart`/`.fnend`, opening a `.ARM.exidx` entry (verified in
+  `llvm/test/CodeGen/ARM/wince-ehabi-tables.c`).
+- *SEH functions*: the same `ARMException` methods branch on
+  `hasWinCFI` first and emit `SEH_StartProc`/`SEH_EndProc` instead
+  (ARMException.cpp beginFunction/endFunction, lines 31-96);
+  `ARMAsmPrinter::emitInstruction` suppresses the EHABI `.fnstart`
+  emission for these functions (ARMAsmPrinter.cpp:1997-2006) and emits
+  the 8-byte PDATA_EH pair (`{pHandler, pHandlerData}`) immediately
+  before the function label (ARMAsmPrinter.cpp:81-88, emitCEHandlerData);
+  `ARMWinCOFFStreamer::emitWindowsUnwindTables` dispatches on `isCEEH`
+  to `CEEmitUnwindInfo` (ARMWinCOFFStreamer.cpp:447-463).
+- *Parent SEH functions*: `WinException::endFuncletImpl` emits
+  `.seh_handlerdata` + `emitCSpecificHandlerTable`; funclets end with
+  `.seh_endproc`; the `.seh_handler %except` marker uses `%` in ARM/Thumb
+  assembly (MCAsmStreamer.cpp:2200-2204).
+- *Test*: `clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c` — one function
+  with EHABI try/catch (`.fnstart`/`.fnend`) and another with
+  `__try`/`__except` (`.seh_proc`/`.seh_handler %except`/`.seh_endproc`)
+  in the same TU, proving the two mechanisms coexist per-function.
+
