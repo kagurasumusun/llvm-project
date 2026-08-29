@@ -1333,3 +1333,116 @@ void WinException::emitCLRExceptionTable(const MachineFunction *MF) {
     OS.emitInt32(Entry.TypeToken);
   }
 }
+
+//===----------------------------------------------------------------------===//
+// Windows CE SEH scope table emission
+//===----------------------------------------------------------------------===//
+
+namespace {
+void emitCESEHActionsForRange(AsmPrinter &Asm, const WinEHFuncInfo &FuncInfo,
+                              const MCSymbol *BeginLabel,
+                              const MCSymbol *EndLabel, int State) {
+  auto &OS = *Asm.OutStreamer;
+  MCContext &Ctx = Asm.OutContext;
+  bool VerboseAsm = OS.isVerboseAsm();
+  auto AddComment = [&](const Twine &Comment) {
+    if (VerboseAsm)
+      OS.AddComment(Comment);
+  };
+
+  assert(BeginLabel && EndLabel);
+  while (State != -1) {
+    const SEHUnwindMapEntry &UME = FuncInfo.SEHUnwindMap[State];
+    const MCExpr *FilterOrFinally;
+    const MCExpr *ExceptOrNull;
+    auto *Handler = cast<MachineBasicBlock *>(UME.Handler);
+    // Windows CE tables use absolute addresses (ADDR32), not the
+    // image-relative IMGREL32 references of the x64 table.
+    if (UME.IsFinally) {
+      FilterOrFinally =
+          MCSymbolRefExpr::create(getMCSymbolForMBB(&Asm, Handler), Ctx);
+      ExceptOrNull = MCConstantExpr::create(0, Ctx);
+    } else {
+    // For an except, the filter can be 1 (catch-all) or a function label.
+    FilterOrFinally = UME.Filter
+                          ? MCSymbolRefExpr::create(Asm.getSymbol(UME.Filter),
+                                                    Ctx)
+                          : MCConstantExpr::create(1, Ctx);
+    ExceptOrNull =
+        MCSymbolRefExpr::create(Handler->getSymbol(), Ctx);
+    }
+
+    AddComment("LabelStart");
+    OS.emitValue(MCSymbolRefExpr::create(BeginLabel, Ctx), 4);
+    AddComment("LabelEnd");
+    OS.emitValue(MCSymbolRefExpr::create(EndLabel, Ctx), 4);
+    AddComment(UME.IsFinally ? "FinallyFunclet"
+                             : UME.Filter ? "FilterFunction" : "CatchAll");
+    OS.emitValue(FilterOrFinally, 4);
+    AddComment(UME.IsFinally ? "Null" : "ExceptionHandler");
+    OS.emitValue(ExceptOrNull, 4);
+
+    assert(UME.ToState < State && "states should decrease");
+    State = UME.ToState;
+  }
+}
+} // namespace
+
+MCSymbol *llvm::emitCESpecificHandlerTable(AsmPrinter &Asm,
+                                           const MachineFunction &MF) {
+  auto &OS = *Asm.OutStreamer;
+  MCContext &Ctx = Asm.OutContext;
+  const WinEHFuncInfo &FuncInfo = *MF.getWinEHFuncInfo();
+
+  bool VerboseAsm = OS.isVerboseAsm();
+  auto AddComment = [&](const Twine &Comment) {
+    if (VerboseAsm)
+      OS.AddComment(Comment);
+  };
+
+  // Use the assembler to compute the number of table entries through label
+  // difference and division (same denormalized-table layout as the x64
+  // __C_specific_handler table, but with absolute addresses).
+  MCSymbol *TableBegin =
+      Ctx.createTempSymbol("lsda_begin", /*AlwaysAddSuffix=*/true);
+  MCSymbol *TableEnd =
+      Ctx.createTempSymbol("lsda_end", /*AlwaysAddSuffix=*/true);
+  MCSymbol *HandlerData =
+      Ctx.createTempSymbol("ce_handlerdata", /*AlwaysAddSuffix=*/true);
+  const MCExpr *LabelDiff = MCBinaryExpr::createSub(
+      MCSymbolRefExpr::create(TableEnd, Ctx),
+      MCSymbolRefExpr::create(TableBegin, Ctx), Ctx);
+  const MCExpr *EntrySize = MCConstantExpr::create(16, Ctx);
+  const MCExpr *EntryCount = MCBinaryExpr::createDiv(LabelDiff, EntrySize, Ctx);
+
+  // The handler-data pointer of a PDATA_EH pair must point at the count word
+  // (like UNWIND_INFO.ExceptionData on x64), so label that position.
+  OS.emitLabel(HandlerData);
+  AddComment("Number of call sites");
+  OS.emitValue(EntryCount, 4);
+
+  OS.emitLabel(TableBegin);
+
+  // Iterate over all the invoke try ranges (identical walk to
+  // WinException::emitCSpecificHandlerTable).
+  const MCSymbol *LastStartLabel = nullptr;
+  int LastEHState = -1;
+  MachineFunction::const_iterator End = MF.end();
+  MachineFunction::const_iterator Stop = std::next(MF.begin());
+  while (Stop != End && !Stop->isEHFuncletEntry())
+    ++Stop;
+  for (const auto &StateChange :
+       InvokeStateChangeIterator::range(FuncInfo, MF.begin(), Stop)) {
+    // Emit all the actions for the state we just transitioned out of
+    // if it was not the null state
+    if (LastEHState != -1)
+      emitCESEHActionsForRange(Asm, FuncInfo, LastStartLabel,
+                               StateChange.PreviousEndLabel, LastEHState);
+    LastStartLabel = StateChange.NewStartLabel;
+    LastEHState = StateChange.NewState;
+  }
+
+  OS.emitLabel(TableEnd);
+
+  return HandlerData;
+}

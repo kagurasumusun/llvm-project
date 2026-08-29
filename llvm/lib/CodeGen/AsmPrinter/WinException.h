@@ -17,11 +17,22 @@
 #include <vector>
 
 namespace llvm {
+class AsmPrinter;
 class GlobalValue;
 class MachineFunction;
 class MCExpr;
 class MCSection;
 struct WinEHFuncInfo;
+
+/// Emit the Windows CE SEH scope table for \p MF (the table consumed by the
+/// CE kernel's __C_specific_handler): a DWORD entry count followed by
+/// 16-byte {BeginAddress, EndAddress, HandlerAddress, JumpTarget} entries,
+/// all with absolute addresses (ADDR32). Unlike the x64 table, no image-
+/// relative relocations are used and no parent-frame-offset assignment is
+/// emitted. Returns the symbol at the start of the table (the count word),
+/// which a PDATA_EH pair's second word (handler data pointer) must point at.
+MCSymbol *emitCESpecificHandlerTable(AsmPrinter &Asm,
+                                     const MachineFunction &MF);
 
 class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
   /// Per-function flag to indicate if personality info should be emitted.

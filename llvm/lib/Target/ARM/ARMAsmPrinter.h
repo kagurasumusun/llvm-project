@@ -101,6 +101,12 @@ public:
   }
   void emitFunctionBodyEnd() override;
   void emitFunctionEntryLabel() override;
+  /// Windows CE SEH: emit the SEH scope table and the PDATA_EH pair
+  /// (personality VA, handler-data VA) immediately before the function label
+  /// so the pair occupies the 8 bytes right before the function's first
+  /// instruction, where the CE kernel reads it. Parent SEH functions only
+  /// (funclets are handler bodies and carry no pair).
+  void emitCEHandlerData(const MachineFunction &MF);
   void emitStartOfAsmFile(Module &M) override;
   void emitEndOfAsmFile(Module &M) override;
   void emitXXStructor(const DataLayout &DL, const Constant *CV) override;

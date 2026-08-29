@@ -78,6 +78,17 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
     TS.emitCode32();
   }
 
+  // Windows CE SEH: the PDATA_EH pair must sit in the 8 bytes immediately
+  // before the function's first instruction, exactly where the CE kernel
+  // reads it (RtlLookupFunctionEntry in PRIVATE/.../CORE/DLL/exdsptch.c:
+  // (PPDATA_EH)(pFuncStart & ~(InstSize-1)) - 1). Emit the SEH scope table
+  // followed by the pair right before the function label. Only the parent
+  // function carries the pair; funclets are handler bodies without an
+  // exception flag. See ARMWinCFI.h / utils/wince/WINEH-ABI-FACTS.md.
+  if (MF && TM.getTargetTriple().isWindowsCE() && functionUsesWinCFI(*MF) &&
+      MF->hasEHFunclets())
+    emitCEHandlerData(*MF);
+
   // Emit symbol for CMSE non-secure entry point
   if (AFI->isCmseNSEntryFunction()) {
     MCSymbol *S =
@@ -87,6 +98,39 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
     OutStreamer->emitLabel(S);
   }
   AsmPrinter::emitFunctionEntryLabel();
+}
+
+// Emits the Windows CE SEH scope table (count word + 16-byte entries with
+// absolute addresses) and returns the symbol at the count word, which the
+// PDATA_EH pair's handler-data pointer must reference. Implemented in
+// llvm/lib/CodeGen/AsmPrinter/WinException.cpp; declared here (rather than
+// including that lib-local header) to avoid cross-directory header lookup.
+namespace llvm {
+MCSymbol *emitCESpecificHandlerTable(AsmPrinter &Asm,
+                                     const MachineFunction &MF);
+} // namespace llvm
+
+void ARMAsmPrinter::emitCEHandlerData(const MachineFunction &MF) {
+  if (!MF.getWinEHFuncInfo())
+    return;
+  const Function &F = MF.getFunction();
+  const Function *Per = F.hasPersonalityFn()
+                            ? dyn_cast<Function>(
+                                  F.getPersonalityFn()->stripPointerCasts())
+                            : nullptr;
+  if (!Per)
+    return;
+
+  // The scope table (count word + 16-byte {BeginVA, EndVA, HandlerVA,
+  // JumpVA} entries with absolute addresses) followed by the PDATA_EH pair.
+  // emitCESpecificHandlerTable labels the count word; the pair's second word
+  // points at it, which is what __C_specific_handler expects as handler data.
+  MCSymbol *HandlerData = emitCESpecificHandlerTable(*this, MF);
+
+  // PDATA_EH: { PEXCEPTION_ROUTINE pHandler; PVOID pHandlerData; }
+  OutStreamer->emitValue(
+      MCSymbolRefExpr::create(getSymbol(Per), OutContext), 4);
+  OutStreamer->emitValue(MCSymbolRefExpr::create(HandlerData, OutContext), 4);
 }
 
 void ARMAsmPrinter::emitXXStructor(const DataLayout &DL, const Constant *CV) {

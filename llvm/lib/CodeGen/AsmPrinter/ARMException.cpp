@@ -29,6 +29,34 @@ ARMTargetStreamer &ARMException::getTargetStreamer() {
 }
 
 void ARMException::beginFunction(const MachineFunction *MF) {
+  // Windows CE SEH functions (MSVC __try/__except; the prologue carries
+  // SEH_* pseudo-instructions inserted by ARMFrameLowering, which also sets
+  // MF.hasWinCFI) build a WinCFI frame (.seh_proc) instead of an EHABI
+  // .fnstart frame. The ARMWinCOFFStreamer encodes the frame into the
+  // compressed CE .pdata format plus an in-text PDATA_EH pair placed by
+  // ARMAsmPrinter. See ARMWinCFI.h / utils/wince/WINEH-ABI-FACTS.md 4d.
+  if (MF->hasWinCFI()) {
+    Asm->OutStreamer->emitWinCFIStartProc(Asm->CurrentFnSym);
+    // Only the parent function (the one holding the SEH state machine) gets
+    // a handler; funclets are handler bodies and must not claim an exception
+    // handler of their own (mirrors WinException::beginFunclet).
+    if (MF->hasEHFunclets()) {
+      const Function &F = MF->getFunction();
+      if (F.hasPersonalityFn()) {
+        const Function *Per =
+            dyn_cast<Function>(F.getPersonalityFn()->stripPointerCasts());
+        if (Per)
+          Asm->OutStreamer->emitWinEHHandler(Asm->getSymbol(Per),
+                                             /*Unwind=*/true,
+                                             /*Except=*/true);
+      }
+    }
+    // No DWARF CFI for WinCFI frames (the prologue carries no CFI
+    // instructions either; matches the WinException path on desktop).
+    shouldEmitCFI = false;
+    return;
+  }
+
   if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
     getTargetStreamer().emitFnStart();
   // See if we need call frame info.
@@ -49,6 +77,8 @@ void ARMException::beginFunction(const MachineFunction *MF) {
 }
 
 void ARMException::markFunctionEnd() {
+  if (Asm->MF && Asm->MF->hasWinCFI())
+    return;
   if (shouldEmitCFI)
     Asm->OutStreamer->emitCFIEndProc();
 }
@@ -56,6 +86,13 @@ void ARMException::markFunctionEnd() {
 /// endFunction - Gather and emit post-function exception information.
 ///
 void ARMException::endFunction(const MachineFunction *MF) {
+  if (MF->hasWinCFI()) {
+    // Close the WinCFI frame; this triggers the ARMWinCOFFStreamer to emit
+    // the compressed CE .pdata entry from the accumulated frame info.
+    Asm->OutStreamer->emitWinCFIEndProc();
+    return;
+  }
+
   ARMTargetStreamer &ATS = getTargetStreamer();
   const Function &F = MF->getFunction();
   const Function *Per = nullptr;
