@@ -10,7 +10,9 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCParser/AsmLexer.h"
+#include "llvm/MC/MCParser/MCTargetAsmParser.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSymbol.h"
 
 using namespace llvm;
 
@@ -20,6 +22,17 @@ MCAsmParserExtension::~MCAsmParserExtension() = default;
 
 void MCAsmParserExtension::Initialize(MCAsmParser &Parser) {
   this->Parser = &Parser;
+}
+
+bool MCAsmParserExtension::emitMasmLabel(MCSymbol *Sym, SMLoc Loc,
+                                         StringRef /*Directive*/) {
+  // The plain MASM-family reading: "name DCD 1" defines `name` right here.
+  // (AsmParser has already made sure the following directive, if any, is one
+  // this extension registered.)
+  getParser().getTargetParser().doBeforeLabelEmit(Sym, Loc);
+  getStreamer().emitLabel(Sym, Loc);
+  getParser().getTargetParser().onLabelParsed(Sym);
+  return false;
 }
 
 /// parseDirectiveCGProfile
