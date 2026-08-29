@@ -4375,6 +4375,11 @@ def : T2Pat<(ARMWrapper tglobaltlsaddr:$dst),
 def : T2Pat<(ARMWrapper tconstpool :$dst), (t2LEApcrel tconstpool :$dst)>;
 def : T2Pat<(ARMWrapper texternalsym :$dst), (t2MOVi32imm texternalsym :$dst)>,
     Requires<[IsThumb, HasV8MBaseline, UseMovt]>;
+// ARMv7 Thumb-2: the HasV8MBaseline patterns above do not cover v7-A, but
+// movw/movt is available there too.  Needed to materialize frame-escape
+// symbol values from llvm.localrecover (WinCE SEH parent-frame support).
+def : T2Pat<(ARMWrapper texternalsym :$dst), (t2MOVi32imm texternalsym :$dst)>,
+    Requires<[IsThumb2, UseMovt]>;
 def : T2Pat<(ARMWrapper tglobaladdr :$dst), (t2MOVi32imm tglobaladdr :$dst)>,
     Requires<[IsThumb, HasV8MBaseline, UseMovt]>;
 

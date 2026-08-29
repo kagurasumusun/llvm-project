@@ -1400,6 +1400,22 @@ MCSymbol *llvm::emitCESpecificHandlerTable(AsmPrinter &Asm,
       OS.AddComment(Comment);
   };
 
+  // SEH helpers (outlined filters/finallys) receive the establisher frame
+  // from the CE runtime, which the CE ARM unwinder computes as the SP at
+  // function entry (the prologue is reverse-executed; see CE's unwind.c
+  // ArmVirtualUnwind).  llvm.localaddress must return that same value on the
+  // normal path, i.e. SP (after the prologue) + frame size.  Assign the frame
+  // size to the parent-frame-offset symbol that the ARM localaddress
+  // lowering adds to SP.  This mirrors the x64 emitCSpecificHandlerTable
+  // (which assigns SEHSetFrameOffset), with StackSize as the CE equivalent.
+  StringRef FLinkageName =
+      GlobalValue::dropLLVMManglingEscape(MF.getFunction().getName());
+  MCSymbol *ParentFrameOffset =
+      Ctx.getOrCreateParentFrameOffsetSymbol(FLinkageName);
+  Asm.OutStreamer->emitAssignment(
+      ParentFrameOffset,
+      MCConstantExpr::create(MF.getFrameInfo().getStackSize(), Ctx));
+
   // Use the assembler to compute the number of table entries through label
   // difference and division (same denormalized-table layout as the x64
   // __C_specific_handler table, but with absolute addresses).

@@ -6211,6 +6211,11 @@ def : ARMPat<(ARMWrapper  tglobaladdr :$dst), (MOVi32imm tglobaladdr :$dst)>,
             Requires<[IsARM, UseMovt]>;
 def : ARMPat<(ARMWrapper texternalsym :$dst), (MOVi32imm texternalsym :$dst)>,
             Requires<[IsARM, UseMovt]>;
+// ARMv5 (WinCE's default CPU generation) has no movw/movt; load the absolute
+// symbol value from a literal pool instead.  Used by llvm.localrecover to
+// materialize frame-escape symbol values (WinCE SEH parent-frame support).
+def : ARMPat<(ARMWrapper texternalsym :$dst), (LDRLIT_ga_abs texternalsym :$dst)>,
+            Requires<[IsARM, DontUseMovt]>;
 def : ARMPat<(ARMWrapperJT tjumptable:$dst),
              (LEApcrelJT tjumptable:$dst)>;
 

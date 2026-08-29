@@ -833,6 +833,19 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   int Offset = TFI->ResolveFrameIndexReference(MF, FrameIndex, FrameReg, SPAdj);
 
+  // LOCAL_ESCAPE (llvm.localescape) only carries a single offset, with no
+  // register: the AsmPrinter assigns it to the frame-escape symbol that
+  // llvm.localrecover adds to the frame base.  WinCE SEH filters/finallys
+  // reach parent locals this way; the convention is entry-SP-relative (the
+  // SEH helpers receive the entry SP), so use the raw object offset from the
+  // top of the frame rather than the SP-after-prologue offset from
+  // ResolveFrameIndexReference.  Mirrors AArch64's getNonLocalFrameIndexReference.
+  if (MI.getOpcode() == TargetOpcode::LOCAL_ESCAPE) {
+    MI.getOperand(FIOperandNum)
+        .ChangeToImmediate(MF.getFrameInfo().getObjectOffset(FrameIndex));
+    return false;
+  }
+
   // PEI::scavengeFrameVirtualRegs() cannot accurately track SPAdj because the
   // call frame setup/destroy instructions have already been eliminated.  That
   // means the stack pointer cannot be used to access the emergency spill slot

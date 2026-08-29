@@ -75,6 +75,8 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -1183,6 +1185,10 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
   setOperationAction(ISD::EH_SJLJ_SETJMP, MVT::i32, Custom);
   setOperationAction(ISD::EH_SJLJ_LONGJMP, MVT::Other, Custom);
   setOperationAction(ISD::EH_SJLJ_SETUP_DISPATCH, MVT::Other, Custom);
+  // llvm.localrecover materializes the value of a frame-escape symbol
+  // (WinCE SEH filters/finallys recovering parent locals); lower it through
+  // ARMISD::Wrapper so the existing texternalsym patterns select it.
+  setOperationAction(ISD::LOCAL_RECOVER, MVT::i32, Custom);
 
   setOperationAction(ISD::SETCC,     MVT::i32, Expand);
   setOperationAction(ISD::SETCC,     MVT::f32, Expand);
@@ -3835,6 +3841,49 @@ ARMTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG,
   SDLoc dl(Op);
   switch (IntNo) {
   default: return SDValue();    // Don't custom lower most intrinsics.
+  case Intrinsic::eh_recoverfp: {
+    // WinCE SEH: filter expressions and finally functions receive the
+    // parent's establisher frame, which the CE ARM unwinder computes as the
+    // SP at function entry (the prologue is reverse-executed; see CE's
+    // ArmVirtualUnwind).  That value *is* the parent's frame base in our
+    // convention (llvm.localaddress returns the entry SP and escaped-local
+    // offsets are entry-SP-relative), so the recovered FP is simply the
+    // incoming FP.  This matches the AArch64 lowering of llvm.eh.recoverfp
+    // (SEH funclets run on the parent's frame and receive its FP).
+    // FIXME: nested SEH helpers (a __try inside an outlined __finally) are
+    // not handled: their FP conversion needs the caller's frame size, which
+    // is not visible from the helper (AArch64 has the same limitation).
+    SDValue FnOp = Op.getOperand(1);
+    GlobalAddressSDNode *GSD = dyn_cast<GlobalAddressSDNode>(FnOp);
+    if (!GSD || !isa<Function>(GSD->getGlobal()))
+      report_fatal_error(
+          "llvm.eh.recoverfp must take a function as the first argument");
+    return Op.getOperand(2);
+  }
+  case Intrinsic::localaddress: {
+    // Returns the base of the local frame area in the convention used by the
+    // SEH helpers: the SP at function entry.  The CE runtime hands that value
+    // (the establisher frame) to filters/finallys, so both the normal path
+    // (localaddress) and the exception path produce the same FP.  ARM frames
+    // address locals relative to the SP after the prologue, so the entry SP
+    // is SP + frame size, where the frame size is assigned to the
+    // $parent_frame_offset symbol by the AsmPrinter (like x64, whose symbol
+    // holds SEHSetFrameOffset).
+    // FIXME: variable-sized objects are not handled (the frame size is not
+    // a constant then); matches the AArch64 SEH helper limitation.
+    MachineFunction &MF = DAG.getMachineFunction();
+    StringRef FLinkageName =
+        GlobalValue::dropLLVMManglingEscape(MF.getFunction().getName());
+    MCSymbol *OffsetSym = MF.getContext().getOrCreateParentFrameOffsetSymbol(
+        FLinkageName);
+    EVT PtrVT = Op.getValueType();
+    SDValue SP =
+        DAG.getCopyFromReg(DAG.getEntryNode(), dl, ARM::SP, PtrVT);
+    SDValue FrameSize = DAG.getNode(
+        ISD::LOCAL_RECOVER, dl, PtrVT,
+        DAG.getMCSymbol(OffsetSym, PtrVT));
+    return DAG.getNode(ISD::ADD, dl, PtrVT, SP, FrameSize);
+  }
   case Intrinsic::thread_pointer: {
     EVT PtrVT = getPointerTy(DAG.getDataLayout());
     return DAG.getNode(ARMISD::THREAD_POINTER, dl, PtrVT);
@@ -5851,6 +5900,24 @@ SDValue ARMTargetLowering::LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const{
   // Return LR, which contains the return address. Mark it an implicit live-in.
   Register Reg = MF.addLiveIn(ARM::LR, getRegClassFor(MVT::i32));
   return DAG.getCopyFromReg(DAG.getEntryNode(), dl, Reg, VT);
+}
+
+SDValue ARMTargetLowering::LowerLOCAL_RECOVER(SDValue Op,
+                                              SelectionDAG &DAG) const {
+  // llvm.localrecover materializes the value of a frame-escape symbol
+  // (e.g. "func$frame_escape_0" or "func$parent_frame_offset" on WinCE).
+  // The AsmPrinter assigns those symbols absolute integer values (the frame
+  // offset of an escaped alloca, or the frame size for the SEH parent-frame
+  // conversion), so load the absolute symbol value through the same path used
+  // for external symbols: movw/movt on ARMv6T2+ and ARMv7 Thumb-2, a
+  // literal-pool load on ARMv5 (WinCE's default).  Thumb1 only has an
+  // execute-only texternalsym wrapper pattern and Thumb-2 without movw/movt
+  // is unhandled; WinCE does not use those configurations in practice.
+  auto *SymNode = cast<MCSymbolSDNode>(Op.getOperand(0));
+  MCSymbol *Sym = SymNode->getMCSymbol();
+  SDLoc dl(Op);
+  SDValue ES = DAG.getTargetExternalSymbol(Sym->getName(), Op.getValueType());
+  return DAG.getNode(ARMISD::Wrapper, dl, Op.getValueType(), ES);
 }
 
 SDValue ARMTargetLowering::LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
@@ -10339,6 +10406,7 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::FCOPYSIGN:     return LowerFCOPYSIGN(Op, DAG);
   case ISD::RETURNADDR:    return LowerRETURNADDR(Op, DAG);
   case ISD::FRAMEADDR:     return LowerFRAMEADDR(Op, DAG);
+  case ISD::LOCAL_RECOVER: return LowerLOCAL_RECOVER(Op, DAG);
   case ISD::EH_SJLJ_SETJMP: return LowerEH_SJLJ_SETJMP(Op, DAG);
   case ISD::EH_SJLJ_LONGJMP: return LowerEH_SJLJ_LONGJMP(Op, DAG);
   case ISD::EH_SJLJ_SETUP_DISPATCH: return LowerEH_SJLJ_SETUP_DISPATCH(Op, DAG);
