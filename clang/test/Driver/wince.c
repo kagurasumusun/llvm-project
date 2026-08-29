@@ -137,14 +137,16 @@ int x;
 // CLLINK: lld-link
 // CLLINK: /subsystem:windowsce
 
-/// The integrated assembler defaults to the armasm dialect on WinCE (for
-/// Platform Builder sources); GNU syntax stays available via -masm=gnu.
-// RUN: %clang -target arm-pc-wince -x assembler %s -c -o /dev/null -### 2>&1 \
+/// The armasm dialect is opt-in on WinCE: it reaches -cc1as when it is asked
+/// for, and stays out of the command line otherwise (Platform Builder sources
+/// are translated to GNU syntax by utils/wince/armasm/armasm-convert.py, so
+/// the dialect must not be forced on every .s).
+// RUN: %clang -target arm-pc-wince -x assembler -masm=armasm %s -c -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=ASMARM
 // ASMARM: "-cc1as"
 // ASMARM: "-masm=armasm"
 
-// RUN: %clang -target arm-pc-wince -x assembler -masm=gnu %s -c -o /dev/null -### 2>&1 \
+// RUN: %clang -target arm-pc-wince -x assembler %s -c -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=ASMGNU
 // ASMGNU: "-cc1as"
 // ASMGNU-NOT: "-masm=armasm"
