@@ -375,6 +375,21 @@ void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
   const bool IsThumb = Frame->Function &&
                        getAssembler().isThumbFunc(Frame->Function);
 
+  // A CE .pdata entry records the function and prologue extents; the OS
+  // unwinder restores the frame by re-executing the prologue machine code
+  // between them in reverse, so a missing end label would yield a corrupt
+  // entry. Fail loudly instead of emitting one.
+  const MCSymbol *FuncEnd = Frame->FuncletOrFuncEnd ? Frame->FuncletOrFuncEnd
+                                                    : Frame->End;
+  if (!FuncEnd || !Frame->PrologEnd) {
+    StringRef FnName = Frame->Function ? Frame->Function->getName()
+                                       : StringRef("<unknown>");
+    getContext().reportError(
+        SMLoc(), "CE unwind info for '" + Twine(FnName) +
+                     "' requires .seh_endprologue and .seh_endproc");
+    return;
+  }
+
   MCSectionCOFF *PData = Ctx.getCOFFSection(
       ".pdata", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
                     COFF::IMAGE_SCN_MEM_READ | COFF::IMAGE_SCN_MEM_DISCARDABLE);
@@ -397,17 +412,13 @@ void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
   if (HasHandler)
     Static |= CE_PDATA_EXCEPTION_FLAG;
   emitIntValue(Static, 4);
-  const MCSymbol *FuncEnd = Frame->FuncletOrFuncEnd ? Frame->FuncletOrFuncEnd
-                                                    : Frame->End;
-  if (FuncEnd)
-    emitValue(MCSymbolRefExpr::create(
-                  FuncEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN, Ctx),
-              4);
-  if (Frame->PrologEnd)
-    emitValue(MCSymbolRefExpr::create(
-                  Frame->PrologEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_PROLOG,
-                  Ctx),
-              4);
+  emitValue(MCSymbolRefExpr::create(
+                FuncEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN, Ctx),
+            4);
+  emitValue(MCSymbolRefExpr::create(
+                Frame->PrologEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_PROLOG,
+                Ctx),
+            4);
 
   // Return to the function's text section so later emission is unaffected.
   switchSection(Frame->TextSection);
