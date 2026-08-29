@@ -1657,12 +1657,20 @@ public:
 
   /// Whether the target supports SEH __try.
   bool isSEHTrySupported() const {
-    // Windows CE on ARM uses the compressed .pdata SEH mechanism via
-    // __C_specific_handler, like desktop Windows on ARM.
     return getTriple().isOSWindows() &&
            (getTriple().isX86() ||
             getTriple().getArch() == llvm::Triple::aarch64 ||
-            getTriple().isWindowsCE());
+            // Windows CE on ARM uses the compressed .pdata SEH mechanism
+            // (ARMWinCOFFStreamer::CEEmitUnwindInfo plus the in-text
+            // PDATA_EH pair) driven by __C_specific_handler.
+            //
+            // Windows CE on x86 stays unsupported on purpose: that emitter
+            // is ARM-only, so accepting __try there would silently produce
+            // the desktop x86 tables (a MSVC-style SEH the CE kernel does
+            // not understand) instead of diagnosing it.
+            (getTriple().isWindowsCE() &&
+             (getTriple().getArch() == llvm::Triple::arm ||
+              getTriple().getArch() == llvm::Triple::thumb)));
   }
 
   /// Return true if {|} are normal characters in the asm string.
