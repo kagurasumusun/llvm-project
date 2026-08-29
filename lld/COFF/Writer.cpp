@@ -1319,12 +1319,11 @@ void Writer::createMiscChunks() {
     // on CE loaders that refuse out-of-image relocations (Windows Mobile
     // 6.1+); bind it like the arm-wince ld emulation did.
     insertTextStartEndSymbols();
+    // Bind __exidx_start/__exidx_end to the merged .ARM.exidx output
+    // section bounds when something references them (libunwind's EHABI
+    // unwinder reads the table through them).
+    insertEXIdxBoundsSymbols();
   }
-
-  // Windows CE: bind __exidx_start/__exidx_end to the .ARM.exidx output
-  // section bounds when something references them (libunwind's EHABI
-  // unwinder).
-  insertEXIdxBoundsSymbols();
 }
 
 // Create .idata section for the DLL-imported symbol table.
