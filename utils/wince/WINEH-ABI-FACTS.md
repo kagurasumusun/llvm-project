@@ -388,20 +388,38 @@ check, but the wiring exists.
 
 **Known limitations (v1, by design, to be re-checked with a build):**
 
-1. *Funclet parent-frame references*: `llvm.eh.recoverfp` (inserted by clang
-   only for `__except` **filter expressions**) lowers through `ISD::EH_RECOVER_FP`,
-   which has no ARM implementation. `__except(EXCEPTION_EXECUTE_HANDLER)` and
-   constant filters do not use it and should work. Variable-touching filters
-   need an ARM `EH_RECOVER_FP` lowering (likely: return the passed-in FP — CE
-   funclets run on the parent's frame).
-2. *Funclet captures* (`llvm.localrecover` in `__except`/`__finally` bodies)
-   lower through `ISD::LOCAL_RECOVER` + frame-alloc symbols, which is
-   target-independent plumbing; ARM select of the resulting MCSymbol node is
-   unverified.
-3. *Nested `__try` inside funclets*: `ARMException` has no `beginFunclet`
+1. *Funclet parent-frame references* (implemented 2026-08-29, commit
+   b31ba42f): `llvm.eh.recoverfp` (filters) lowers to the identity and
+   `llvm.localaddress` lowers to SP + frame size, with the frame size
+   assigned by the AsmPrinter to the `$parent_frame_offset` symbol.  This
+   adopts an **entry-SP convention** (CE's establisher frame), matching
+   AArch64's SEH model; `LOCAL_ESCAPE` offsets are entry-SP-relative
+   (`MFI.getObjectOffset`), and `ISD::LOCAL_RECOVER` materializes the
+   absolute frame-escape symbol value via `ARMISD::Wrapper` (movw/movt on
+   v6T2+/Thumb2, literal-pool load on ARMv5).  Rationale: the CE kernel
+   computes the establisher frame as the entry SP (prologue
+   reverse-executed), which differs from x64 (SP after prologue); an x64
+   style "+SEHSetFrameOffset" recoverfp would be off by the caller's frame
+   size in nested helpers, so the identity + entry-SP convention is the
+   only one consistent between the normal path (localaddress) and the
+   exception path (establisher frame).
+2. *Nested SEH helpers* (a `__try`/`__except` inside an outlined
+   `__finally`): not handled — the filter's FP conversion would need the
+   caller's frame size, which is not visible from the helper.  AArch64 has
+   the same limitation (its recoverfp is also the identity).  A nested
+   helper that uses `llvm.localaddress` would reference an unassigned
+   `$parent_frame_offset` symbol (link-time failure, not silent corruption).
+3. *Variable-sized objects* in a parent with SEH helpers: `llvm.localaddress`
+   assumes a constant frame size (FIXME in ARMISelLowering; same AArch64
+   limitation).
+4. *Nested `__try` inside funclets*: `ARMException` has no `beginFunclet`
    implementation (no per-funclet .seh frames). Funclets are emitted inside the
    parent's single WinCFI frame (they are EH regions of the same MachineFunction
    in current LLVM, so the parent's .pdata FuncLen covers them).
-4. *Filter functions* are outlined by clang into normal functions (2nd arg =
+5. *Filter functions* are outlined by clang into normal functions (2nd arg =
    parent FP per CE/ARM64 convention); they carry no PDATA_EH pair and are
-   invoked by `__C_specific_handler` as plain callbacks.
+   invoked by `__C_specific_handler` as plain callbacks.  The assumption
+   that CE's `__C_specific_handler` forwards the kernel's establisher frame
+   to filters/finallys (x64 convention) is unverified by source: the
+   implementation is not in the reference extraction (crtdummy.cpp provides
+   only a stub).
