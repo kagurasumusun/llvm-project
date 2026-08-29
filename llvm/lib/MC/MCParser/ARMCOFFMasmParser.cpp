@@ -180,13 +180,15 @@ bool ARMCOFFMasmParser::parseDirectiveArea(StringRef Directive, SMLoc Loc) {
   else if (NoInit)
     Characteristics = COFF::IMAGE_SCN_CNT_UNINITIALIZED_DATA |
                       COFF::IMAGE_SCN_MEM_READ | COFF::IMAGE_SCN_MEM_WRITE;
-  else
+  else {
     Characteristics = COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                      COFF::IMAGE_SCN_MEM_READ |
-                      (ReadOnly ? 0 : COFF::IMAGE_SCN_MEM_WRITE);
+                      COFF::IMAGE_SCN_MEM_READ;
+    if (!ReadOnly)
+      Characteristics |= COFF::IMAGE_SCN_MEM_WRITE;
+  }
 
   std::string SectionName = Name.str();
-  if (!SectionName.starts_with(".")) {
+  if (SectionName.empty() || SectionName[0] != '.') {
     if (IsCode)
       SectionName = ".text." + SectionName;
     else
@@ -263,7 +265,8 @@ bool ARMCOFFMasmParser::parseDirectiveImport(StringRef Directive, SMLoc Loc) {
     return Error(Loc, "expected identifier");
   auto *COFFSym = static_cast<MCSymbolCOFF *>(Sym);
   COFFSym->setExternal(true);
-  COFFSym->setUndefined(true);
+  // The symbol stays undefined until a matching definition is encountered,
+  // which is exactly what the COFF object writer wants for an extern/import.
   while (getLexer().isNot(AsmToken::EndOfStatement))
     Lex();
   return false;
