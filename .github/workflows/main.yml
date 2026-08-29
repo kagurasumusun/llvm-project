@@ -89,6 +89,7 @@ jobs:
             llvm/test/MC/ARM/wince-exidx.s \
             llvm/test/MC/ARM/wince-seh-pdata.s \
             llvm/test/MC/ARM/wince-armasm.s \
+            llvm/test/MC/ARM/wince-armasm-labels.s \
             llvm/test/CodeGen/ARM/wince-seh-parent-frame.ll \
             llvm/test/CodeGen/ARM/wince-soft-float.ll
 
