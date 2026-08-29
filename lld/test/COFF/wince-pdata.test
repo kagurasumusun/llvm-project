@@ -4,16 +4,25 @@ RUN: split-file %s %t.dir && cd %t.dir
 Windows CE compressed .pdata: lld resolves the internal FUNCLEN/PROLOG
 pseudo relocations (IMAGE_REL_ARM_CE_PDATA_FUNCLEN/PROLOG = 0x6/0x7) into
 the flags word, compacts each 16-byte intermediate object record to the
-8-byte IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout (pFuncStart, flags), sorts by
-pFuncStart, and reports the compact size in the exception data directory.
+8-byte IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout (pFuncStart, flags), and
+reports the compact size in the exception data directory.
 
-The two functions are linked in reverse address order (second first, first
-second) so the check below proves the table is sorted.
+What this test pins down:
+  * PrologLen/FuncLen are really written into the flags word (the two length
+    relocations originally disagreed about where that word is: FUNCLEN sits
+    at record offset 8 and PROLOG at offset 12, so the record start cannot be
+    derived with a single `off - 8`),
+  * the lengths are measured from pFuncStart, not from the start of .text
+    (both relocations target the section symbol, so the label offset is an
+    inline addend that has to be added to `s`),
+  * the record is compacted to 8 bytes and the directory size follows it,
+  * the table is in ascending pFuncStart order, which is what the CE kernel's
+    binary search requires.
 
 NOTE: the hard-coded addresses below assume the standard CE layout
-(.text at RVA 0x1000, .pdata at RVA 0x2000, Thumb symbol values carry
+(.text at RVA 0x1000, .pdata at RVA 0x2000, Thumb function symbols carry
 bit 0). If llvm-mc/lld layout details change, the CHECK values must be
-re-derived from llvm-nm/llvm-objdump output rather than guessed.
+re-derived from llvm-readobj/llvm-objdump output rather than guessed.
 
 Layout assumptions (CE PE32, image base 0x10000, /fixed):
   .text starts at RVA 0x1000.
@@ -33,15 +42,17 @@ RUN: llvm-readobj --headers %t.exe | FileCheck %s --check-prefix=HDR
 HDR:      ExceptionTableRVA: 0x2000
 HDR-NEXT: ExceptionTableSize: 0x10
 
-.pdata after compaction and sort: [first 0x11025, 0x80000301]
-[second 0x11011, 0x80000401].  word1 bitfields:
-  PrologLen = 1 (single push), FuncLen = 3/4 instructions,
+.pdata after compaction and sort, ascending by pFuncStart:
+  [second 0x11011, 0x80000401] [first 0x11025, 0x80000301]
+word1 bitfields:
+  PrologLen = 1 (single push),
+  FuncLen = 4 for second (0x11012 -> 0x11018 = 8 bytes / 2) and
+            3 for first  (0x11026 -> 0x1102A = 6 bytes / 2),
   ThirtyTwoBit = 0 (Thumb), ExceptionFlag = 1 (has handler).
-The input order was second,first; the output is first,second (sorted).
 
 RUN: llvm-objdump -s --section=.pdata %t.exe | FileCheck %s --check-prefix=PDATA
 PDATA:      Contents of section .pdata:
-PDATA-NEXT: 12000 25110100 01030080 11110100 01040080
+PDATA-NEXT: 12000 11100100 01040080 25100100 01030080
 
 Each function's PDATA_EH pair must sit in the 8 bytes immediately before
 the function's first instruction (kernel lookup:
@@ -51,6 +62,6 @@ the function's first instruction (kernel lookup:
 
 RUN: llvm-objdump -s --section=.text %t.exe | FileCheck %s --check-prefix=TEXT
 TEXT:      Contents of section .text:
-TEXT-NEXT: 11000 70470000 01000000 01010100 04110100
-TEXT-NEXT: 11010 b5302002 2103bdb0 01000000 01010100
-TEXT-NEXT: 11020 18110100 b5102001 bd10
+TEXT-NEXT: 11000 70470000 01000000 01100100 04100100
+TEXT-NEXT: 11010 b5302002 2103bdb0 01000000 01100100
+TEXT-NEXT: 11020 18100100 b5102001 bd10
