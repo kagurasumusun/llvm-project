@@ -135,6 +135,17 @@ private:
   /// addDirectiveHandler.
   StringMap<ExtensionDirectiveHandler> ExtensionDirectiveMap;
 
+  /// The extension implementing the MASM-family "label in front of a
+  /// directive" statement form ("name PROC", "name DCD 1"), or null when
+  /// that syntax is disabled -- which is everywhere except the ARM armasm
+  /// dialect, the only extension that registers itself here.
+  MCAsmParserExtension *MasmLabelExt = nullptr;
+
+  /// The label that introduced the statement being parsed, in the
+  /// MASM-family "name <directive>" form.  A directive handler consumes it
+  /// with takeMasmLabel() instead of parsing an operand of its own.
+  MCSymbol *MasmLabel = nullptr;
+
   /// Stack of active macro instantiations.
   std::vector<MacroInstantiation*> ActiveMacros;
 
@@ -214,6 +225,16 @@ public:
     DirectiveKindMap[Directive.lower()] = DirectiveKindMap[Alias.lower()];
   }
 
+  void setMasmLabelExtension(MCAsmParserExtension *Ext) override {
+    MasmLabelExt = Ext;
+  }
+
+  MCSymbol *takeMasmLabel() override {
+    MCSymbol *Sym = MasmLabel;
+    MasmLabel = nullptr;
+    return Sym;
+  }
+
   /// @name MCAsmParser Interface
   /// {
 
@@ -278,6 +299,19 @@ public:
 private:
   bool parseCurlyBlockScope(SmallVectorImpl<AsmRewrite>& AsmStrRewrites);
   bool parseCppHashLineFilenameComment(SMLoc L, bool SaveLocInfo = true);
+
+  /// Look up a directive that is spelled without the leading '.' in the
+  /// extension map.  Only the MASM-family extensions register such names and
+  /// they are case-insensitive, so the lookup is too; the GNU-syntax map used
+  /// for '.'-prefixed directives is untouched.  Returns a null handler when
+  /// no extension claims \p Name.
+  ExtensionDirectiveHandler lookupMasmDirective(StringRef Name) const;
+
+  /// Parse a MASM-family statement whose leading identifier is a label
+  /// written without a trailing ':' ("name PROC", "name DCD 1").
+  bool parseMasmLabelStatement(StringRef Name, SMLoc NameLoc,
+                               StringRef Directive, ParseStatementInfo &Info,
+                               MCAsmParserSemaCallback *SI);
 
   void checkForBadMacro(SMLoc DirectiveLoc, StringRef Name, StringRef Body,
                         ArrayRef<MCAsmMacroParameter> Parameters);
@@ -1695,6 +1729,54 @@ bool AsmParser::parseBinOpRHS(unsigned Precedence, const MCExpr *&Res,
   }
 }
 
+ExtensionDirectiveHandler
+AsmParser::lookupMasmDirective(StringRef Name) const {
+  for (const auto &E : ExtensionDirectiveMap) {
+    if (!StringRef(E.first()).starts_with(".") &&
+        Name.equals_insensitive(E.first()))
+      return E.second;
+  }
+  return ExtensionDirectiveHandler();
+}
+
+/// ParseStatement (MASM-family label form):
+///   ::= Identifier Directive ...Operands... EndOfStatement
+///   ::= Identifier EndOfStatement
+///
+/// The MASM-family dialects name a label by writing it in front of a
+/// directive, with no ':' after it: "name PROC", "name DCD 1".  Whether that
+/// label is actually *defined* here is up to the extension that asked for
+/// this syntax: "name DCD 1" defines it, while armasm's "name ENDP" and
+/// "name EQU 4" name an entity defined elsewhere.  Whatever follows is then
+/// parsed by the usual dispatch, and finds the label through takeMasmLabel().
+bool AsmParser::parseMasmLabelStatement(StringRef Name, SMLoc NameLoc,
+                                        StringRef Directive,
+                                        ParseStatementInfo &Info,
+                                        MCAsmParserSemaCallback *SI) {
+  if (checkForValidSection())
+    return true;
+  if (discardLTOSymbol(Name))
+    return false;
+
+  MCSymbol *Sym = getContext().parseSymbol(Name);
+  MasmLabel = Sym;
+  if (MasmLabelExt->emitMasmLabel(Sym, NameLoc, Directive)) {
+    MasmLabel = nullptr;
+    return true;
+  }
+
+  // A label standing alone on its line ends the statement here.
+  if (Directive.empty()) {
+    MasmLabel = nullptr;
+    Lex(); // Consume the EndOfStatement (or Eof) that follows the label.
+    return false;
+  }
+
+  bool Res = parseStatement(Info, SI);
+  MasmLabel = nullptr;
+  return Res;
+}
+
 /// ParseStatement:
 ///   ::= EndOfStatement
 ///   ::= Label* Directive ...Operands... EndOfStatement
@@ -1911,16 +1993,28 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
   // case-sensitive, so the extension registers one spelling and this matches
   // any case of it.
   if (!IDVal.empty() && !IDVal.starts_with(".")) {
-    std::pair<MCAsmParserExtension *, DirectiveHandler> Handler;
-    for (const auto &E : ExtensionDirectiveMap) {
-      if (!StringRef(E.first()).starts_with(".") &&
-          IDVal.equals_insensitive(E.first())) {
-        Handler = E.second;
-        break;
-      }
-    }
+    ExtensionDirectiveHandler Handler = lookupMasmDirective(IDVal);
     if (Handler.first)
       return (*Handler.second)(Handler.first, IDVal, IDLoc);
+  }
+
+  // A dotless identifier that no directive handler claimed can still be the
+  // label of a MASM-family statement: those dialects write "name PROC" and
+  // "name DCD 1" rather than "name:" followed by a directive.  The identifier
+  // is a label when the token after it is one of the dialect's own directives
+  // or when it stands alone on its line.  Only the extension that registered
+  // itself for this syntax is consulted, so the GNU syntax handled above and
+  // below never reaches this.
+  if (MasmLabelExt && !IDVal.empty() && !IDVal.starts_with(".") &&
+      getTargetParser().isLabel(ID)) {
+    AsmToken Next = Lexer.peekTok();
+    bool IsNextDir = Next.is(AsmToken::Identifier) &&
+                     lookupMasmDirective(Next.getIdentifier()).first;
+    bool IsAlone = Next.is(AsmToken::EndOfStatement) || Next.is(AsmToken::Eof);
+    if (IsNextDir || IsAlone)
+      return parseMasmLabelStatement(
+          IDVal, IDLoc, IsNextDir ? Next.getIdentifier() : StringRef(), Info,
+          SI);
   }
 
   // Otherwise, we have a normal instruction or directive.
