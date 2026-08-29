@@ -2717,8 +2717,19 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
         CPV = ARMConstantPoolConstant::Create(
             GV, ARMPCLabelIndex, ARMCP::CPValue, PCAdj, Modifier,
             /*AddCurrentAddr*/ Modifier == ARMCP::GOT_PREL);
-      } else
+      } else if (GV) {
         CPV = ARMConstantPoolConstant::Create(GV, ARMCP::no_modifier);
+      } else {
+        // The operand is an external/private symbol rather than a
+        // GlobalValue: llvm.localrecover / llvm.localaddress materialize
+        // frame-escape / parent-frame-offset symbols that the AsmPrinter
+        // defines with .set assignments.  Use the symbol constant-pool
+        // entry (same path as the tTPsoft long-call expansion) so the
+        // literal pool emits ".long <symbol>".
+        CPV = ARMConstantPoolSymbol::Create(
+            MBB.getParent()->getFunction().getContext(),
+            MO1.getSymbolName(), 0, 0);
+      }
 
       MachineInstrBuilder MIB =
           BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(LDRLITOpc), DstReg)

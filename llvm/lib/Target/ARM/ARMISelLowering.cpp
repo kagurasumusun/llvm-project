@@ -5909,14 +5909,20 @@ SDValue ARMTargetLowering::LowerLOCAL_RECOVER(SDValue Op,
   // The AsmPrinter assigns those symbols absolute integer values (the frame
   // offset of an escaped alloca, or the frame size for the SEH parent-frame
   // conversion), so load the absolute symbol value through the same path used
-  // for external symbols: movw/movt on ARMv6T2+ and ARMv7 Thumb-2, a
-  // literal-pool load on ARMv5 (WinCE's default).  Thumb1 only has an
-  // execute-only texternalsym wrapper pattern and Thumb-2 without movw/movt
-  // is unhandled; WinCE does not use those configurations in practice.
+  // for external symbols: movw/movt on ARMv6T2+ ARM and Thumb-2 (the
+  // existing texternalsym patterns, whose HasV8MBaseline predicate is implied
+  // by V6T2), and a literal-pool load on ARMv4T/ARMv5 (DontUseMovt, the
+  // WinCE default).  Thumb1 only has an execute-only texternalsym wrapper
+  // pattern and Thumb-2 without movw/movt is unhandled; WinCE does not use
+  // those configurations in practice.
   auto *SymNode = cast<MCSymbolSDNode>(Op.getOperand(0));
   MCSymbol *Sym = SymNode->getMCSymbol();
   SDLoc dl(Op);
-  SDValue ES = DAG.getTargetExternalSymbol(Sym->getName(), Op.getValueType());
+  // MCSymbol names are stored NUL-terminated in the MCContext symbol table,
+  // and ExternalSymbolSDNode keeps the pointer without copying, so .data()
+  // is safe here.
+  SDValue ES =
+      DAG.getTargetExternalSymbol(Sym->getName().data(), Op.getValueType());
   return DAG.getNode(ARMISD::Wrapper, dl, Op.getValueType(), ES);
 }
 
