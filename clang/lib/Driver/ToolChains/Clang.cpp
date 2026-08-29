@@ -8644,17 +8644,21 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
 
   getToolChain().addClangCC1ASTargetOptions(Args, CmdArgs);
 
-  // armasm dialect (Windows CE PB sources): forward -masm=armasm to the
-  // integrated assembler; the WinCE toolchain defaults to it.
+  // armasm dialect (Windows CE Platform Builder sources): forwarded when it
+  // is asked for explicitly.  It is deliberately NOT the default for WinCE:
+  // the in-tree ARMCOFFMasmParser is a directive-level extension on top of
+  // the GNU parser (see llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp) and does
+  // not implement armasm's own statement syntax (column-0 labels without a
+  // trailing ':', ';' comments, macros, conditional assembly, or the
+  // 2_/&/numeric literal forms).  Real PB sources go through
+  // utils/wince/armasm/armasm-convert.py (Path A), which emits GNU syntax;
+  // forcing the dialect on for every .s would only risk mis-parsing those.
   if (Arg *A = Args.getLastArg(options::OPT_masm_EQ)) {
     StringRef V = A->getValue();
     if (V == "armasm") {
       CmdArgs.push_back("-masm=armasm");
       A->claim();
     }
-  } else if (Triple.isWindowsCE()) {
-    // The WinCE toolchain assembles PB-style sources by default.
-    CmdArgs.push_back("-masm=armasm");
   }
 
   // Set the output mode, we currently only expect to be used as a real
