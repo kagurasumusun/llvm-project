@@ -1,5 +1,5 @@
 @ RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.o %s
-@ RUN: llvm-readobj -S -r %t.o | FileCheck %s
+@ RUN: llvm-readobj -S -r --expand-relocs %t.o | FileCheck %s
 
 /// Windows CE SEH (.seh_proc/.seh_handler) must produce the compressed
 /// WinCE .pdata layout that the CE6 kernel's RtlLookupFunctionEntry decodes
@@ -18,6 +18,10 @@
 ///     body (ARMAsmPrinter), NOT into a shared section, so the pair sits in
 ///     the 8 bytes right before the function's first instruction for every
 ///     SEH function in the module.
+///
+/// llvm-readobj prints "Unknown" for every relocation type name on
+/// IMAGE_FILE_MACHINE_ARM objects (the name table only covers Triple::thumb,
+/// i.e. ARMNT), so the numeric types are checked via --expand-relocs.
 
 	.syntax unified
 	.thumb
@@ -47,9 +51,13 @@ leaf:
 // CHECK: Relocations [
 // CHECK:   Section {{.*}} .pdata {
 // pFuncStart -> function start (ADDR32 == 1)
-// CHECK:     0x0 Unknown .text (1)
+// CHECK:      Offset: 0x0
+// CHECK-NEXT: Type: Unknown (1)
+// CHECK-NEXT: Symbol: .text
 // word1 pseudo relocations: FUNCLEN (6) then PROLOG (7)
-// CHECK:     0x8 Unknown .text (6)
-// CHECK:     0xC Unknown .text (7)
+// CHECK:      Offset: 0x8
+// CHECK-NEXT: Type: Unknown (6)
+// CHECK:      Offset: 0xC
+// CHECK-NEXT: Type: Unknown (7)
 // CHECK:   }
 // CHECK: ]
