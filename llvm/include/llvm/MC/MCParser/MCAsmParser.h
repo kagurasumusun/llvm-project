@@ -161,6 +161,19 @@ public:
 
   virtual void addAliasForDirective(StringRef Directive, StringRef Alias) = 0;
 
+  /// Set the extension that implements the MASM-family "label in front of a
+  /// directive" statement form ("name PROC", "name DCD 1"), and enable that
+  /// syntax.  Null, the default, disables it; only the ARM armasm extension
+  /// enables it, so GNU-syntax assembly never reaches that code.
+  virtual void setMasmLabelExtension(MCAsmParserExtension *Ext) {}
+
+  /// Consume and return the label that introduced the statement currently
+  /// being parsed, in the MASM-family "name <directive>" form.  Null when the
+  /// statement had no leading label, or when the directive being parsed has
+  /// already taken it.  The directive handler is expected to use the label
+  /// instead of parsing an operand of its own.
+  virtual MCSymbol *takeMasmLabel() { return nullptr; }
+
   MCContext &getContext() { return Ctx; }
   MCStreamer &getStreamer() { return Out; }
   SourceMgr &getSourceManager() { return SrcMgr; }
