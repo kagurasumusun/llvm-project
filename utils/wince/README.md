@@ -380,7 +380,7 @@ rule that protects the ABI also protects the platform boundary.
 | MSVC type mapping (`__int64`, `SIZE_T`, `DWORD_PTR`, ...) | provided: mingwrt/w32api headers define the full set; `__int64` is a clang keyword alias |
 | `__uuidof` / `__declspec(uuid)` | clang supports both (Sema `ActOnCXXUuidof`, `UuidAttr`); `__uuidof` returns the compiler-generated GUID per C++ ABI (GenericARM Itanium mangling); MSVC-style `__uuidof` template capture works |
 | operator new/delete from COREDLL | verified present in the def (mangled `??2@...`/`??3@...`/`??_U@...`/`??_V@...`); libc++ uses its own operators, C code never imports them |
-| SEH (`__try`/`__except`/`__finally`) | **arch-gated, by design**: Sema/IR-gen support x86 and AArch64 WinEH; the ARM32 Windows-EH unwinder data (`R11`-chain) is not produced by this target, and CE never had ARM32 SEH unwinding (eVC used it only for kernel debugging). C++ exceptions on CE go through ARM EHABI + libunwind (implemented). `__try` on arm-pc-wince is diagnosed as unsupported rather than silently mis-generated |
+| SEH (`__try`/`__except`/`__finally`) | **implemented on ARM**: `__try`/`__except`/`__finally` parse and lower to the CE compressed `.pdata` SEH mechanism with `__C_specific_handler`, **per function**, so EHABI C++ exceptions (libc++ + libunwind) and SEH coexist in one TU (`utils/wince/WINEH-ABI-FACTS.md` §4d/4f/4g; tests: `clang/test/CodeGen/wince-seh.c`, `clang/test/CodeGen/ARM/wince-seh-{scope-table,ehabi-mixed}.c`, `llvm/test/MC/ARM/wince-seh-pdata.s`, `lld/test/COFF/wince-pdata.test`). Known limits (source-verified, not device-verified): nested `__try` inside an outlined funclet and variable-sized frames are unsupported, and the x86 CE path is not connected to the CE `.pdata` emitter (ARM only) |
 | `<fcntl.h>` `<conio.h>` `<io.h>` `<process.h>` | provided by mingwrt (verified: `_getch/_kbhit/_putch`, `_findfirst` family, spawn/exec decls) |
 | `<tchar.h>` | provided (87 `_tcs*` mappings, `_T()`), UNICODE build assumed like eVC |
 | `<wincrypt.h>` | provided (w32api CE), backed by the Crypt* exports in the def (verified) |
@@ -396,26 +396,37 @@ the second one:
   (`utils/wince/armasm/armasm-convert.py`).  Zero LLVM changes,
   maintains upstream cleanliness, full armasm surface covered.  This is
   what the build uses today.
-* **Path B (in-tree, the "正規の機構" form): a real ARM MASM parser.**
-  LLVM already ships `llvm/lib/MC/MCParser/MasmParser.cpp` (6269 lines)
-  + `COFFMasmParser.cpp` + the `llvm-ml` tool: a full MASM dialect
-  parser driving the same MCStreamer as the GNU parser.  It is x86-only
-  only because `COFFMasmParser` implements the COFF section/symbol
-  handlers that x86 needs and nobody registered ARM equivalents - the
-  mnemonic parsing itself is done by the target's AsmParser, which for
-  ARM already exists (ARMAsmParser, 13k lines).  Proper implementation =
-  1. add `ARMCOFFMasmParser` (an `MCAsmParserExtension` like the COFF
-  x86 one: `.AREA`->section, `PROC/ENDP/END`, `EXPORT/IMPORT`, DCD/DCB
-  data directives, `;` comments, APCS register aliases), 2. register it
-  in `createMCMasmParser` for the ARM triple, 3. teach
-  `ARMAsmParser::parseDirectiveSyntax` to accept `.syntax divided`
-  (currently hard-rejected) or normalize at the extension layer, 4. add
-  `-masm=armasm` plumbing in the driver (the `-masm=` option already
-  exists for intel/att).  Estimated diff: one new ~800-line parser
-  extension + ~100 lines of plumbing.  That is the "in LLVM properly"
-  route and is what should be upstreamed if you want it in-tree; the
-  pre-assembler remains as the no-upstream fallback.  (Both can coexist;
-  armasm's macro processor via MasmParser's existing macro engine.)
+* **Path B (in-tree, opt-in): `ARMCOFFMasmParser`**, an
+  `MCAsmParserExtension` on top of the regular ARM AsmParser
+  (`llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp`), reached with
+  `clang -masm=armasm` or `llvm-mc -masm-armasm`.
+
+  **Status: 部分実装 (partial).**  It implements armasm's *structural
+  directives* - `AREA` (including armasm's `|name|` spelling),
+  `ALIGN`, `EXPORT`/`GLOBAL`, `IMPORT`/`EXTERN`, `EXPORTAS`, `ENTRY`,
+  `PROC`/`ENDP`/`END`, and it ignores `PRESERVE8`/`REQUIRE8`/`CODE16`/
+  `CODE32`/`ARM`/`THUMB`/`OPT`/`TTL`/`SUBT`/`ROUT`/`KEEP`/`NOFP` -
+  while mnemonics keep coming from the ARM instruction parser.
+  `llvm/test/MC/ARM/wince-armasm.s` pins exactly that down.
+
+  It does **not** implement armasm's own statement syntax, so it is not
+  yet a substitute for Path A: column-0 labels without a trailing `:`
+  (`Foo PROC`), `;` comments, `DCD`/`DCB`/`DCW`/`DCQ`/`SPACE`/`FILL`,
+  `EQU`, `GBLA`/`SETA` variables, `MACRO`/`MEND` and `IF`/`ENDIF` are
+  all missing.  Because of that the driver does **not** default WinCE
+  assembly to it: `-masm=armasm` must be requested explicitly, and
+  Platform Builder sources should keep going through Path A.
+  (Fixing the dispatch alone was not enough: `AsmParser::parseStatement`
+  only looked directives up when the identifier starts with `.`, so the
+  extension, which registers bare names, could never fire at all.)
+
+  The "full MASM-family parser" route that was sketched here before -
+  LLVM already ships `MasmParser.cpp` + `COFFMasmParser.cpp` +
+  `llvm-ml`, x86-only only because nobody registered ARM equivalents -
+  remains the right endgame if a complete in-tree armasm assembler is
+  wanted (`llvm-ml` drives its own parser and lexer, which is what the
+  missing `;`-comment and macro support needs).  Path B is a
+  directive-level foundation on top of the GNU parser, not that parser.
 
 A complete armasm -> GNU unified-syntax translator.  Pipeline:
 `armasm source -> armasm-convert.py -> GNU .s -> clang -x
