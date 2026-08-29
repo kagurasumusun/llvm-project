@@ -796,6 +796,12 @@ bool AsmLexer::isAtStartOfComment(const char *Ptr) {
   if (MAI.isHLASM() && !IsAtStartOfStatement)
     return false;
 
+  // The MASM-family dialects comment with ';' while the target's own comment
+  // string is whatever GNU-syntax assembly for that target uses ('@' on ARM),
+  // so armasm asks for ';' separately instead of replacing the target's.
+  if (AllowSemicolonComments && Ptr[0] == ';')
+    return true;
+
   StringRef CommentString = MAI.getCommentString();
 
   if (CommentString.size() == 1)
