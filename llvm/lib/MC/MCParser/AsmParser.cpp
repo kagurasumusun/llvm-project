@@ -1905,9 +1905,20 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
   // registers ".name" (and is handled below), so this is a no-op for GNU
   // syntax assembly.  Extensions used by llvm-ml register dotless names as
   // well, but they run on MasmParser, which has its own parseStatement.
+  //
+  // The lookup is case-insensitive: those dialects are (`AREA`, `Area` and
+  // `area` are the same directive) while the GNU syntax handled below is
+  // case-sensitive, so the extension registers one spelling and this matches
+  // any case of it.
   if (!IDVal.empty() && !IDVal.starts_with(".")) {
-    std::pair<MCAsmParserExtension *, DirectiveHandler> Handler =
-        ExtensionDirectiveMap.lookup(IDVal);
+    std::pair<MCAsmParserExtension *, DirectiveHandler> Handler;
+    for (const auto &E : ExtensionDirectiveMap) {
+      if (!StringRef(E.first()).starts_with(".") &&
+          IDVal.equals_insensitive(E.first())) {
+        Handler = E.second;
+        break;
+      }
+    }
     if (Handler.first)
       return (*Handler.second)(Handler.first, IDVal, IDLoc);
   }
