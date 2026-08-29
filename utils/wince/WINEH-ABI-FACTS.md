@@ -358,3 +358,50 @@ actually implement or interoperate with it (`FuncInfo`, `UnwindMap`, `TryBlockMa
 in the current `wince-source` extraction. This remains blocked until that header (or an
 equivalent structural reference) is available. As the handoff already notes, this is
 lower priority than SEH since C++ exceptions route through EHABI regardless.
+
+## 4f. Resolution of 4e + Phase 2 implementation status (2026-08-29, this session)
+
+**4e resolved (source-level):** CodeGen *does* drive EHABI table generation for
+compiled C/C++. `ARMException::beginFunction()` calls
+`getTargetStreamer().emitFnStart()` and `ARMException::endFunction()` calls
+`emitFnEnd()` whenever `MAI->getExceptionHandlingType() == ExceptionHandling::ARM`
+(which is the case for WinCE per `ARMMCTargetDesc.cpp`). The 4e search missed
+`ARMException.cpp` because the call goes through the `ARMTargetStreamer` virtual
+interface, not directly to `ARMWinCOFFStreamer::EHABIemitFnStart`. So the
+".ARM.exidx entries exist for compiled C++" premise holds: `.fnstart` opens an
+entry in `ARMWinCOFFStreamer::EHABIemitFnStart` and `.fnend` closes it (entry
+persisted via `PendingFnStarts` and flushed in `finishImpl`). Still worth a build
+check, but the wiring exists.
+
+**Phase 2 SEH implementation (all pushed to origin/llvm-wince):**
+
+| Area | What | Commit |
+|------|------|--------|
+| MC relocs/constants | `IMAGE_REL_ARM_CE_PDATA_FUNCLEN/PROLOG` (0x6/0x7), `VK_COFF_CE_PDATA_*`, `FrameInfo::CEEmitted` | 292f230d |
+| Object writer | CE specifiers -> pseudo relocs; CE cross-section FK_Data_4 stays ADDR32 (fixed-address images) | 292f230d, 7bf00de0 |
+| MC streamer | `CEEmitUnwindInfo` emits 16-byte intermediate .pdata records; `.seh_*` allowed on WinCE despite ARM EHABI MAI; error if .seh_endprologue/.seh_endproc missing | 292f230d, a1250eba |
+| Sema/passes | `isSEHTrySupported` for WinCE; `createWinEHPass()` added to the ARM case (self-gating on MSVC_TableSEH personalities) | 8db91016 |
+| AsmPrinter | SEH functions open a WinCFI frame (ARMException); scope table + PDATA_EH pair emitted immediately before the function label (ARMAsmPrinter::emitCEHandlerData), absolute ADDR32 entries | 2ee56ac1 |
+| lld | resolves the pseudo relocations into the flags word, compacts 16->8 bytes, sorts by pFuncStart, exception dir size halved | ffbd4141 |
+| Cleanup | dead ABI-incorrect `EncodingType::CE` triple emitter removed from MCWin64EH | 84aec8c1 |
+| Tests | MC `.pdata` reloc test (`--expand-relocs`; readobj prints "Unknown" for all IMAGE_FILE_MACHINE_ARM reloc names), lld link test with two SEH functions linked in reverse order (sort/compaction/bitfields/pair placement) | 538df378, ffbd4141 |
+
+**Known limitations (v1, by design, to be re-checked with a build):**
+
+1. *Funclet parent-frame references*: `llvm.eh.recoverfp` (inserted by clang
+   only for `__except` **filter expressions**) lowers through `ISD::EH_RECOVER_FP`,
+   which has no ARM implementation. `__except(EXCEPTION_EXECUTE_HANDLER)` and
+   constant filters do not use it and should work. Variable-touching filters
+   need an ARM `EH_RECOVER_FP` lowering (likely: return the passed-in FP — CE
+   funclets run on the parent's frame).
+2. *Funclet captures* (`llvm.localrecover` in `__except`/`__finally` bodies)
+   lower through `ISD::LOCAL_RECOVER` + frame-alloc symbols, which is
+   target-independent plumbing; ARM select of the resulting MCSymbol node is
+   unverified.
+3. *Nested `__try` inside funclets*: `ARMException` has no `beginFunclet`
+   implementation (no per-funclet .seh frames). Funclets are emitted inside the
+   parent's single WinCFI frame (they are EH regions of the same MachineFunction
+   in current LLVM, so the parent's .pdata FuncLen covers them).
+4. *Filter functions* are outlined by clang into normal functions (2nd arg =
+   parent FP per CE/ARM64 convention); they carry no PDATA_EH pair and are
+   invoked by `__C_specific_handler` as plain callbacks.

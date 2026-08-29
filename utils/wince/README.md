@@ -625,6 +625,13 @@ See `clang/test/Sema/ms-extern.c`.
   `tchar.h` compiles against the staged sysroot alone.
 * Stage 1/3 require a real build of this tree (`WinCE.cmake` cache); lit
   coverage: `clang/test/Driver/wince.c`, `clang/test/Driver/wince-x86.c`,
-  `lld/test/COFF/wince-*.ll*(s)`, `llvm/test/MC/ARM/wince-*.s`.
+  `lld/test/COFF/wince-*.ll*(s)`, `llvm/test/MC/ARM/wince-*.s`.  SEH-specific:
+  `llvm/test/MC/ARM/wince-seh-pdata.s` (CE `.pdata` 16-byte records with
+  FUNCLEN/PROLOG pseudo-relocations), `lld/test/COFF/wince-pdata.test`
+  (compaction 16->8 bytes, pFuncStart sort, pair placement, exception
+  directory size).  Both were authored source-level only (no build in this
+  environment); their numeric expectations assume `.text` at 0x11000 and
+  `.pdata` at 0x12000 under the default `/base:0x10000 /fixed` link and
+  should be re-verified at first real build.
 * On-device testing remains outstanding (no WinCE device in the build
   environment); see the procedure notes formerly in `wince-crt/docs`.
