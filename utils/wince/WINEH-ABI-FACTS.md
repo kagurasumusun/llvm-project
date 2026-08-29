@@ -371,10 +371,16 @@ COMPRESSED_PDATA path ~line 1387; COMBINED_PDATA path ~line 1544):
 4. **Invocation**: `RtlDispatchException` calls
    `RtlpExecuteHandlerForException(pExr, (PVOID)EstablisherFrame, pCtx,
    &DispatcherContext, FunctionEntry->ExceptionHandler)` with
-   `DispatcherContext.EstablisherFrame = EstablisherFrame`,
-   `DispatcherContext.HandlerData = pHandlerData` (via the assembler
-   thunk), i.e. **the x64-style 5-argument handler convention**, not an
-   ARM-specific one. Dispositions are the standard
+   `DispatcherContext.EstablisherFrame = EstablisherFrame` (ARM/rtlsup.s
+   `RtlpExecuteHandlerForException`: handler invoked with r0-r3 =
+   ExceptionRecord, EstablisherFrame, ContextRecord, DispatcherContext —
+   **the x64-style 4-argument handler convention**).  The CE non-x86
+   `DISPATCHER_CONTEXT` (SDK excpt.h) is
+   `{ ControlPc, FunctionEntry, EstablisherFrame, ContextRecord }` — it
+   has **no HandlerData field** (unlike x64), so the handler reads the
+   scope table via `DispatcherContext.FunctionEntry->HandlerData`
+   (RtlLookupFunctionEntry fills `prf->ExceptionHandler`/`prf->HandlerData`
+   from the PDATA_EH pair).  Dispositions are the standard
    ExceptionContinueSearch/ExecuteHandler/NestedException set;
    ExecuteHandler unwinds with `RtlUnwind(EstablisherFrame,
    DispatcherContext.ControlPc, ...)`.
@@ -393,8 +399,34 @@ Still unverified (source not available): the body of
 filters/finallys (the x64-convention assumption from §4f item 5 stands,
 and the dispatcher-side convention above is now confirmed, but the CRT
 handler internals are not in the reference extraction; crtdummy.cpp has
-only a stub). Filter/finally invocation convention remains a build-time
-runtime check item.
+only a stub).
+
+**Update 2026-08-29 — `__C_specific_handler` source does not exist in the
+CE 6.0 public tree (now confirmed, not just missing from the
+extraction):** the full `wince-source` tree was searched (git grep over
+`ce600/PRIVATE/...` and the whole repo). The only source hit is
+`CORE/DLL/CRT/crtdummy.cpp`'s `DUMMY(__C_specific_handler)`, where the
+`DUMMY` macro generates a link-through stub with signature
+`void *fn(void *, const void *, size_t)` — not even the real handler
+signature, i.e. purely a linker placeholder. The export itself is
+`CORE/DLL/CRT/corelib1.def:115` (`CRT(__C_specific_handler)`), which
+routes the name into the built (k.)coredll image; the actual
+implementation ships as part of the closed coredll binary. What *is*
+confirmed from the SDK headers:
+
+- `__C_specific_handler` is **the** SEH handler for all non-x86 CE
+  (SDK excpt.h: `#ifdef _X86_ _except_handler3 #else __C_specific_handler
+  #endif`), with the 4-argument `EXCEPTION_ROUTINE` signature.
+- The kernel-side convention is fully confirmed (PDATA_EH location,
+  ExceptionFlag gate, 4-arg invocation, DispatcherContext layout).
+  The one remaining unknown is internal to the closed binary: which
+  values it passes to filter/finally functions (the x64 convention —
+  establisher frame as the filter's 2nd argument — is the working
+  assumption, to be confirmed on device or by disassembling coredll),
+  and how it walks `{Begin,End,FilterOrFinally,Handler/Jump}` scope
+  entries. Nothing in the public tree contradicts the assumed format;
+  x86's `rtlsupsafeseh.asm` only marks C handlers safe via `.SAFESEH`
+  (x86-only mechanism, irrelevant on ARM).
 
 
 `coredll6.def` exports `__CxxFrameHandler` (no `3` suffix), confirming the v1-era C++ EH
