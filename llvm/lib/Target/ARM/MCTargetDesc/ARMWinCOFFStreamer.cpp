@@ -396,8 +396,20 @@ void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
   switchSection(PData);
   emitValueToAlignment(Align(4));
 
-  // word0: pFuncStart (absolute VA; thumb bit preserved for thumb funcs).
-  emitValue(MCSymbolRefExpr::create(Frame->Begin, Ctx), 4);
+  // word0: pFuncStart (absolute VA).  CE function-entry addresses carry the
+  // Thumb marker in bit 0 - the kernel masks it off before using the address
+  // (RtlVirtualUnwind/unwind.c, per WINEH-ABI-FACTS.md section 2) but needs it
+  // to pick the Thumb vs ARM prologue decoder, so a Thumb function must be
+  // recorded as begin+1.  Frame->Begin is a temporary label, which MC emits as
+  // a section relocation with the offset as an inline addend, so the marker has
+  // to be folded into the expression here (there is no symbol value lld could
+  // read it from).  The length relocations below round the span up, which
+  // absorbs this +1.
+  const MCExpr *BeginExpr = MCSymbolRefExpr::create(Frame->Begin, Ctx);
+  if (IsThumb)
+    BeginExpr =
+        MCBinaryExpr::createAdd(BeginExpr, MCConstantExpr::create(1, Ctx), Ctx);
+  emitValue(BeginExpr, 4);
 
   // word1: static flags. The FuncLen / PrologLen bitfields (in instructions)
   // are linker-filled from the symbols that follow, emitted as internal
