@@ -8,17 +8,27 @@
 //
 // ARM dialect of the MASM-family parser: the Microsoft `armasm` syntax used
 // by Windows CE Platform Builder sources (AREA/PROC/ENDP/EXPORT/IMPORT,
-// DCD/DCB/DCW/DCQ data, %/&/2_ numeric markers, ';' comments, APCS register
-// aliases).  This is an MCAsmParserExtension registered on top of the ARM
-// AsmParser, mirroring COFFMasmParser for x86; the instruction mnemonics
-// themselves are parsed by the regular ARMAsmParser.
+// DCD/DCB/DCW/DCQ/DCFS/DCFD data, SPACE/FILL, EQU, the &hex / %binary /
+// n_xxxx integer literals, ';' comments, and labels written in front of a
+// directive instead of with a trailing ':').  This is an MCAsmParserExtension
+// registered on top of the ARM AsmParser, mirroring COFFMasmParser for x86;
+// the instruction mnemonics themselves are parsed by the regular
+// ARMAsmParser.
+//
+// Still missing for full armasm: the &hex / %binary / n_xxxx integer
+// literals, DCFS/DCFD floating point data, the unaligned
+// DCFU/DCFSU/DCFDU/DCQU variants, GBLA/GBLL/GBLS variables with
+// SETA/SETL/SETS, MACRO/MEND and IF/ELSE/ENDIF.  See
+// utils/wince/README.md.
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCStreamer.h"
@@ -53,6 +63,19 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
   bool parseDirectiveExportAS(StringRef, SMLoc);
   bool parseDirectiveAlign(StringRef, SMLoc);
   bool parseDirectiveEntry(StringRef, SMLoc);
+  bool parseDirectiveDataValue(StringRef, SMLoc, unsigned Size);
+  bool parseDirectiveDCD(StringRef, SMLoc);
+  bool parseDirectiveDCW(StringRef, SMLoc);
+  bool parseDirectiveDCB(StringRef, SMLoc);
+  bool parseDirectiveDCQ(StringRef, SMLoc);
+  bool parseDirectiveSpace(StringRef, SMLoc);
+  bool parseDirectiveFill(StringRef, SMLoc);
+  bool parseDirectiveEqu(StringRef, SMLoc);
+  /// armasm's "name PROC" / "name DCD 1" define `name` right there, but the
+  /// label in front of ENDP/ENDFUNC and EQU names an entity defined
+  /// elsewhere, so it must not be emitted a second time.
+  bool emitMasmLabel(MCSymbol *Sym, SMLoc Loc, StringRef Directive) override;
+
   bool IgnoreDirective(StringRef, SMLoc) {
     while (!getLexer().is(AsmToken::EndOfStatement))
       Lex();
@@ -61,6 +84,11 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
 
   /// The most recent PROC symbol, for ENDP's implicit .size framing.
   SmallVector<StringRef, 1> CurrentProcedures;
+
+  /// Names declared with EXPORT/GLOBAL.  armasm sources export a procedure
+  /// with "EXPORT name" followed by "name PROC", so PROC must not turn the
+  /// symbol back into a local one.
+  StringSet<> ExportedNames;
 
   void Initialize(MCAsmParser &Parser) override {
     // Call the base implementation.
@@ -84,12 +112,32 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveAlign>("align");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveEntry>("entry");
 
+    // armasm data definition and reservation.
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCD>("dcd");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCW>("dcw");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCB>("dcb");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCQ>("dcq");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveSpace>("space");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveFill>("fill");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveEqu>("equ");
+
     // armasm directives with no object-file effect.
     for (const char *D :
          {"preserve8", "require8", "require", "keep", "nocrossref", "nofp",
           "rout", "opt", "ttl", "subt", "code32", "code16", "arm", "thumb",
           "thumbx"})
       addDirectiveHandler<&ARMCOFFMasmParser::IgnoreDirective>(D);
+
+    // Statements in this dialect are "name PROC" / "name DCD 1": a dotless
+    // identifier in front of one of the directives above is a label, not a
+    // mnemonic.  Registering for that syntax is what makes it reachable --
+    // it stays off for every other dialect.
+    getParser().setMasmLabelExtension(this);
+
+    // armasm comments with ';'.  The target's own comment string is '@',
+    // which is what GNU-syntax ARM assembly uses, so this cannot be folded
+    // into MCAsmInfo::getCommentString().
+    getLexer().setSemicolonComments(true);
   }
 
 public:
@@ -222,9 +270,14 @@ bool ARMCOFFMasmParser::parseDirectiveArea(StringRef Directive, SMLoc Loc) {
 }
 
 /// NAME PROC [FRAME [:handler]]
+///
+/// armasm spells this "NAME PROC": the name is the label in front of the
+/// directive, which emitMasmLabel() has already emitted.  "PROC NAME" is
+/// accepted as well so the directive also works on its own.
 bool ARMCOFFMasmParser::parseDirectiveProc(StringRef Directive, SMLoc Loc) {
-  MCSymbol *Sym;
-  if (getParser().parseSymbol(Sym))
+  MCSymbol *Sym = getParser().takeMasmLabel();
+  bool LabelEmitted = Sym != nullptr;
+  if (!Sym && getParser().parseSymbol(Sym))
     return Error(Loc, "expected identifier for procedure");
 
   // Optional [FRAME:handler] etc. - skip to end (CE sources rarely use it;
@@ -233,26 +286,41 @@ bool ARMCOFFMasmParser::parseDirectiveProc(StringRef Directive, SMLoc Loc) {
     Lex();
 
   auto *COFFSym = static_cast<MCSymbolCOFF *>(Sym);
-  COFFSym->setExternal(false);
+  // A procedure is local unless the source exported it; "EXPORT name" comes
+  // first in armasm and must survive the "name PROC" that follows.
+  if (!ExportedNames.count(Sym->getName()))
+    COFFSym->setExternal(false);
   COFFSym->setType(COFF::IMAGE_SYM_DTYPE_FUNCTION
                    << COFF::SCT_COMPLEX_TYPE_SHIFT);
-  getStreamer().emitLabel(Sym, Loc);
+  if (!LabelEmitted)
+    getStreamer().emitLabel(Sym, Loc);
   CurrentProcedures.push_back(Sym->getName());
   return false;
 }
 
 /// ENDP [name]
+///
+/// armasm spells this "NAME ENDP", where the name is the label in front of
+/// the directive and was deliberately not emitted again (see
+/// emitMasmLabel()).  It is checked against the procedure that is open.
 bool ARMCOFFMasmParser::parseDirectiveEndProc(StringRef Directive,
                                               SMLoc Loc) {
-  // Optional name operand.
+  MCSymbol *Sym = getParser().takeMasmLabel();
+  if (!Sym && getLexer().isNot(AsmToken::EndOfStatement)) {
+    if (getParser().parseSymbol(Sym))
+      return Error(Loc, "expected identifier after ENDP");
+  }
+  // Optional trailing operands.
   while (getLexer().isNot(AsmToken::EndOfStatement))
     Lex();
-  if (!CurrentProcedures.empty()) {
-    StringRef Name = CurrentProcedures.pop_back_val();
-    MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
-    // armasm/COFF: mark the size type; GNU .size framing is not emitted
-    // here because COFF import/export does not need it.
-    (void)Sym;
+
+  if (Sym) {
+    if (CurrentProcedures.empty() ||
+        !CurrentProcedures.back().equals(Sym->getName()))
+      return Warning(Loc, "ENDP name does not match the open PROC");
+    CurrentProcedures.pop_back();
+  } else if (!CurrentProcedures.empty()) {
+    CurrentProcedures.pop_back();
   }
   return false;
 }
@@ -271,6 +339,7 @@ bool ARMCOFFMasmParser::parseDirectiveExport(StringRef Directive, SMLoc Loc) {
     return Error(Loc, "expected identifier");
   auto *COFFSym = static_cast<MCSymbolCOFF *>(Sym);
   COFFSym->setExternal(true);
+  ExportedNames.insert(Sym->getName());
   // armasm EXPORT with [DATA] / {arm} decorators: skip to end.
   while (getLexer().isNot(AsmToken::EndOfStatement))
     Lex();
@@ -333,6 +402,64 @@ bool ARMCOFFMasmParser::parseDirectiveEntry(StringRef, SMLoc) {
   while (getLexer().isNot(AsmToken::EndOfStatement))
     Lex();
   return false;
+}
+
+/// DCD/DCW/DCB/DCQ expression{, expression} - 4/2/1/8-byte data.
+///
+/// armasm has no separate signed/unsigned forms and no alignment variants;
+/// DCB additionally accepts a quoted string, as armasm does.
+bool ARMCOFFMasmParser::parseDirectiveDataValue(StringRef Directive, SMLoc Loc,
+                                                unsigned Size) {
+  if (getLexer().is(AsmToken::EndOfStatement))
+    return Error(Loc, "expected expression after " + Directive);
+
+  auto parseOp = [&]() -> bool {
+    if (getParser().checkForValidSection())
+      return true;
+    SMLoc ExprLoc = getLexer().getLoc();
+    if (Size == 1 && getLexer().is(AsmToken::String)) {
+      StringRef Str = getTok().getStringContents();
+      Lex();
+      for (char C : Str)
+        getStreamer().emitIntValue((unsigned char)C, 1);
+      return false;
+    }
+    const MCExpr *Value;
+    if (getParser().parseExpression(Value))
+      return true;
+    getStreamer().emitValue(Value, Size, ExprLoc);
+    return false;
+  };
+
+  return parseMany(parseOp);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCD(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 4);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCW(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 2);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCB(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 1);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCQ(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 8);
+}
+
+bool ARMCOFFMasmParser::emitMasmLabel(MCSymbol *Sym, SMLoc Loc,
+                                      StringRef Directive) {
+  // ENDP/ENDFUNC close the procedure that "NAME PROC" opened and EQU defines
+  // a symbolic constant: in both cases the label names something that is
+  // already defined, so emitting it here would redefine the symbol.
+  if (!Directive.empty() && (Directive.equals_insensitive("endp") ||
+                             Directive.equals_insensitive("endfunc") ||
+                             Directive.equals_insensitive("equ")))
+    return false;
+  return MCAsmParserExtension::emitMasmLabel(Sym, Loc, Directive);
 }
 
 namespace llvm {
