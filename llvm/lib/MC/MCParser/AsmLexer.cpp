@@ -514,6 +514,65 @@ AsmToken AsmLexer::LexDigit() {
     return intToken(Result, Value);
   }
 
+  // armasm radix-prefixed integers: n_digits, e.g. 2_1010 or 16_FF.
+  //
+  // The underscore is unambiguous here: no other literal form in this
+  // dialect has digits followed by '_', so anything else falls through to
+  // the generic handling below (which is what keeps 0x1F and 1_000 working
+  // the way they always did).
+  if (LexArmasmIntegers) {
+    const char *RadixStart = CurPtr - 1;
+    const char *P = CurPtr;
+    while (isdigit(*P))
+      ++P;
+    if (*P == '_' && P > RadixStart) {
+      unsigned Radix = 0;
+      for (const char *R = RadixStart; R != P; ++R)
+        Radix = Radix * 10 + (unsigned)(*R - '0');
+      if (Radix >= 2 && Radix <= 16) {
+        const char *NumStart = P + 1;
+        const char *Q = NumStart;
+        while (isHexDigit(*Q))
+          ++Q;
+        APInt Value(128, 0);
+        if (Q > NumStart &&
+            !StringRef(NumStart, Q - NumStart).getAsInteger(Radix, Value)) {
+          CurPtr = Q;
+          return intToken(StringRef(TokStart, CurPtr - TokStart), Value);
+        }
+        return ReturnError(TokStart,
+                           "invalid " + radixName(Radix) + " number");
+      }
+    }
+  }
+
+  // armasm hexadecimal integers: &[0-9a-fA-F]+
+  if (LexArmasmIntegers && CurPtr[-1] == '&') {
+    const char *NumStart = CurPtr;
+    while (isHexDigit(CurPtr[0]))
+      ++CurPtr;
+
+    APInt Result(128, 0);
+    if (CurPtr == NumStart ||
+        StringRef(NumStart, CurPtr - NumStart).getAsInteger(16, Result))
+      return ReturnError(TokStart, "invalid hexadecimal number");
+
+    return intToken(StringRef(TokStart, CurPtr - TokStart), Result);
+  }
+
+  // armasm binary integers: %[01]+
+  if (LexArmasmIntegers && CurPtr[-1] == '%') {
+    const char *NumStart = CurPtr;
+    while (*CurPtr == '0' || *CurPtr == '1')
+      ++CurPtr;
+
+    APInt Result(128, 0);
+    if (StringRef(NumStart, CurPtr - NumStart).getAsInteger(2, Result))
+      return ReturnError(TokStart, "invalid binary number");
+
+    return intToken(StringRef(TokStart, CurPtr - TokStart), Result);
+  }
+
   // Motorola hex integers: $[0-9a-fA-F]+
   if (LexMotorolaIntegers && CurPtr[-1] == '$') {
     const char *NumStart = CurPtr;
@@ -969,6 +1028,9 @@ AsmToken AsmLexer::LexToken() {
       ++CurPtr;
       return AsmToken(AsmToken::AmpAmp, StringRef(TokStart, 2));
     }
+    // armasm hexadecimal integer: &[0-9a-fA-F]+
+    if (LexArmasmIntegers && isHexDigit(*CurPtr))
+      return LexDigit();
     return AsmToken(AsmToken::Amp, StringRef(TokStart, 1));
   case '!':
     if (*CurPtr == '=') {
@@ -980,6 +1042,9 @@ AsmToken AsmLexer::LexToken() {
     if (LexMotorolaIntegers && (*CurPtr == '0' || *CurPtr == '1')) {
       return LexDigit();
     }
+    // armasm binary integer: %[01]+
+    if (LexArmasmIntegers && (*CurPtr == '0' || *CurPtr == '1'))
+      return LexDigit();
     return AsmToken(AsmToken::Percent, StringRef(TokStart, 1));
   case '/':
     IsAtStartOfStatement = OldIsAtStartOfStatement;
