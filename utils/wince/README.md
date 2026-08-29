@@ -401,24 +401,37 @@ the second one:
   (`llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp`), reached with
   `clang -masm=armasm` or `llvm-mc -masm-armasm`.
 
-  **Status: 部分実装 (partial).**  It implements armasm's *structural
-  directives* - `AREA` (including armasm's `|name|` spelling),
-  `ALIGN`, `EXPORT`/`GLOBAL`, `IMPORT`/`EXTERN`, `EXPORTAS`, `ENTRY`,
-  `PROC`/`ENDP`/`END`, and it ignores `PRESERVE8`/`REQUIRE8`/`CODE16`/
-  `CODE32`/`ARM`/`THUMB`/`OPT`/`TTL`/`SUBT`/`ROUT`/`KEEP`/`NOFP` -
-  while mnemonics keep coming from the ARM instruction parser.
-  `llvm/test/MC/ARM/wince-armasm.s` pins exactly that down.
+  **Status: 部分実装 (partial).**  It implements armasm's structural
+  directives *and* the basic statement syntax built on top of them:
 
-  It does **not** implement armasm's own statement syntax, so it is not
-  yet a substitute for Path A: column-0 labels without a trailing `:`
-  (`Foo PROC`), `;` comments, `DCD`/`DCB`/`DCW`/`DCQ`/`SPACE`/`FILL`,
-  `EQU`, `GBLA`/`SETA` variables, `MACRO`/`MEND` and `IF`/`ENDIF` are
-  all missing.  Because of that the driver does **not** default WinCE
-  assembly to it: `-masm=armasm` must be requested explicitly, and
-  Platform Builder sources should keep going through Path A.
-  (Fixing the dispatch alone was not enough: `AsmParser::parseStatement`
-  only looked directives up when the identifier starts with `.`, so the
-  extension, which registers bare names, could never fire at all.)
+  * **structural**: `AREA` (including armasm's `|name|` spelling),
+    `ALIGN`, `EXPORT`/`GLOBAL`, `IMPORT`/`EXTERN`, `EXPORTAS`, `ENTRY`,
+    `PROC`/`ENDP`/`END`; `PRESERVE8`/`REQUIRE8`/`CODE16`/`CODE32`/`ARM`/
+    `THUMB`/`OPT`/`TTL`/`SUBT`/`ROUT`/`KEEP`/`NOFP` are ignored.
+  * **statements**: `;` comments (added to, not replacing, this target's
+    own `@`), a label written in front of a directive with no `:` after
+    it (`Foo PROC`, `Bar DCD 1`, `Baz EQU 4`), and a label standing
+    alone on a line.
+  * **data**: `DCD`/`DCW`/`DCB`/`DCQ` (DCB also takes a quoted string),
+    `DCFS`/`DCFD`, `SPACE`, `FILL n{, value}` and `EQU`.
+  * **literals**: `&FF` [hex], `%1010` [binary] and `n_xxxx` [base n],
+    on top of the `0x` prefix the generic lexer already handles.
+
+  Mnemonics keep coming from the ARM instruction parser.
+  `llvm/test/MC/ARM/wince-armasm.s` (structural) and
+  `llvm/test/MC/ARM/wince-armasm-labels.s` (statements + data) pin that
+  down.
+
+  Still missing, so it is **not** yet a substitute for Path A: the
+  unaligned `DCFU`/`DCFSU`/`DCFDU`/`DCQU` variants, `GBLA`/`SETA`
+  variables, `MACRO`/`MEND` and `IF`/`ENDIF`.  Because of that the driver
+  does **not** default WinCE assembly to it: `-masm=armasm` must be
+  requested explicitly, and Platform Builder sources should keep going
+  through Path A.
+  (Making the dispatch reachable was the first step: `AsmParser::
+  parseStatement` only looked directives up when the identifier starts
+  with `.`, so the extension, which registers bare names, could never
+  fire at all.)
 
   The "full MASM-family parser" route that was sketched here before -
   LLVM already ships `MasmParser.cpp` + `COFFMasmParser.cpp` +
@@ -705,7 +718,9 @@ See `clang/test/Sema/ms-extern.c`.
   everything that has a test.  The first CI run is still the first time
   any of these tests executes, so treat "lit passes" as the milestone
   that turns the source-level claims below into verified ones.
-* armasm: `llvm/test/MC/ARM/wince-armasm.s` covers the directive subset
-  that `-masm=armasm` implements (see the armasm section).
+* armasm: `llvm/test/MC/ARM/wince-armasm.s` covers the structural
+  directives and `llvm/test/MC/ARM/wince-armasm-labels.s` the statement
+  and data syntax that `-masm=armasm` implements (see the armasm
+  section).
 * On-device testing remains outstanding (no WinCE device in the build
   environment); see the procedure notes formerly in `wince-crt/docs`.
