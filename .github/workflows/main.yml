@@ -58,7 +58,8 @@ jobs:
       - name: "Stage 1: build clang + lld + tools"
         run: |
           cmake --build build --target clang lld llvm-ar llvm-ranlib \
-            llvm-dlltool llvm-nm llvm-mc llvm-readobj llvm-objdump FileCheck
+            llvm-dlltool llvm-nm llvm-mc llvm-readobj llvm-objdump FileCheck \
+            split-file
 
       - name: "Stage 1: install (isolated prefix)"
         run: |
