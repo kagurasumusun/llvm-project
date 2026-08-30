@@ -549,6 +549,32 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
     break;
   }
 
+  case ARM::LDMIA_UPD:
+  case ARM::LDMIA_RET: {
+    // ARM-mode epilogue pop (pop {r4-r11, pc} / {r4-r11, lr}), the symmetric
+    // counterpart of the STMDB_UPD push.  Same register-list layout.
+    unsigned Mask = 0;
+    bool Wide = false;
+    for (unsigned i = 4, NumOps = MBBI->getNumOperands(); i != NumOps; ++i) {
+      const MachineOperand &MO = MBBI->getOperand(i);
+      if (!MO.isReg() || MO.isImplicit())
+        continue;
+      unsigned Reg = RegInfo->getSEHRegNum(MO.getReg());
+      if (Reg == 15)
+        Reg = 14;
+      if (Reg >= 8 && Reg <= 13)
+        Wide = true;
+      Mask |= 1 << Reg;
+    }
+    unsigned SEHOpc =
+        (Opc == ARM::LDMIA_RET) ? ARM::SEH_SaveRegs_Ret : ARM::SEH_SaveRegs;
+    MIB = BuildMI(MF, DL, TII.get(SEHOpc))
+              .addImm(Mask)
+              .addImm(Wide ? 1 : 0)
+              .setMIFlags(Flags);
+    break;
+  }
+
   case ARM::t2LDMIA_RET:
   case ARM::t2LDMIA_UPD:
   case ARM::t2STMDB_UPD: {
@@ -613,6 +639,25 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
               .setMIFlags(Flags);
     break;
   }
+  case ARM::SUBri:
+  case ARM::ADDri:
+    // ARM-mode SP adjustment (sub/add sp, sp, #imm): the immediate is in
+    // operand 2 and is already a byte count.  Only SP-relative adjustments
+    // describe stack allocation; a non-SP SUBri/ADDri computes an address,
+    // which is harmless for unwinding, so record it as a Nop (mirroring the
+    // Thumb-2 t2ADDri case).
+    if (MBBI->getOperand(0).getReg() == ARM::SP) {
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_StackAlloc))
+                .addImm(MBBI->getOperand(2).getImm())
+                .addImm(/*Wide=*/1)
+                .setMIFlags(Flags);
+    } else {
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_Nop))
+                .addImm(/*Wide=*/1)
+                .setMIFlags(Flags);
+    }
+    break;
+
   case ARM::tSUBspi:
   case ARM::tADDspi:
     MIB = BuildMI(MF, DL, TII.get(ARM::SEH_StackAlloc))
@@ -628,6 +673,25 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
               .addImm(MBBI->getOperand(2).getImm())
               .addImm(/*Wide=*/1)
               .setMIFlags(Flags);
+    break;
+
+  case ARM::MOVr:
+    // ARM-mode frame-pointer setup (mov r11, sp) / teardown (mov sp, r11).
+    if (MBBI->getOperand(1).getReg() == ARM::SP &&
+        (Flags & MachineInstr::FrameSetup)) {
+      unsigned Reg = RegInfo->getSEHRegNum(MBBI->getOperand(0).getReg());
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveSP))
+                .addImm(Reg)
+                .setMIFlags(Flags);
+    } else if (MBBI->getOperand(0).getReg() == ARM::SP &&
+               (Flags & MachineInstr::FrameDestroy)) {
+      unsigned Reg = RegInfo->getSEHRegNum(MBBI->getOperand(1).getReg());
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveSP))
+                .addImm(Reg)
+                .setMIFlags(Flags);
+    } else {
+      report_fatal_error("No SEH Opcode for MOVr");
+    }
     break;
 
   case ARM::tMOVr:
