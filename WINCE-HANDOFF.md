@@ -582,16 +582,16 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
 | `sx \|= 1`(Chunks.cpp:267) | CE は raw 値使用(convention) | OK |
 | `Baserel::getDefaultType` | machine 非依存(HIGHLOW/DIR64) | OK |
 | `machineFromStr`/`machineToStr`(WindowsMachineFlag.cpp) | armce ↔ 0x1c0 両方向済み | OK |
-| PDB の machine → CPUType(PDB.cpp:1352) | CE は未マップ(ARMNT → CPUType::ARMNT のみ)。ドライバ既定で PDB 非生成のため影響は /pdb 明示時のみ | **残課題(低)** |
+| PDB の machine → CPUType(PDB.cpp:1340) | CE は既存で `CPUType::ARM7` にマップ済み(確認済み・OK) | OK |
 | LTO `BitcodeFile::getMachineType`(InputFiles.cpp:1460) | CE 追加(本セッション) | 修正済み |
-| `getFileFormatName`(COFFImportFile.cpp:36) | CE は `<unknown arch>` フォールバック | 残課題(表示のみ・低) |
+| `getFileFormatName`(COFFImportFile.cpp:36) | CE 名を `"COFF-import-file-ARMCE"`(`machineToStr` の armce 表記に一致)として報告。`llvm-dlltool -m armce` 生成 import lib への表示対応 | 修正済み(`fb4d8843856b` + テスト `32d24c0ae710`) |
 
 ### 13.6 残課題(優先度順)
 
 1. **【最重要】Thumb セクションの奇数 RVA レイアウト**: CE の interworking では相対分岐(B/BL/T32)の mode bit がセクション RVA の偶奇に依存する(mingw-w64/ARM EABI の慣行: Thumb 専用セクションは odd VMA)。lld は現在セクションを偶数 RVA に配置するため、-mthumb 代码は(1) 相対分岐の mode bit を失う、(2) T1/T32 の range thunk が作れない(§13.4-3 の注記)。実装はセクション mode の判定(シンボル bit の集約)+ assignAddresses の配置変更で、単独の大きな作業。ARM mode 既定の CE 開発には影響しない(既定は ARM)。
 2. armasm Path B の残構文(§12.2: IF/ENDIF、MACRO/MEND、GBLA/SETA、DCFU 系、EQU 文字列/論理)。CI 緑化後。
 3. x86 CE の SEH 実装(B10 は診断のみ)。ARM 主対象方針どおり低優先。
-4. PDB 生成時の CE CPUType マッピング・`getFileFormatName` の CE 名(表示系・低)。
+4. ~~PDB 生成時の CE CPUType マッピング・`getFileFormatName` の CE 名~~ → 解決済み: CPUType は既存で ARM7 にマップ済み(§13.5 確認)、`getFileFormatName` は `fb4d8843856b` + テスト `32d24c0ae710` で対応。
 5. `.actions` と `.github/workflows/main.yml` の重複解消(ユーザー判断待ち)。
 6. ユーザー依存: mingwrt `5ed3cc4` の push(本 PAT は該リポに書込不可)。
 7. デバイス検証(未実施・デバイスなし。gweslab/cerf エミュ可能性は調査済)。
