@@ -18,6 +18,8 @@ declare void @llvm.localescape(...)
 declare ptr @llvm.eh.recoverfp(ptr, ptr)
 declare void @may_crash()
 declare void @use_fp(ptr)
+; The SEH personality runtime symbol used as the function personality.
+declare void @__C_specific_handler(...)
 
 ; Outlined SEH filter: (exception_pointers, frame_pointer).  recoverfp is a
 ; no-op here, so the incoming frame_pointer (r1) is used directly as the

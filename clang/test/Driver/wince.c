@@ -18,7 +18,7 @@
 // MSFLAGS: "-fms-compatibility"
 // MSFLAGS: "-fdelayed-template-parsing"
 // MSFLAGS: "-fms-compatibility-version=1900"
-// MSFLAGS: "-funwind-tables"
+// MSFLAGS: "-funwind-tables=2"
 // MSFLAGS: "-fgnu89-inline"
 
 /// WinCE predefined macros.  The default deployment is Windows Embedded CE
