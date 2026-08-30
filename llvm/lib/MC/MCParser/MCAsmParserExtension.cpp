@@ -28,7 +28,10 @@ bool MCAsmParserExtension::emitMasmLabel(MCSymbol *Sym, SMLoc Loc,
                                          StringRef /*Directive*/) {
   // The plain MASM-family reading: "name DCD 1" defines `name` right here.
   // (AsmParser has already made sure the following directive, if any, is one
-  // this extension registered.)
+  // this extension registered.)  A name that is already a defined symbol
+  // (armasm "name ENDP" after "name PROC") must not be emitted again.
+  if (Sym->isDefined())
+    return false;
   getParser().getTargetParser().doBeforeLabelEmit(Sym, Loc);
   getStreamer().emitLabel(Sym, Loc);
   getParser().getTargetParser().onLabelParsed(Sym);

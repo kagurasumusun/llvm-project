@@ -363,8 +363,14 @@ bool ARMCOFFMasmParser::parseDirectiveImport(StringRef Directive, SMLoc Loc) {
   auto *COFFSym = static_cast<MCSymbolCOFF *>(Sym);
   COFFSym->setExternal(true);
   // Unused IMPORTs must still appear in the COFF symbol table; otherwise
-  // llvm-readobj / the linker never see them.
+  // llvm-readobj / the linker never see them.  MCSA_Global registers the
+  // symbol; the .def/.scl/.type/.endef sequence is what gas .extern uses
+  // to force a COFF symbol-table row for an undefined external.
   getStreamer().emitSymbolAttribute(Sym, MCSA_Global);
+  getStreamer().beginCOFFSymbolDef(Sym);
+  getStreamer().emitCOFFSymbolStorageClass(COFF::IMAGE_SYM_CLASS_EXTERNAL);
+  getStreamer().emitCOFFSymbolType(0);
+  getStreamer().endCOFFSymbolDef();
   while (getLexer().isNot(AsmToken::EndOfStatement))
     Lex();
   return false;

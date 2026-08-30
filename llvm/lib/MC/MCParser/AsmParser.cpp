@@ -1760,9 +1760,20 @@ bool AsmParser::parseMasmLabelStatement(StringRef Name, SMLoc NameLoc,
 
   MCSymbol *Sym = getContext().parseSymbol(Name);
   MasmLabel = Sym;
-  if (MasmLabelExt->emitMasmLabel(Sym, NameLoc, Directive)) {
-    MasmLabel = nullptr;
-    return true;
+  // armasm writes "name ENDP" / "name EQU expr" with the name in front of
+  // the directive.  That name refers to an entity defined elsewhere (the
+  // open PROC, a symbolic constant), so it must not be emitted as a label
+  // here.  Do the skip in this function rather than only in the extension's
+  // emitMasmLabel(): Directive is a StringRef into a peekTok() temporary
+  // whose storage is not guaranteed to survive a virtual call.
+  bool SkipLabel = Directive.equals_insensitive("endp") ||
+                   Directive.equals_insensitive("endfunc") ||
+                   Directive.equals_insensitive("equ");
+  if (!SkipLabel) {
+    if (MasmLabelExt->emitMasmLabel(Sym, NameLoc, Directive)) {
+      MasmLabel = nullptr;
+      return true;
+    }
   }
 
   // A label standing alone on its line ends the statement here.
@@ -1970,9 +1981,15 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
 
   // Check for an assignment statement.
   //   ::= identifier '='
+  //   ::= identifier EQU expression   (armasm; only when that dialect is on)
   if (Lexer.is(AsmToken::Equal) && getTargetParser().equalIsAsmAssignment()) {
     Lex();
     return parseAssignment(IDVal, AssignmentKind::Equal);
+  }
+  if (MasmLabelExt && Lexer.is(AsmToken::Identifier) &&
+      getTok().getString().equals_insensitive("equ")) {
+    Lex();
+    return parseAssignment(IDVal, AssignmentKind::Set);
   }
 
   // If macros are enabled, check to see if this is a macro instantiation.
