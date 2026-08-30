@@ -76,7 +76,7 @@ jobs:
           echo "mold: $(mold --version)"
           echo "ccache: $(ccache --version | head -1)"
           echo "ninja: $(ninja --version)"
-          echo "nproc="$(nproc)"  mem="$(free -h | awk '/Mem/{print $2}')"
+          echo "nproc=$(nproc)  mem=$(free -h | awk '/Mem/{print $2}')"
 
       # -----------------------------------------------------------------
       # Caching (the speedup).  Keyed on the stable WinCE cache/config so a
