@@ -2024,14 +2024,26 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
   // below never reaches this.
   if (MasmLabelExt && !IDVal.empty() && !IDVal.starts_with(".") &&
       getTargetParser().isLabel(ID)) {
-    AsmToken Next = Lexer.peekTok();
+    // The identifier token has already been consumed; getTok() is the
+    // token *after* it.  peekTok() would look one further (the token
+    // after "PROC" / "SomeCEApi"), so "bl SomeCEApi" was treated as a
+    // lone label named "bl" (IsAlone via the following EndOfStatement)
+    // and "name PROC" as a lone label that then ate PROC with Lex().
+    const AsmToken &Next = getTok();
     bool IsNextDir = Next.is(AsmToken::Identifier) &&
                      lookupMasmDirective(Next.getIdentifier()).first;
     bool IsAlone = Next.is(AsmToken::EndOfStatement) || Next.is(AsmToken::Eof);
-    if (IsNextDir || IsAlone)
-      return parseMasmLabelStatement(
-          IDVal, IDLoc, IsNextDir ? Next.getIdentifier() : StringRef(), Info,
-          SI);
+    if (IsNextDir || IsAlone) {
+      // Copy: getIdentifier() is a StringRef into the token buffer and
+      // parseMasmLabelStatement may Lex() before using Directive.
+      std::string DirStorage;
+      StringRef Directive;
+      if (IsNextDir) {
+        DirStorage = Next.getIdentifier().str();
+        Directive = DirStorage;
+      }
+      return parseMasmLabelStatement(IDVal, IDLoc, Directive, Info, SI);
+    }
   }
 
   // Otherwise, we have a normal instruction or directive.

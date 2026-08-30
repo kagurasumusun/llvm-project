@@ -38,13 +38,12 @@
 
 armasm_fn:
         mov     r0, #1
+        bl      SomeCEApi
         bx      lr
-
-        AREA    |.rdata|, DATA, READONLY
-        DCD     SomeCEApi
 
         END
 
 @ CODE:      armasm_fn:
 @ CODE:      mov r0, #1
+@ CODE:      bl SomeCEApi
 @ CODE:      bx lr
