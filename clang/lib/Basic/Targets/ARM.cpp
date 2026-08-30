@@ -1541,6 +1541,9 @@ void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,
   // eMbedded Visual C++ / Platform Builder style arch macros.
   Builder.defineMacro("_ARM_");
   Builder.defineMacro("ARM");
+  // CeGCC wince-pe.h: builtin_define("_M_ARM=%d", arm_major_arch()).
+  // ARM926EJ-S (the toolchain default) is ARMv5TE -> 5; tracks -mcpu.
+  Builder.defineMacro("_M_ARM", Twine(getArchVersion()));
   if (Opts.MSVCCompat)
     getVisualStudioDefines(Opts, Builder);
 }
@@ -1554,9 +1557,7 @@ void WinCEARMTargetInfo::getVisualStudioDefines(const LangOptions &Opts,
          "invalid architecture for Windows CE target info");
   if (getTriple().getArch() == llvm::Triple::thumb)
     Builder.defineMacro("_M_ARMT", "_M_ARM");
-  Builder.defineMacro("_M_ARM",
-                      getTriple().getArchName().substr(
-                          getTriple().getArch() == llvm::Triple::arm ? 4 : 6));
+  Builder.defineMacro("_M_ARM", Twine(getArchVersion()));
   Builder.defineMacro("_M_IX86_FP", "0");
 }
 

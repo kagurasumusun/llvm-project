@@ -30,6 +30,7 @@
 // Macro definition order is not semantically meaningful, so the checks are
 // order-independent (DAG).  _M_ARM_NT must never appear (WinCE != Windows NT).
 // DEFINES-DAG: #define _ARM_ 1
+// DEFINES-DAG: #define _M_ARM 5
 // DEFINES-DAG: #define _WIN32_WCE 1536
 // DEFINES-DAG: #define UNDER_CE 1536
 // DEFINES-DAG: #define WINCE 1
