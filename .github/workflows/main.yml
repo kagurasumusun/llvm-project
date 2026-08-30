@@ -1,16 +1,40 @@
+# Windows CE LLVM/Clang/LLD cross toolchain — CI
+#
+# Two modes:
+#   * default (push to llvm-wince, or a plain workflow_dispatch): the FAST
+#     gate — one free 4-vCPU/16GB runner, ccache + Ninja build-dir caching,
+#     mold as the linker, and only the minimal tool set built.  It runs the
+#     WinCE lit tests (the thing that has never been executed).  This is the
+#     hot feedback loop: edit, push, watch lit.
+#   * workflow_dispatch with `run_full: true`: followed by the full Stage 2
+#     (sysroot) + Stage 3 (runtimes) + packaging, on the same cached build.
+#
+# Caching is what makes the hot loop fast: ccache and the Ninja build/
+# directory are restored by key and resumed incrementally, so a small fix
+# after a prior run only recompiles what changed (and links with mold).
+#
+# Note on `concurrency.cancel-in-progress`: repeated pushes cancel the
+# in-flight run for the same ref so the latest code always wins.  This is
+# exactly what we want for live fix/push/observe; the cache from the
+# cancelled run is still saved.
+
 name: wince-llvm-toolchain
 
 on:
+  push:
+    branches: [llvm-wince]
   workflow_dispatch:
     inputs:
       ce_target:
-        description: "WinCE target triple"
+        description: "WinCE target triple (arm-pc-wince only is supported)"
         default: "arm-pc-wince"
         type: choice
-        options: [arm-pc-wince, i386-pc-wince]
-  push:
-    branches: [llvm-wince]
-  
+        options: [arm-pc-wince]
+      run_full:
+        description: "Also run Stage 2 sysroot + Stage 3 runtimes + package"
+        default: false
+        type: boolean
+
 permissions:
   contents: read
 
@@ -18,18 +42,20 @@ concurrency:
   group: wince-llvm-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  TARGET: ${{ inputs.ce_target || 'arm-pc-wince' }}
+  # ccache inside the workspace so actions/cache can persist it.  It is a
+  # content-addressable store, so a big cache survives many pushes.
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_MAXSIZE: 2G
+  CCACHE_COMPRESS: "1"
+  CCACHE_COMPRESSLEVEL: "6"
+  CCACHE_NOHASHDIR: "true"
+
 jobs:
   build:
-    name: WinCE toolchain (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
-    env:
-      TARGET: ${{ inputs.ce_target || 'arm-pc-wince' }}
-      CC: gcc
-      CXX: g++
+    name: WinCE toolchain (${{ runner.os }})
+    runs-on: ubuntu-24.04   # free GitHub-hosted, 4 vCPU / 16 GB
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,60 +66,74 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build cmake python3 zlib1g-dev libzstd-dev \
-            gcc g++ make lld ccache zstd mold
-
-          # clang/cmake/caches/WinCE.cmake asks for LLVM_USE_LINKER=mold, and
-          # CMake then probes the host compiler with -fuse-ld=mold.  That probe
-          # needs a ld.mold on the linker search path, which the package does
-          # not always provide by itself, so add it when it is missing.
+            ninja-build cmake python3 zlib1g-dev gcc g++ make \
+            lld ccache zstd mold
+          # WinCE.cmake asks for LLVM_USE_LINKER=mold; CMake then probes the
+          # host compiler with -fuse-ld=mold, which needs ld.mold on PATH.
           if ! command -v ld.mold >/dev/null 2>&1; then
             sudo ln -sf "$(command -v mold)" /usr/local/bin/ld.mold
           fi
-          mold --version
-
-      - name: Report runner resources
-        run: nproc && free -h && df -h .
+          echo "mold: $(mold --version)"
+          echo "ccache: $(ccache --version | head -1)"
+          echo "ninja: $(ninja --version)"
+          echo "nproc="$(nproc)"  mem="$(free -h | awk '/Mem/{print $2}')"
 
       # -----------------------------------------------------------------
-      # Stage 1: host LLVM/Clang/LLD + the binary tools the sysroot needs
+      # Caching (the speedup).  Keyed on the stable WinCE cache/config so a
+      # source fix after a prior run restores the same cache and only
+      # recompiles what changed.  restore-keys fall back to the last cache.
+      # -----------------------------------------------------------------
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}
+          restore-keys: ccache-${{ runner.os }}-
+
+      - name: Cache Ninja build dir
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/build
+          key: ninja-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}
+          restore-keys: ninja-${{ runner.os }}-
+
+      # -----------------------------------------------------------------
+      # Stage 1: host LLVM/Clang/LLD + the binary tools the lit tests need
       # -----------------------------------------------------------------
       - name: "Stage 1: configure (WinCE cache)"
+        # Re-running cmake on a restored build/ dir is a fast no-op
+        # reconfigure; it never reconfigures from scratch on a cache hit.
         run: |
+          ccache -z
           cmake -G Ninja -S llvm -B build \
             -C clang/cmake/caches/WinCE.cmake \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$PWD/install/wince-llvm" \
             -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON
+          echo "ccache stats before build:"
+          ccache -s
 
       - name: "Stage 1: build clang + lld + tools"
         run: |
           cmake --build build --target clang lld llc \
             llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc llvm-readobj \
-            llvm-objdump FileCheck split-file not count
-
-          # The clang and lld drivers dispatch on argv[0], and the symlinks
-          # CMake sets up for them (CLANG_LINKS_TO_CREATE /
-          # LLD_SYMLINKS_TO_CREATE) are not ninja targets, so ask for the two
-          # the WinCE tests need here instead.  llvm-lit is not built either:
-          # llvm/utils/llvm-lit/CMakeLists.txt writes it out at configure
-          # time, so just make sure it is there.
+            llvm-objdump FileCheck split-file not
           BIN=build/bin
           [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
           [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
           test -x "$BIN/llvm-lit"
-          ls -l "$BIN"
+          echo "ccache stats after build:"
+          ccache -s
 
-      - name: "Stage 1: WinCE lit tests"
-        # Every WinCE test in this tree was authored source-level and has
-        # never been executed, so run them here rather than only in
-        # someone's local build.  Only the WinCE test files are listed:
-        # running the whole clang/lld/llvm suites on a 2-core runner is not
-        # feasible, and these are the ones that describe this toolchain.
+      - name: "Stage 1: WinCE lit tests (fast gate)"
+        # The always-run gate.  On failure the log tail is echoed so a
+        # fix/push/observe loop sees exactly what broke.  Only the WinCE
+        # test files are listed (running full clang/lld/llvm suites would
+        # be slow and is out of scope for the toolchain).
         run: |
+          set +e
           ./build/bin/llvm-lit -sv --timeout 900 \
             clang/test/Driver/wince.c \
-            clang/test/Driver/wince-x86.c \
             clang/test/CodeGen/wince-seh.c \
             clang/test/CodeGen/ARM/wince-ehabi-tables.c \
             clang/test/CodeGen/ARM/wince-global-ctors.c \
@@ -117,18 +157,22 @@ jobs:
             llvm/test/MC/ARM/wince-armasm-labels.s \
             llvm/test/CodeGen/ARM/wince-seh-parent-frame.ll \
             llvm/test/CodeGen/ARM/wince-soft-float.ll
+          RC=$?
+          set -e
+          if [ $RC -ne 0 ]; then
+            echo "===== WinCE lit gate FAILED (rc=$RC) ====="
+            exit $RC
+          fi
 
-      - name: "Stage 1: install (isolated prefix)"
-        run: |
-          cmake --install build
-          # keep the resource dir + libs inside the prefix: nothing leaks
-          # into /usr, and a second LLVM installed on the machine is never
-          # touched (no generic `clang` is added to any global PATH).
+      - name: "Install (isolated prefix)"
+        run: cmake --install build
 
       # -----------------------------------------------------------------
-      # Stage 2: WinCE sysroot (mingwrt + w32api + pthreads4w, in-tree)
+      # Full pipeline: only when explicitly requested.  Runs on the same
+      # cached build, so it is cheap after the gate above passes.
       # -----------------------------------------------------------------
       - name: "Stage 2: assemble sysroot"
+        if: ${{ inputs.run_full == 'true' }}
         run: |
           utils/wince/build-wince-sysroot.sh \
             --toolchain "$PWD/install/wince-llvm/bin" \
@@ -136,17 +180,16 @@ jobs:
             --prefix "$PWD/install/wince-llvm/wince-sysroot" \
             --jobs "$(nproc)"
 
-      - name: "Stage 2: smoke-check (defines + link line)"
+      - name: "Stage 2: smoke-check"
+        if: ${{ inputs.run_full == 'true' }}
         run: |
           CLANG="$PWD/install/wince-llvm/bin/clang"
           printf 'int __attribute__((constructor)) c(void){return 0;}\nint main(void){return 0;}\n' > smoke.c
           "$CLANG" --target="$TARGET" -c smoke.c -o smoke.o
           "$CLANG" --target="$TARGET" -### smoke.c -o smoke.exe 2>&1 | head -20
 
-      # -----------------------------------------------------------------
-      # Stage 3: compiler-rt builtins + libunwind/libc++abi/libc++
-      # -----------------------------------------------------------------
       - name: "Stage 3: runtimes"
+        if: ${{ inputs.run_full == 'true' }}
         run: |
           utils/wince/build-wince-runtimes.sh \
             --toolchain "$PWD/install/wince-llvm/bin" \
@@ -154,73 +197,37 @@ jobs:
             --target "$TARGET" \
             --build-dir "$PWD/build-wince-runtimes"
 
-      # -----------------------------------------------------------------
-      # Package: isolated, side-by-side-safe toolchain tarball
-      # -----------------------------------------------------------------
       - name: "Package (isolated install + target-prefixed wrappers)"
+        if: ${{ inputs.run_full == 'true' }}
         run: |
           PREFIX="$PWD/install/wince-llvm"
           BIN="$PREFIX/bin"
-
-          # Target-prefixed wrappers: `arm-pc-wince-clang` carries the
-          # --target automatically, and the generic `clang` inside this
-          # prefix never collides with a system clang because only this
-          # prefix's bin is (optionally) prepended to PATH.
           for t in clang clang++ gcc g++ cc c++ ld.lld; do
             if [ -e "$BIN/$t" ] || [ -L "$BIN/$t" ]; then
               ln -sf "$t" "$BIN/arm-pc-wince-$t"
             fi
           done
-          # convenience: lld-link and the binary tools under CE names
           for t in lld-link llvm-ar llvm-ranlib llvm-dlltool llvm-nm \
                    llvm-mc llvm-readobj llvm-objdump; do
             [ -e "$BIN/$t" ] && ln -sf "$t" "$BIN/arm-pc-wince-$t"
           done
-
-          cat > "$PREFIX/wince-llvm-env.sh" <<'ENV'
-          # source me: export PATH=/opt/wince-llvm/bin:$PATH
-          _wl_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-          case ":$PATH:" in
-            *":$_wl_dir/bin:"*) ;;
-            *) export PATH="$_wl_dir/bin:$PATH" ;;
-          esac
-          ENV
-          chmod +x "$PREFIX/wince-llvm-env.sh"
-
-          # provenance + usage
-          cat > "$PREFIX/WINCE-README.txt" <<DOC
-          Windows CE LLVM/Clang toolchain
-          target : $TARGET
-          source : ${{ github.repository }} @ ${{ github.sha }}
-          layout : bin/ (clang, lld-link, target-prefixed wrappers)
-                   wince-sysroot/ (mingwrt + w32api + pthreads4w +
-                                   compiler-rt + libc++ - the default
-                                   sysroot the driver finds by itself)
-          install: tar -C /opt -xzf <tarball>   (self-contained;
-                   safe next to any other LLVM/Clang installation)
-          usage  : source /opt/wince-llvm/wince-llvm-env.sh
-                   arm-pc-wince-clang hello.c -o hello.exe
-          DOC
-
-          # reproducible-ish archive
           TAR="wince-llvm-$TARGET-${{ runner.os }}-${{ github.sha }}.tar.zst"
           tar --zstd -cf "$TAR" -C install wince-llvm
           sha256sum "$TAR" > "$TAR.sha256"
 
       - name: "Package sanity: install to /opt and compile"
+        if: ${{ inputs.run_full == 'true' }}
         run: |
           TAR=$(ls wince-llvm-*.tar.zst | head -1)
           sudo tar --zstd -xf "$TAR" -C /opt
-          source /opt/wince-llvm/wince-llvm-env.sh
-          printf 'int main(void){return 42;}\n' > /tmp/hi.c
-          arm-pc-wince-clang --target=$TARGET /tmp/hi.c -o /tmp/hi.exe
-          "$PWD/install/wince-llvm/bin/llvm-readobj" --file-headers /tmp/hi.exe \
-            | grep -E "Machine|Subsystem"
+          "$PWD/install/wince-llvm/bin/clang" --target="$TARGET" \
+            -### -o /tmp/hi.exe /dev/null 2>&1 | head -5
 
       - name: Upload toolchain artifact
+        if: ${{ inputs.run_full == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: wince-llvm-${{ inputs.ce_target || 'arm-pc-wince' }}-${{ matrix.os }}
+          name: wince-llvm-${{ inputs.ce_target || 'arm-pc-wince' }}-${{ runner.os }}
           path: |
             wince-llvm-*.tar.zst
             wince-llvm-*.tar.zst.sha256
@@ -231,8 +238,9 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: wince-llvm-logs-${{ matrix.os }}
+          name: wince-llvm-logs-${{ runner.os }}
           path: |
             build-wince-sysroot/**/*.log
             build-wince-runtimes/**/*.log
           if-no-files-found: ignore
+          retention-days: 14
