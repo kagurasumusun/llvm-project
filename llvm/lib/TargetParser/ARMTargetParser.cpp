@@ -629,6 +629,30 @@ StringRef ARM::getARMCPUForArch(const llvm::Triple &Triple, StringRef MArch) {
   if (MArch.empty())
     return StringRef();
 
+  // Windows CE: the toolchain baseline is the ARMv5TE generation -
+  // ARM926EJ-S (e.g. the Freescale i.MX28 family), the dominant WinCE
+  // 5.0/6.0 SoC and the target eVC4/Platform Builder shipped for.  Force it
+  // here, before the generic getDefaultCPU() lookup: for a bare
+  // arm-pc-wince (or armv5te-pc-wince) triple that lookup would otherwise
+  // return the generic ARMv5TE default (arm1022e) and never reach the
+  // OS-specific default below.  An explicit -march=armv4t (older hardware)
+  // or -march=armv6+ still selects that generation's default CPU.
+  if (Triple.getOS() == Triple::WinCE) {
+    switch (ARM::parseArch(MArch)) {
+    case ARM::ArchKind::INVALID:
+      // Bare "arm" (no -march) canonicalizes to "arm" with no arch version.
+      if (MArch == "arm" || MArch.empty())
+        return "arm926ej-s";
+      break;
+    case ARM::ArchKind::ARMV5T:
+    case ARM::ArchKind::ARMV5TE:
+    case ARM::ArchKind::ARMV5TEJ:
+      return "arm926ej-s";
+    default:
+      break;
+    }
+  }
+
   StringRef CPU = llvm::ARM::getDefaultCPU(MArch);
   if (!CPU.empty() && CPU != "invalid")
     return CPU;
@@ -639,11 +663,8 @@ StringRef ARM::getARMCPUForArch(const llvm::Triple &Triple, StringRef MArch) {
   case llvm::Triple::Haiku:
     return "arm1176jzf-s";
   case llvm::Triple::WinCE:
-    // Windows CE: the toolchain baseline is the ARMv5TE generation -
-    // ARM926EJ-S (e.g. the Freescale i.MX28 family), the dominant
-    // WinCE 5.0/6.0 SoC and the target eVC4/Platform Builder shipped
-    // for.  Older ARMv4T hardware is selected explicitly with
-    // -march=armv4t.
+    // Fall through for a non-baseline ARMv4T/ARMv6+ -march on a WinCE triple;
+    // the ARMv5TE baseline is handled above.
     return "arm926ej-s";
   case llvm::Triple::NetBSD:
     switch (Triple.getEnvironment()) {
