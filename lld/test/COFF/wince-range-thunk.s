@@ -1,11 +1,14 @@
 // LLD COFF: Windows CE ARM branch range-extension thunk.
 //
-// A32 B/BL reach +/-32 MB (24-bit word-aligned offset from PC+8). When the
-// target ends up farther away than that (a large data section between the
-// two code sections), the linker must insert a CE range-extension thunk -
-// the binutils jmp_arm_bytes pair (ldr ip,[pc] / ldr pc,[ip], interworking
-// via bit 0 of the literal) - right after the caller's section, and
-// redirect the branch to it.
+// A32 B/BL reach +/-32 MB (24-bit word-aligned offset from PC+8). A large
+// uninitialized .bss gap between .text and .text2 forces the branch out of
+// range; the linker inserts an ARM-mode range-extension thunk after the
+// caller:
+//   ldr ip, [pc]
+//   bx  ip
+//   .word <target VA, bit 0 = Thumb>
+// The thunk is a single load of the target address plus bx (interworking).
+// Do not use the import-thunk pair ldr pc,[ip] -- that double-loads.
 
 // REQUIRES: arm-registered-target
 
@@ -13,25 +16,28 @@
 // RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 %t.obj
 // RUN: llvm-objdump -d --section=.text %t.exe | FileCheck %s
 
+	.syntax unified
+	.arm
 	.text
 	.globl main
 main:
 	bl	callee
 	bx	lr
 
-// 36 MB of padding forces the branch above out of A32 range.
-	.section .gap, "progbits"
-	.space 0x900000
+// 0x2200000 (> 32 MB) of BSS. Builtin section order is .text, .bss, ...
+// then newly created .text2, so the gap sits between caller and callee
+// in VA without bloating the object file.
+	.bss
+	.space	0x2200000
 
-	.section .text2, "progbits"
-	.globl callee
+	.section	.text2,"xr"
+	.globl	callee
 callee:
 	bx	lr
 
 // The BL is redirected to the range-extension thunk appended to .text
-// (right after main), which carries the jmp_arm_bytes pair and the
-// target's literal address.
+// (right after main). llvm-objdump prints ip as r12.
 // CHECK: bl
-// CHECK: bx.*lr
-// CHECK: ldr.*ip, \[pc
-// CHECK: ldr.*pc, \[ip\]
+// CHECK: bx{{.*}}lr
+// CHECK: ldr{{.*}}r12, [pc
+// CHECK: bx{{.*}}r12

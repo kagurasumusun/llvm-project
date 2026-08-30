@@ -730,6 +730,13 @@ void LinkerDriver::setMachine(MachineTypes machine) {
 
   ctx.config.machine = machine;
 
+  // IMAGE_FILE_MACHINE_ARM (0x1c0) is Windows CE ARM; desktop ARM is
+  // ARMNT (0x1c4). Infer CE image mode so pdata compaction, ctor/dtor
+  // brackets and exidx bounds apply to raw lld-link of CE objects even
+  // when the clang driver did not pass -wince.
+  if (machine == IMAGE_FILE_MACHINE_ARM)
+    ctx.config.wince = true;
+
   if (!isArm64EC(machine)) {
     ctx.symtab.machine = machine;
   } else {

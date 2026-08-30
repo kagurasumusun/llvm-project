@@ -437,11 +437,10 @@ bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
       return true;
     }
   } else if (machine == IMAGE_FILE_MACHINE_ARM) {
-    // Windows CE ARM (interworking). A32 B/BL: 24-bit word-aligned offset
-    // from PC+8, i.e. |s - (p + 8)| < 2^25 - see applyBranch24A. Only
-    // A32 branch callers are thunked (see RangeExtensionThunkARMCE);
-    // Thumb branch callers keep the existing out-of-range error from
-    // SectionChunk::applyRelARM until Thumb sections get odd RVAs.
+    // Windows CE ARM (interworking). A32 B/BL/BLX: 24-bit word-aligned
+    // offset from PC+8, i.e. |s - (p + 8)| < 2^25 - see applyBranch24A.
+    // Only A32 BRANCH24 callers are thunked (RangeExtensionThunkARMCE).
+    // Thumb BRANCH24T/BLX23T/BRANCH20T are not range-extended yet.
     int64_t diff = AbsoluteDifference(s, p + 8) + margin;
     switch (relType) {
     case IMAGE_REL_ARM_BRANCH24:

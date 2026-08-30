@@ -214,11 +214,19 @@ static void applyMOV32A(uint8_t *off, uint32_t v) {
 static void applyBranch24A(uint8_t *off, int32_t v) {
   uint32_t instr = read32le(off);
   bool isBlx = (instr & 0xFE000000u) == 0xFA000000u;
+  if (isBlx && (v & 1) == 0) {
+    // ARM destination. BLX imm cannot encode an ARM target; this happens
+    // when a far BLX is redirected to a CE range-extension thunk (ARM
+    // mode, even address). Rewrite to BL (AL) and let the thunk
+    // interwork via bx.
+    if (!isInt<26>(v))
+      error("relocation out of range");
+    write32le(off, 0xEB000000u | ((v >> 2) & 0x00FFFFFFu));
+    return;
+  }
   if (isBlx) {
     // BLX imm: target = align(PC+8+imm24*4, 4) + (H << 1).  v bit 0 marks
     // the Thumb destination; bit 1 selects H.
-    if ((v & 1) == 0)
-      error("BLX relocation with non-Thumb target");
     if (!isInt<26>(v & ~3))
       error("relocation out of range");
     uint32_t h = (v >> 1) & 1;
@@ -985,16 +993,18 @@ const uint8_t arm64Thunk[] = {
 
 size_t RangeExtensionThunkARM64::getSize() const { return sizeof(arm64Thunk); }
 
-// Windows CE ARM range-extension stub, the binutils jmp_arm_bytes pair
-// (same encoding as importThunkARMCE): ldr pc, [ip] transfers control in
-// the target's code mode (bit 0 of the loaded address) on ARMv5T+ and a
-// plain jump on ARMv4, matching the arm-wince reference behavior. The
-// literal holds the target's absolute address (RVA + image base); on
-// non-fixed images the HIGHLOW base relocation from getBaserels fixes it
-// up. The caller's lr is untouched, so a call (BL) returns as usual.
+// Windows CE ARM range-extension stub. The import thunk (jmp_arm_bytes)
+// does ldr ip,[pc] / ldr pc,[ip] because its literal is the *address of
+// the IAT slot*. A range thunk's literal is the target VA itself, so the
+// second instruction must be a register branch, not a load-through:
+//   ldr ip, [pc]     ; ip = target VA (bit 0 = Thumb)
+//   bx  ip           ; interworking on ARMv4T+ (CE baseline is ARMv5TE)
+//   .word target
+// bx leaves lr untouched, so a BL through the thunk returns as usual.
+// HIGHLOW at +8 relocates the literal on non-fixed images.
 const uint8_t rangeExtThunkARMCE[] = {
     0x00, 0xc0, 0x9f, 0xe5, // ldr ip, [pc]
-    0x00, 0xf0, 0x9c, 0xe5, // ldr pc, [ip]
+    0x1c, 0xff, 0x2f, 0xe1, // bx ip
 };
 
 void RangeExtensionThunkARMCE::writeTo(uint8_t *buf) const {

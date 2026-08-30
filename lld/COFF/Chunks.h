@@ -707,25 +707,22 @@ private:
 // Windows CE ARM (IMAGE_FILE_MACHINE_ARM) range-extension thunk.
 //
 // Unlike RangeExtensionThunkARM (Thumb-2 movw/movt, non-interworking), the
-// CE baseline (ARMv4T/ARMv5TE, e.g. arm926ej-s) has no movw/movt, and CE
-// images interwork between ARM and Thumb code. The stub uses the binutils
-// jmp_arm_bytes pair (same as importThunkARMCE), which loads the target's
-// absolute address from a literal and branches through it, with bit 0 of
-// the loaded address selecting the target's code mode (the CE
-// interworking convention; Thumb function symbols carry bit 0 set, see
-// WinCOFFObjectWriter):
+// CE baseline (ARMv5TE, e.g. arm926ej-s) has no movw/movt, and CE images
+// interwork between ARM and Thumb code. The stub loads the target VA from
+// a literal and bx's to it; bit 0 of the literal selects the target's
+// code mode (Thumb function symbols carry bit 0, see WinCOFFObjectWriter):
 //
 //   ldr  ip, [pc]        ; literal at stub + 8
-//   ldr  pc, [ip]
+//   bx   ip              ; interworking (do not ldr pc,[ip] -- that is the
+//                        ; import-thunk double-indirection through the IAT)
 //   <literal: target VA (RVA + image base, bit 0 = Thumb)>
 //
 // The caller's lr is left untouched, so a call (BL) returns through the
 // callee as usual. Only A32 branch callers are thunked: the stub sits at a
 // 4-byte aligned (even) address, so a BL/BLX from ARM-mode code reaches it
-// in ARM mode. Out-of-range branches from Thumb-mode callers (T1/T32) are
-// not thunked yet - they need the section layout to place Thumb code at
-// odd RVAs so that relative-branch target bits come out right; until then
-// they fail with the existing "relocation out of range" error.
+// in ARM mode. Out-of-range Thumb-mode callers (T1/T32) are not thunked
+// yet and still fail with "relocation out of range". PE section RVAs are
+// page-aligned, so "odd section VMA" (ELF interworking) does not apply.
 class RangeExtensionThunkARMCE : public NonSectionCodeChunk {
 public:
   explicit RangeExtensionThunkARMCE(COFFLinkerContext &ctx, Defined *t)
