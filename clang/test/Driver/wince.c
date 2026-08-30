@@ -27,11 +27,13 @@
 /// 6.0 (0x600 == 1536).
 // RUN: %clang -target arm-pc-wince -E -dM %s -o - 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=DEFINES
-// DEFINES: #define _ARM_ 1
-// DEFINES: #define _WIN32_WCE 1536
-// DEFINES: #define UNDER_CE 1536
-// DEFINES: #define WINCE 1
-// DEFINES: #define __MINGW32CE__ 1
+// Macro definition order is not semantically meaningful, so the checks are
+// order-independent (DAG).  _M_ARM_NT must never appear (WinCE != Windows NT).
+// DEFINES-DAG: #define _ARM_ 1
+// DEFINES-DAG: #define _WIN32_WCE 1536
+// DEFINES-DAG: #define UNDER_CE 1536
+// DEFINES-DAG: #define WINCE 1
+// DEFINES-DAG: #define __MINGW32CE__ 1
 // DEFINES-NOT: #define _M_ARM_NT
 
 /// WinCE version from the triple feeds _WIN32_WCE (0x500 == 1280).
