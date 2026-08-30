@@ -1639,6 +1639,12 @@ def : Pat<(ARMWrapperPIC tglobaltlsaddr:$addr),
 def : Pat<(ARMWrapper tglobaltlsaddr:$addr),
           (tLDRLIT_ga_abs tglobaltlsaddr:$addr)>,
       Requires<[IsThumb, DontUseMovt]>;
+// llvm.localrecover materializes a frame-escape ExternalSymbol via
+// ARMISD::Wrapper; without this, Thumb WinCE (no movw/movt) cannot
+// select it (clang -S of SEH filters).
+def : Pat<(ARMWrapper texternalsym:$dst),
+          (tLDRLIT_ga_abs texternalsym:$dst)>,
+      Requires<[IsThumb, DontUseMovt]>;
 
 
 // JumpTable

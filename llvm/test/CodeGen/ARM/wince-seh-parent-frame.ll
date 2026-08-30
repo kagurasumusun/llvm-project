@@ -37,8 +37,7 @@ entry:
 ; ARM5-LABEL: {{.*}}filt{{\$}}0@0@alloc_func@@
 ; ARM5-NOT: bl
 ; ARM5: ldr r[[O:[0-9]+]], .LCPI{{[0-9]+}}_{{[0-9]+}}
-; ARM5-NEXT: add r[[A:[0-9]+]], r1, r[[O]]
-; ARM5-NEXT: ldr r0, [r[[A]]]
+; ARM5-NEXT: ldr r{{[0-9]+}}, [r1, r[[O]]]
 ; ARM5: .long .Lalloc_func$frame_escape_0
 
 ; Thumb-2 uses movw/movt for the same symbol.
@@ -74,13 +73,12 @@ catch:
 ; llvm.localaddress.  The frame-size assignment is emitted just before the
 ; function label (inside the CE handler-data emission); the literal pool
 ; holds the symbol for ARMv5.
-; ARM5: .set .Lalloc_func$parent_frame_offset, {{[0-9]+}}
+; ARM5: .Lalloc_func$parent_frame_offset = {{[0-9]+}}
 ; ARM5-LABEL: alloc_func:
-; ARM5: .set .Lalloc_func$frame_escape_0, {{-?[0-9]+}}
-; ARM5: .long .Lalloc_func$parent_frame_offset
+; ARM5: .Lalloc_func$frame_escape_0 = {{-?[0-9]+}}
 
-; T2: .set .Lalloc_func$parent_frame_offset, {{[0-9]+}}
+; T2: .Lalloc_func$parent_frame_offset = {{[0-9]+}}
 ; T2-LABEL: alloc_func:
-; T2: .set .Lalloc_func$frame_escape_0, {{-?[0-9]+}}
+; T2: .Lalloc_func$frame_escape_0 = {{-?[0-9]+}}
 ; T2: movw r{{[0-9]+}}, :lower16:.Lalloc_func$parent_frame_offset
 ; T2: movt r{{[0-9]+}}, :upper16:.Lalloc_func$parent_frame_offset

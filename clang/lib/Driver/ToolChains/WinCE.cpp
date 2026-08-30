@@ -17,6 +17,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/TargetParser/Host.h"
+#include <string>
 
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
@@ -495,21 +496,15 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // --- Inputs (objects, archives, reserved C++ stdlib marker) --------------
   for (const auto &II : Inputs) {
-    if (II.isNothing())
+    if (!II.isFilename())
       continue;
-    if (II.isFilename()) {
-      CmdArgs.push_back(II.getFilename());
-      continue;
-    }
-    const Arg &A = II.getInputArg();
-    if (A.getOption().matches(options::OPT_Z_reserved_lib_stdcxx))
-      TC.AddCXXStdlibLibArgs(Args, CmdArgs);
-    else
-      A.renderAsInput(Args, CmdArgs);
+    CmdArgs.push_back(II.getFilename());
   }
 
-  const char *Exec = Args.MakeArgString(
-      TC.GetProgramPath("lld-link"));
+  std::string LinkerPath = TC.GetProgramPath("lld-link");
+  if (LinkerPath.empty())
+    LinkerPath = "lld-link";
+  const char *Exec = Args.MakeArgString(LinkerPath);
   C.addCommand(std::make_unique<Command>(JA, *this,
                                          ResponseFileSupport::AtFileUTF8(),
                                          Exec, CmdArgs, Inputs, Output));

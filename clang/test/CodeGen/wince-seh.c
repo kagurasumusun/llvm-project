@@ -29,7 +29,7 @@ int catch_all(void) {
 
 // CHECK-LABEL: define dso_local arm_aapcscc i32 @catch_all()
 // CHECK-SAME: personality ptr @__C_specific_handler
-// CHECK: invoke void @might_crash()
+// CHECK: invoke {{.*}}void @might_crash()
 // CHECK: catchpad within {{.*}} [ptr null]
 // CHECK: catchret
 
@@ -80,7 +80,7 @@ void finally_basic(void) {
 
 // The parent calls the outlined finally with (abnormal_termination, FP) on
 // both paths; FP comes from llvm.localaddress on the normal path.
-// CHECK-LABEL: define dso_local void @finally_basic()
+// CHECK-LABEL: define dso_local {{.*}}void @finally_basic()
 // CHECK: call ptr @llvm.localaddress()
 // CHECK: call void @__fin_finally_basic({{i8 noundef( zeroext)?}} 0, ptr noundef %{{.*}})
 // CHECK: define internal void @__fin_finally_basic

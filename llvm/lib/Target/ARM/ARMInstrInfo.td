@@ -6216,6 +6216,11 @@ def : ARMPat<(ARMWrapper texternalsym :$dst), (MOVi32imm texternalsym :$dst)>,
 // materialize frame-escape symbol values (WinCE SEH parent-frame support).
 def : ARMPat<(ARMWrapper texternalsym :$dst), (LDRLIT_ga_abs texternalsym :$dst)>,
             Requires<[IsARM, DontUseMovt]>;
+// Fallback without DontUseMovt: some clang -S paths (C++ EH + SEH filters)
+// leave both UseMovt and DontUseMovt false and otherwise cannot select
+// ARMISD::Wrapper of a frame-escape ExternalSymbol.
+def : Pat<(ARMWrapper texternalsym:$dst), (LDRLIT_ga_abs texternalsym:$dst)>,
+      Requires<[IsARM]>;
 def : ARMPat<(ARMWrapperJT tjumptable:$dst),
              (LEApcrelJT tjumptable:$dst)>;
 
