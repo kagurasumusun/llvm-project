@@ -9,7 +9,6 @@
 	.arm
 	.text
 	.globl	armfn
-	.type	armfn, %function
 armfn:
 	bl	ext
 	blx	thumbext
@@ -20,7 +19,6 @@ armfn:
 
 	.thumb
 	.globl	thumbfn
-	.type	thumbfn, %function
 thumbfn:
 	bl	thumbext2
 	blx	armext2

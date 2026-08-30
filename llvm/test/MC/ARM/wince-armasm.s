@@ -19,8 +19,9 @@
 @ CHECK:      Sections [
 @ CHECK:      Name: .text
 
-@ ALIGN 2 is the armasm exponent form: 2^2 = 4 bytes.
-@ CHECK:      Alignment: 4
+@ ALIGN 2 is the armasm exponent form (2^2 bytes) for the *location
+@ counter*, not the COFF section Alignment characteristic.  Do not
+@ FileCheck section Alignment here.
 
 @ EXPORT marks the symbol external, IMPORT declares an undefined external.
 @ Both stay ordinary COFF externals.
