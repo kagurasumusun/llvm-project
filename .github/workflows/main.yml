@@ -66,9 +66,21 @@ jobs:
 
       - name: "Stage 1: build clang + lld + tools"
         run: |
-          cmake --build build --target clang clang-cl lld lld-link llc \
+          cmake --build build --target clang lld llc \
             llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc llvm-readobj \
-            llvm-objdump llvm-lit FileCheck split-file not count
+            llvm-objdump FileCheck split-file not count
+
+          # The clang and lld drivers dispatch on argv[0], and the symlinks
+          # CMake sets up for them (CLANG_LINKS_TO_CREATE /
+          # LLD_SYMLINKS_TO_CREATE) are not ninja targets, so ask for the two
+          # the WinCE tests need here instead.  llvm-lit is not built either:
+          # llvm/utils/llvm-lit/CMakeLists.txt writes it out at configure
+          # time, so just make sure it is there.
+          BIN=build/bin
+          [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
+          [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
+          test -x "$BIN/llvm-lit"
+          ls -l "$BIN"
 
       - name: "Stage 1: WinCE lit tests"
         # Every WinCE test in this tree was authored source-level and has
