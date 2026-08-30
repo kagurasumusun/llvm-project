@@ -1,13 +1,16 @@
 # Windows CE × LLVM/Clang ツールチェーン — 完全引き継ぎ資料 (HANDOFF)
 
-> 最終更新: 2026-08-30 (Phase 2) / ブランチ: `llvm-wince` / HEAD: `23644c7075`
+> 最終更新: 2026-08-30 (Phase 3) / ブランチ: `llvm-wince` / HEAD: 参照 §13
 >
 > **NOTE (2026-08-30):** §6.1 was rewritten and §11 added during Phase 2.
 > Everything dated before that describes an older tree: the
 > `EncodingType::CE` triple emitter in `MCWin64EH.cpp` mentioned there was
 > **removed** (`84aec8c1`), `EmitCE()` no longer exists, and ARM SEH is
 > implemented through a completely different (per-function) route.  Read
-> §11 first, then the rest.
+> §11 first, then the rest. **Read §13 (Phase 3: external review fixes)
+> before acting on anything else in this file** — it supersedes the
+> "stage-1 CI build now succeeds" claim that propagated into
+> WINCE-WINEH-STATUS.md and fixes several lld/COFF gaps.
 > この文書はセッション引き継ぎ用。後続のエージェントまたは人間が**この文書 alone で**作業を継続できることを目標に書かれている。
 
 ---
@@ -17,7 +20,8 @@
 - **目的**: `kagurasumusun/llvm-project`(LLVM 22.1.8ベースのフォーク)を、**Windows CE (CE 6.0中心、5.0/4.x/3.0/2.xまで設定で対応) の完全なクロス開発ツールチェーン**にすること。
 - **方針**: 独自ランタイムは作らない。**kagurasumusun/mingwrt + kagurasumusun/w32api(CeGCC系)+ pthreads4w を in-tree ベンダーし、それぞれ自身の configure/make で clang を使ってビルドする**。LLVM/Clang/LLD 側の改修は「正規の機構」として in-tree で行う。
 - **現状**: アプリ/ドライバ/OAL 開発に必要な一式はほぼ実装済み・検証済み(下記)。OS イメージ(sysgen/makeimg/BIB)のビルド基盤は **AE600 ソース(ユーザー手元)が前提**で、実装計画は確定済み・未実装。
-- **直近のブロッカー**: ユーザーの GitHub private リポ `kagurasumusun/wince-source` に**トークンからアクセスできない**(404)。トークンへのリポ追加待ち。ARM32 WinEH (SEH) 実装の参考ソースがそこにある。
+- **直近のブロッカー(解消済み・2026-08-30)**: `kagurasumusun/wince-source` への**トークンアクセスが復帰**(200 OK 確認、ce600 完整ソース 145,461 ファイル参照可能)。代替だった §4g 検証(実バイナリ .pdata の解析)と WINEH-ABI-FACTS.md §4d–4g の対照がそのまま有効。旧ブロッカーの残タスクは §6.1。
+- **現在のブロッカー(Phase 3 着手時点)**: Stage 1 CI が全 5 ラン失敗中。失敗の進行は §13.2、直前に潰した原因は TableGen 検査(診断メッセージの大文字始まり、`warn_drv_wince_sysroot_missing`)。外部レビューで lld/COFF の P0/P1 不備が指摘され、§13 で修正・記録した(いずれも**ソースレベル修正で、CI による初回検証待ち**)。
 
 ---
 
@@ -515,3 +519,86 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
   armasm 時のみ・直後が有効な数字のときだけ数値として読む。
 * `DCFS` の単精度変換は `APFloat::convert()` に依存。`DCFD` は
   `AsmParser` が既に double で読むのでそのまま 8 バイト書くだけで正しい。
+
+## 13. Phase 3 (2026-08-30): 外部レビュー対応・lld/COFF の CE machine 整備
+
+### 13.1 背景
+
+実装コード・テストを横断して追った外部レビューが提出され、`IMAGE_FILE_MACHINE_ARM`(CE 専用)が lld/COFF・llvm の各 dispatch で ARMNT と同列に扱えていない箇所が P0/P1 で列挙された。各項目は HEAD ソースで逐一検証し、同意・一部同意を区分して対応した(判定は §13.3)。**本節の全修正はソースレベルで、ビルド・lit 実行は CI が初回検証者**(§13.7)。
+
+### 13.2 CI 失敗の進行(2026-08-29 23:54 → 08-30 00:44、全 5 ラン failure)
+
+| # | 失敗点 | 修正 |
+|---|---|---|
+| 1 | configure: ccache 未導入 | `7fdc653522`(workflow に導入を追加) |
+| 2 | configure: mold 未導入(WinCE.cmake が要求) | `e064a67c4c` |
+| 3 | build: `ninja: unknown target 'clang-cl'`(シンボリックリンクは ninja ターゲットでない) | `86a67bce24` |
+| 4 | build: `ARMCOFFMasmParser.cpp:327 StringRef::equals` + `AsmParser.cpp:1732 ExtensionDirectiveHandler`(両方 HEAD で修正済みとソース確認) | `6b5cc2feb0` |
+| 5 | build: **clang-tblgen** `DiagnosticDriverKinds.td:518: Diagnostics should not start with a capital letter; 'Windows' is invalid` | **本セッション**(§13.4-1) |
+
+5 が唯一の現行ブロッカー: `warn_drv_wince_sysroot_missing` のメッセージが大文字 W 始まり。fork 追加診断 3 件中唯一の違反(残 2 件は `'` 始まり)。lit テストにこの文言の FileCheck 依存なし(確認済み)→ 文言の小文字化のみで安全。**ninja は初回失敗で停止するため、背後に潜在エラーが残る可能性は排除できない**(CI で再確認する)。
+
+### 13.3 レビュー項目の判定(全て HEAD ソースで確認)
+
+| 項目 | 判定 | 根拠(ファイル:行) |
+|---|---|---|
+| P0 LTO: bitcode → ARMNT 固定 | **同意・修正** | `BitcodeFile::getMachineType`(InputFiles.cpp:1460)が arm/thumb → ARMNT 固定。aarch64 は OS 判定があるのに arm だけなかった |
+| P0 CE long-branch thunk 欠如 | **同意・一部修正** | `isInRange`(Writer.cpp:426)は ARMNT/arm64 のみ、`finalizeAddresses`(:666)で CE は早期 return、`getThunk`(:458)は arch switch のみ。apply 側は範囲外で `error("relocation out of range")`(Chunks.cpp:222-255)。既存 `armThunk` は **Thumb-2 の movw/movt + `add pc,ip`** で CE 既定(ARMv5TE)に流用不可 → 新規 CE スタブ実装。**ただし Thumb 側(T1/T32)caller の thunk は未対応**(§13.6-1) |
+| P0 PE entry の Thumb bit | **一部同意・テスト固定** | 誤解を解く必要がある: CE は「シンボル値が bit0 を持つ」convention(WinCOFFObjectWriter.cpp:426-429 が CE のみ `Local->Data.Value \|= 1`)で、`DefinedCOFF::getRVA() = sectionRVA + sym->Value`(Symbols.h:225)が bit を保持 → **通常オブジェクトの entry/export は現状のコードで正しく odd/even になる**。ARMNT の `|= 1` は「値は plain(全関数 Thumb)」convention への補正。CE に無条件 `|= 1` を足すと ARM entry を壊す → 修正はしない。代わりに convention をテストで固定(wince-thumb-bit.s)。残る穴: リンカ合成シンボル / 未マークの asm entry(bit 欠落の余地) |
+| P0 export の Thumb bit | **一部同意・テスト固定** | 同上(DLL.cpp:659-666、CE では `bit=0` の no-op で値がそのまま書かれる) |
+| P1 import library に CE 欠如 | **同意・修正** | `getImgRelRelocation`(COFFImportFile.cpp:122)に `IMAGE_FILE_MACHINE_ARM` 無し → llvm_unreachable。llvm-dlltool `-m armce` は 0x1c0 を書く(WindowsMachineFlag.cpp:32)→ 読み込み時にクラッシュした経路 |
+| P1 delay-load に CE 欠如 | **同意・診断化** | `newThunkChunk`/`newTailMergeChunk`(DLL.cpp:1071/1040)に ARM 無し → llvm_unreachable。**stub 実装はしない**: CE ローダーに delay-import 機構(delay-load helper / VEH 解決)が無いため、実装してもデバイスで動かない。`llvm_unreachable` → 明示 Fatal(診断)|
+| P1 `.pdata` compact 化の 16-byte 前提 | **同意(維持・文書化)** | `sortCEExceptionTable`(Writer.cpp)は `total % 16 != 0` で**すでに Fatal**(黙って壊さない)。LLVM 自己生成の intermediate 以外の 8-byte CE pdata(手書き asm / 他ツール)を受け入れると in-place compact が壊れる → **閉ループ前提を維持**し、LLVM→LLVM で閉じる。on-disk は 16-byte stride のまま(末尾ゼロ)+ PE ディレクトリ長を 8*N にする設計(writeHeader)は維持 |
+| P1 pdata reloc は改善済み | **同意** | B2/B3/B4 修正済み、wince-pdata.test が固定 |
+| P1 EHABI/SEH 併存の限定性 | **同意(設計どおり)** | `functionUsesWinCFI`(ARMWinCFI.h)は MSVC_TableSEH/X86SEH の personality のみ。ターゲット横断で EHABI を切ると既存動作が壊れる(§4c 検証済)ため per-function gate が唯一安全。funclet なし SEH / 手書き asm SEH は未サポート(実装コメントで明記) |
+| P1 ARM/Thumb interworking 的不備 | **同意・未対応(依存あり)** | entry/export/relocation は符号値 convention で一貫するが、**相対分岐の mode bit はセクション RVA の偶奇に依存**する。lld はセクションを偶数 RVA に配置するため、**Thumb セクションを奇数 RVA に配置するレイアウトが未実装**。これが無い限り -mthumb 代码の相対分岐は mode bit を失う(§13.6-1 で最重要残課題) |
+| P2 x86 CE | **同意** | TargetInfo + driver のみ、CE 特化 linker/runtime 経路は ARM 中心。現状は ARM WinCE が主対象という認識で正しい |
+| P2 machine dispatch の全探索 | **同意・実施** | §13.5 |
+
+### 13.4 本セッションの修正(commit 単位)
+
+1. `[clang]` 診断メッセージの小文字化(CI ブロッカー)
+2. `[lld][COFF]` LTO bitcode を `IMAGE_FILE_MACHINE_ARM` に判定(CE-aware)+ import library の `getImgRelRelocation` に CE 追加(同 concern で 1 commit)
+3. `[lld][COFF]` CE 用の branch range-extension thunk: `RangeExtensionThunkARMCE`(jmp_arm_bytes 系 `ldr ip,[pc]`/`ldr pc,[ip]` + 絶対アドレス literal + HIGHLOW baserel、12 バイト、4-byte align)。**A32 caller(BRANCH24)のみ対象**: スタブは偶数地址に置かれ ARM mode で到達可能。`isInRange`/`finalizeAddresses`/`getThunk` に CE 分岐追加。テスト: `wince-range-thunk.s`(36MB の data セクションで A32 の ±32MB 範囲を外す)
+4. `[lld][COFF]` entry/export の Thumb bit convention を固定するテスト: `wince-thumb-bit.s`(.thumb_func 関数の entry → odd RVA、ARM 関数 → even RVA、export 表も同じ)
+5. `[lld][COFF]` CE で /delayload を指定したら明示 Fatal(llvm_unreachable 脱却)
+6. `[CI]` 上記 2 テストを main.yml の lit 一覧に追加
+
+### 13.5 machine dispatch 監査(ARMNT / isAnyArm64 の各 dispatch を CE 観点で判定)
+
+| 箇所 | CE での挙動 | 判定 |
+|---|---|---|
+| `isInRange`(Writer.cpp:426) | CE 分岐を追加(本セッション) | 修正済み |
+| `finalizeAddresses`(:666) | CE を対象に追加(本セッション) | 修正済み |
+| `getThunk`(:458) | CE → 新規スタブ(本セッション) | 修正済み |
+| entry point `|= 1`(:1929) | CE は符号値 convention で不要(ARM entry を壊す) | 維持 + テスト固定 |
+| export `bit=1`(DLL.cpp:659) | 同上 | 維持 + テスト固定 |
+| import thunk 選択(InputFiles.cpp:1237) | CE 分岐既存(ImportThunkChunkARMCE) | OK |
+| `getImgRelRelocation`(COFFImportFile.cpp:122) | CE 追加(本セッション) | 修正済み |
+| delay-load(DLL.cpp:1040/1071) | 明示 Fatal(本セッション) | 診断化 |
+| `DelayAddressChunk::writeTo`(DLL.cpp:588) | CE の thunk は偶数地址 → bit 0 で正しい。CE delay-load はそもそも Fatal | 維持 |
+| `/dynamicbase:no` 拒否(Driver.cpp:2434) | ARMNT/arm64 限定。CE は fixed base が正規 → **追加しない** | 維持 |
+| `sortExceptionTables`(Writer.cpp:2882) | CE はその前の `config.wince` 分岐で return | OK |
+| `sx \|= 1`(Chunks.cpp:267) | CE は raw 値使用(convention) | OK |
+| `Baserel::getDefaultType` | machine 非依存(HIGHLOW/DIR64) | OK |
+| `machineFromStr`/`machineToStr`(WindowsMachineFlag.cpp) | armce ↔ 0x1c0 両方向済み | OK |
+| PDB の machine → CPUType(PDB.cpp:1352) | CE は未マップ(ARMNT → CPUType::ARMNT のみ)。ドライバ既定で PDB 非生成のため影響は /pdb 明示時のみ | **残課題(低)** |
+| LTO `BitcodeFile::getMachineType`(InputFiles.cpp:1460) | CE 追加(本セッション) | 修正済み |
+| `getFileFormatName`(COFFImportFile.cpp:36) | CE は `<unknown arch>` フォールバック | 残課題(表示のみ・低) |
+
+### 13.6 残課題(優先度順)
+
+1. **【最重要】Thumb セクションの奇数 RVA レイアウト**: CE の interworking では相対分岐(B/BL/T32)の mode bit がセクション RVA の偶奇に依存する(mingw-w64/ARM EABI の慣行: Thumb 専用セクションは odd VMA)。lld は現在セクションを偶数 RVA に配置するため、-mthumb 代码は(1) 相対分岐の mode bit を失う、(2) T1/T32 の range thunk が作れない(§13.4-3 の注記)。実装はセクション mode の判定(シンボル bit の集約)+ assignAddresses の配置変更で、単独の大きな作業。ARM mode 既定の CE 開発には影響しない(既定は ARM)。
+2. armasm Path B の残構文(§12.2: IF/ENDIF、MACRO/MEND、GBLA/SETA、DCFU 系、EQU 文字列/論理)。CI 緑化後。
+3. x86 CE の SEH 実装(B10 は診断のみ)。ARM 主対象方針どおり低優先。
+4. PDB 生成時の CE CPUType マッピング・`getFileFormatName` の CE 名(表示系・低)。
+5. `.actions` と `.github/workflows/main.yml` の重複解消(ユーザー判断待ち)。
+6. ユーザー依存: mingwrt `5ed3cc4` の push(本 PAT は該リポに書込不可)。
+7. デバイス検証(未実施・デバイスなし。gweslab/cerf エミュ可能性は調査済)。
+8. CI 緑化後の最初の WinCE lit 実行: 既存テスト(wince-pdata.test の手計算期待値等)+ 本セッション追加 2 件を初検証。
+
+### 13.7 検証状態(正直な区切り)
+
+- **本セッションの全コード修正はソースレベルのみ**: ビルド・リンク・実行・lit 実行はこの環境では実施していない。CI(push 後)が初回検証者。
+- 本セッションで実施した検証: レビュー指摘の全箇所を HEAD ソースで直接確認(ファイル:行で引用)、apply 系 reloc 関数の全コード読取、thunk 機構(createThunks/verifyRanges/margin loop)の読取、既存テスト構造の読取、符号値 convention の伝播経路(WinCOFFObjectWriter → DefinedCOFF::getRVA)の確認。
+- インストラクタ定数(`ldr ip,[pc]` = 0xE59FC000 等)は importThunkARMCE と同一 pattern の手計算 + binutils jmp_arm_bytes との一致で確定。**実行による確認は未実施**。

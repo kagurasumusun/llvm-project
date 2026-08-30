@@ -78,10 +78,23 @@ numeric types because the machine is IMAGE_FILE_MACHINE_ARM, not ARMNT.)
 
 ## Status (2026-08-30, llvm-wince)
 
+> **Correction (2026-08-30):** the sentence below claiming "the stage-1 CI
+> build now succeeds" is **not true as written**. The CI run for `6b5cc2feb`
+> itself failed: the TableGen check rejects
+> `warn_drv_wince_sysroot_missing` in
+> `clang/include/clang/Basic/DiagnosticDriverKinds.td` ("Diagnostics should
+> not start with a capital letter; 'Windows' is invalid"). The two
+> MCParser compile errors were indeed fixed in `6b5cc2feb`, but that was
+> only the second of two failure waves; the stage-1 build (and therefore
+> the first execution of the WinCE lit suite) was still blocked by the
+> diagnostic until it was reworded (see WINCE-HANDOFF.md section 13).
+
 - The "Still TODO" items above are addressed on `llvm-wince` by the
-  per-function WinCFI implementation: the stage-1 CI build now succeeds
-  (the two MCParser compile errors were fixed in `6b5cc2feb`), the WinCE lit
-  suite runs in CI, and the scope table / PDATA_EH placement is covered by
+  per-function WinCFI implementation: the two MCParser compile errors were
+  fixed in `6b5cc2feb`; the stage-1 CI build then still failed on the
+  TableGen diagnostic noted in the correction above. The WinCE lit suite
+  runs in CI (it has not passed yet as of this writing), and the scope
+  table / PDATA_EH placement is covered by
   `llvm/test/MC/ARM/wince-seh-pdata.s` and `lld/test/COFF/wince-pdata.test`.
 - The `__CxxFrameHandler` claim ("thin wrapper over the v3 handler") is
   confirmed against `ce600/.../CORELIBC/CRTW32/EH/frame.cpp`: on non-x86 the
