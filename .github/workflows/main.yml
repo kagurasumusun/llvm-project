@@ -121,7 +121,7 @@ jobs:
         run: |
           cmake --build build --target clang lld llc \
             llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc llvm-readobj \
-            llvm-objdump FileCheck split-file not count
+            llvm-objdump llvm-config FileCheck split-file not count
           BIN=build/bin
           [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
           [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
