@@ -938,7 +938,7 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     // prepare pass too: it only transforms functions whose personality is a
     // scoped (MSVC) one and is a no-op for every EHABI function, so both
     // mechanisms coexist (see ARMWinCFI.h).
-    if (TM.getTargetTriple().isWindowsCE())
+    if (TM->getTargetTriple().isWindowsCE())
       addPass(createWinEHPass());
     addPass(createDwarfEHPass(getOptLevel()));
     break;
