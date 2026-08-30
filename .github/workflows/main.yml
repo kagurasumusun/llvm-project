@@ -8,6 +8,8 @@ on:
         default: "arm-pc-wince"
         type: choice
         options: [arm-pc-wince, i386-pc-wince]
+  push:
+    branches: [llvm-wince]
   
 permissions:
   contents: read
