@@ -712,9 +712,18 @@ public:
   }
 
   /// Checks if the environment could be MSVC.
+  ///
+  /// Unknown-environment Windows triples historically default to MSVC (the
+  /// desktop `*-windows` / `*-win32` spelling).  Windows CE is not MSVC:
+  /// CeGCC (and this toolchain) use the GNU/Itanium C++ ABI, coredll rather
+  /// than msvcrt, and no extra C-name decoration.  `arm-pc-wince` therefore
+  /// must not be classified as an MSVC environment -- that combination with
+  /// GenericARM is what crashed cc1 on `-fms-extensions` (`ms-extern`,
+  /// `ms-pragmas-full`).
   bool isWindowsMSVCEnvironment() const {
     return isKnownWindowsMSVCEnvironment() ||
-           (isOSWindows() && getEnvironment() == Triple::UnknownEnvironment);
+           (isOSWindows() && !isWindowsCE() &&
+            getEnvironment() == Triple::UnknownEnvironment);
   }
 
   // Checks if we're using the Windows Arm64EC ABI.

@@ -1502,6 +1502,10 @@ WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
                                        const TargetOptions &Opts)
     : WindowsARMTargetInfo(Triple, Opts) {
   TheCXXABI.set(TargetCXXABI::GenericARM);
+  // WindowsTargetInfo turns this on for every Windows triple (MSVC C
+  // decoration).  CeGCC does not decorate C names; USER_LABEL_PREFIX is
+  // empty (wince-pe.h) and the Itanium C++ ABI is used.
+  UseMicrosoftManglingForC = false;
   // TLS: CE has exported TlsAlloc/TlsFree since CE 1.0 (MSDN "TlsAlloc,
   // Windows CE 1.0 and later") - the CeGCC coredll.def simply omitted
   // them; the vendored def files now list them.  CE has no native ELF-
