@@ -126,6 +126,7 @@ static uint16_t getImgRelRelocation(MachineTypes Machine) {
   case IMAGE_FILE_MACHINE_AMD64:
     return IMAGE_REL_AMD64_ADDR32NB;
   case IMAGE_FILE_MACHINE_ARMNT:
+  case IMAGE_FILE_MACHINE_ARM: // Windows CE ARM
     return IMAGE_REL_ARM_ADDR32NB;
   case IMAGE_FILE_MACHINE_ARM64:
   case IMAGE_FILE_MACHINE_ARM64EC:

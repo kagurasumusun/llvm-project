@@ -1466,7 +1466,9 @@ MachineTypes BitcodeFile::getMachineType(const llvm::lto::InputFile *obj) {
     return I386;
   case Triple::arm:
   case Triple::thumb:
-    return ARMNT;
+    // Windows CE ARM images use the original ARM machine type
+    // (IMAGE_FILE_MACHINE_ARM, interworking), not ARMNT (Thumb-only).
+    return t.isWindowsCE() ? IMAGE_FILE_MACHINE_ARM : ARMNT;
   case Triple::aarch64:
     return t.isWindowsArm64EC() ? ARM64EC : ARM64;
   default:
