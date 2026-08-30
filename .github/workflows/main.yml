@@ -39,7 +39,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             ninja-build cmake python3 zlib1g-dev libzstd-dev \
-            gcc g++ make lld ccache zstd
+            gcc g++ make lld ccache zstd mold
+
+          # clang/cmake/caches/WinCE.cmake asks for LLVM_USE_LINKER=mold, and
+          # CMake then probes the host compiler with -fuse-ld=mold.  That probe
+          # needs a ld.mold on the linker search path, which the package does
+          # not always provide by itself, so add it when it is missing.
+          if ! command -v ld.mold >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v mold)" /usr/local/bin/ld.mold
+          fi
+          mold --version
 
       - name: Report runner resources
         run: nproc && free -h && df -h .
