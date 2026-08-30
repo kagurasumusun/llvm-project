@@ -467,13 +467,20 @@ confirmed from the SDK headers:
   (x86-only mechanism, irrelevant on ARM).
 
 
-`coredll6.def` exports `__CxxFrameHandler` (no `3` suffix), confirming the v1-era C++ EH
-ABI as the handoff already noted from the def file alone. The struct layouts needed to
-actually implement or interoperate with it (`FuncInfo`, `UnwindMap`, `TryBlockMap`,
-`HandlerType`, `ThrowInfo`, `CatchableType`) are declared in `ehdata.h`, which is **not**
-in the current `wince-source` extraction. This remains blocked until that header (or an
-equivalent structural reference) is available. As the handoff already notes, this is
-lower priority than SEH since C++ exceptions route through EHABI regardless.
+`coredll6.def` exports `__CxxFrameHandler` (no `3` suffix). **Verified
+2026-08-30 against `CORE/CORELIBC/CRTW32/EH/frame.cpp`:** on non-x86 the
+exported `__CxxFrameHandler` is a one-line pass-through to
+`__CxxFrameHandler3` (commented "Old entrypoint to the runtime"), which —
+like NT's v3 personality — reads the per-function tables as
+`FuncInfo *pFuncInfo = (FuncInfo*)pDC->FunctionEntry->HandlerData`. So the
+CE handler consumes v3-style `FuncInfo` tables, not a v1 layout; the
+no-suffix export name is just the CE-era symbol. The `FuncInfo`/`UnwindMap`/
+`TryBlockMap`/`HandlerType`/`ThrowInfo`/`CatchableType` struct layouts are
+declared in `ehdata.h`, which is **not** in the `wince-source` tree (only
+the `CRTW32/EH/*.cpp` implementation files are present), so the exact layout
+remains blocked until that header (or an equivalent structural reference) is
+available. As the handoff already notes, this is lower priority than SEH
+since C++ exceptions route through EHABI regardless.
 
 **Verification addendum (2026-08-30): §4g cross-checked against `wince-source`
 (`ce600/PRIVATE/WINCEOS/COREOS/CORE/DLL/exdsptch.c`, `.../DLL/ARM/rtlsup.s`,
