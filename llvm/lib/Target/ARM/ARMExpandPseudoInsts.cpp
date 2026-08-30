@@ -1074,10 +1074,38 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
 
   if (!STI->hasV6T2Ops() &&
       (Opcode == ARM::MOVi32imm || Opcode == ARM::MOVCCi32imm)) {
-    // FIXME Windows CE supports older ARM CPUs
-    assert(!STI->isTargetWindows() && "Windows on ARM requires ARMv7+");
+    // Pre-v6T2 (WinCE's arm926ej-s baseline) has no movw/movt.  An
+    // immediate still splits into two SOImms; a symbolic operand
+    // (llvm.localrecover's frame-escape / $parent_frame_offset) has to
+    // come from a literal-pool load.  Desktop Windows on ARM is Thumb-2
+    // only and never reaches this branch.
+    if (!MO.isImm()) {
+      MachineConstantPool *MCP = MBB.getParent()->getConstantPool();
+      MachineConstantPoolValue *CPV;
+      if (MO.isGlobal())
+        CPV = ARMConstantPoolConstant::Create(MO.getGlobal(),
+                                              ARMCP::no_modifier);
+      else {
+        assert(MO.isSymbol() &&
+               "MOVi32imm on pre-v6T2 with non-immediate, non-symbol");
+        CPV = ARMConstantPoolSymbol::Create(
+            MBB.getParent()->getFunction().getContext(), MO.getSymbolName(),
+            0, 0);
+      }
+      MachineInstrBuilder MIB =
+          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::LDRi12), DstReg)
+              .addConstantPoolIndex(MCP->getConstantPoolIndex(CPV, Align(4)))
+              .addImm(0)
+              .addImm(Pred)
+              .addReg(PredReg);
+      if (isCC)
+        MIB.add(makeImplicit(MI.getOperand(1)));
+      MIB.copyImplicitOps(MI);
+      MIB.cloneMemRefs(MI);
+      MI.eraseFromParent();
+      return;
+    }
 
-    assert (MO.isImm() && "MOVi32imm w/ non-immediate source operand!");
     unsigned ImmVal = (unsigned)MO.getImm();
     unsigned SOImmValV1 = 0, SOImmValV2 = 0;
 
