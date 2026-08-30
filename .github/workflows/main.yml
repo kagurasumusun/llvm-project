@@ -83,26 +83,23 @@ jobs:
       # source fix after a prior run restores the same cache and only
       # recompiles what changed.  restore-keys fall back to the last cache.
       # -----------------------------------------------------------------
-      - name: Cache ccache
-        uses: actions/cache@v4
+      # Restore ccache and the Ninja build tree.  Keys are keyed on github.sha
+      # so every run saves a fresh entry; restore-keys recovers the most recent
+      # prefix match, which is what makes a small source fix resume
+      # incrementally instead of rebuilding clang/lld from scratch.
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          # Append github.sha so every run stores a fresh entry (actions/cache
-          # will not overwrite an existing key), while restore-keys recovers
-          # the most recent prefix match.  save-always persists the cache even
-          # when the build/lit gate fails -- that is what keeps the
-          # fix/push/observe loop incremental instead of a full rebuild.
           key: ccache-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}-${{ github.sha }}
           restore-keys: ccache-${{ runner.os }}-
-          save-always: true
 
-      - name: Cache Ninja build dir
-        uses: actions/cache@v4
+      - name: Restore Ninja build dir
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/build
           key: ninja-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}-${{ github.sha }}
           restore-keys: ninja-${{ runner.os }}-
-          save-always: true
 
       # -----------------------------------------------------------------
       # Stage 1: host LLVM/Clang/LLD + the binary tools the lit tests need
@@ -124,13 +121,30 @@ jobs:
         run: |
           cmake --build build --target clang lld llc \
             llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc llvm-readobj \
-            llvm-objdump FileCheck split-file not
+            llvm-objdump FileCheck split-file not count
           BIN=build/bin
           [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
           [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
           test -x "$BIN/llvm-lit"
           echo "ccache stats after build:"
           ccache -s
+
+      # Save immediately after the build so the (possibly partial) build tree
+      # and ccache persist even when the build or the lit gate below fails.
+      # `if: always()` is what keeps the fix/push/observe loop incremental.
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}-${{ github.sha }}
+
+      - name: Save Ninja build dir
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/build
+          key: ninja-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}-${{ github.sha }}
 
       - name: "Stage 1: WinCE lit tests (fast gate)"
         # The always-run gate.  On failure the log tail is echoed so a
