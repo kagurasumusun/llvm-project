@@ -3,7 +3,7 @@
 
 # REQUIRES: arm
 # RUN: llvm-mc -triple=arm-pc-wince -filetype=obj -o %t.obj %s
-# RUN: lld-link -wince -entry:WinMainCRTStartup %t.obj -out:%t.exe
+# RUN: lld-link -wince -subsystem:windowsce -nodefaultlib -entry:WinMainCRTStartup %t.obj -out:%t.exe
 # RUN: llvm-objdump -s %t.exe | FileCheck %s
 
 .syntax unified

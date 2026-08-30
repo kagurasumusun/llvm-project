@@ -34,7 +34,9 @@ define double @ddiv(double %a, double %b) {
 
 define i64 @lmul(i64 %a, i64 %b) {
 ; CHECK-LABEL: lmul:
-; CHECK: bl __aeabi_lmul
+; ARM926EJ-S has UMULL/UMLAL, so a 64-bit multiply expands in ISel
+; rather than calling __aeabi_lmul.
+; CHECK: umull
   %mul = mul i64 %a, %b
   ret i64 %mul
 }

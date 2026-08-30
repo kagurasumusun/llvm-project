@@ -2483,6 +2483,11 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   if (config->subsystem == IMAGE_SUBSYSTEM_UNKNOWN) {
     llvm::TimeTraceScope timeScope("Infer subsystem");
     config->subsystem = ctx.symtab.inferSubsystem();
+    // WinCE images are IMAGE_SUBSYSTEM_WINDOWS_CE_GUI.  Entry-name
+    // inference only knows WinMain/main (desktop), so a CE CRT entry
+    // like WinMainCRTStartup would otherwise Fatal.
+    if (config->subsystem == IMAGE_SUBSYSTEM_UNKNOWN && config->wince)
+      config->subsystem = IMAGE_SUBSYSTEM_WINDOWS_CE_GUI;
     if (config->subsystem == IMAGE_SUBSYSTEM_UNKNOWN)
       Fatal(ctx) << "subsystem must be defined";
   }
@@ -2637,9 +2642,14 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
       symtab.addAbsolute(symtab.mangle("__RUNTIME_PSEUDO_RELOC_LIST__"), 0);
       symtab.addAbsolute(symtab.mangle("__RUNTIME_PSEUDO_RELOC_LIST_END__"), 0);
     }
-    if (config->mingw) {
+    if (config->mingw || config->wince) {
+      // mingwrt (CE and MinGW) walks __CTOR_LIST__/__DTOR_LIST__.
+      // Writer::insertCtorDtorSymbols replaces these placeholders with
+      // sentinels around .ctors/.dtors.
       symtab.addAbsolute(symtab.mangle("__CTOR_LIST__"), 0);
       symtab.addAbsolute(symtab.mangle("__DTOR_LIST__"), 0);
+    }
+    if (config->mingw) {
       symtab.addAbsolute("__data_start__", 0);
       symtab.addAbsolute("__data_end__", 0);
       symtab.addAbsolute("__bss_start__", 0);
