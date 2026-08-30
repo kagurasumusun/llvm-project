@@ -1364,10 +1364,14 @@ void emitCESEHActionsForRange(AsmPrinter &Asm, const WinEHFuncInfo &FuncInfo,
       ExceptOrNull = MCConstantExpr::create(0, Ctx);
     } else {
       // For an except, the filter can be 1 (catch-all) or a function label.
-      FilterOrFinally = UME.Filter
-                            ? MCSymbolRefExpr::create(Asm.getSymbol(UME.Filter),
-                                                      Ctx)
-                            : MCConstantExpr::create(1, Ctx);
+      // Cast both ternary arms to const MCExpr*: MCSymbolRefExpr::create and
+      // MCConstantExpr::create return distinct derived pointer types, so the
+      // conditional expression needs an explicit common type.
+      FilterOrFinally =
+          UME.Filter
+              ? static_cast<const MCExpr *>(MCSymbolRefExpr::create(
+                    Asm.getSymbol(UME.Filter), Ctx))
+              : static_cast<const MCExpr *>(MCConstantExpr::create(1, Ctx));
       ExceptOrNull =
           MCSymbolRefExpr::create(Handler->getSymbol(), Ctx);
     }
