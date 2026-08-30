@@ -11,6 +11,7 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/Types.h"
 #include "clang/Options/Options.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/FileSystem.h"
@@ -35,6 +36,23 @@ static std::string findDefaultSysRoot(const Driver &D, const ArgList &Args) {
   llvm::sys::path::remove_filename(Path); // .../<prefix>
   llvm::sys::path::append(Path, "wince-sysroot");
   return std::string(Path);
+}
+
+// Whether the current compilation is C++ (or Objective-C++).  Used to gate
+// language-specific defaults such as -fgnu89-inline, which the front end
+// rejects for C++.  The input language comes from -x when present, otherwise
+// from the input file extensions.
+static bool compilingCXX(const ArgList &Args) {
+  if (const Arg *A = Args.getLastArg(options::OPT_x)) {
+    StringRef V = A->getValue();
+    if (V.starts_with("c++") || V == "objective-c++" || V == "c++-module" ||
+        V == "c++-header" || V == "c++-pch")
+      return true;
+  }
+  for (StringRef F : Args.getAllArgValues(options::OPT_INPUT))
+    if (types::isCXX(types::lookupTypeForExtension(llvm::sys::path::extension(F))))
+      return true;
+  return false;
 }
 
 WinCE::WinCE(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
@@ -95,9 +113,12 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
   // "extern __inline" convention; default to GNU89 inline semantics so
   // headers and sources written for those compilers keep behaving
   // (extern inline stays an external definition, not a C99 inline
-  // declaration).  Overridable with -fno-gnu89-inline.
+  // declaration).  Overridable with -fno-gnu89-inline.  This only applies to
+  // C-family inputs: the front end rejects -fgnu89-inline for C++ (and C++
+  // has no C99 inline model to restore), so skip it there.
   if (DriverArgs.hasFlag(options::OPT_fgnu89_inline,
-                         options::OPT_fno_gnu89_inline, true))
+                         options::OPT_fno_gnu89_inline, true) &&
+      !compilingCXX(DriverArgs))
     CC1Args.push_back("-fgnu89-inline");
 
   // Unwind tables: getDefaultUnwindTableLevel() returns Asynchronous for
