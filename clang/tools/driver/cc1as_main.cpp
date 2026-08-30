@@ -210,6 +210,7 @@ public:
     OutputPath = "-";
     OutputType = FT_Asm;
     OutputAsmVariant = 0;
+    MasmDialect = 0;
     ShowInst = 0;
     ShowEncoding = 0;
     RelaxAll = 0;
@@ -630,11 +631,15 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
   // extension (AREA/PROC/ENDP/EXPORT/IMPORT/ALIGN...) so Windows CE
   // Platform Builder sources assemble natively.  The regular ARM
   // instruction parser handles the mnemonics.
-  if (Opts.MasmDialect == /*armasm*/ 2 &&
-      (TheTriple.getArch() == Triple::arm ||
-       TheTriple.getArch() == Triple::thumb)) {
-    if (MCAsmParserExtension *Ext = createARMCOFFMasmParser())
-      Ext->Initialize(*Parser);
+  if (Opts.MasmDialect == /*armasm*/ 2) {
+    // Rebuild the triple from the invocation args: `Triple T` above is scoped
+    // to the FT_Obj branch and is not visible here.
+    Triple AsmTriple(Opts.Triple);
+    if (AsmTriple.getArch() == Triple::arm ||
+        AsmTriple.getArch() == Triple::thumb) {
+      if (MCAsmParserExtension *Ext = createARMCOFFMasmParser())
+        Ext->Initialize(*Parser);
+    }
   }
 
   // FIXME: init MCTargetOptions from sanitizer flags here.
