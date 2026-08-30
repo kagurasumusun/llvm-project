@@ -1950,15 +1950,28 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
                  &config->minorImageVersion);
 
   // Handle /subsystem
+  bool SubsystemVersionFromArg = false;
   if (auto *arg = args.getLastArg(OPT_subsystem))
     parseSubsystem(arg->getValue(), &config->subsystem,
                    &config->majorSubsystemVersion,
-                   &config->minorSubsystemVersion);
+                   &config->minorSubsystemVersion, &SubsystemVersionFromArg);
+
+  // CeGCC pe.em (TARGET_IS_arm_wince_pe): MajorSubsystemVersion 3.
+  // lld's generic default is 6.0 (Vista); do not use that on CE unless
+  // the user wrote /subsystem:windowsce,N.N.
+  if (config->wince && !SubsystemVersionFromArg) {
+    config->majorSubsystemVersion = 3;
+    config->minorSubsystemVersion = 0;
+  }
 
   // Handle /osversion
   if (auto *arg = args.getLastArg(OPT_osversion)) {
     parseVersion(arg->getValue(), &config->majorOSVersion,
                  &config->minorOSVersion);
+  } else if (config->wince) {
+    // pe.em: MajorOperatingSystemVersion 4, independent of subsystem 3.
+    config->majorOSVersion = 4;
+    config->minorOSVersion = 0;
   } else {
     config->majorOSVersion = config->majorSubsystemVersion;
     config->minorOSVersion = config->minorSubsystemVersion;
