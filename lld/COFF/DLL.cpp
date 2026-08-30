@@ -1049,6 +1049,13 @@ Chunk *DelayLoadContents::newTailMergeChunk(SymbolTable &symtab, Chunk *dir) {
     return make<TailMergeChunkARM>(ctx, dir, helper);
   case ARM64:
     return make<TailMergeChunkARM64>(dir, helper);
+  case IMAGE_FILE_MACHINE_ARM:
+    // Windows CE: the CE loader has no delay-import mechanism (no
+    // delay-load helper, no VEH-based resolution), so /delayload cannot
+    // work there. Fail explicitly instead of hitting the generic
+    // unreachable below.
+    Fatal(ctx) << "delay-load imports are not supported on Windows CE; "
+                  "link the module without /delayload";
   default:
     llvm_unreachable("unsupported machine type");
   }
@@ -1080,6 +1087,10 @@ Chunk *DelayLoadContents::newThunkChunk(DefinedImportData *s,
     return make<ThunkChunkARM>(ctx, s, tailMerge);
   case ARM64:
     return make<ThunkChunkARM64>(s, tailMerge);
+  case IMAGE_FILE_MACHINE_ARM:
+    // See newTailMergeChunk: CE has no delay-import mechanism.
+    Fatal(ctx) << "delay-load imports are not supported on Windows CE; "
+                  "link the module without /delayload";
   default:
     llvm_unreachable("unsupported machine type");
   }
