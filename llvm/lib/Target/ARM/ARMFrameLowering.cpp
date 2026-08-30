@@ -523,6 +523,32 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
     }
     break;
 
+  case ARM::STMDB_UPD: {
+    // ARM-mode push {r4-r11, lr} (e.g. "--target=arm-pc-wince" SEH prologue).
+    // The register list starts at operand 4, after the writeback base, the
+    // base, and the pred/predreg operands -- the same layout as t2STMDB_UPD.
+    // ARM has no narrow/wide split so the instruction itself is left in place
+    // and only the SEH unwind mask is appended.
+    unsigned Mask = 0;
+    bool Wide = false;
+    for (unsigned i = 4, NumOps = MBBI->getNumOperands(); i != NumOps; ++i) {
+      const MachineOperand &MO = MBBI->getOperand(i);
+      if (!MO.isReg() || MO.isImplicit())
+        continue;
+      unsigned Reg = RegInfo->getSEHRegNum(MO.getReg());
+      if (Reg == 15)
+        Reg = 14;
+      if (Reg >= 8 && Reg <= 13)
+        Wide = true;
+      Mask |= 1 << Reg;
+    }
+    MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveRegs))
+              .addImm(Mask)
+              .addImm(Wide ? 1 : 0)
+              .setMIFlags(Flags);
+    break;
+  }
+
   case ARM::t2LDMIA_RET:
   case ARM::t2LDMIA_UPD:
   case ARM::t2STMDB_UPD: {
