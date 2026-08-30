@@ -14,11 +14,13 @@
 /// delayed template parsing are on for this target.
 // RUN: %clang -target arm-pc-wince -c %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=MSFLAGS
+// The cc1 arg order places -funwind-tables=2 before the -fms* flags, so the
+// checks below mirror that order.
+// MSFLAGS: "-funwind-tables=2"
 // MSFLAGS: "-fms-extensions"
 // MSFLAGS: "-fms-compatibility"
 // MSFLAGS: "-fdelayed-template-parsing"
 // MSFLAGS: "-fms-compatibility-version=1900"
-// MSFLAGS: "-funwind-tables=2"
 // MSFLAGS: "-fgnu89-inline"
 
 /// WinCE predefined macros.  The default deployment is Windows Embedded CE
