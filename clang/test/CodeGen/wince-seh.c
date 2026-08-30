@@ -27,7 +27,7 @@ int catch_all(void) {
   return r;
 }
 
-// CHECK-LABEL: define dso_local i32 @catch_all()
+// CHECK-LABEL: define dso_local arm_aapcscc i32 @catch_all()
 // CHECK-SAME: personality ptr @__C_specific_handler
 // CHECK: invoke void @might_crash()
 // CHECK: catchpad within {{.*}} [ptr null]

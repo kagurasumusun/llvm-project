@@ -51,7 +51,9 @@
 // CPU: arm926ej-s
 // CPU: "+soft-float"
 // CPU: "+soft-float-abi"
-// CPU: "-mfloat-abi=soft"
+// CPU: "-msoft-float"
+// CPU: "-mfloat-abi"
+// CPU: "soft"
 
 /// Linker invocation: lld-link with the WinCE image defaults, the CeGCC
 /// startfile/library order, and the GNU-named sysroot the sysroot script
