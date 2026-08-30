@@ -9,7 +9,7 @@
 
 extern "C" void might_crash(void);
 
-int seh_func(int x) {
+extern "C" int seh_func(int x) {
   int r = 0;
   __try {
     might_crash();
@@ -27,7 +27,7 @@ int seh_func(int x) {
 
 // The non-constant filter is outlined; the filter function is a plain
 // function (no SEH personality), so it keeps the EHABI frame.
-// CHECK-LABEL: "??filt$0@0@seh_func@@":
+// CHECK-LABEL: __filt_seh_func:
 // CHECK: .fnstart
 // CHECK: .fnend
 
@@ -40,6 +40,6 @@ int cpp_func(int x) {
   return x;
 }
 
-// CHECK-LABEL: cpp_func:
+// CHECK-LABEL: _Z8cpp_funci:
 // CHECK: .fnstart
 // CHECK: .fnend

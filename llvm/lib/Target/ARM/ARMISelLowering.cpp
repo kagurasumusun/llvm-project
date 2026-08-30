@@ -1189,6 +1189,11 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
   // (WinCE SEH filters/finallys recovering parent locals); lower it through
   // ARMISD::Wrapper so the existing texternalsym patterns select it.
   setOperationAction(ISD::LOCAL_RECOVER, MVT::i32, Custom);
+  // SEH __finally emits cleanupret.  ARM has no CLEANUPRET opcode (X86
+  // selects a pseudo); custom-lower it to the ordinary RET_GLUE sequence
+  // so WinCE outlined finallys can return.
+  if (Subtarget->isTargetWindows())
+    setOperationAction(ISD::CLEANUPRET, MVT::Other, Custom);
 
   setOperationAction(ISD::SETCC,     MVT::i32, Expand);
   setOperationAction(ISD::SETCC,     MVT::f32, Expand);
@@ -5902,6 +5907,14 @@ SDValue ARMTargetLowering::LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const{
   return DAG.getCopyFromReg(DAG.getEntryNode(), dl, Reg, VT);
 }
 
+SDValue ARMTargetLowering::LowerCLEANUPRET(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  // Operand 0 is the chain; operand 1 is the cleanup-pad MBB used only
+  // for CFG coloring by SelectionDAGBuilder.  The terminator itself is
+  // an ordinary function return (outlined SEH finallys have void type).
+  return DAG.getNode(ARMISD::RET_GLUE, SDLoc(Op), MVT::Other, Op.getOperand(0));
+}
+
 SDValue ARMTargetLowering::LowerLOCAL_RECOVER(SDValue Op,
                                               SelectionDAG &DAG) const {
   // llvm.localrecover materializes the value of a frame-escape symbol
@@ -10413,6 +10426,7 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::RETURNADDR:    return LowerRETURNADDR(Op, DAG);
   case ISD::FRAMEADDR:     return LowerFRAMEADDR(Op, DAG);
   case ISD::LOCAL_RECOVER: return LowerLOCAL_RECOVER(Op, DAG);
+  case ISD::CLEANUPRET:    return LowerCLEANUPRET(Op, DAG);
   case ISD::EH_SJLJ_SETJMP: return LowerEH_SJLJ_SETJMP(Op, DAG);
   case ISD::EH_SJLJ_LONGJMP: return LowerEH_SJLJ_LONGJMP(Op, DAG);
   case ISD::EH_SJLJ_SETUP_DISPATCH: return LowerEH_SJLJ_SETUP_DISPATCH(Op, DAG);

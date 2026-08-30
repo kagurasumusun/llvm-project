@@ -34,7 +34,7 @@ entry:
 
 ; ARMv4T/ARMv5 (WinCE default) has no movw/movt: the absolute frame-escape
 ; symbol value is loaded from a literal pool entry.
-; ARM5-LABEL: "??filt$0@0@alloc_func@@":
+; ARM5-LABEL: {{.*}}filt{{\$}}0@0@alloc_func@@
 ; ARM5-NOT: bl
 ; ARM5: ldr r[[O:[0-9]+]], .LCPI{{[0-9]+}}_{{[0-9]+}}
 ; ARM5-NEXT: add r[[A:[0-9]+]], r1, r[[O]]
@@ -42,7 +42,7 @@ entry:
 ; ARM5: .long .Lalloc_func$frame_escape_0
 
 ; Thumb-2 uses movw/movt for the same symbol.
-; T2-LABEL: "??filt$0@0@alloc_func@@":
+; T2-LABEL: {{.*}}filt{{\$}}0@0@alloc_func@@
 ; T2-NOT: bl
 ; T2: movw r{{[0-9]+}}, :lower16:.Lalloc_func$frame_escape_0
 ; T2: movt r{{[0-9]+}}, :upper16:.Lalloc_func$frame_escape_0

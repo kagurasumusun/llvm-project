@@ -34,7 +34,7 @@ int except_func(int x) {
 // CHECK-NEXT: [[LB]]:
 // CHECK-NEXT: .long {{.*}}
 // CHECK-NEXT: .long {{.*}}
-// CHECK-NEXT: .long {{.*}}filt\$0@0@except_func@+
+// CHECK-NEXT: .long {{.*}}__filt_except_func
 // CHECK-NEXT: .long {{.*}}
 // CHECK-NEXT: [[LE]]:
 // CHECK-NEXT: .long __C_specific_handler
