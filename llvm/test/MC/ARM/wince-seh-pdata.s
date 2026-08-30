@@ -19,9 +19,9 @@
 ///     the 8 bytes right before the function's first instruction for every
 ///     SEH function in the module.
 ///
-/// llvm-readobj prints "Unknown" for every relocation type name on
-/// IMAGE_FILE_MACHINE_ARM objects (the name table only covers Triple::thumb,
-/// i.e. ARMNT), so the numeric types are checked via --expand-relocs.
+/// --expand-relocs prints "Type: IMAGE_REL_ARM_* (N)".  WinCE pdata uses
+/// ADDR32 for pFuncStart and the two CE_PDATA pseudo relocs for the
+/// length/prolog fields (lld folds those into the flags word).
 
 	.syntax unified
 	.thumb
@@ -52,12 +52,12 @@ leaf:
 // CHECK:   Section {{.*}} .pdata {
 // pFuncStart -> function start (ADDR32 == 1)
 // CHECK:      Offset: 0x0
-// CHECK-NEXT: Type: Unknown (1)
+// CHECK-NEXT: Type: IMAGE_REL_ARM_ADDR32 (1)
 // CHECK-NEXT: Symbol: .text
 // word1 pseudo relocations: FUNCLEN (6) then PROLOG (7)
 // CHECK:      Offset: 0x8
-// CHECK-NEXT: Type: Unknown (6)
+// CHECK-NEXT: Type: IMAGE_REL_ARM_CE_PDATA_FUNCLEN (6)
 // CHECK:      Offset: 0xC
-// CHECK-NEXT: Type: Unknown (7)
+// CHECK-NEXT: Type: IMAGE_REL_ARM_CE_PDATA_PROLOG (7)
 // CHECK:   }
 // CHECK: ]

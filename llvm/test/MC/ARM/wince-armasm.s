@@ -38,6 +38,7 @@
 
 armasm_fn:
         mov     r0, #1
+        bl      SomeCEApi
         bx      lr
 
         END
