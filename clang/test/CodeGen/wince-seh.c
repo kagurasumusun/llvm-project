@@ -46,7 +46,7 @@ int filter_touches_parent(void) {
 // A non-constant filter is outlined into an internal helper that receives
 // (exception_pointers, frame_pointer); touching the parent's local emits the
 // parent-frame intrinsics.
-// CHECK-LABEL: define internal i32 @"?filt$0@0@filter_touches_parent@@"
+// CHECK-LABEL: define internal i32 @__filt_filter_touches_parent
 // CHECK: call ptr @llvm.eh.recoverfp
 // CHECK: call ptr @llvm.localrecover
 
@@ -63,7 +63,7 @@ int filter_exception_code(void) {
 // slot lives in the parent, so the filter recovers the parent FP and
 // localrecover the slot, then reads ExceptionRecord->ExceptionCode from the
 // EXCEPTION_POINTERS first argument.
-// CHECK-LABEL: define internal i32 @"?filt$0@0@filter_exception_code@@"
+// CHECK-LABEL: define internal i32 @__filt_filter_exception_code
 // CHECK: call ptr @llvm.eh.recoverfp
 // CHECK: call ptr @llvm.localrecover
 // CHECK: getelementptr
@@ -82,7 +82,7 @@ void finally_basic(void) {
 // both paths; FP comes from llvm.localaddress on the normal path.
 // CHECK-LABEL: define dso_local void @finally_basic()
 // CHECK: call ptr @llvm.localaddress()
-// CHECK: call void @"?fin$0@0@finally_basic@@"({{i8 noundef( zeroext)?}} 0, ptr noundef %{{.*}})
-// CHECK: define internal void @"?fin$0@0@finally_basic@@"
+// CHECK: call void @__fin_finally_basic({{i8 noundef( zeroext)?}} 0, ptr noundef %{{.*}})
+// CHECK: define internal void @__fin_finally_basic
 
 // SYNTAX-NOT: error:

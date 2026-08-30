@@ -331,14 +331,20 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-runtime-pseudo-reloc");
 
   // --- Output file --------------------------------------------------------
-  SmallString<128> OutFile(Output.getFilename());
+  SmallString<128> OutFile;
+  if (Output.isFilename())
+    OutFile = Output.getFilename();
+  else
+    OutFile = "a.exe";
   // clang-cl's /LD (and /LDd) create a DLL, like -shared/-mdll do.
-  const bool WantDLL = Args.hasArg(options::OPT__SLASH_LD) ||
-                       Args.hasArg(options::OPT__SLASH_LDd) ||
-                       Args.hasArg(options::OPT_shared) ||
-                       Args.hasArg(options::OPT_mdll);
+  // GNU-driver ArgLists do not contain the clang-cl /LD options; hasArg
+  // still searches by ID and returns false.
+  const bool WantDLL = Args.hasArg(options::OPT_shared) ||
+                       Args.hasArg(options::OPT_mdll) ||
+                       Args.hasArg(options::OPT__SLASH_LD) ||
+                       Args.hasArg(options::OPT__SLASH_LDd);
   const bool IsDLL = WantDLL;
-  if (!llvm::sys::path::has_extension(OutFile))
+  if (!llvm::sys::path::has_extension(OutFile) && OutFile != "/dev/null")
     llvm::sys::path::replace_extension(OutFile, IsDLL ? ".dll" : ".exe");
   CmdArgs.push_back(Args.MakeArgString(Twine("/out:") + OutFile));
 
@@ -354,6 +360,8 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   int MajorImageVer = -1, MinorImageVer = -1;
 
   for (const Arg *A : Args) {
+    if (!A)
+      continue;
     const Option &Opt = A->getOption();
     if (Opt.getKind() == Option::InputClass)
       continue; // Rendered from Inputs below.
