@@ -324,7 +324,7 @@ bool ARMCOFFMasmParser::parseDirectiveEndProc(StringRef Directive,
 
   if (Sym) {
     if (CurrentProcedures.empty() ||
-        !CurrentProcedures.back().equals(Sym->getName()))
+        CurrentProcedures.back() != Sym->getName())
       return Warning(Loc, "ENDP name does not match the open PROC");
     CurrentProcedures.pop_back();
   } else if (!CurrentProcedures.empty()) {

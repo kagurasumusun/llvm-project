@@ -1729,7 +1729,7 @@ bool AsmParser::parseBinOpRHS(unsigned Precedence, const MCExpr *&Res,
   }
 }
 
-ExtensionDirectiveHandler
+MCAsmParser::ExtensionDirectiveHandler
 AsmParser::lookupMasmDirective(StringRef Name) const {
   for (const auto &E : ExtensionDirectiveMap) {
     if (!StringRef(E.first()).starts_with(".") &&
