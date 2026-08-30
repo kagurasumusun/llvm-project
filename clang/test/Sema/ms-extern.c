@@ -4,7 +4,7 @@
 /// headers); clang accepts them as an extension warning, and the
 /// reordered spellings behave identically.
 
-// RUN: %clang_cc1 -triple arm-pc-wince -fsyntax-only -fms-extensions -Wno-unused-variable %s
+// RUN: %clang_cc1 -triple arm-pc-wince -fsyntax-only -fms-extensions -verify -Wno-unused-variable %s
 
 extern extern int duplicate_extern;      // expected-warning {{duplicate 'extern' declaration specifier}}
 extern extern extern int triple_extern;  // expected-warning 2 {{duplicate 'extern' declaration specifier}}
@@ -21,5 +21,5 @@ int use(void) {
 }
 
 // Mixing *different* storage classes is still an error (MSVC C2159 too).
-// expected-error@+1 {{cannot combine with previous 'extern' declaration specifier}}
+// expected-error@+1 {{cannot combine with previous 'static' declaration specifier}}
 static extern int mixed;

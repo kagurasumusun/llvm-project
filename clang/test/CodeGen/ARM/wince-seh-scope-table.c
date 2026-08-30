@@ -1,4 +1,4 @@
-// RUN: %clang --target=arm-pc-wince -fms-extensions -S -o - %s | FileCheck %s
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fms-extensions -S -o - %s | FileCheck %s
 
 // Windows CE SEH scope-table + PDATA_EH emission (see
 // utils/wince/WINEH-ABI-FACTS.md 4f/4g): the parent function's label is

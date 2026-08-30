@@ -3,7 +3,7 @@
 /// -wince brackets the lists), NOT the MSVC .CRT$XCU tables.
 
 // REQUIRES: arm-registered-target
-// RUN: %clang --target=arm-pc-wince -S %s -o - 2>&1 \
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -S %s -o - \
 // RUN:   | FileCheck %s
 
 __attribute__((constructor)) void ctor(void) { return; }

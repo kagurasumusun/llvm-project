@@ -2245,24 +2245,34 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     case ARM::TCRETURNdi:
     case ARM::TCRETURNri:
     case ARM::TCRETURNrinotr12: {
-      MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-      if (MBBI->getOpcode() == ARM::SEH_EpilogEnd)
-        MBBI--;
-      if (MBBI->getOpcode() == ARM::SEH_Nop_Ret)
-        MBBI--;
-      assert(MBBI->isReturn() &&
-             "Can only insert epilog into returning blocks");
+      auto skipWinCFIEpilog = [&](MachineBasicBlock::iterator I) {
+        if (I == MBB.end())
+          return I;
+        if (I->getOpcode() == ARM::SEH_EpilogEnd) {
+          if (I == MBB.begin())
+            return I;
+          --I;
+        }
+        if (I != MBB.end() && I->getOpcode() == ARM::SEH_Nop_Ret) {
+          if (I == MBB.begin())
+            return I;
+          --I;
+        }
+        return I;
+      };
+      MachineBasicBlock::iterator MBBI =
+          skipWinCFIEpilog(MBB.getLastNonDebugInstr());
+      if (MBBI == MBB.end() || !MBBI->isReturn())
+        return false;
       unsigned RetOpcode = MBBI->getOpcode();
       DebugLoc dl = MBBI->getDebugLoc();
       const ARMBaseInstrInfo &TII = *static_cast<const ARMBaseInstrInfo *>(
           MBB.getParent()->getSubtarget().getInstrInfo());
 
       // Tail call return: adjust the stack pointer and jump to callee.
-      MBBI = MBB.getLastNonDebugInstr();
-      if (MBBI->getOpcode() == ARM::SEH_EpilogEnd)
-        MBBI--;
-      if (MBBI->getOpcode() == ARM::SEH_Nop_Ret)
-        MBBI--;
+      MBBI = skipWinCFIEpilog(MBB.getLastNonDebugInstr());
+      if (MBBI == MBB.end())
+        return false;
       MachineOperand &JumpTarget = MBBI->getOperand(0);
 
       // Jump to label or value in register.

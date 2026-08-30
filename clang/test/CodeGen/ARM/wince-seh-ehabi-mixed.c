@@ -1,5 +1,5 @@
-// RUN: %clang --target=arm-pc-wince -fms-extensions -x c++ -fexceptions -fcxx-exceptions -S -o - %s | FileCheck %s
-// RUN: %clang --target=arm-pc-wince -mthumb -fms-extensions -x c++ -fexceptions -fcxx-exceptions -S -o - %s | FileCheck %s
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fms-extensions -x c++ -fexceptions -fcxx-exceptions -S -o - %s | FileCheck %s
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -mthumb -fms-extensions -x c++ -fexceptions -fcxx-exceptions -S -o - %s | FileCheck %s
 
 // Windows CE: C++ exceptions keep the ARM EHABI model (.fnstart/.fnend,
 // .ARM.exidx) while MSVC-style SEH (__try/__except) functions switch to a

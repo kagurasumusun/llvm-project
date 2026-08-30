@@ -6,6 +6,8 @@
 # RUN: lld-link -wince -entry:WinMainCRTStartup %t.obj -out:%t.exe
 # RUN: llvm-objdump -s %t.exe | FileCheck %s
 
+.syntax unified
+.arm
 .globl WinMainCRTStartup
 WinMainCRTStartup:
   bx lr
