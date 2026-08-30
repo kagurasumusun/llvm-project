@@ -42,14 +42,14 @@ h:
 /// PR0 opcodes]; g: [fnstart ADDR32][EXIDX_CANTUNWIND const]; h: [fnstart
 /// ADDR32][extab ADDR32].
 // CHECK: Relocations [
-// CHECK: Section .ARM.exidx {
+// CHECK: Section {{.*}}.ARM.exidx {
 // CHECK-NEXT: 0x0 IMAGE_REL_ARM_ADDR32
 // CHECK-NEXT: 0x8 IMAGE_REL_ARM_ADDR32
 // CHECK-NEXT: 0x10 IMAGE_REL_ARM_ADDR32
 // CHECK-NEXT: 0x14 IMAGE_REL_ARM_ADDR32
 // CHECK-NEXT: }
 /// .ARM.extab: h's unwind opcodes preceded by the personality pointer.
-// CHECK: Section .ARM.extab {
+// CHECK: Section {{.*}}.ARM.extab {
 // CHECK-NEXT: 0x0 IMAGE_REL_ARM_ADDR32 __gxx_personality_v0
 // CHECK-NEXT: }
 // CHECK-NEXT: ]

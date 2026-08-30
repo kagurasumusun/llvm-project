@@ -1405,6 +1405,10 @@ StringRef COFFObjectFile::getRelocationTypeName(uint16_t Type) const {
       return "Unknown";
     }
     break;
+  // IMAGE_FILE_MACHINE_ARM (WinCE) is Triple::arm; ARMNT is Triple::thumb.
+  // Both use the IMAGE_REL_ARM_* relocation set.  WinCE also encodes the
+  // two PDATA fixups (function length / prolog end) that ARMNT does not.
+  case Triple::arm:
   case Triple::thumb:
     switch (Type) {
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_ABSOLUTE);
@@ -1413,6 +1417,8 @@ StringRef COFFObjectFile::getRelocationTypeName(uint16_t Type) const {
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_BRANCH24);
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_BRANCH11);
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_TOKEN);
+    LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_CE_PDATA_FUNCLEN);
+    LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_CE_PDATA_PROLOG);
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_BLX24);
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_BLX11);
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_REL32);

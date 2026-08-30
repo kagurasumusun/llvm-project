@@ -29,7 +29,7 @@ thumbfn:
 // CHECK: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
 
 // CHECK: Relocations [
-// CHECK-NEXT: Section .text {
+// CHECK-NEXT: Section {{.*}}.text {
 // CHECK-NEXT: 0x0 IMAGE_REL_ARM_BRANCH24 ext
 // CHECK-NEXT: 0x4 IMAGE_REL_ARM_BRANCH24 thumbext
 // CHECK-NEXT: 0x8 IMAGE_REL_ARM_MOV32A extvar
