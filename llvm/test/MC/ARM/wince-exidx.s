@@ -30,8 +30,8 @@ g:
 h:
 	.fnstart
 	.personality	__gxx_personality_v0
-	.handlerdata
 	.pad	#0
+	.handlerdata
 	.fnend
 
 // CHECK: Sections [

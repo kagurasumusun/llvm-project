@@ -30,6 +30,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCSectionCOFF.h"
+#include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbolCOFF.h"
 #include "llvm/Support/SMLoc.h"
@@ -361,8 +362,9 @@ bool ARMCOFFMasmParser::parseDirectiveImport(StringRef Directive, SMLoc Loc) {
     return Error(Loc, "expected identifier");
   auto *COFFSym = static_cast<MCSymbolCOFF *>(Sym);
   COFFSym->setExternal(true);
-  // The symbol stays undefined until a matching definition is encountered,
-  // which is exactly what the COFF object writer wants for an extern/import.
+  // Unused IMPORTs must still appear in the COFF symbol table; otherwise
+  // llvm-readobj / the linker never see them.
+  getStreamer().emitSymbolAttribute(Sym, MCSA_Global);
   while (getLexer().isNot(AsmToken::EndOfStatement))
     Lex();
   return false;
