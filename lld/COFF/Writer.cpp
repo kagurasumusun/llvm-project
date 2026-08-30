@@ -2491,6 +2491,20 @@ void Writer::createRuntimePseudoRelocs() {
 // There's a symbol pointing to the start sentinel pointer, __CTOR_LIST__
 // and __DTOR_LIST__ respectively.
 void Writer::insertCtorDtorSymbols() {
+  // GNU ld / mingwrt: .ctors.NNNN are collected into .ctors and sorted
+  // by the suffix.  Constructors run in reverse (highest suffix first,
+  // plain .ctors last); destructors run forward.
+  auto bySectionName = [](const Chunk *a, const Chunk *b, bool Reverse) {
+    return Reverse ? a->getSectionName() > b->getSectionName()
+                   : a->getSectionName() < b->getSectionName();
+  };
+  llvm::stable_sort(ctorsSec->chunks, [&](const Chunk *a, const Chunk *b) {
+    return bySectionName(a, b, /*Reverse=*/true);
+  });
+  llvm::stable_sort(dtorsSec->chunks, [&](const Chunk *a, const Chunk *b) {
+    return bySectionName(a, b, /*Reverse=*/false);
+  });
+
   ctx.forEachSymtab([&](SymbolTable &symtab) {
     AbsolutePointerChunk *ctorListHead = make<AbsolutePointerChunk>(symtab, -1);
     AbsolutePointerChunk *ctorListEnd = make<AbsolutePointerChunk>(symtab, 0);

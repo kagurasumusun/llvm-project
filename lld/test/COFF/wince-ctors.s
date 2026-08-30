@@ -33,17 +33,12 @@ WinMainCRTStartup:
 # The head sentinel is (uintptr_t)-1, constructors run in reverse priority
 # order (highest priority name first, plain .ctors last), and the list is
 # null-terminated.  __CTOR_LIST__ points at the head sentinel.
+# llvm-objdump -s prints 16 bytes (four little-endian words) per line.
 # CHECK:      Contents of section .ctors:
-# CHECK-NEXT: ffffffff
-# CHECK-NEXT: 03000000
-# CHECK-NEXT: 02000000
-# CHECK-NEXT: 01000000
+# CHECK-NEXT: ffffffff 03000000 02000000 01000000
 # CHECK-NEXT: 00000000
 
 # Destructors run in forward priority order (plain .dtors first).
 # CHECK:      Contents of section .dtors:
-# CHECK-NEXT: ffffffff
-# CHECK-NEXT: 04000000
-# CHECK-NEXT: 05000000
-# CHECK-NEXT: 06000000
+# CHECK-NEXT: ffffffff 04000000 05000000 06000000
 # CHECK-NEXT: 00000000
