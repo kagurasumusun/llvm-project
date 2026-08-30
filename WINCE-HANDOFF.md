@@ -441,6 +441,14 @@ personality も取り込む(優先度低: C++ 例外は EHABI 経路)/ (c) 分�
 `llvm-wince` の方式は分岐の方式を概ね supersede しているため、最低限
 **設計資料の取り込み**と**分岐の扱いの明記**が必要。
 
+**判断 (2026-08-30)**: (a) を実施 — `utils/wince/WINCE-WINEH-{DESIGN,STATUS}.md` を
+provenance バナー付きで取り込み(分岐自体は放置。削除はユーザー判断)。
+コードは取り込まない(superseded)。附带調査として `frame.cpp` で
+`__CxxFrameHandler` = `__CxxFrameHandler3` への一行パススルー(v3 形式
+`FuncInfo` を `pDC->FunctionEntry->HandlerData` から読む)を確認済み
+(WINEH-ABI-FACTS §4g 参照) — 「v1 形式」は def の名前からの推測にすぎず、
+C++ 例外が EHABI を使う限り C++ WinEH 対応は不要。
+
 ### 11.4 残課題(優先度順)
 
 1. **実ビルド + lit 実行**(本セッションでは対象外)。CI を回して WinCE
