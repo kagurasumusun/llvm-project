@@ -218,6 +218,10 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
         // Default to the Cortex-a7 CPU when targeting armv7k/thumbv7k.
         // ARMv7k does not use SjLj exception handling.
         CPUString = "cortex-a7";
+    } else if (isTargetWindowsCE()) {
+      // WinCE baseline is ARM926EJ-S (ARMv5TE, no VFP).
+      StringRef Def = ARM::getARMCPUForArch(TargetTriple);
+      CPUString = Def.empty() ? "arm926ej-s" : std::string(Def);
     }
   }
 

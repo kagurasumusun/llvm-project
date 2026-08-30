@@ -29,6 +29,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/TargetParser/ARMTargetParser.h"
 #include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
@@ -200,6 +201,15 @@ uint64_t ARM_MC::evaluateBranchTarget(const MCInstrDesc &InstDesc,
 
 MCSubtargetInfo *ARM_MC::createARMMCSubtargetInfo(const Triple &TT,
                                                   StringRef CPU, StringRef FS) {
+  // llvm-mc does not fill in a default CPU.  Empty CPU on WinCE would
+  // assemble as generic ARM with no v4t, so `bx lr` is rejected.
+  std::string CPUBuf;
+  if (CPU.empty() && TT.isWindowsCE()) {
+    CPUBuf = std::string(ARM::getARMCPUForArch(TT));
+    if (CPUBuf.empty())
+      CPUBuf = "arm926ej-s";
+    CPU = CPUBuf;
+  }
   std::string ArchFS = ARM_MC::ParseARMTriple(TT, CPU);
   if (!FS.empty()) {
     if (!ArchFS.empty())

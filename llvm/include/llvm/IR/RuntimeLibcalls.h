@@ -222,8 +222,11 @@ private:
   }
 
   static bool hasAEABILibcalls(const Triple &TT) {
+    // WinCE is the armel ABI: soft-float AAPCS with the RTABI __aeabi_*
+    // helpers (compiler-rt), not the MSVC/ARMNT __rt_* set.
     return TT.isTargetAEABI() || TT.isTargetGNUAEABI() ||
-           TT.isTargetMuslAEABI() || TT.isOSFuchsia() || TT.isAndroid();
+           TT.isTargetMuslAEABI() || TT.isOSFuchsia() || TT.isAndroid() ||
+           TT.isWindowsCE();
   }
 
   LLVM_READONLY

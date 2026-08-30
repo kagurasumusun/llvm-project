@@ -21,6 +21,8 @@ def isOSOpenBSD : RuntimeLibcallPredicate<"TT.isOSOpenBSD()">;
 def isNotOSOpenBSD : RuntimeLibcallPredicate<"!TT.isOSOpenBSD()">;
 def isOSWindows : RuntimeLibcallPredicate<"TT.isOSWindows()">;
 def isNotOSWindows : RuntimeLibcallPredicate<"!TT.isOSWindows()">;
+def isOSWindowsNotCE
+    : RuntimeLibcallPredicate<[{TT.isOSWindows() && !TT.isWindowsCE()}]>;
 def isNotOSLinux : RuntimeLibcallPredicate<[{!TT.isOSLinux()}]>;
 def isNotOSMSVCRT : RuntimeLibcallPredicate<"!TT.isOSMSVCRT()">;
 def isPS : RuntimeLibcallPredicate<"TT.isPS()">;
@@ -2497,13 +2499,13 @@ def GNUEABIHalfConvertCalls :
 
 def WindowARMDivRemCalls : LibcallImpls<
   (add __rt_sdiv, __rt_sdiv64, __rt_udiv, __rt_udiv64),
-  isOSWindows> {
+  isOSWindowsNotCE> {
   let CallingConv = ARM_AAPCS;
 }
 
 def WindowARMFPIntCasts : LibcallImpls<
   (add WindowsFPIntCastLibcalls),
-  isOSWindows> {
+  isOSWindowsNotCE> {
   let CallingConv = ARM_AAPCS_VFP;
 }
 
