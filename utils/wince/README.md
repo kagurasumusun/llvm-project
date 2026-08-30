@@ -24,6 +24,37 @@ stage 2  sysroot: mingwrt + w32api + pthread (utils/wince/build-wince-sysroot.sh
 stage 3  compiler-rt + libunwind/libc++abi/libc++  (utils/wince/build-wince-runtimes.sh)
 ```
 
+## Scope and non-goals (read this before anything else)
+
+**The one supported deployment target of this toolchain is Windows CE on
+32-bit ARM, ARMv5TE-class, the `armel` ABI (little-endian, soft-float,
+AAPCS), default CPU `arm926ej-s` (the Freescale i.MX28 family).** See
+"Architecture baseline (ARM926EJ-S / i.MX28 / ARMv5TE / armel)" below.
+
+Everything else is **out of scope — a non-goal**. Do not implement,
+"complete", extend, or verify any of the following as part of this
+toolchain:
+
+* **x86 / i386 (CEPC, `i386-mingw32ce`, `i386-pc-wince`)** — at most a
+  TargetInfo/driver stub that lets Clang *parse and compile* for the x86
+  spelling. There is no CE-specific x86 runtime path (the compressed
+  `.pdata` SEH emitter, the entry/export Thumb-bit convention, and the CE
+  machine dispatch are all ARM-only). It is **not** a supported end-to-end
+  Windows CE target and is not to be finished.
+* **x86-64 / AArch64 / ARM64 / ARM64EC / ARM64X** — desktop Windows on ARM
+  and 64-bit Windows. Not a Windows CE target at all.
+* **armhf / hard-float, big-endian** — CE has no big-endian variant and the
+  soft-float AAPCS (armel) ABI is the only supported one.
+* **cross-CPU "completeness"**: MIPS / SH3 / SH4 / PPC import thunks in lld,
+  or any port of the CE runtime to a non-ARM CPU. Codegen that happens to
+  exist for these elsewhere in LLVM is irrelevant here.
+
+When a review, evaluation, or audit tables x86/64/ARM64 items (for example
+"WinCE x86", "the AArch64/ARM64EC machine-dispatch sites", "ARM64EC export
+thunks"), read them as **context notes** about code that already exists in
+upstream LLVM — **not** as work items for this toolchain. Do not let them
+divert effort from the ARMv5TE/armel target.
+
 ## Stage 2: the sysroot
 
     utils/wince/build-wince-sysroot.sh --toolchain <prefix>/bin \
@@ -227,7 +258,7 @@ mechanical, all verifiable by the device test procedure.
 | CE 4.2 / 4.1 / 4.0 (.NET) | yes, with caveat | `arm-pc-wince4.2` + `_WIN32_WCE=0x400/420`; import surface is still the CE 5.0 def - a generation-matched `coredll4.def` (def-only, ABI-frozen) closes it fully |
 | CE 3.0 (Pocket PC 2000/2002, HPC2000) | same as 4.x | ARMv4T CPUs (ARM720T/ARM920T) via `-march=armv4t`; StrongARM SA-1100/1110 via `-mcpu=strongarm`/`-march=armv4` (no Thumb, codegen supports it) |
 | CE 2.x / 1.0 | same mechanism | radically smaller API surface; needs a generation def file; H/PC Pro era |
-| CPUs | ARM (v4/v4T/v5TE) and x86 (CEPC, i386-mingw32ce) are end-to-end (codegen + lld COFF import thunks + CRT).  **SH3/SH4 have no LLVM backend.  MIPS codegen exists but lld's COFF import thunks are x86/ARM/ARM64 only** - adding MIPS thunks in lld is the remaining linker-side work.  PPC (CE 1.0/2.0) has no LLVM COFF backend. |
+| CPUs | **ARM (v4/v4T/v5TE) is the only supported deployment target** (default arm926ej-s / ARMv5TE, `armel` soft-float; override with `-march=armv4t` etc. for older ARM hardware). x86 (CEPC, i386-mingw32ce) is a TargetInfo/driver compile stub only — there is no CE-specific x86 runtime (compressed `.pdata` SEH, entry/export Thumb-bit convention, CE machine dispatch) — it is **out of scope**, not end-to-end. SH3/SH4 have no LLVM backend; MIPS/SH3/SH4/PPC import thunks in lld are **non-goals** (see "Scope and non-goals"). |
 
 ## Linkage/runtime chain audit
 
@@ -356,10 +387,9 @@ Both live in `wince-sysroot/gmon/` and are built by the sysroot stage
   `_WIN32_WCE=0x420`, ARMv4T `-march=armv4t` for SA-1110/ARM720T), but the
   import surface comes from the CE 5.0 `coredll.def`, so CE <= 4.1 devices
   need a generation-matched `coredll3.def` added to mingwrt (a def-only,
-  ABI-frozen change per the update policy).  MIPS/SH3/SH4 - the other
-  historical CE CPUs - would additionally need lld COFF import thunks
-  (lld supports x86/ARM/ARM64 today); codegen exists, the linker piece is
-  the gap.
+  ABI-frozen change per the update policy).  MIPS/SH3/SH4/PPC and x86/ARM64
+  import thunks are **not part of this toolchain** (see "Scope and
+  non-goals"); the supported CPU is 32-bit ARM only.
 
 ## mingw-w64 update safety
 

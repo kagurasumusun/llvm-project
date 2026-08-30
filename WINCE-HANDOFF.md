@@ -18,6 +18,7 @@
 ## 0. 30秒サマリ
 
 - **目的**: `kagurasumusun/llvm-project`(LLVM 22.1.8ベースのフォーク)を、**Windows CE (CE 6.0中心、5.0/4.x/3.0/2.xまで設定で対応) の完全なクロス開発ツールチェーン**にすること。
+- **◎ 唯一の対象 = 32ビット ARM、ARMv5TE 級、`armel` ABI(リトルエンディアン・soft-float・AAPCS)、既定 CPU `arm926ej-s`(i.MX28)**。他CPUは**スコープ外(非目標)**。特に **x86(i386-mingw32ce/CEPC)、x86-64、AArch64(ARM64/ARM64EC/ARM64X)、armhf、ビッグエンディアン、MIPS/SH3/SH4/PPC の import thunk**は「実装・完了・拡張・検証」の対象にしない。評価/監査表に x86/64 項目が出てきても**コンテキスト注記**であり、作業項目ではない(詳細は `utils/wince/README.md` の「Scope and non-goals」)。
 - **方針**: 独自ランタイムは作らない。**kagurasumusun/mingwrt + kagurasumusun/w32api(CeGCC系)+ pthreads4w を in-tree ベンダーし、それぞれ自身の configure/make で clang を使ってビルドする**。LLVM/Clang/LLD 側の改修は「正規の機構」として in-tree で行う。
 - **現状**: アプリ/ドライバ/OAL 開発に必要な一式はほぼ実装済み・検証済み(下記)。OS イメージ(sysgen/makeimg/BIB)のビルド基盤は **AE600 ソース(ユーザー手元)が前提**で、実装計画は確定済み・未実装。
 - **直近のブロッカー(解消済み・2026-08-30)**: `kagurasumusun/wince-source` への**トークンアクセスが復帰**(200 OK 確認、ce600 完整ソース 145,461 ファイル参照可能)。代替だった §4g 検証(実バイナリ .pdata の解析)と WINEH-ABI-FACTS.md §4d–4g の対照がそのまま有効。旧ブロッカーの残タスクは §6.1。
@@ -462,7 +463,7 @@ C++ 例外が EHABI を使う限り C++ WinEH 対応は不要。
    残りは `%`/`&`/`n_` 数値リテラル、`DCFS`/`DCFD`、`GBLA`/`SETA`、
    `MACRO`/`MEND`、`IF`/`ENDIF`。実用経路は
    `utils/wince/armasm/armasm-convert.py`(Path A)のまま。
-3. x86 CE の SEH(B10 で診断するようにしただけ。実装は未)。
+3. x86 CE の SEH → **非目標**。B10 は診断のみ(そのまま維持)。x86 は本ツールチェーンの対象外。
 4. `WINEH-ABI-FACTS.md` §4g の `dwSlot` 値など、private リポ
    `wince-source` 由来の前提の一次確認(今回は未参照)。
 5. `.actions/build-wince-llvm.yml` と `.github/workflows/main.yml` の重複解消
@@ -552,7 +553,7 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
 | P1 pdata reloc は改善済み | **同意** | B2/B3/B4 修正済み、wince-pdata.test が固定 |
 | P1 EHABI/SEH 併存の限定性 | **同意(設計どおり)** | `functionUsesWinCFI`(ARMWinCFI.h)は MSVC_TableSEH/X86SEH の personality のみ。ターゲット横断で EHABI を切ると既存動作が壊れる(§4c 検証済)ため per-function gate が唯一安全。funclet なし SEH / 手書き asm SEH は未サポート(実装コメントで明記) |
 | P1 ARM/Thumb interworking 的不備 | **同意・未対応(依存あり)** | entry/export/relocation は符号値 convention で一貫するが、**相対分岐の mode bit はセクション RVA の偶奇に依存**する。lld はセクションを偶数 RVA に配置するため、**Thumb セクションを奇数 RVA に配置するレイアウトが未実装**。これが無い限り -mthumb 代码の相対分岐は mode bit を失う(§13.6-1 で最重要残課題) |
-| P2 x86 CE | **同意** | TargetInfo + driver のみ、CE 特化 linker/runtime 経路は ARM 中心。現状は ARM WinCE が主対象という認識で正しい |
+| P2 x86 CE | **同意(非目標)** | TargetInfo + driver のみ、CE 特化 linker/runtime 経路は ARM 中心。**x86 CE は本ツールチェーンの対象外(非目標)**で、完了作業として扱わない(詳細: `utils/wince/README.md`「Scope and non-goals」) |
 | P2 machine dispatch の全探索 | **同意・実施** | §13.5 |
 
 ### 13.4 本セッションの修正(commit 単位)
@@ -588,9 +589,9 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
 
 ### 13.6 残課題(優先度順)
 
-1. **【最重要】Thumb セクションの奇数 RVA レイアウト**: CE の interworking では相対分岐(B/BL/T32)の mode bit がセクション RVA の偶奇に依存する(mingw-w64/ARM EABI の慣行: Thumb 専用セクションは odd VMA)。lld は現在セクションを偶数 RVA に配置するため、-mthumb 代码は(1) 相対分岐の mode bit を失う、(2) T1/T32 の range thunk が作れない(§13.4-3 の注記)。実装はセクション mode の判定(シンボル bit の集約)+ assignAddresses の配置変更で、単独の大きな作業。ARM mode 既定の CE 開発には影響しない(既定は ARM)。
+1. **【最重要】Thumb caller のランジ拡張 veneer(Thumb→ARM BLX 遠距離 / Thumb-1)。修正**: 旧記述の「Thumb セクションを奇数 RVA に配置する」(odd VMA)は **mingw-w64/ARM EABI の ELF 規約であり、COFF/PE には不適用**(lld はセクションを `config->align`=4096 で整列し、奇数 RVA は物理的に不可能)。COFF/PE の interworking は**シンボル値の bit0**(Thumb マーカー、`WinCOFFObjectWriter` → `DefinedRegular::getRVA()`)で運ばれ、Thumb→Thumb の T32 BL は `applyBranch24T` の半語スケール(`v>>1`)が bit0 を正しく吸収するため**既に成立**している。真の未対応は (a) Thumb→ARM の BLX(遠距離、H ビット/mode 切替)、(b) Thumb-1(ARMv5TE 既定)のランジ拡張 veneer(movw/movt が無いため literal-pool `ldr`+`bx` 型を要し、エンコード・整列・interworking がハードウェア版数依存)。**ARM mode 既定の CE 開発(既定は ARM、`+noarm` は WinCE に未適用)には影響しない**。詳細は `WINCE_EVALUATION_VERIFICATION.md` §7.2/§7.3。
 2. armasm Path B の残構文(§12.2: IF/ENDIF、MACRO/MEND、GBLA/SETA、DCFU 系、EQU 文字列/論理)。CI 緑化後。
-3. x86 CE の SEH 実装(B10 は診断のみ)。ARM 主対象方針どおり低優先。
+3. ~~x86 CE の SEH 実装~~ → **非目標(スコープ外)**。x86 CE は本ツールチェーンの対象ではないため実装しない(B10 の診断はそのまま)。詳細は「Scope and non-goals」。
 4. ~~PDB 生成時の CE CPUType マッピング・`getFileFormatName` の CE 名~~ → 解決済み: CPUType は既存で ARM7 にマップ済み(§13.5 確認)、`getFileFormatName` は `fb4d8843856b` + テスト `32d24c0ae710` で対応。
 5. `.actions` と `.github/workflows/main.yml` の重複解消(ユーザー判断待ち)。
 6. ユーザー依存: mingwrt `5ed3cc4` の push(本 PAT は該リポに書込不可)。
