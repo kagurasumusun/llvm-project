@@ -382,8 +382,10 @@ executed yet:
   PrologLen never reached the flags word (and the values it computed started
   from a `beginRVA` read out of the flags word).
 
-Unverified premise that these fixes rely on: `dwSlot` in the COMPRESSED
-lookup below (see item 2) — `wince-source` was not consulted in this session.
+~~Unverified premise that these fixes rely on: `dwSlot` in the COMPRESSED
+lookup below (see item 2) — `wince-source` was not consulted in this
+session.~~ **RESOLVED 2026-08-30: `dwSlot = 0` (exdsptch.c:1341/1447) — see
+the verification addendum at the end of this section.**
 
 ---
 
@@ -472,6 +474,69 @@ actually implement or interoperate with it (`FuncInfo`, `UnwindMap`, `TryBlockMa
 in the current `wince-source` extraction. This remains blocked until that header (or an
 equivalent structural reference) is available. As the handoff already notes, this is
 lower priority than SEH since C++ exceptions route through EHABI regardless.
+
+**Verification addendum (2026-08-30): §4g cross-checked against `wince-source`
+(`ce600/PRIVATE/WINCEOS/COREOS/CORE/DLL/exdsptch.c`, `.../DLL/ARM/rtlsup.s`,
+`.../CORE/DLL/CRT/{crtdummy.cpp,corelib1.def}`, `ce600/PUBLIC/COMMON/SDK/INC/excpt.h`)
+and against real CE-compiler ARM binaries from the same tree. Every item below was a
+source-level assumption until now; all are confirmed:**
+
+1. **`dwSlot = 0`** — exdsptch.c:1341 (COMPRESSED) and :1447 (COMBINED):
+   `DWORD dwSlot = 0; //FunctionTableAddr - ZeroPtr (FunctionTableAddr)`.
+   Table addresses are zero-based within the DLL image, so the slot offset
+   stays 0.
+2. **The PDATA record is a single 8-byte structure; all bitfields live in
+   word1** (exdsptch.c:42-48): word0 = `pFuncStart`; word1 = `PrologLen:8`
+   (bits 0-7) | `FuncLen:22` (bits 8-29) | `ThirtyTwoBits:1` (bit 30) |
+   `ExceptionFlag:1` (bit 31). The flag fields share word1 because the first
+   30 bits leave room in the same allocation unit — there is **no third
+   word**. `FuncLen`/`PrologLen` are in *instructions*:
+   `InstSize = entry->ThirtyTwoBits ? 4 : 2` (exdsptch.c:1378) and
+   `EndAddress = pFuncStart + FuncLen*InstSize` (:1380-1381).
+   Verified against real CE-compiler ARM images in the tree
+   (`OTHERS/DOTNETV2/ARMV4I/{cgacutil.exe,mscoree.dll}`,
+   `OTHERS/EDB/ARMV4I/sqlceme30.dll`,
+   `OTHERS/DOTNETV35/ARMV4I/mscoree3_5.dll`): **4466/4466 entries** are
+   consistent with exactly this layout (pfs + FuncLen*InstSize chains to the
+   next entry in 898/903 adjacent pairs; bit 30 set iff 32-bit function;
+   bit 31 set only on the SEH functions). This also confirms the emitter
+   constants `CE_PDATA_THIRTY_TWO_BIT = 0x40000000` /
+   `CE_PDATA_EXCEPTION_FLAG = 0x80000000` in
+   `ARMWinCOFFStreamer.cpp` were correct.
+3. **PDATA_EH pair**: the 8 bytes immediately before pFuncStart hold
+   `{ handler, handlerData }` (exdsptch.c:1387-1390). Observed in 20 real SEH
+   entries: every `handler` is the same image-local `__C_specific_handler`
+   VA; `handlerData` points at the scope table.
+4. **Scope table format**: 4-byte count word, then 16-byte entries
+   `{ BeginVA, EndVA, FilterOrFinally, HandlerJump }`, all absolute VAs.
+   `FilterOrFinally` is the address of the outlined filter/finally function;
+   for `__finally` blocks `HandlerJump == End` of the finally block (the
+   "null jump" form). Confirmed on all three cgacutil.exe SEH functions.
+5. **Lookup/gate verbatim**: COMPRESSED
+   `peh = (PPDATA_EH)((entry->pFuncStart & ~(InstSize-1)) + dwSlot) - 1`
+   (exdsptch.c:1387); COMBINED
+   `(PPDATA_EH)(NewEntry->pFuncStart + dwSlot) - 1` (:1544, no thumb-bit
+   mask — matches the note above); gate on `entry->ExceptionFlag`
+   (:1385-1391).
+6. **Kernel invocation convention** (DLL/ARM/rtlsup.s:43-104):
+   `RtlpExecuteHandlerForException` takes r0-r3 = ExceptionRecord,
+   EstablisherFrame, ContextRecord, DispatcherContext; the routine itself is
+   passed via the stack; the handler is invoked in system or Thumb mode per
+   the Interworking/Thumbing build flag. Matches the 4-argument
+   `EXCEPTION_ROUTINE` in `PUBLIC/COMMON/SDK/INC/excpt.h`, whose non-x86
+   `DISPATCHER_CONTEXT` is exactly
+   `{ ControlPc, FunctionEntry, EstablisherFrame, ContextRecord }`.
+7. **`__C_specific_handler` provenance**: `CRT/crtdummy.cpp:114-131`
+   `DUMMY(__C_specific_handler)` (stub `void* fn(void*, const void*,
+   size_t)` — a link-through placeholder, not the real handler) and
+   `CRT/corelib1.def:115` `CRT(__C_specific_handler)` under
+   `#ifndef _X86_`. The real handler remains closed-source, as previously
+   noted.
+
+**Not covered by the binary sample**: all four sampled images are pure ARM
+(machine 0x01c2); no Thumb entry was observed, so the Thumb side (`pfs` bit 0
+set, `ThirtyTwoBits = 0`, `InstSize = 2`) rests on the kernel code path above
+plus the standard CE/Win32 Thumb entry convention.
 
 ## 4f. Resolution of 4e + Phase 2 implementation status (2026-08-29, this session)
 
