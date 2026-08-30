@@ -336,13 +336,11 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     OutFile = Output.getFilename();
   else
     OutFile = "a.exe";
-  // clang-cl's /LD (and /LDd) create a DLL, like -shared/-mdll do.
-  // GNU-driver ArgLists do not contain the clang-cl /LD options; hasArg
-  // still searches by ID and returns false.
+  // clang-cl /LD is OPT__SLASH_LD.  Do not hasArg() it on a GNU ArgList:
+  // the option exists in the unified table but ranging over slash
+  // options from the GNU driver was a crash vector on the link job.
   const bool WantDLL = Args.hasArg(options::OPT_shared) ||
-                       Args.hasArg(options::OPT_mdll) ||
-                       Args.hasArg(options::OPT__SLASH_LD) ||
-                       Args.hasArg(options::OPT__SLASH_LDd);
+                       Args.hasArg(options::OPT_mdll);
   const bool IsDLL = WantDLL;
   if (!llvm::sys::path::has_extension(OutFile) && OutFile != "/dev/null")
     llvm::sys::path::replace_extension(OutFile, IsDLL ? ".dll" : ".exe");
@@ -359,80 +357,45 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   bool HaveDynamicBase = false, HaveDLL = false;
   int MajorImageVer = -1, MinorImageVer = -1;
 
-  for (const Arg *A : Args) {
-    if (!A)
-      continue;
-    const Option &Opt = A->getOption();
-    if (Opt.getKind() == Option::InputClass)
-      continue; // Rendered from Inputs below.
+  // Only walk flags this linker translates.  Ranging over the whole
+  // ArgList and calling getValues() on every option (including flags
+  // with a null value pointer) crashed `clang -###` on the link job.
+  for (const Arg *A : Args.filtered(options::OPT_L)) {
     A->claim();
-    switch (Opt.getID()) {
-    case options::OPT_o:
-    case options::OPT_L:
-    case options::OPT_shared:
-    case options::OPT_mdll:
-    case options::OPT_static:
-    case options::OPT_nostdlib:
-    case options::OPT_nostartfiles:
-    case options::OPT_nodefaultlibs:
-    case options::OPT_s:
-      // Consumed here or handled through other channels; nothing to forward.
-      break;
-    case options::OPT_l: {
-      // -l<name>: resolve against the sysroot lib dir (see addWinCELibrary).
-      addWinCELibrary(Args, CmdArgs, LibDir, A->getValue());
-      break;
-    }
-    case options::OPT_e:
-      HaveEntry = true;
-      CmdArgs.push_back(Args.MakeArgString(Twine("/entry:") + A->getValue()));
-      break;
-    case options::OPT_mwindows:
-    case options::OPT_mconsole:
-      // Windows CE images are always IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (9) -
-      // CeGCC's arm-wince emulation forces 9 for both -mconsole and
-      // -mwindows; "console apps" are just programs with main(), bridged
-      // by mingwrt's winmain_ce.o WinMain adapter.
-      HaveSubsystem = true;
-      CmdArgs.push_back("/subsystem:windowsce");
-      break;
-    case options::OPT_Xlinker:
-      CmdArgs.push_back(A->getValue());
-      break;
-    case options::OPT_Wl_COMMA: {
-      // -Wl,<flag>...: translate the common GNU spellings, forward the rest.
-      ArrayRef<const char *> Vals = A->getValues();
-      for (unsigned I = 0; I < Vals.size(); ++I) {
-        if (!translateGNUFlag(Args, Vals, I, CmdArgs, HaveEntry, HaveBase,
-                              HaveSubsystem, HaveDynamicBase,
-                              HaveDLL, MajorImageVer, MinorImageVer)) {
-          // Unrecognized: forward raw.  lld-link reports a visible error for
-          // anything it does not understand.
-          CmdArgs.push_back(Vals[I]);
-        }
+    CmdArgs.push_back(Args.MakeArgString(Twine("/libpath:") + A->getValue()));
+  }
+  for (const Arg *A : Args.filtered(options::OPT_l)) {
+    A->claim();
+    addWinCELibrary(Args, CmdArgs, LibDir, A->getValue());
+  }
+  if (Arg *A = Args.getLastArg(options::OPT_e)) {
+    A->claim();
+    HaveEntry = true;
+    CmdArgs.push_back(Args.MakeArgString(Twine("/entry:") + A->getValue()));
+  }
+  if (Args.hasArg(options::OPT_mwindows) || Args.hasArg(options::OPT_mconsole)) {
+    Args.ClaimAllArgs(options::OPT_mwindows);
+    Args.ClaimAllArgs(options::OPT_mconsole);
+    // Windows CE images are always IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (9) -
+    // CeGCC's arm-wince emulation forces 9 for both -mconsole and
+    // -mwindows; "console apps" are just programs with main(), bridged
+    // by mingwrt's winmain_ce.o WinMain adapter.
+    HaveSubsystem = true;
+    CmdArgs.push_back("/subsystem:windowsce");
+  }
+  for (const Arg *A : Args.filtered(options::OPT_Xlinker)) {
+    A->claim();
+    CmdArgs.push_back(A->getValue());
+  }
+  for (const Arg *A : Args.filtered(options::OPT_Wl_COMMA)) {
+    A->claim();
+    ArrayRef<const char *> Vals = A->getValues();
+    for (unsigned I = 0; I < Vals.size(); ++I) {
+      if (!translateGNUFlag(Args, Vals, I, CmdArgs, HaveEntry, HaveBase,
+                            HaveSubsystem, HaveDynamicBase,
+                            HaveDLL, MajorImageVer, MinorImageVer)) {
+        CmdArgs.push_back(Vals[I]);
       }
-      break;
-    }
-    default: {
-      // Forward lld-link style overrides (values starting with '/') given via
-      // -Wl or -Xcompiler-like options; everything else stays at the driver.
-      for (const char *Val : A->getValues()) {
-        StringRef V(Val);
-        if (!V.starts_with("/"))
-          continue;
-        if (V.starts_with_insensitive("/subsystem:")) {
-          HaveSubsystem = true;
-        } else if (V.starts_with_insensitive("/entry:")) {
-          HaveEntry = true;
-        } else if (V.starts_with_insensitive("/base:")) {
-          HaveBase = true;
-        } else if (V.starts_with_insensitive("/dynamicbase")) {
-          HaveDynamicBase = true;
-        }
-        CmdArgs.push_back(Val);
-      }
-      break;
-    }
     }
   }
 
