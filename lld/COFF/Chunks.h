@@ -704,6 +704,47 @@ private:
   MachineTypes machine;
 };
 
+// Windows CE ARM (IMAGE_FILE_MACHINE_ARM) range-extension thunk.
+//
+// Unlike RangeExtensionThunkARM (Thumb-2 movw/movt, non-interworking), the
+// CE baseline (ARMv4T/ARMv5TE, e.g. arm926ej-s) has no movw/movt, and CE
+// images interwork between ARM and Thumb code. The stub uses the binutils
+// jmp_arm_bytes pair (same as importThunkARMCE), which loads the target's
+// absolute address from a literal and branches through it, with bit 0 of
+// the loaded address selecting the target's code mode (the CE
+// interworking convention; Thumb function symbols carry bit 0 set, see
+// WinCOFFObjectWriter):
+//
+//   ldr  ip, [pc]        ; literal at stub + 8
+//   ldr  pc, [ip]
+//   <literal: target VA (RVA + image base, bit 0 = Thumb)>
+//
+// The caller's lr is left untouched, so a call (BL) returns through the
+// callee as usual. Only A32 branch callers are thunked: the stub sits at a
+// 4-byte aligned (even) address, so a BL/BLX from ARM-mode code reaches it
+// in ARM mode. Out-of-range branches from Thumb-mode callers (T1/T32) are
+// not thunked yet - they need the section layout to place Thumb code at
+// odd RVAs so that relative-branch target bits come out right; until then
+// they fail with the existing "relocation out of range" error.
+class RangeExtensionThunkARMCE : public NonSectionCodeChunk {
+public:
+  explicit RangeExtensionThunkARMCE(COFFLinkerContext &ctx, Defined *t)
+      : target(t), ctx(ctx) {
+    setAlignment(4);
+  }
+  size_t getSize() const override { return 12; }
+  void writeTo(uint8_t *buf) const override;
+  void getBaserels(std::vector<Baserel> *res) override;
+  MachineTypes getMachine() const override {
+    return llvm::COFF::IMAGE_FILE_MACHINE_ARM;
+  }
+
+  Defined *target;
+
+private:
+  COFFLinkerContext &ctx;
+};
+
 // A chunk used to guarantee the same address for a function in both views of
 // a hybrid image. Similar to RangeExtensionThunkARM64 chunks, it calls the
 // target symbol using a BR instruction. It also contains an entry thunk for EC

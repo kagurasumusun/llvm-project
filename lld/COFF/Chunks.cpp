@@ -985,6 +985,27 @@ const uint8_t arm64Thunk[] = {
 
 size_t RangeExtensionThunkARM64::getSize() const { return sizeof(arm64Thunk); }
 
+// Windows CE ARM range-extension stub, the binutils jmp_arm_bytes pair
+// (same encoding as importThunkARMCE): ldr pc, [ip] transfers control in
+// the target's code mode (bit 0 of the loaded address) on ARMv5T+ and a
+// plain jump on ARMv4, matching the arm-wince reference behavior. The
+// literal holds the target's absolute address (RVA + image base); on
+// non-fixed images the HIGHLOW base relocation from getBaserels fixes it
+// up. The caller's lr is untouched, so a call (BL) returns as usual.
+const uint8_t rangeExtThunkARMCE[] = {
+    0x00, 0xc0, 0x9f, 0xe5, // ldr ip, [pc]
+    0x00, 0xf0, 0x9c, 0xe5, // ldr pc, [ip]
+};
+
+void RangeExtensionThunkARMCE::writeTo(uint8_t *buf) const {
+  memcpy(buf, rangeExtThunkARMCE, sizeof(rangeExtThunkARMCE));
+  write32le(buf + 8, uint32_t(target->getRVA() + ctx.config.imageBase));
+}
+
+void RangeExtensionThunkARMCE::getBaserels(std::vector<Baserel> *res) {
+  res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
+}
+
 void RangeExtensionThunkARM64::writeTo(uint8_t *buf) const {
   memcpy(buf, arm64Thunk, sizeof(arm64Thunk));
   applyArm64Addr(buf + 0, target->getRVA(), rva, 12);

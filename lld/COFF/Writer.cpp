@@ -436,6 +436,19 @@ bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
     default:
       return true;
     }
+  } else if (machine == IMAGE_FILE_MACHINE_ARM) {
+    // Windows CE ARM (interworking). A32 B/BL: 24-bit word-aligned offset
+    // from PC+8, i.e. |s - (p + 8)| < 2^25 - see applyBranch24A. Only
+    // A32 branch callers are thunked (see RangeExtensionThunkARMCE);
+    // Thumb branch callers keep the existing out-of-range error from
+    // SectionChunk::applyRelARM until Thumb sections get odd RVAs.
+    int64_t diff = AbsoluteDifference(s, p + 8) + margin;
+    switch (relType) {
+    case IMAGE_REL_ARM_BRANCH24:
+      return isInt<26>(diff & ~3);
+    default:
+      return true;
+    }
   } else if (isAnyArm64(machine)) {
     int64_t diff = AbsoluteDifference(s, p) + margin;
     switch (relType) {
@@ -462,15 +475,20 @@ Writer::getThunk(DenseMap<uint64_t, Defined *> &lastThunks, Defined *target,
   if (lastThunk && isInRange(type, lastThunk->getRVA(), p, margin, machine))
     return {lastThunk, false};
   Chunk *c;
-  switch (getMachineArchType(machine)) {
-  case Triple::thumb:
-    c = make<RangeExtensionThunkARM>(ctx, target);
-    break;
-  case Triple::aarch64:
-    c = make<RangeExtensionThunkARM64>(machine, target);
-    break;
-  default:
-    llvm_unreachable("Unexpected architecture");
+  if (machine == IMAGE_FILE_MACHINE_ARM) {
+    // Windows CE ARM interworking stub (A32-mode; see isInRange above).
+    c = make<RangeExtensionThunkARMCE>(ctx, target);
+  } else {
+    switch (getMachineArchType(machine)) {
+    case Triple::thumb:
+      c = make<RangeExtensionThunkARM>(ctx, target);
+      break;
+    case Triple::aarch64:
+      c = make<RangeExtensionThunkARM64>(machine, target);
+      break;
+    default:
+      llvm_unreachable("Unexpected architecture");
+    }
   }
   Defined *d = make<DefinedSynthetic>("range_extension_thunk", c);
   lastThunk = d;
@@ -665,7 +683,9 @@ bool Writer::verifyRanges(const std::vector<Chunk *> chunks) {
 // Assign addresses and add thunks if necessary.
 void Writer::finalizeAddresses() {
   assignAddresses();
-  if (ctx.config.machine != ARMNT && !isAnyArm64(ctx.config.machine))
+  if (ctx.config.machine != ARMNT &&
+      ctx.config.machine != IMAGE_FILE_MACHINE_ARM &&
+      !isAnyArm64(ctx.config.machine))
     return;
 
   size_t origNumChunks = 0;
