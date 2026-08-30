@@ -87,15 +87,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}
+          # Append github.sha so every run stores a fresh entry (actions/cache
+          # will not overwrite an existing key), while restore-keys recovers
+          # the most recent prefix match.  save-always persists the cache even
+          # when the build/lit gate fails -- that is what keeps the
+          # fix/push/observe loop incremental instead of a full rebuild.
+          key: ccache-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}-${{ github.sha }}
           restore-keys: ccache-${{ runner.os }}-
+          save-always: true
 
       - name: Cache Ninja build dir
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/build
-          key: ninja-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}
+          key: ninja-${{ runner.os }}-${{ hashFiles('clang/cmake/caches/WinCE.cmake') }}-${{ github.sha }}
           restore-keys: ninja-${{ runner.os }}-
+          save-always: true
 
       # -----------------------------------------------------------------
       # Stage 1: host LLVM/Clang/LLD + the binary tools the lit tests need
