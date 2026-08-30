@@ -43,6 +43,10 @@ StringRef COFFImportFile::getFileFormatName() const {
     return "COFF-import-file-x86-64";
   case COFF::IMAGE_FILE_MACHINE_ARMNT:
     return "COFF-import-file-ARM";
+  case COFF::IMAGE_FILE_MACHINE_ARM:
+    // Windows CE ARM (IMAGE_FILE_MACHINE_ARM) import library, matching the
+    // llvm::machineToStr() "armce" spelling used by llvm-dlltool -m armce.
+    return "COFF-import-file-ARMCE";
   case COFF::IMAGE_FILE_MACHINE_ARM64:
     return "COFF-import-file-ARM64";
   case COFF::IMAGE_FILE_MACHINE_ARM64EC:
