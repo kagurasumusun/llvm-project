@@ -2709,7 +2709,9 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       bool DstIsDead = MI.getOperand(0).isDead();
       const MachineOperand &MO1 = MI.getOperand(1);
       auto Flags = MO1.getTargetFlags();
-      const GlobalValue *GV = MO1.getGlobal();
+      // llvm.localrecover lowers frame-escape symbols as ExternalSymbol,
+      // not GlobalValue.  getGlobal() on that operand is a crash.
+      const GlobalValue *GV = MO1.isGlobal() ? MO1.getGlobal() : nullptr;
       bool IsARM = Opcode != ARM::tLDRLIT_ga_pcrel &&
                    Opcode != ARM::tLDRLIT_ga_abs &&
                    Opcode != ARM::t2LDRLIT_ga_pcrel;
@@ -2728,7 +2730,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       unsigned ARMPCLabelIndex = 0;
       MachineConstantPoolValue *CPV;
 
-      if (IsPIC) {
+      if (IsPIC && GV) {
         unsigned PCAdj = IsARM ? 8 : 4;
         auto Modifier = (Flags & ARMII::MO_GOT)
                             ? ARMCP::GOT_PREL
@@ -2746,6 +2748,8 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
         // defines with .set assignments.  Use the symbol constant-pool
         // entry (same path as the tTPsoft long-call expansion) so the
         // literal pool emits ".long <symbol>".
+        assert(MO1.isSymbol() &&
+               "LDRLIT_ga operand must be a GlobalValue or ExternalSymbol");
         CPV = ARMConstantPoolSymbol::Create(
             MBB.getParent()->getFunction().getContext(),
             MO1.getSymbolName(), 0, 0);
