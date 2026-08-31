@@ -64,6 +64,12 @@ case "$TARGET" in
   *) echo "$PROGRAM: unsupported target $TARGET" >&2; exit 1 ;;
 esac
 
+# CMAKE_<LANG>_COMPILER_TARGET is ignored until CMake has identified the
+# compiler as Clang.  Identification compiles do not pass it, so a
+# target-less clang++ reports "unknown target triple 'unknown'"
+# (CI 33352687660).  Put --target in the language flags, which identification
+# and try_compile both use.
+TARGET_FLAGS="--target=$TARGET --sysroot=$SYSROOT"
 COMMON_CMAKE=(
   -G Ninja
   -DCMAKE_BUILD_TYPE=Release
@@ -75,6 +81,9 @@ COMMON_CMAKE=(
   -DCMAKE_C_COMPILER_TARGET="$TARGET"
   -DCMAKE_CXX_COMPILER_TARGET="$TARGET"
   -DCMAKE_ASM_COMPILER_TARGET="$TARGET"
+  -DCMAKE_C_FLAGS="$TARGET_FLAGS"
+  -DCMAKE_CXX_FLAGS="$TARGET_FLAGS"
+  -DCMAKE_ASM_FLAGS="$TARGET_FLAGS"
 )
 
 # --- compiler-rt builtins (the -lgcc replacement) ----------------------------
