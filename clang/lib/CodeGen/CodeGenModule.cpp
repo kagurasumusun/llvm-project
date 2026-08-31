@@ -475,10 +475,11 @@ CodeGenModule::CodeGenModule(ASTContext &C,
       CodeGenOpts.CoverageNotesFile.size() ||
       CodeGenOpts.CoverageDataFile.size())
     DebugInfo.reset(new CGDebugInfo(*this));
-  else if (getTriple().isOSWindows())
+  else if (getTriple().isOSWindows() && !getTriple().isWindowsCE())
     // On Windows targets, we want to emit compiler info even if debug info is
     // otherwise disabled. Use a temporary CGDebugInfo instance to emit only
-    // basic compiler metadata.
+    // basic compiler metadata.  WinCE uses the GNU/Itanium C++ ABI and DWARF
+    // (or EHABI), not CodeView compiler-info blobs.
     CGDebugInfo(*this);
 
   Block.GlobalUniqueCount = 0;
@@ -1152,7 +1153,8 @@ void CodeGenModule::Release() {
                               "StrictVTablePointersRequirement",
                               llvm::MDNode::get(VMContext, Ops));
   }
-  if (getModuleDebugInfo() || getTriple().isOSWindows())
+  if (getModuleDebugInfo() ||
+      (getTriple().isOSWindows() && !getTriple().isWindowsCE()))
     // We support a single version in the linked module. The LLVM
     // parser will drop debug info with a different version number
     // (and warn about it, too).

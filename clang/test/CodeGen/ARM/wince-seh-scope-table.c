@@ -29,8 +29,8 @@ int except_func(int x) {
 // Parent: scope table with the outlined filter as the FilterFunction entry,
 // then the PDATA_EH pair immediately before the function label.
 // CHECK: .Lexcept_func{{.*}}parent_frame_offset = {{[0-9]+}}
-// CHECK: [[HD:.Lce_handlerdata_[0-9]+]]:
-// CHECK-NEXT: .long ([[LE:.Llsda_end_[0-9]+]]-[[LB:.Llsda_begin_[0-9]+]])/16
+// CHECK: [[HD:.Lce_handlerdata[0-9]+]]:
+// CHECK-NEXT: .long ([[LE:.Llsda_end[0-9]+]]-[[LB:.Llsda_begin[0-9]+]])/16
 // CHECK-NEXT: [[LB]]:
 // CHECK-NEXT: .long {{.*}}
 // CHECK-NEXT: .long {{.*}}
@@ -56,8 +56,8 @@ int catchall_func(void) {
 }
 
 // CHECK: .Lcatchall_func{{.*}}parent_frame_offset = {{[0-9]+}}
-// CHECK: [[HD2:.Lce_handlerdata_[0-9]+]]:
-// CHECK-NEXT: .long ([[LE2:.Llsda_end_[0-9]+]]-[[LB2:.Llsda_begin_[0-9]+]])/16
+// CHECK: [[HD2:.Lce_handlerdata[0-9]+]]:
+// CHECK-NEXT: .long ([[LE2:.Llsda_end[0-9]+]]-[[LB2:.Llsda_begin[0-9]+]])/16
 // CHECK-NEXT: [[LB2]]:
 // CHECK-NEXT: .long {{.*}}
 // CHECK-NEXT: .long {{.*}}
@@ -84,8 +84,8 @@ int finally_func(void) {
 }
 
 // CHECK: .Lfinally_func{{.*}}parent_frame_offset = {{[0-9]+}}
-// CHECK: [[HD3:.Lce_handlerdata_[0-9]+]]:
-// CHECK-NEXT: .long ([[LE3:.Llsda_end_[0-9]+]]-[[LB3:.Llsda_begin_[0-9]+]])/16
+// CHECK: [[HD3:.Lce_handlerdata[0-9]+]]:
+// CHECK-NEXT: .long ([[LE3:.Llsda_end[0-9]+]]-[[LB3:.Llsda_begin[0-9]+]])/16
 // CHECK-NEXT: [[LB3]]:
 // CHECK-NEXT: .long {{.*}}
 // CHECK-NEXT: .long {{.*}}

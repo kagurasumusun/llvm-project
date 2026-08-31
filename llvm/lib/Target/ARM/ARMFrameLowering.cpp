@@ -420,8 +420,13 @@ static int getArgumentStackToRestore(MachineFunction &MF,
 }
 
 static bool needsWinCFI(const MachineFunction &MF) {
-  const Function &F = MF.getFunction();
-  return functionUsesWinCFI(MF) && F.needsUnwindTableEntry();
+  // On Windows CE, SEH (__try) functions must receive WinCFI prologue
+  // opcodes even when the IR does not carry uwtable. C++ mixed TUs
+  // historically omitted uwtable on the __try parent, which left
+  // hasWinCFI false and ARMException emitting .fnstart instead of
+  // .seh_proc. functionUsesWinCFI already returns true only for SEH
+  // personalities on CE (and for usesWindowsCFI() elsewhere).
+  return functionUsesWinCFI(MF);
 }
 
 // Given a load or a store instruction, generate an appropriate unwinding SEH

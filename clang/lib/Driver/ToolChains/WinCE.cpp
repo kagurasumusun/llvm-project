@@ -340,8 +340,9 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // clang-cl /LD is OPT__SLASH_LD.  Do not hasArg() it on a GNU ArgList:
   // the option exists in the unified table but ranging over slash
   // options from the GNU driver was a crash vector on the link job.
-  const bool WantDLL = Args.hasArg(options::OPT_shared) ||
-                       Args.hasArg(options::OPT_mdll);
+  // Do not hasArg(OPT_mdll): on the GNU driver table that flag shares
+  // storage with clang-cl options and has been a -### crash vector.
+  const bool WantDLL = Args.hasArg(options::OPT_shared);
   const bool IsDLL = WantDLL;
   if (!llvm::sys::path::has_extension(OutFile) && OutFile != "/dev/null")
     llvm::sys::path::replace_extension(OutFile, IsDLL ? ".dll" : ".exe");
@@ -363,16 +364,22 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // with a null value pointer) crashed `clang -###` on the link job.
   for (const Arg *A : Args.filtered(options::OPT_L)) {
     A->claim();
+    if (!A->getNumValues() || !A->getValue())
+      continue;
     CmdArgs.push_back(Args.MakeArgString(Twine("/libpath:") + A->getValue()));
   }
   for (const Arg *A : Args.filtered(options::OPT_l)) {
     A->claim();
+    if (!A->getNumValues() || !A->getValue())
+      continue;
     addWinCELibrary(Args, CmdArgs, LibDir, A->getValue());
   }
   if (Arg *A = Args.getLastArg(options::OPT_e)) {
     A->claim();
-    HaveEntry = true;
-    CmdArgs.push_back(Args.MakeArgString(Twine("/entry:") + A->getValue()));
+    if (A->getNumValues() && A->getValue()) {
+      HaveEntry = true;
+      CmdArgs.push_back(Args.MakeArgString(Twine("/entry:") + A->getValue()));
+    }
   }
   if (Args.hasArg(options::OPT_mwindows) || Args.hasArg(options::OPT_mconsole)) {
     Args.ClaimAllArgs(options::OPT_mwindows);
@@ -386,12 +393,16 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
   for (const Arg *A : Args.filtered(options::OPT_Xlinker)) {
     A->claim();
+    if (!A->getNumValues() || !A->getValue())
+      continue;
     CmdArgs.push_back(A->getValue());
   }
   for (const Arg *A : Args.filtered(options::OPT_Wl_COMMA)) {
     A->claim();
     ArrayRef<const char *> Vals = A->getValues();
     for (unsigned I = 0; I < Vals.size(); ++I) {
+      if (!Vals[I])
+        continue;
       if (!translateGNUFlag(Args, Vals, I, CmdArgs, HaveEntry, HaveBase,
                             HaveSubsystem, HaveDynamicBase,
                             HaveDLL, MajorImageVer, MinorImageVer)) {
@@ -501,10 +512,15 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(II.getFilename());
   }
 
+  // GetProgramPath can return an empty string when lld-link is not on
+  // PATH; MakeArgString of that is fine, but do not treat a missing
+  // tool as a crash.  Use the basename and let -### still print it.
   std::string LinkerPath = TC.GetProgramPath("lld-link");
   if (LinkerPath.empty())
     LinkerPath = "lld-link";
   const char *Exec = Args.MakeArgString(LinkerPath);
+  if (!Exec || !*Exec)
+    Exec = "lld-link";
   C.addCommand(std::make_unique<Command>(JA, *this,
                                          ResponseFileSupport::AtFileUTF8(),
                                          Exec, CmdArgs, Inputs, Output));

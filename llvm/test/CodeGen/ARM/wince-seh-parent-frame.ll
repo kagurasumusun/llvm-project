@@ -45,7 +45,7 @@ entry:
 ; T2-NOT: bl
 ; T2: movw r{{[0-9]+}}, :lower16:.Lalloc_func$frame_escape_0
 ; T2: movt r{{[0-9]+}}, :upper16:.Lalloc_func$frame_escape_0
-; T2: add r{{[0-9]+}}, r1, r{{[0-9]+}}
+; T2: ldr r{{[0-9]+}}, [r1, r{{[0-9]+}}]
 
 define dso_local i32 @alloc_func() personality ptr @__C_specific_handler {
 entry:

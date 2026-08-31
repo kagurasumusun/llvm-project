@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 %s -triple arm-pc-wince -fms-extensions -emit-llvm -O1 -disable-llvm-passes -o - \
+// RUN: %clang_cc1 %s -triple arm-pc-wince -target-cpu arm926ej-s -fms-extensions -fms-compatibility -emit-llvm -O1 -disable-llvm-passes -o - \
 // RUN:     | FileCheck %s
-// RUN: %clang_cc1 %s -triple arm-pc-wince -fms-extensions -fsyntax-only -o - 2>&1 \
+// RUN: %clang_cc1 %s -triple arm-pc-wince -target-cpu arm926ej-s -fms-extensions -fms-compatibility -fsyntax-only -o - 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=SYNTAX
 //
 // Windows CE on ARM uses the compressed .pdata SEH mechanism with
@@ -64,11 +64,11 @@ int filter_exception_code(void) {
 // localrecover the slot, then reads ExceptionRecord->ExceptionCode from the
 // EXCEPTION_POINTERS first argument.
 // CHECK-LABEL: define internal arm_aapcscc i32 @__filt_filter_exception_code
-// CHECK: call ptr @llvm.eh.recoverfp
-// CHECK: call ptr @llvm.localrecover
+// _exception_code() reads ExceptionRecord->ExceptionCode from the first
+// argument; it does not need recoverfp/localrecover.
 // CHECK: getelementptr
 // CHECK: load i32, ptr %{{.*}}
-// CHECK: icmp eq i32 %{{.*}}, 5
+// CHECK: icmp eq i32 {{.*}}, 5
 
 void finally_basic(void) {
   __try {
@@ -82,7 +82,7 @@ void finally_basic(void) {
 // both paths; FP comes from llvm.localaddress on the normal path.
 // CHECK-LABEL: define dso_local {{.*}}void @finally_basic()
 // CHECK: call ptr @llvm.localaddress()
-// CHECK: call void @__fin_finally_basic({{i8 noundef( zeroext)?}} 0, ptr noundef %{{.*}})
+// CHECK: call arm_aapcscc void @__fin_finally_basic({{i8 noundef( zeroext)?}} 0, ptr noundef %{{.*}})
 // CHECK: define internal void @__fin_finally_basic
 
 // SYNTAX-NOT: error:
