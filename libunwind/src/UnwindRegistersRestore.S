@@ -786,6 +786,10 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm20restoreCoreAndJumpToEv)
   JMP(lr)
 #endif
 
+@ Soft-float (WinCE/armel): no VFP in the ABI; do not assemble vldmia.
+@ Keep the symbols so Registers_arm still links.  ELF .fpu is only for
+@ hard-float builds (COFF has no .fpu directive).
+#if defined(__ARM_FP)
 @
 @ static void libunwind::Registers_arm::restoreVFPWithFLDMD(unw_fpreg_t* values)
 @
@@ -793,7 +797,9 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm20restoreCoreAndJumpToEv)
 @  values pointer is in r0
 @
   .p2align 2
+#if defined(__ELF__)
   .fpu vfpv3-d16
+#endif
 DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMDEPv)
   @ VFP and iwMMX instructions are only available when compiling with the flags
   @ that enable them. We do not want to do that in the library (because we do not
@@ -812,7 +818,9 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMDEPv)
 @  values pointer is in r0
 @
   .p2align 2
+#if defined(__ELF__)
   .fpu vfpv3-d16
+#endif
 DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMXEPv)
   vldmia r0, {d0-d15} @ fldmiax is deprecated in ARMv7+ and now behaves like vldmia
   JMP(lr)
@@ -824,10 +832,23 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMXEPv)
 @  values pointer is in r0
 @
   .p2align 2
+#if defined(__ELF__)
   .fpu vfpv3
+#endif
 DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm12restoreVFPv3EPv)
   vldmia r0, {d16-d31}
   JMP(lr)
+#else
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMDEPv)
+  JMP(lr)
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMXEPv)
+  JMP(lr)
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm12restoreVFPv3EPv)
+  JMP(lr)
+#endif
 
 #if defined(__ARM_WMMX)
 

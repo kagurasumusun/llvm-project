@@ -944,6 +944,8 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 #endif
   JMP(lr)
 
+@ Soft-float (WinCE/armel): no VFP in the ABI.
+#if defined(__ARM_FP)
 @
 @ static void libunwind::Registers_arm::saveVFPWithFSTMD(unw_fpreg_t* values)
 @
@@ -951,7 +953,9 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 @  values pointer is in r0
 @
   .p2align 2
+#if defined(__ELF__)
   .fpu vfpv3-d16
+#endif
 DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMDEPv)
   vstmia r0, {d0-d15}
   JMP(lr)
@@ -963,7 +967,9 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMDEPv)
 @  values pointer is in r0
 @
   .p2align 2
+#if defined(__ELF__)
   .fpu vfpv3-d16
+#endif
 DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMXEPv)
   vstmia r0, {d0-d15} @ fstmiax is deprecated in ARMv7+ and now behaves like vstmia
   JMP(lr)
@@ -988,6 +994,17 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm9saveVFPv3EPv)
   @ So, generate the instructions using the corresponding coprocessor mnemonic.
   vstmia r0, {d16-d31}
   JMP(lr)
+#else
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMDEPv)
+  JMP(lr)
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMXEPv)
+  JMP(lr)
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm9saveVFPv3EPv)
+  JMP(lr)
+#endif
 
 #if defined(_LIBUNWIND_ARM_WMMX)
 
