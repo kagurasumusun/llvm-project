@@ -88,12 +88,10 @@ public:
   StringRef getSysRootPath() const { return SysRootPath; }
 
 protected:
-  Tool *getTool(Action::ActionClass AC) const override;
   Tool *buildLinker() const override;
 
 private:
   std::string SysRootPath;
-  mutable std::unique_ptr<tools::wince::Linker> LinkerTool;
 };
 
 } // end namespace toolchains

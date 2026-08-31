@@ -66,16 +66,12 @@ WinCE::WinCE(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
   }
 }
 
-Tool *WinCE::getTool(Action::ActionClass AC) const {
-  if (AC == Action::LinkJobClass)
-    return getLink();
-  return Generic_GCC::getTool(AC);
-}
-
 Tool *WinCE::buildLinker() const {
-  if (!LinkerTool)
-    LinkerTool = std::make_unique<wince::Linker>(*this);
-  return LinkerTool.get();
+  // ToolChain::getLink() takes ownership via unique_ptr::reset.
+  // Returning a second unique_ptr to the same object double-frees on
+  // ~WinCE / ~ToolChain and SIGSEGVs the -### link RUN after jobs print
+  // (piped stderr is fully buffered, so lit sees no output + -11).
+  return new tools::wince::Linker(*this);
 }
 
 ToolChain::CXXStdlibType WinCE::GetCXXStdlibType(const ArgList &Args) const {
@@ -208,8 +204,7 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
-                                         "lld-link", CmdArgs, InputInfoList(),
-                                         Output));
+                                         "lld-link", CmdArgs, Inputs, Output));
 }
 
 } // end namespace wince
