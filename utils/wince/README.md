@@ -144,6 +144,26 @@ were pushed to them on 2026-08-31 (see WINCE-HANDOFF.md §14.2):
   3. `_ptw32.h` accepts clang at the `#if ! defined __declspec` guard
      (same root cause as the mingwrt `_mingw.h` probe).
 
+## PDB / CodeView debug info (2026-08-31)
+
+* **DWARF** (the `-g` default): emitted as before (DWARF4 on COFF). Works,
+  but is not the native Windows format; WCE debug servers do not read
+  DWARF.
+* **CodeView** (`-gcodeview`): accepted for `arm-pc-wince`; the object
+  carries the CodeView sections (`.debug$B` line numbers, `.debug$S`
+  symbol records, `.debug$T` type records) — verified by
+  `clang/test/CodeGen/ARM/wince-codeview.c`.
+* **Link**: the driver passes `-debug` to `lld-link` whenever the user
+  asks for debug info (`-g`, `-g1..3`, `-gcodeview`, ...; not `-g0`),
+  mirroring the MSVC convention. `lld-link -debug` merges the CodeView
+  sections from the objects and writes the debug directory into the
+  image. End-to-end check in the cellvm-build CI (Stage 3 smoke).
+* **PDB**: lld has no PDB writer, so a standalone `.pdb` file is NOT
+  produced. The CodeView data embedded in the image is the PDB's raw
+  material; a debugger/tool that needs a PDB would have to synthesize
+  one from the image (no in-tree tool does this yet). This is the
+  known gap against the MSVC toolchain for CE debugging.
+
 ## Stage 3: compiler runtime + C++ runtime
 
     utils/wince/build-wince-runtimes.sh --toolchain <prefix>/bin \

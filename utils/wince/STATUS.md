@@ -99,6 +99,9 @@ force-push.
 
 ## Still open (not blocking CI)
 
+* **PDB generation** — CodeView debug info is emitted (`-gcodeview`) and
+  embedded by `lld-link -debug`; lld has no PDB writer, so no standalone
+  `.pdb` (see README "PDB / CodeView debug info").
 * **On-device execution** — CI only compiles/links; no CE hardware.
 * **Thumb far-branch veneer** — implemented (A32 stub + Thumb-1 `bx pc` /
   `ldr pc`); not executed on a device.
