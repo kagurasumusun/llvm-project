@@ -36,7 +36,9 @@ dvar:
 # HDR: ImageBase: 0x10000
 # HDR: Subsystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (0x9)
 
-# CHECK: movw r0, #8192
-# CHECK: movt r0, #1
-# CHECK: bl {{.*}} <callee>
-# CHECK: blx {{.*}} <thumbcallee>
+## Measured: e3020000 = movw r0, #0x2000 (lower16 of dvar VA 0x12000),
+## e3400001 = movt r0, #1 (upper16); bl/blx print with targets.
+# CHECK: e3020000
+# CHECK: e3400001
+# CHECK: bl 0x11014
+# CHECK: blx 0x11018
