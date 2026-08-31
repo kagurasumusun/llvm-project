@@ -126,13 +126,9 @@ cmake -S "$REPO_ROOT/runtimes" -B "$BLD/runtimes" \
   -DLIBCXX_ENABLE_FILESYSTEM=OFF \
   -DLIBCXX_ENABLE_WIDE_CHARACTERS=ON
 
-# Configure first, then build (the runtimes umbrella configures sub-builds).
-cmake --build "$BLD/runtimes" -j "$(nproc 2>/dev/null || echo 2)" || true
-for sub in libunwind libcxxabi libcxx; do
-  if [ -d "$BLD/runtimes/$sub" ]; then
-    cmake --build "$BLD/runtimes/$sub" -j "$(nproc 2>/dev/null || echo 2)"
-  fi
-done
+# The runtimes umbrella is one Ninja graph.  Subdirs have no build.ninja
+# (CI 33362273917: ninja: loading 'build.ninja' after libc++.a linked).
+cmake --build "$BLD/runtimes" -j "$(nproc 2>/dev/null || echo 2)"
 
 # --- stage into the sysroot (GNU names; the driver probes lib<name>.a) -------
 install -m 644 \
