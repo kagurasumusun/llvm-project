@@ -69,15 +69,21 @@ COMMON_CMAKE=(
   -DCMAKE_BUILD_TYPE=Release
   -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
   -DCMAKE_AR="$AR" -DCMAKE_RANLIB="$RANLIB"
+  -DCMAKE_C_COMPILER="$CC"
+  -DCMAKE_CXX_COMPILER="$CXX"
+  -DCMAKE_ASM_COMPILER="$CC"
+  -DCMAKE_C_COMPILER_TARGET="$TARGET"
+  -DCMAKE_CXX_COMPILER_TARGET="$TARGET"
+  -DCMAKE_ASM_COMPILER_TARGET="$TARGET"
 )
 
 # --- compiler-rt builtins (the -lgcc replacement) ----------------------------
 echo "== [1/2] compiler-rt builtins ($RT_ARCH)"
+# builtins/CMakeLists.txt calls project(... C CXX ASM).  Without a CXX
+# COMPILER_TARGET, cmake's try_compile invokes bare clang++ and this
+# toolchain reports "unknown target triple 'unknown'" (CI 33352246959).
 cmake -S "$REPO_ROOT/compiler-rt/lib/builtins" -B "$BLD/builtins" \
   "${COMMON_CMAKE[@]}" \
-  -DCMAKE_C_COMPILER="$CC" \
-  -DCMAKE_C_COMPILER_TARGET="$TARGET" \
-  -DCMAKE_ASM_COMPILER_TARGET="$TARGET" \
   -DCMAKE_SYSROOT="$SYSROOT" \
   -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
   -DCOMPILER_RT_BAREMETAL_BUILD=ON
@@ -87,9 +93,6 @@ cmake --build "$BLD/builtins" -j "$(nproc 2>/dev/null || echo 2)"
 echo "== [2/2] libunwind + libc++abi + libc++"
 cmake -S "$REPO_ROOT/runtimes" -B "$BLD/runtimes" \
   "${COMMON_CMAKE[@]}" \
-  -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
-  -DCMAKE_C_COMPILER_TARGET="$TARGET" \
-  -DCMAKE_CXX_COMPILER_TARGET="$TARGET" \
   -DCMAKE_SYSROOT="$SYSROOT" \
   -DCMAKE_C_FLAGS="--sysroot=$SYSROOT" \
   -DCMAKE_CXX_FLAGS="--sysroot=$SYSROOT" \
