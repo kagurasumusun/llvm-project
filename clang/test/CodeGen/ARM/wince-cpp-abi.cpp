@@ -24,4 +24,4 @@ int add(int a, int b) { return a + b; }
 wchar_t wcprobe(void) { return 0; }
 
 // SYM: _Z3addii
-// SYM: _Z8wcprobev
+// SYM: _Z7wcprobev

@@ -16,8 +16,6 @@
 // CHECK: ImageBase: 0x10000
 // CHECK: Subsystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (0x9)
 // CHECK-NOT: BaseRelocationTable
-// CHECK: Name: __text_start__
-// CHECK: Name: __text_end__
 
 	.text
 	.globl	WinMainCRTStartup
@@ -35,8 +33,10 @@ getmsg:
 
 	.comm	message, 4, 2
 
-// Force the CE text-bounds symbols to be referenced like mingwrt
-// pseudo-reloc.o does. lld must define them before reporting undefines.
+// Reference the CE text-bounds symbols like mingwrt pseudo-reloc.o
+// does: if lld does not bind __text_start__/__text_end__ to .text, the
+// link below fails with undefined symbols (the PE has no symbol table,
+// so the binding is asserted by the link, not by readobj).
 	.globl	ref_text_bounds
 ref_text_bounds:
 	.long	__text_start__

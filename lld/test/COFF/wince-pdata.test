@@ -18,14 +18,14 @@ RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.second.o %S/Inputs/wince
 RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.first.o %S/Inputs/wince-pdata-first.s
 RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:second /base:0x10000 /fixed %t.second.o %t.first.o
 
-## Linked .text (RVA 0x1000):
-##   +0x00 __C_specific_handler (2B)
-##   +0x02 second's PDATA_EH pair (8B)
-##   +0x0A second (4 Thumb instructions, 8B)
-##   +0x12 first's PDATA_EH pair (8B)
-##   +0x1A first (3 Thumb instructions, 6B)
+## Linked .text (RVA 0x1000; .p2align 2 aligns to 4 bytes):
+##   +0x00 __C_specific_handler (2B, pad to 4)
+##   +0x04 second's PDATA_EH pair (8B)
+##   +0x0C second (4 Thumb instructions, 8B)
+##   +0x14 first's PDATA_EH pair (8B)
+##   +0x1C first (3 Thumb instructions, 6B)
 ##
-## pFuncStart = RVA + Thumb bit: second 0x100B, first 0x101B.
+## pFuncStart = RVA + Thumb bit: second 0x100D, first 0x101D.
 ## flags: ExceptionFlag | FuncLen<<8 | PrologLen:
 ##   second 0x80000401, first 0x80000301.
 
@@ -37,8 +37,8 @@ HDR:      ExceptionTableRVA: 0x2000
 HDR-NEXT: ExceptionTableSize: 0x10
 
 .pdata after compaction and sort, ascending by pFuncStart:
-  [second 0x100B, 0x80000401] [first 0x101B, 0x80000301]
+  [second 0x100D, 0x80000401] [first 0x101D, 0x80000301]
 
 RUN: llvm-objdump -s --section=.pdata %t.exe | FileCheck %s --check-prefix=PDATA
 PDATA:      Contents of section .pdata:
-PDATA-NEXT: 12000 0b100000 01040080 1b100000 01030080
+PDATA-NEXT: 12000 0d100100 01040080 1d100100 01030080

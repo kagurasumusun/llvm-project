@@ -8,12 +8,12 @@
 // REQUIRES: arm-registered-target
 //
 // RUN: llvm-mc -filetype=obj -triple=thumb-pc-wince %s -o %t.obj
-// RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 /entry:main %t.obj
+// RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 /entry:main /export:callee %t.obj
 // RUN: llvm-objdump -s --section=.text %t.exe | FileCheck %s --check-prefix=HEX
-// RUN: llvm-nm %t.exe | FileCheck %s --check-prefix=NM
+// RUN: llvm-readobj --coff-exports %t.exe | FileCheck %s --check-prefix=EXP
 // RUN: llvm-objdump -s --section=.text %t.exe > %t.text
-// RUN: llvm-nm %t.exe > %t.nm
-// RUN: %python %S/wince-range-thunk-thumb-check.py %t.nm %t.text
+// RUN: llvm-readobj --coff-exports %t.exe > %t.exports
+// RUN: %python %S/wince-range-thunk-thumb-check.py %t.exports %t.text
 
 	.syntax unified
 	.thumb
@@ -38,4 +38,5 @@ callee:
 // HEX: 7847c046 00c09fe5
 // HEX-NEXT: 1cff2fe1
 // HEX-NOT: 1cff2fe1 00000000
-// NM: {{[0-9a-fA-F]+}} {{[Tt]}} callee
+// EXP: Name: callee
+// EXP: RVA: 0x

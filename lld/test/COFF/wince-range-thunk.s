@@ -41,4 +41,4 @@ callee:
 // CHECK: bl
 // CHECK: e12fff1e
 // CHECK: ldr{{.*}}r12, [pc
-// CHECK: bx{{.*}}r12
+// CHECK: e12fff1c
