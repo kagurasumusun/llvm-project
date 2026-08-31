@@ -35,6 +35,7 @@ callee:
 	bx	lr
 
 // coff-arm: 4778 46c0 e59fc000 e12fff1c
-// HEX: {{78 47 c0 46 00 c0 9f e5 1c ff 2f e1|7847c046 00c09fe5 1cff2fe1|7847c04600c09fe51cff2fe1}}
-// HEX-NOT: {{1cff2fe1 00000000|1c ff 2f e1 00 00 00 00}}
+// HEX: 7847c046 00c09fe5
+// HEX-NEXT: 1cff2fe1
+// HEX-NOT: 1cff2fe1 00000000
 // NM: {{[0-9a-fA-F]+}} {{[Tt]}} callee

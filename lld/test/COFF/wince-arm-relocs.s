@@ -33,7 +33,7 @@ dvar:
 ## .text RVA 0x1000, .data RVA 0x2000 -> dvar VA 0x12000:
 ## movw picks up 0x2000, movt 0x0001.
 # HDR: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
-# HDR: SubSystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (0x9)
+# HDR: Subsystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (0x9)
 # HDR: ImageBase: 0x10000
 
 # CHECK: movw r0, #8192

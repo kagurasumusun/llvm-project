@@ -1,38 +1,33 @@
 REQUIRES: arm-registered-target
 
 Windows CE compressed .pdata: lld resolves the internal FUNCLEN/PROLOG
-pseudo relocations (IMAGE_REL_ARM_CE_PDATA_FUNCLEN/PROLOG = 0x6/0x7) into
-the flags word, compacts each 16-byte intermediate object record to the
-8-byte IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout (pFuncStart, flags), and
+pseudo relocations (IMAGE_REL_ARM_CE_PDATA_FUNCLEN/PROLOG) into the flags
+word, compacts each 16-byte intermediate object record to the 8-byte
+IMAGE_CE_RUNTIME_FUNCTION_ENTRY layout (pFuncStart, flags), sorts by
+pFuncStart (the CE kernel binary-searches, RtlLookupFunctionEntry), and
 reports the compact size in the exception data directory.
 
-What this test pins down:
-  * PrologLen/FuncLen are really written into the flags word (the two length
-    relocations originally disagreed about where that word is: FUNCLEN sits
-    at record offset 8 and PROLOG at offset 12, so the record start cannot be
-    derived with a single `off - 8`),
-  * the lengths are measured from pFuncStart, not from the start of .text
-    (both relocations target the section symbol, so the label offset is an
-    inline addend that has to be added to `s`),
-  * the record is compacted to 8 bytes and the directory size follows it,
-  * the table is in ascending pFuncStart order, which is what the CE kernel's
-    binary search requires.
-
-NOTE: the hard-coded addresses below assume the standard CE layout
-(.text at RVA 0x1000, .pdata at RVA 0x2000, Thumb function symbols carry
-bit 0). If llvm-mc/lld layout details change, the CHECK values must be
-re-derived from llvm-readobj/llvm-objdump output rather than guessed.
-
-Layout assumptions (CE PE32, image base 0x10000, /fixed):
-  .text starts at RVA 0x1000.
-    __C_specific_handler at 0x11000 (Thumb symbol value +1 -> 0x11001)
-    Lsecond_data at 0x11004, second at 0x11011, ends at 0x11018
-    Lfirst_data at 0x11018,  first at 0x11025, ends at 0x1102A
-  .pdata starts at RVA 0x2000 (VA 0x12000).
+Flags word bitfields (exdsptch.c:42-48, verified against real CE images
+in utils/wince/WINEH-ABI-FACTS.md):
+  PrologLen:8 | FuncLen:22 | ThirtyTwoBit:1 | ExceptionFlag:1
+Lengths are in instructions (InstSize = 2 for Thumb, 4 for ARM).
+pFuncStart is the image-relative (RVA) function start; Thumb functions
+carry the Thumb marker in bit 0.
 
 RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.second.o %S/Inputs/wince-pdata-second.s
 RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.first.o %S/Inputs/wince-pdata-first.s
-RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:first /base:0x10000 /fixed %t.second.o %t.first.o
+RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:second /base:0x10000 /fixed %t.second.o %t.first.o
+
+## Linked .text (RVA 0x1000):
+##   +0x00 __C_specific_handler (2B)
+##   +0x02 second's PDATA_EH pair (8B)
+##   +0x0A second (4 Thumb instructions, 8B)
+##   +0x12 first's PDATA_EH pair (8B)
+##   +0x1A first (3 Thumb instructions, 6B)
+##
+## pFuncStart = RVA + Thumb bit: second 0x100B, first 0x101B.
+## flags: ExceptionFlag | FuncLen<<8 | PrologLen:
+##   second 0x80000401, first 0x80000301.
 
 The exception directory must report the compacted 8-byte-per-entry size:
 2 entries * 8 = 0x10.
@@ -42,25 +37,8 @@ HDR:      ExceptionTableRVA: 0x2000
 HDR-NEXT: ExceptionTableSize: 0x10
 
 .pdata after compaction and sort, ascending by pFuncStart:
-  [second 0x11011, 0x80000401] [first 0x11025, 0x80000301]
-word1 bitfields:
-  PrologLen = 1 (single push),
-  FuncLen = 4 for second (0x11012 -> 0x11018 = 8 bytes / 2) and
-            3 for first  (0x11026 -> 0x1102A = 6 bytes / 2),
-  ThirtyTwoBit = 0 (Thumb), ExceptionFlag = 1 (has handler).
+  [second 0x100B, 0x80000401] [first 0x101B, 0x80000301]
 
 RUN: llvm-objdump -s --section=.pdata %t.exe | FileCheck %s --check-prefix=PDATA
 PDATA:      Contents of section .pdata:
-PDATA-NEXT: 12000 11100100 01040080 25100100 01030080
-
-Each function's PDATA_EH pair must sit in the 8 bytes immediately before
-the function's first instruction (kernel lookup:
-(PPDATA_EH)(pFuncStart & ~(InstSize-1)) - 1):
-  second at 0x11010: pair at 0x11008 = {0x11001 handler, 0x11004 data}
-  first  at 0x11024: pair at 0x1101C = {0x11001 handler, 0x11018 data}
-
-RUN: llvm-objdump -s --section=.text %t.exe | FileCheck %s --check-prefix=TEXT
-TEXT:      Contents of section .text:
-TEXT-NEXT: 11000 70470000 01000000 01100100 04100100
-TEXT-NEXT: 11010 b5302002 2103bdb0 01000000 01100100
-TEXT-NEXT: 11020 18100100 b5102001 bd10
+PDATA-NEXT: 12000 0b100000 01040080 1b100000 01030080

@@ -1,21 +1,19 @@
-@ Input to the CE .pdata link test (wince-pdata.test).  Linked FIRST so it
-@ occupies the HIGHER .text addresses; the .pdata sort must still place
-@ first (lower address) before second (higher address).
+@ Input to the CE .pdata link test (wince-pdata.test).  Linked FIRST but
+@ occupies the HIGHER .text addresses; the .pdata sort must place the
+@ lower entry (second, from the other object) first.
+@
+@ Layout mirrors wince-pdata-second.s: [8-byte PDATA_EH pair][function],
+@ with .thumb_func directly above the function label.
 
 	.syntax unified
 	.thumb
 	.text
 	.p2align 2
 	.globl	first
-	.thumb_func
-	@ Compiler (ARMAsmPrinter) output shape for an SEH function:
-	@ [SEH scope table][PDATA_EH pair][function].  The pair's second word
-	@ points at the scope table (handler data); the pair must be exactly
-	@ the 8 bytes before the first instruction.
 Lfirst_data:
-	.long	1
 	.long	__C_specific_handler
 	.long	Lfirst_data
+	.thumb_func
 first:
 	.seh_proc first
 	.seh_handler __C_specific_handler, %except

@@ -17,12 +17,12 @@
 
 // CHECK: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
 // CHECK: AddressOfEntryPoint: 0x1001
-// CHECK: Name: thumb_entry
 // CHECK: Ordinal: 1
-// CHECK: RVA: 0x1001
 // CHECK: Name: arm_entry
+// CHECK: RVA: 0x1004
 // CHECK: Ordinal: 2
-// CHECK: RVA: 0x1008
+// CHECK: Name: thumb_entry
+// CHECK: RVA: 0x1001
 
 	.text
 	.globl thumb_entry

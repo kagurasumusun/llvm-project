@@ -43,7 +43,7 @@ fptr:
 # EXENORELOC: BaseReloc [
 # EXENORELOC-NEXT: ]
 
-# IMP: File: foo.dll
+# IMP: Name: foo.dll
 # IMP: func
 
 # DLLRELOC: Name: .reloc

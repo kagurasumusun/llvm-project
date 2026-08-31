@@ -39,6 +39,6 @@ callee:
 // The BL is redirected to the range-extension thunk appended to .text
 // (right after main). llvm-objdump prints ip as r12.
 // CHECK: bl
-// CHECK: bx{{.*}}lr
+// CHECK: e12fff1e
 // CHECK: ldr{{.*}}r12, [pc
 // CHECK: bx{{.*}}r12

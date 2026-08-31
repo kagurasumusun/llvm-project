@@ -1,6 +1,11 @@
 @ Input to the CE .pdata link test (wince-pdata.test).  Linked SECOND so it
-@ occupies the LOWER .text addresses and its .pdata record is emitted
-@ before first's; the sort must put first (lower address) first anyway.
+@ occupies the LOWER .text addresses; the sort must still order entries by
+@ pFuncStart.
+@
+@ Layout of .text (the kernel reads the PDATA_EH pair 8 bytes before
+@ pFuncStart): [__C_specific_handler][8-byte PDATA_EH pair][function].
+@ .thumb_func marks the NEXT symbol as a Thumb function, so it must sit
+@ directly above the function label (data labels stay unmarked).
 
 	.syntax unified
 	.thumb
@@ -13,11 +18,10 @@ __C_specific_handler:
 
 	.p2align 2
 	.globl	second
-	.thumb_func
 Lsecond_data:
-	.long	1
 	.long	__C_specific_handler
 	.long	Lsecond_data
+	.thumb_func
 second:
 	.seh_proc second
 	.seh_handler __C_specific_handler, %except
