@@ -20537,7 +20537,8 @@ SDValue ARMTargetLowering::LowerDivRem(SDValue Op, SelectionDAG &DAG) const {
 
   Type *RetTy = StructType::get(Ty, Ty);
 
-  if (Subtarget->isTargetWindows())
+  // ARMNT inserts Thumb t__brkdiv0; WinCE is ARM-mode (CeGCC AEABI).
+  if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE())
     InChain = WinDBZCheckDenominator(DAG, Op.getNode(), InChain);
 
   TargetLowering::CallLoweringInfo CLI(DAG);
@@ -20593,7 +20594,7 @@ SDValue ARMTargetLowering::LowerREM(SDNode *N, SelectionDAG &DAG) const {
   SDValue Callee =
       DAG.getExternalSymbol(LCImpl, getPointerTy(DAG.getDataLayout()));
 
-  if (Subtarget->isTargetWindows())
+  if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE())
     InChain = WinDBZCheckDenominator(DAG, N, InChain);
 
   // Lower call
