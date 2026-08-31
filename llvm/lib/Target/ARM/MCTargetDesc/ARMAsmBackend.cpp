@@ -573,12 +573,6 @@ unsigned ARMAsmBackend::adjustFixupValue(const MCAssembler &Asm,
       Ctx.reportError(Fixup.getLoc(), "Relocation out of range");
       return 0;
     }
-    // Unresolved ARM B/BL: the reloc (IMAGE_REL_ARM_BRANCH24) carries the
-    // symbol.  Encoding the addend into the insn is meaningless on COFF, and
-    // a Thumb-bit addend trips "Relocation not aligned" (CI 33350351290
-    // mingwex strtoimax).  Leave the instruction immediate at 0.
-    if (!IsResolved)
-      return 0;
     // Alignment differs for blx. Because we are switching to thumb ISA, we use
     // 16-bit alignment. Otherwise, use 32-bit.
     if ((Kind == ARM::fixup_arm_blx && Value % 2 != 0) ||

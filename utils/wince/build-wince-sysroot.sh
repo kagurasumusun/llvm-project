@@ -11,7 +11,7 @@
 # mingwrt and w32api are built *as-is* through their own configure/make
 # with the LLVM/Clang WinCE cross compiler in place of GCC/binutils:
 #
-#   GCC          -> clang --target=<target>
+#   GCC          -> clang --target=<target>  (LLVM IR/opt/ISel/MC; -O2)
 #   ar/ranlib    -> llvm-ar / llvm-ranlib
 #   dlltool      -> llvm-dlltool (via a small compatibility shim)
 #   gas          -> llvm-mc (unused by the WinCE objects; all C)
@@ -135,17 +135,23 @@ if [ ! -f "$CLANG_BUILTIN_INC/stddef.h" ]; then
 fi
 BUILTIN_INC="-isystem $CLANG_BUILTIN_INC"
 
-# Wrapper: mingwrt Makefiles invoke $(CC) and the WinCE clang driver would
-# otherwise inject -fms-extensions (CI 33349231600: __cdecl keyword vs
-# fdlibm logbf).  GNU89 + empty cdecl, matching CeGCC ARM.
-cat > "$BUILD/bin/wince-cc" <<EOF
+# Cross compiler: bind the triple and CPU only (arm-mingw32ce-gcc's role).
+# clang -c always goes through LLVM; this is not a "clang-only" path.
+# CRT dialect flags belong in CFLAGS so the driver honors them as user args.
+# Do not -D__cdecl= / -D__NO_INLINE__ here — those fought the frontend.
+CROSS_CC="$BUILD/bin/${HOST_ALIAS}-clang"
+cat > "$CROSS_CC" <<EOF
 #!/bin/sh
-exec "$CLANG" --target="$TARGET" $ARCH_FLAGS \\
-  -std=gnu89 -fshort-wchar -fno-ms-extensions -fno-ms-compatibility \\
-  -D__cdecl= -D__stdcall= -D__NO_INLINE__ $BUILTIN_INC "\$@"
+exec "$CLANG" --target="$TARGET" $ARCH_FLAGS "\$@"
 EOF
-chmod +x "$BUILD/bin/wince-cc"
-TARGET_CC="$BUILD/bin/wince-cc"
+chmod +x "$CROSS_CC"
+TARGET_CC="$CROSS_CC"
+
+# mingwrt/w32api are GNU-era sources:
+#   -fno-ms-extensions     __cdecl is not an MS keyword (math.h vs fdlibm)
+#   -fdeclspec             __declspec in mb_wc_common.h (CI 33350896826)
+# 16-bit wchar_t is the WinCE target ABI (driver cc1), not a CRT flag.
+MINGWRT_CFLAGS="-O2 -g0 -fno-ident -std=gnu89 -fgnu89-inline -fno-ms-extensions -fno-ms-compatibility -fdeclspec $BUILTIN_INC"
 
 # --- llvm-dlltool compatibility shim ---------------------------------------
 # mingwrt/w32api Makefiles invoke dlltool with GNU-only spellings that
@@ -202,7 +208,7 @@ if [ ! -f Makefile ]; then
   CC="$TARGET_CC" \
   AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
   AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
-  CFLAGS="-O2 -g0 -fno-ident -std=gnu89 -fgnu89-inline -fno-ms-extensions -D__cdecl= -D__stdcall= $BUILTIN_INC" \
+  CFLAGS="$MINGWRT_CFLAGS" \
   W32API_INCLUDE="-I $W32API_SRC/include" \
   /bin/sh "$MINGWRT_SRC/configure" \
     --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
@@ -216,16 +222,7 @@ make -j "$JOBS" crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
      >> build.log 2>&1 || { tail -80 build.log; exit 1; }
 # mingwex CE object set (the Makefile selects MATHCE/STDIO_CE/etc. by host).
 make -j "$JOBS" -C mingwex libmingwex.a >> mingwex.log 2>&1 || \
-  {
-    tail -80 mingwex.log
-    echo "=== strtoimax -S (assembler diagnosis) ==="
-    (cd mingwex && $TARGET_CC -S -O2 -g0 -fno-ident -std=gnu89 -fgnu89-inline \
-      -fno-ms-extensions -D__cdecl= -D__stdcall= $BUILTIN_INC \
-      -I"$MINGWRT_SRC/mingwex" -I"$MINGWRT_SRC" -I"$MINGWRT_SRC/include" \
-      -nostdinc -I "$W32API_SRC/include" -D_IEEE_LIBM \
-      "$MINGWRT_SRC/mingwex/strtoimax.c" -o - | head -n 250) || true
-    exit 1
-  }
+  { tail -80 mingwex.log; exit 1; }
 
 install -m 644 crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
   libmingw32.a libm.a libceoldname.a \
@@ -254,7 +251,7 @@ if [ ! -f Makefile ]; then
   CC="$TARGET_CC" \
   AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
   AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
-  CFLAGS="-O2 -g0 -std=gnu89 -fno-ms-extensions -D__cdecl= -D__stdcall= -nostdinc $BUILTIN_INC -isystem $MINGWRT_SRC/include -isystem $SYSROOT/include" \
+  CFLAGS="$MINGWRT_CFLAGS -nostdinc -isystem $MINGWRT_SRC/include -isystem $SYSROOT/include" \
   /bin/sh "$W32API_SRC/configure" \
     --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
     --prefix="$SYSROOT" \
