@@ -125,8 +125,6 @@ case "$TARGET" in
   *)    ARCH_FLAGS="${WINCE_ARCH_FLAGS:-}" ;;
 esac
 
-TARGET_CC="$CLANG --target=$TARGET $ARCH_FLAGS"
-
 # mingwrt's Makefile passes -nostdinc and GCC's -iwithprefixbefore include
 # (CI 33348144762: stddef.h / stdarg.h not found).  Clang builtins are in
 # the resource dir, not next to the binary.
@@ -136,6 +134,18 @@ if [ ! -f "$CLANG_BUILTIN_INC/stddef.h" ]; then
   exit 1
 fi
 BUILTIN_INC="-isystem $CLANG_BUILTIN_INC"
+
+# Wrapper: mingwrt Makefiles invoke $(CC) and the WinCE clang driver would
+# otherwise inject -fms-extensions (CI 33349231600: __cdecl keyword vs
+# fdlibm logbf).  GNU89 + empty cdecl, matching CeGCC ARM.
+cat > "$BUILD/bin/wince-cc" <<EOF
+#!/bin/sh
+exec "$CLANG" --target="$TARGET" $ARCH_FLAGS \\
+  -std=gnu89 -fno-ms-extensions -fno-ms-compatibility \\
+  -D__cdecl= -D__stdcall= $BUILTIN_INC "\$@"
+EOF
+chmod +x "$BUILD/bin/wince-cc"
+TARGET_CC="$BUILD/bin/wince-cc"
 
 # --- llvm-dlltool compatibility shim ---------------------------------------
 # mingwrt/w32api Makefiles invoke dlltool with GNU-only spellings that
