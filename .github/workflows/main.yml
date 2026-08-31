@@ -187,11 +187,22 @@ jobs:
           fi
 
       # cmake --install walks every tool's cmake_install.cmake, including
-      # llvm-profdata which Stage 1 does not build.  Isolated install is
-      # only needed for Stage 2/3 packaging (run_full).
+      # llvm-profdata which Stage 1 does not build (CI 33346086826).
+      # Install only the ninja targets this cache actually produces.
       - name: "Install (isolated prefix)"
         if: ${{ inputs.run_full == 'true' }}
-        run: cmake --install build
+        run: |
+          cmake --build build --target \
+            install-clang install-clang-resource-headers \
+            install-lld \
+            install-llvm-ar install-llvm-ranlib install-llvm-dlltool \
+            install-llvm-nm install-llvm-mc install-llvm-readobj \
+            install-llvm-objdump install-llvm-config
+          BIN="$PWD/install/wince-llvm/bin"
+          [ -e "$BIN/clang++" ] || ln -sf clang "$BIN/clang++"
+          [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
+          [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
+          ls -l "$BIN"
 
       # -----------------------------------------------------------------
       # Full pipeline: only when explicitly requested.  Runs on the same
