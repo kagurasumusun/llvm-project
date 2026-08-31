@@ -190,7 +190,7 @@ jobs:
       # llvm-profdata which Stage 1 does not build (CI 33346086826).
       # Install only the ninja targets this cache actually produces.
       - name: "Install (isolated prefix)"
-        if: ${{ inputs.run_full == 'true' }}
+        if: ${{ inputs.run_full }}
         run: |
           cmake --build build --target \
             install-clang install-clang-resource-headers \
@@ -209,7 +209,7 @@ jobs:
       # cached build, so it is cheap after the gate above passes.
       # -----------------------------------------------------------------
       - name: "Stage 2: assemble sysroot"
-        if: ${{ inputs.run_full == 'true' }}
+        if: ${{ inputs.run_full }}
         run: |
           utils/wince/build-wince-sysroot.sh \
             --toolchain "$PWD/install/wince-llvm/bin" \
@@ -218,7 +218,7 @@ jobs:
             --jobs "$(nproc)"
 
       - name: "Stage 2: smoke-check"
-        if: ${{ inputs.run_full == 'true' }}
+        if: ${{ inputs.run_full }}
         run: |
           CLANG="$PWD/install/wince-llvm/bin/clang"
           printf 'int __attribute__((constructor)) c(void){return 0;}\nint main(void){return 0;}\n' > smoke.c
@@ -226,7 +226,7 @@ jobs:
           "$CLANG" --target="$TARGET" -### smoke.c -o smoke.exe 2>&1 | head -20
 
       - name: "Stage 3: runtimes"
-        if: ${{ inputs.run_full == 'true' }}
+        if: ${{ inputs.run_full }}
         run: |
           utils/wince/build-wince-runtimes.sh \
             --toolchain "$PWD/install/wince-llvm/bin" \
@@ -235,7 +235,7 @@ jobs:
             --build-dir "$PWD/build-wince-runtimes"
 
       - name: "Package (isolated install + target-prefixed wrappers)"
-        if: ${{ inputs.run_full == 'true' }}
+        if: ${{ inputs.run_full }}
         run: |
           PREFIX="$PWD/install/wince-llvm"
           BIN="$PREFIX/bin"
@@ -253,7 +253,7 @@ jobs:
           sha256sum "$TAR" > "$TAR.sha256"
 
       - name: "Package sanity: install to /opt and compile"
-        if: ${{ inputs.run_full == 'true' }}
+        if: ${{ inputs.run_full }}
         run: |
           TAR=$(ls wince-llvm-*.tar.zst | head -1)
           sudo tar --zstd -xf "$TAR" -C /opt
@@ -261,7 +261,7 @@ jobs:
             -### -o /tmp/hi.exe /dev/null 2>&1 | head -5
 
       - name: Upload toolchain artifact
-        if: ${{ inputs.run_full == 'true' }}
+        if: ${{ inputs.run_full }}
         uses: actions/upload-artifact@v4
         with:
           name: wince-llvm-${{ inputs.ce_target || 'arm-pc-wince' }}-${{ runner.os }}
