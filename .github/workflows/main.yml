@@ -186,19 +186,24 @@ jobs:
             exit $RC
           fi
 
-      # cmake --install walks every tool's cmake_install.cmake, including
-      # llvm-profdata which Stage 1 does not build (CI 33346086826).
-      # Install only the ninja targets this cache actually produces.
+      # cmake --install and install-llvm-mc fail: Stage 1 does not
+      # produce those ninja install targets (33346086826 llvm-profdata,
+      # 33347499310 install-llvm-mc).  Install clang/lld (headers +
+      # binaries), then copy the tools this cache actually built.
       - name: "Install (isolated prefix)"
         if: ${{ inputs.run_full }}
         run: |
           cmake --build build --target \
-            install-clang install-clang-resource-headers \
-            install-lld \
-            install-llvm-ar install-llvm-ranlib install-llvm-dlltool \
-            install-llvm-nm install-llvm-mc install-llvm-readobj \
-            install-llvm-objdump install-llvm-config
+            install-clang install-clang-resource-headers install-lld
           BIN="$PWD/install/wince-llvm/bin"
+          mkdir -p "$BIN"
+          for t in clang clang++ clang-cl lld ld.lld lld-link \
+                   llvm-ar llvm-ranlib llvm-dlltool llvm-lib llvm-nm llvm-mc \
+                   llvm-readobj llvm-objdump llvm-config; do
+            if [ -e "build/bin/$t" ] || [ -L "build/bin/$t" ]; then
+              cp -a "build/bin/$t" "$BIN/"
+            fi
+          done
           [ -e "$BIN/clang++" ] || ln -sf clang "$BIN/clang++"
           [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
           [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
