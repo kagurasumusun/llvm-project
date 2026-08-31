@@ -138,6 +138,7 @@ jobs:
             clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c \
             clang/test/CodeGen/ARM/wince-seh-scope-table.c \
             clang/test/CodeGen/ARM/wince-codeview.c \
+            clang/test/CodeGen/ARM/wince-cpp-abi.cpp \
             clang/test/Parser/ms-pragmas-full.c \
             clang/test/Parser/ms-extern.c \
             clang/test/Sema/ms-extern.c \
