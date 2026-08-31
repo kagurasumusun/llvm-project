@@ -65,11 +65,8 @@ case "$TARGET" in
 esac
 
 # CMAKE_<LANG>_COMPILER_TARGET is ignored until CMake has identified the
-# compiler as Clang.  Identification compiles do not pass it, so a
-# target-less clang++ reports "unknown target triple 'unknown'"
-# (CI 33352687660).  Put --target in the language flags, which identification
-# and try_compile both use.
-TARGET_FLAGS="--target=$TARGET --sysroot=$SYSROOT"
+# compiler as Clang.  Identification compiles do not pass it, so put
+# --target in the language flags (CI 33352687660).
 COMMON_CMAKE=(
   -G Ninja
   -DCMAKE_BUILD_TYPE=Release
@@ -81,19 +78,18 @@ COMMON_CMAKE=(
   -DCMAKE_C_COMPILER_TARGET="$TARGET"
   -DCMAKE_CXX_COMPILER_TARGET="$TARGET"
   -DCMAKE_ASM_COMPILER_TARGET="$TARGET"
-  -DCMAKE_C_FLAGS="$TARGET_FLAGS"
-  -DCMAKE_CXX_FLAGS="$TARGET_FLAGS"
-  -DCMAKE_ASM_FLAGS="$TARGET_FLAGS"
 )
 
 # --- compiler-rt builtins (the -lgcc replacement) ----------------------------
 echo "== [1/2] compiler-rt builtins ($RT_ARCH)"
-# builtins/CMakeLists.txt calls project(... C CXX ASM).  Without a CXX
-# COMPILER_TARGET, cmake's try_compile invokes bare clang++ and this
-# toolchain reports "unknown target triple 'unknown'" (CI 33352246959).
+# Builtins compile against the compiler's own headers only.  A sysroot
+# float.h that #include_next <float.h> (CeGCC/mingwrt) has nothing left
+# to find after clang's float.h (CI 33353381917).
 cmake -S "$REPO_ROOT/compiler-rt/lib/builtins" -B "$BLD/builtins" \
   "${COMMON_CMAKE[@]}" \
-  -DCMAKE_SYSROOT="$SYSROOT" \
+  -DCMAKE_C_FLAGS="--target=$TARGET" \
+  -DCMAKE_CXX_FLAGS="--target=$TARGET" \
+  -DCMAKE_ASM_FLAGS="--target=$TARGET" \
   -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
   -DCOMPILER_RT_BAREMETAL_BUILD=ON
 cmake --build "$BLD/builtins" -j "$(nproc 2>/dev/null || echo 2)"
@@ -103,8 +99,9 @@ echo "== [2/2] libunwind + libc++abi + libc++"
 cmake -S "$REPO_ROOT/runtimes" -B "$BLD/runtimes" \
   "${COMMON_CMAKE[@]}" \
   -DCMAKE_SYSROOT="$SYSROOT" \
-  -DCMAKE_C_FLAGS="--sysroot=$SYSROOT" \
-  -DCMAKE_CXX_FLAGS="--sysroot=$SYSROOT" \
+  -DCMAKE_C_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
+  -DCMAKE_CXX_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
+  -DCMAKE_ASM_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
   -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx" \
   -DLLVM_INCLUDE_TESTS=OFF \
   -DLIBUNWIND_ENABLE_SHARED=OFF -DLIBUNWIND_ENABLE_STATIC=ON \
