@@ -125,6 +125,9 @@ class __locale_t {
 public:
   __locale_t() : __locale_str_(nullptr), __lc_(nullptr) {}
   __locale_t(std::nullptr_t) : __locale_str_(nullptr), __lc_(nullptr) {}
+  // libc++ passes 0 as the base locale to __newlocale; without this,
+  // 0 is ambiguous between nullptr_t and const char*.
+  __locale_t(int) : __locale_str_(nullptr), __lc_(nullptr) {}
   __locale_t(const char* __loc_str) : __locale_str_(__loc_str), __lc_(nullptr) {}
   __locale_t(const __locale_t& __loc) : __locale_str_(__loc.__locale_str_), __lc_(nullptr) {}
 
