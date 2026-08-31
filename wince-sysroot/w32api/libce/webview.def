@@ -1,5 +1,0 @@
-LIBRARY WEBVIEW
-EXPORTS
-ReadFromURLFile
-ReadFromURLFileEx
-WriteURLFile

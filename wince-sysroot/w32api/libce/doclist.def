@@ -1,5 +1,0 @@
-LIBRARY DOCLIST
-EXPORTS
-DocList_Create
-DocList_GetFirstSelectedWaveFile
-DocList_GetNextSelectedWaveFile

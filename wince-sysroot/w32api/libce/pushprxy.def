@@ -1,9 +1,0 @@
-LIBRARY PUSHPRXY
-EXPORTS
-PushRouter_Close
-PushRouter_FreeMessage
-PushRouter_GetMessage
-PushRouter_Open
-PushRouter_RegisterClient
-PushRouter_SubmitPush
-PushRouter_UnRegisterClient
