@@ -82,14 +82,15 @@ COMMON_CMAKE=(
 
 # --- compiler-rt builtins (the -lgcc replacement) ----------------------------
 echo "== [1/2] compiler-rt builtins ($RT_ARCH)"
-# Builtins compile against the compiler's own headers only.  A sysroot
-# float.h that #include_next <float.h> (CeGCC/mingwrt) has nothing left
-# to find after clang's float.h (CI 33353381917).
+# Builtins compile against the compiler's own headers only.  The WinCE
+# driver still injects <sysroot>/include (default next to the prefix),
+# so mingwrt's float.h is include_next'd from clang's and then has
+# nothing left (CI 33353690290).  -nostdlibinc drops the CRT headers.
 cmake -S "$REPO_ROOT/compiler-rt/lib/builtins" -B "$BLD/builtins" \
   "${COMMON_CMAKE[@]}" \
-  -DCMAKE_C_FLAGS="--target=$TARGET" \
-  -DCMAKE_CXX_FLAGS="--target=$TARGET" \
-  -DCMAKE_ASM_FLAGS="--target=$TARGET" \
+  -DCMAKE_C_FLAGS="--target=$TARGET -nostdlibinc" \
+  -DCMAKE_CXX_FLAGS="--target=$TARGET -nostdlibinc" \
+  -DCMAKE_ASM_FLAGS="--target=$TARGET -nostdlibinc" \
   -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
   -DCOMPILER_RT_BAREMETAL_BUILD=ON
 cmake --build "$BLD/builtins" -j "$(nproc 2>/dev/null || echo 2)"
