@@ -79,6 +79,11 @@
 // LINK-NOT: libpthread.a
 // LINK: libcoredll6.a
 
+// RUN: %clang -target arm-pc-wince -lcommctrl -liphlpapi %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LLIB
+// LLIB: libcommctrl.a
+// LLIB: libiphlpapi.a
+
 /// CE 5.0 triple selects the CE 5.0 COREDLL surface.
 // RUN: %clang -target arm-pc-wince5.0 %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LINK50

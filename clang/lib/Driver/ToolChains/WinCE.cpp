@@ -258,6 +258,12 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     if (II.isFilename())
       CmdArgs.push_back(II.getFilename());
   }
+  // GNU -lfoo → libfoo.a (CeGCC LIB_SPEC). Dropping these left
+  // CommandBar_* / GetNetworkParams undefined in glpi-wince-agent.
+  for (const Arg *A : Args.filtered(options::OPT_l)) {
+    A->claim();
+    CmdArgs.push_back(Args.MakeArgString(Twine("lib") + A->getValue() + ".a"));
+  }
 
   if (WantThreads) {
     CmdArgs.push_back("libmingwthrd.a");
