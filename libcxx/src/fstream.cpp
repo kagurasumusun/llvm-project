@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <__config>
+#include <cstdint>
 #include <cstdio>
 #include <fstream>
 
