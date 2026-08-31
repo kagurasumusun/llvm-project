@@ -16,10 +16,11 @@
  *
  */
 
-/* GCC finds this header first and include_next's the compiler's float.h.
-   Clang finds its resource float.h first and include_next's us, so a second
-   include_next has nothing to find (CI 33353690290). */
-#if !defined(__clang__)
+/* GCC (and this tree's Stage 2 CFLAGS: -I CRT then -isystem clang) find
+   us first and need include_next for DBL_DIG.  Clang's resource float.h
+   finds us second; then there is no third file (CI 33353690290 /
+   33355350730).  Include the next float.h only when one exists. */
+#if defined(__has_include_next) && __has_include_next(<float.h>)
 #include_next <float.h>
 #endif
 
