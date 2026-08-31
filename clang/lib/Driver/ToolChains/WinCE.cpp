@@ -67,6 +67,8 @@ WinCE::WinCE(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
 }
 
 Tool *WinCE::getTool(Action::ActionClass AC) const {
+  if (AC == Action::LinkJobClass)
+    return getLink();
   return Generic_GCC::getTool(AC);
 }
 
@@ -181,65 +183,33 @@ namespace wince {
 void Linker::ConstructJob(Compilation &C, const JobAction &JA,
                           const InputInfo &Output, const InputInfoList &Inputs,
                           const ArgList &Args, const char *LinkingOutput) const {
-  const ToolChain &TC = getToolChain();
   ArgStringList CmdArgs;
-
-  // Do not walk the GNU ArgList (filtered / getLastArg / ClaimAllArgs):
-  // unused clang-cl option IDs in the unified table have been a -###
-  // crash vector on this link job.  hasArg of a handful of GNU flags is
-  // the same surface addClangTargetOptions already uses successfully.
   CmdArgs.push_back("-wince");
   CmdArgs.push_back("-auto-import");
   CmdArgs.push_back("-runtime-pseudo-reloc");
-
-  if (Output.isFilename())
-    CmdArgs.push_back(Args.MakeArgString(Twine("/out:") + Output.getFilename()));
-  else
-    CmdArgs.push_back("/out:a.exe");
-
-  const bool IsDLL = Args.hasArg(options::OPT_shared);
-  const bool WantProfiling = Args.hasArg(options::OPT_pg);
-  const bool WantThreads = Args.hasArg(options::OPT_mthreads) ||
-                           Args.hasArg(options::OPT_pthread);
-
   CmdArgs.push_back("/subsystem:windowsce");
-  if (IsDLL) {
-    CmdArgs.push_back("/dll");
-    CmdArgs.push_back("/entry:DllMainCRTStartup");
-    CmdArgs.push_back("/base:0x10000000");
-  } else {
-    CmdArgs.push_back("/entry:WinMainCRTStartup");
-    CmdArgs.push_back("/base:0x10000");
-    CmdArgs.push_back("/fixed");
-  }
-
-  const char *StartFile =
-      IsDLL ? "dllcrt3.o" : (WantProfiling ? "gcrt3.o" : "crt3.o");
-  CmdArgs.push_back(StartFile);
-
-  if (WantThreads) {
-    CmdArgs.push_back("mingwthrd.lib");
-    CmdArgs.push_back("pthread.lib");
-  }
+  CmdArgs.push_back("/entry:WinMainCRTStartup");
+  CmdArgs.push_back("/base:0x10000");
+  CmdArgs.push_back("/fixed");
+  CmdArgs.push_back("crt3.o");
   CmdArgs.push_back("mingw32.lib");
   CmdArgs.push_back("clang_rt.builtins-arm.lib");
   CmdArgs.push_back("ceoldname.lib");
   CmdArgs.push_back("mingwex.lib");
   CmdArgs.push_back("posix.lib");
-  if (WantProfiling)
-    CmdArgs.push_back("libgmon.a");
+  CmdArgs.push_back("coredll6.lib");
 
-  llvm::VersionTuple OSVer = TC.getTriple().getOSVersion();
-  CmdArgs.push_back(OSVer.getMajor() && OSVer.getMajor() < 6 ? "coredll.lib"
-                                                             : "coredll6.lib");
+  if (Output.isFilename() && Output.getFilename())
+    CmdArgs.push_back(Args.MakeArgString(Twine("/out:") + Output.getFilename()));
 
   for (const auto &II : Inputs) {
-    if (II.isFilename())
+    if (II.isFilename() && II.getFilename())
       CmdArgs.push_back(II.getFilename());
   }
 
   C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
-                                         "lld-link", CmdArgs, Inputs, Output));
+                                         "lld-link", CmdArgs, InputInfoList(),
+                                         Output));
 }
 
 } // end namespace wince

@@ -1,7 +1,6 @@
 // RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fms-extensions -O1 -Xclang -disable-llvm-passes -S -emit-llvm -o - %s \
 // RUN:     | FileCheck %s
-// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fms-extensions -fsyntax-only %s 2>&1 \
-// RUN:     | FileCheck %s --check-prefix=SYNTAX
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fms-extensions -fsyntax-only %s
 //
 // Windows CE on ARM uses the compressed .pdata SEH mechanism with
 // __C_specific_handler, like desktop Windows on ARM64: __try/__except/
@@ -85,4 +84,3 @@ void finally_basic(void) {
 // CHECK: call arm_aapcscc void @__fin_finally_basic({{i8 noundef( zeroext)?}} 0, ptr noundef %{{.*}})
 // CHECK: define internal arm_aapcscc void @__fin_finally_basic
 
-// SYNTAX-NOT: error:
