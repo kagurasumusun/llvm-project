@@ -162,6 +162,7 @@ jobs:
             clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c \
             clang/test/CodeGen/ARM/wince-seh-scope-table.c \
             clang/test/Parser/ms-pragmas-full.c \
+            clang/test/Parser/ms-extern.c \
             clang/test/Sema/ms-extern.c \
             lld/test/COFF/wince-arm-relocs.s \
             lld/test/COFF/wince-ctors.s \
@@ -185,7 +186,11 @@ jobs:
             exit $RC
           fi
 
+      # cmake --install walks every tool's cmake_install.cmake, including
+      # llvm-profdata which Stage 1 does not build.  Isolated install is
+      # only needed for Stage 2/3 packaging (run_full).
       - name: "Install (isolated prefix)"
+        if: ${{ inputs.run_full == 'true' }}
         run: cmake --install build
 
       # -----------------------------------------------------------------
