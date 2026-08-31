@@ -52,8 +52,10 @@ if [ ! -f "$PREFIX/lib/libz.a" ]; then
   fetch https://github.com/madler/zlib/archive/refs/tags/v1.3.1.tar.gz zlib-1.3.1.tar.gz
   rm -rf zlib-1.3.1
   tar -xzf zlib-1.3.1.tar.gz
+  # zlib gzlib.c uses _lseeki64 on all _WIN32; CE has lseek. Do not patch zlib.
   make -C zlib-1.3.1 -f win32/Makefile.gcc -j"$JOBS" \
     PREFIX="$CROSS-" \
+    LOC="-DUNDER_CE -D_lseeki64=lseek" \
     SHAREDLIB= SHAREDLIBV= SHAREDLIBM= \
     STATICLIB=libz.a
   mkdir -p "$PREFIX/include" "$PREFIX/lib" "$PREFIX/lib/pkgconfig"
