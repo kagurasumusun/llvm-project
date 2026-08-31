@@ -116,8 +116,9 @@ if [ ! -f "$PREFIX/lib/libpixman-1.a" ]; then
       --disable-arm-iwmmxt --disable-mmx --disable-sse2 --disable-ssse3 \
       --disable-vmx --disable-mips-dspr2 --disable-loongson-mmi \
       pixman_cv_have_tls=no ac_cv_tls=none
-    make -j"$JOBS"
-    make install
+    # `make all` also links test EXEs (CreateMutexA). Install the library only.
+    make -C pixman -j"$JOBS"
+    make -C pixman install
   )
 fi
 
