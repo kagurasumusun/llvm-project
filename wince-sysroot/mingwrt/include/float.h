@@ -16,7 +16,12 @@
  *
  */
 
-#include_next<float.h>
+/* GCC finds this header first and include_next's the compiler's float.h.
+   Clang finds its resource float.h first and include_next's us, so a second
+   include_next has nothing to find (CI 33353690290). */
+#if !defined(__clang__)
+#include_next <float.h>
+#endif
 
 #ifndef _MINGW_FLOAT_H_
 #define _MINGW_FLOAT_H_
