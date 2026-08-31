@@ -884,6 +884,13 @@ void Writer::run() {
 static StringRef getOutputSectionName(StringRef name) {
   StringRef s = name.split('$').first;
 
+  // ARM EHABI sections (".ARM.exidx", ".ARM.extab") keep their full name;
+  // the MinGW period-separator rule below would mangle them to ".ARM",
+  // breaking exidx/exterab merging and the __exidx_start/__exidx_end
+  // binding in insertEXIdxBoundsSymbols.
+  if (s.starts_with(".ARM."))
+    return s;
+
   // Treat a later period as a separator for MinGW, for sections like
   // ".ctors.01234".
   return s.substr(0, s.find('.', 1));

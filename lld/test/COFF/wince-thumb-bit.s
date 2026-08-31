@@ -32,6 +32,7 @@ thumb_entry:
 	bx	lr
 
 	.globl arm_entry
+.arm
 arm_entry:
 	mov	r0, #0
 	bx	lr

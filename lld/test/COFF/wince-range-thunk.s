@@ -14,7 +14,7 @@
 // REQUIRES: arm-registered-target
 
 // RUN: llvm-mc -filetype=obj -triple=arm-pc-wince %s -o %t.obj
-// RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 %t.obj
+// RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 /entry:main %t.obj
 // RUN: llvm-objdump -d --section=.text %t.exe | FileCheck %s
 
 	.syntax unified

@@ -40,7 +40,7 @@ fptr:
 # EXE: ldr r12, [pc]
 # EXE-NEXT: ldr pc, [r12]
 
-# EXENORELOC: BaseRelocations [
+# EXENORELOC: BaseReloc [
 # EXENORELOC-NEXT: ]
 
 # IMP: File: foo.dll

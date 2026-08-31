@@ -21,7 +21,7 @@ entry:
 callee:
 	bx	lr
 	.thumb
-	.type	thumbcallee, %function
+	.thumb_func
 thumbcallee:
 	bx	lr
 

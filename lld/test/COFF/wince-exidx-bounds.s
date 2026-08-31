@@ -31,9 +31,9 @@ bounds:
 	.long	__exidx_start
 	.long	__exidx_end
 
-## Two exidx entries, 8 bytes each.
+## Two exidx entries, 8 bytes each, in the correctly-named output section.
 # CHECK: Name: .ARM.exidx
-# CHECK-NEXT: Size: 0x10
+# CHECK: VirtualSize: 0x10
 
 # CHECK: Name: __exidx_start
 # CHECK: Section: .ARM.exidx

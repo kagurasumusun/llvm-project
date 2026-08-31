@@ -1,5 +1,4 @@
 REQUIRES: arm-registered-target
-RUN: split-file %s %t.dir && cd %t.dir
 
 Windows CE compressed .pdata: lld resolves the internal FUNCLEN/PROLOG
 pseudo relocations (IMAGE_REL_ARM_CE_PDATA_FUNCLEN/PROLOG = 0x6/0x7) into

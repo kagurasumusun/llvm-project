@@ -8,7 +8,7 @@
 // REQUIRES: arm-registered-target
 //
 // RUN: llvm-mc -filetype=obj -triple=thumb-pc-wince %s -o %t.obj
-// RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 %t.obj
+// RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 /entry:main %t.obj
 // RUN: llvm-objdump -s --section=.text %t.exe | FileCheck %s --check-prefix=HEX
 // RUN: llvm-nm %t.exe | FileCheck %s --check-prefix=NM
 // RUN: llvm-objdump -s --section=.text %t.exe > %t.text
