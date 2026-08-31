@@ -216,7 +216,7 @@ jobs:
       - name: "Stage 2: assemble sysroot"
         if: ${{ inputs.run_full }}
         run: |
-          utils/wince/build-wince-sysroot.sh \
+          sh utils/wince/build-wince-sysroot.sh \
             --toolchain "$PWD/install/wince-llvm/bin" \
             --target "$TARGET" \
             --prefix "$PWD/install/wince-llvm/wince-sysroot" \
@@ -233,7 +233,7 @@ jobs:
       - name: "Stage 3: runtimes"
         if: ${{ inputs.run_full }}
         run: |
-          utils/wince/build-wince-runtimes.sh \
+          bash utils/wince/build-wince-runtimes.sh \
             --toolchain "$PWD/install/wince-llvm/bin" \
             --sysroot "$PWD/install/wince-llvm/wince-sysroot" \
             --target "$TARGET" \
