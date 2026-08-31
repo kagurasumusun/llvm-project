@@ -225,7 +225,7 @@ private:
   void assignAddresses();
   bool isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
                  MachineTypes machine);
-  std::pair<Defined *, bool> getThunk(DenseMap<uint64_t, Defined *> &lastThunks,
+  std::pair<Defined *, bool> getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks,
                                       Defined *target, uint64_t p,
                                       uint16_t type, int margin,
                                       MachineTypes machine);
@@ -439,12 +439,22 @@ bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
   } else if (machine == IMAGE_FILE_MACHINE_ARM) {
     // Windows CE ARM (interworking). A32 B/BL/BLX: 24-bit word-aligned
     // offset from PC+8, i.e. |s - (p + 8)| < 2^25 - see applyBranch24A.
-    // Only A32 BRANCH24 callers are thunked (RangeExtensionThunkARMCE).
-    // Thumb BRANCH24T/BLX23T/BRANCH20T are not range-extended yet.
-    int64_t diff = AbsoluteDifference(s, p + 8) + margin;
+    // Thumb BL/BLX (BRANCH24T/BLX23T): Thumb-2-shaped 24-bit encoding,
+    // PC+4, +/- 16 MB (applyBranch24T). BRANCH20T: +/- 1 MB.
     switch (relType) {
-    case IMAGE_REL_ARM_BRANCH24:
+    case IMAGE_REL_ARM_BRANCH24: {
+      int64_t diff = AbsoluteDifference(s, p + 8) + margin;
       return isInt<26>(diff & ~3);
+    }
+    case IMAGE_REL_ARM_BRANCH20T: {
+      int64_t diff = AbsoluteDifference(s, p + 4) + margin;
+      return isInt<21>(diff);
+    }
+    case IMAGE_REL_ARM_BRANCH24T:
+    case IMAGE_REL_ARM_BLX23T: {
+      int64_t diff = AbsoluteDifference(s, p + 4) + margin;
+      return isInt<25>(diff);
+    }
     default:
       return true;
     }
@@ -468,15 +478,24 @@ bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
 // Return the last thunk for the given target if it is in range,
 // or create a new one.
 std::pair<Defined *, bool>
-Writer::getThunk(DenseMap<uint64_t, Defined *> &lastThunks, Defined *target,
+Writer::getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks, Defined *target,
                  uint64_t p, uint16_t type, int margin, MachineTypes machine) {
-  Defined *&lastThunk = lastThunks[target->getRVA()];
+  // ARM-mode vs Thumb-mode veneers must not be shared: a Thumb BL that
+  // lands on an ARM stub executes ARM opcodes as Thumb.
+  const uint8_t kind =
+      (machine == IMAGE_FILE_MACHINE_ARM &&
+       (type == IMAGE_REL_ARM_BRANCH24T || type == IMAGE_REL_ARM_BRANCH20T))
+          ? 1
+          : 0;
+  Defined *&lastThunk = lastThunks[{target->getRVA(), kind}];
   if (lastThunk && isInRange(type, lastThunk->getRVA(), p, margin, machine))
     return {lastThunk, false};
   Chunk *c;
   if (machine == IMAGE_FILE_MACHINE_ARM) {
-    // Windows CE ARM interworking stub (A32-mode; see isInRange above).
-    c = make<RangeExtensionThunkARMCE>(ctx, target);
+    if (kind)
+      c = make<RangeExtensionThunkARMCEThumb>(ctx, target);
+    else
+      c = make<RangeExtensionThunkARMCE>(ctx, target);
   } else {
     switch (getMachineArchType(machine)) {
     case Triple::thumb:
@@ -507,7 +526,7 @@ Writer::getThunk(DenseMap<uint64_t, Defined *> &lastThunks, Defined *target,
 // the previously created thunks) and retry with a wider margin.
 bool Writer::createThunks(OutputSection *os, int margin) {
   bool addressesChanged = false;
-  DenseMap<uint64_t, Defined *> lastThunks;
+  DenseMap<std::pair<uint64_t, uint8_t>, Defined *> lastThunks;
   DenseMap<std::pair<ObjFile *, Defined *>, uint32_t> thunkSymtabIndices;
   size_t thunksSize = 0;
   // Recheck Chunks.size() each iteration, since we can insert more

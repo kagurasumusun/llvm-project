@@ -565,7 +565,10 @@ void SectionChunk::applyRelocation(uint8_t *off,
   case Triple::x86:
     applyRelX86(off, rel.Type, os, s, p, imageBase);
     break;
+  case Triple::arm:
   case Triple::thumb:
+    // IMAGE_FILE_MACHINE_ARM (Windows CE, interworking) maps to Triple::arm.
+    // ARMNT maps to Triple::thumb. Both use the ARM COFF reloc set.
     applyRelARM(off, rel.Type, os, s, p, imageBase);
     break;
   case Triple::aarch64:
@@ -647,6 +650,7 @@ static uint8_t getBaserelType(const coff_relocation &rel,
     if (rel.Type == IMAGE_REL_I386_DIR32)
       return IMAGE_REL_BASED_HIGHLOW;
     return IMAGE_REL_BASED_ABSOLUTE;
+  case Triple::arm:
   case Triple::thumb:
     if (rel.Type == IMAGE_REL_ARM_ADDR32)
       return IMAGE_REL_BASED_HIGHLOW;
@@ -757,6 +761,7 @@ static int getRuntimePseudoRelocSize(uint16_t type, Triple::ArchType arch) {
     default:
       return 0;
     }
+  case Triple::arm:
   case Triple::thumb:
     switch (type) {
     case IMAGE_REL_ARM_ADDR32:
@@ -1013,6 +1018,22 @@ void RangeExtensionThunkARMCE::writeTo(uint8_t *buf) const {
 }
 
 void RangeExtensionThunkARMCE::getBaserels(std::vector<Baserel> *res) {
+  res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
+}
+
+// GNU ld v4t Thumb long-branch (ARMv5 ldr-to-pc interworks).
+const uint8_t rangeExtThunkARMCEThumb[] = {
+    0x78, 0x47,             // bx pc
+    0xc0, 0x46,             // nop (mov r8, r8)
+    0x04, 0xf0, 0x1f, 0xe5, // ldr pc, [pc, #-4]
+};
+
+void RangeExtensionThunkARMCEThumb::writeTo(uint8_t *buf) const {
+  memcpy(buf, rangeExtThunkARMCEThumb, sizeof(rangeExtThunkARMCEThumb));
+  write32le(buf + 8, uint32_t(target->getRVA() + ctx.config.imageBase));
+}
+
+void RangeExtensionThunkARMCEThumb::getBaserels(std::vector<Baserel> *res) {
   res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
 }
 

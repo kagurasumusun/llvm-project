@@ -718,14 +718,40 @@ private:
 //   <literal: target VA (RVA + image base, bit 0 = Thumb)>
 //
 // The caller's lr is left untouched, so a call (BL) returns through the
-// callee as usual. Only A32 branch callers are thunked: the stub sits at a
-// 4-byte aligned (even) address, so a BL/BLX from ARM-mode code reaches it
-// in ARM mode. Out-of-range Thumb-mode callers (T1/T32) are not thunked
-// yet and still fail with "relocation out of range". PE section RVAs are
-// page-aligned, so "odd section VMA" (ELF interworking) does not apply.
+// callee as usual. A32 B/BL and Thumb BLX (BLX23T) enter this ARM-mode
+// stub (even address). Thumb BL (BRANCH24T/BRANCH20T) cannot: they stay
+// in Thumb, so they use RangeExtensionThunkARMCEThumb. PE section RVAs
+// are page-aligned, so ELF "odd section VMA" interworking does not apply.
 class RangeExtensionThunkARMCE : public NonSectionCodeChunk {
 public:
   explicit RangeExtensionThunkARMCE(COFFLinkerContext &ctx, Defined *t)
+      : target(t), ctx(ctx) {
+    setAlignment(4);
+  }
+  size_t getSize() const override { return 12; }
+  void writeTo(uint8_t *buf) const override;
+  void getBaserels(std::vector<Baserel> *res) override;
+  MachineTypes getMachine() const override {
+    return llvm::COFF::IMAGE_FILE_MACHINE_ARM;
+  }
+
+  Defined *target;
+
+private:
+  COFFLinkerContext &ctx;
+};
+
+// Windows CE Thumb-1 (ARMv5TE) range-extension veneer. arm926ej-s has no
+// Thumb-2 movw/movt, so RangeExtensionThunkARM (ARMNT) is not usable.
+// GNU ld's v4t Thumb long-branch stub, entered in Thumb:
+//   bx  pc               ; drop to ARM at the following word
+//   nop
+//   ldr pc, [pc, #-4]    ; ARMv5 ldr-to-pc interworks (bit 0 = Thumb)
+//   .word dest
+// The stub is 4-byte aligned so the ARM ldr is aligned. HIGHLOW at +8.
+class RangeExtensionThunkARMCEThumb : public NonSectionCodeChunk {
+public:
+  explicit RangeExtensionThunkARMCEThumb(COFFLinkerContext &ctx, Defined *t)
       : target(t), ctx(ctx) {
     setAlignment(4);
   }

@@ -76,9 +76,12 @@ ELF crtbegin; `wince-cc` as a flag dump; `-nostdlibinc`; pthreads4w as
 platform pthread; MS `.lib` aliases; CE dummy RWMutex; VFP/COFF `.fpu`;
 force-push.
 
-## Still open (not blocking the green run above)
+## Still open (not blocking CI)
 
-* On-device execution.
-* Thumb far-branch range thunks.
-* WinEH / compressed `.pdata` on a real CE image.
-* libc++ `std::thread` / filesystem (explicitly off).
+* **On-device execution** — CI only compiles/links; no CE hardware.
+* **Thumb far-branch veneer** — implemented (A32 stub + Thumb-1 `bx pc` /
+  `ldr pc`); not executed on a device.
+* **WinEH / compressed `.pdata` on a real CE image** — lit + object dumps
+  only.
+* **libc++ `std::thread` / filesystem** — explicitly off.
+* **App CI coverage** — one pinned app (GLPI-Agent). `make cab` not run.

@@ -9,6 +9,7 @@
 //   .word <target VA, bit 0 = Thumb>
 // The thunk is a single load of the target address plus bx (interworking).
 // Do not use the import-thunk pair ldr pc,[ip] -- that double-loads.
+// Thumb BL callers use wince-range-thunk-thumb.s (Thumb-1 veneer).
 
 // REQUIRES: arm-registered-target
 
