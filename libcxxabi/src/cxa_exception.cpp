@@ -393,9 +393,15 @@ __cxa_end_cleanup_impl()
     return &exception_header->unwindHeader;
 }
 
-asm("	.pushsection	.text.__cxa_end_cleanup,\"ax\",%progbits\n"
+asm(
+#if defined(__ELF__)
+    "	.pushsection	.text.__cxa_end_cleanup,\"ax\",%progbits\n"
     "	.globl	__cxa_end_cleanup\n"
     "	.type	__cxa_end_cleanup,%function\n"
+#else
+    /* COFF (WinCE) has no ELF %progbits / .type; emit in the current .text. */
+    "	.globl	__cxa_end_cleanup\n"
+#endif
     "__cxa_end_cleanup:\n"
 #if defined(__ARM_FEATURE_BTI_DEFAULT)
     "	bti\n"
@@ -414,7 +420,10 @@ asm("	.pushsection	.text.__cxa_end_cleanup,\"ax\",%progbits\n"
 #else
     "	b	_Unwind_Resume\n"
 #endif
-    "	.popsection");
+#if defined(__ELF__)
+    "	.popsection"
+#endif
+    );
 #endif // defined(_LIBCXXABI_ARM_EHABI)
 
 /*
