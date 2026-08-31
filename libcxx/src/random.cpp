@@ -33,6 +33,10 @@
 #  endif
 #elif defined(_LIBCPP_USING_FUCHSIA_CPRNG)
 #  include <zircon/syscalls.h>
+#elif defined(_LIBCPP_USING_CE_RANDOM)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+extern "C" BOOL WINAPI CeGenRandom(DWORD, BYTE*);
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
@@ -91,13 +95,7 @@ unsigned random_device::operator()() {
   return r;
 }
 
-#elif defined(_LIBCPP_USING_WIN32_RANDOM)
-
-#if defined(_WIN32_WCE)
-#  define WIN32_LEAN_AND_MEAN
-#  include <windows.h>
-extern "C" BOOL WINAPI CeGenRandom(DWORD, BYTE*);
-#endif
+#elif defined(_LIBCPP_USING_CE_RANDOM)
 
 random_device::random_device(const string& __token) {
   if (__token != "/dev/urandom")
@@ -108,16 +106,26 @@ random_device::~random_device() {}
 
 unsigned random_device::operator()() {
   unsigned r;
-#  if defined(_WIN32_WCE)
   if (!CeGenRandom(sizeof(r), reinterpret_cast<BYTE*>(&r)))
     std::__throw_system_error(EIO, "random_device CeGenRandom failed.");
   return r;
-#  else
+}
+
+#elif defined(_LIBCPP_USING_WIN32_RANDOM)
+
+random_device::random_device(const string& __token) {
+  if (__token != "/dev/urandom")
+    std::__throw_system_error(ENOENT, ("random device not supported " + __token).c_str());
+}
+
+random_device::~random_device() {}
+
+unsigned random_device::operator()() {
+  unsigned r;
   errno_t err = rand_s(&r);
   if (err)
     std::__throw_system_error(err, "random_device rand_s failed.");
   return r;
-#  endif
 }
 
 #elif defined(_LIBCPP_USING_FUCHSIA_CPRNG)

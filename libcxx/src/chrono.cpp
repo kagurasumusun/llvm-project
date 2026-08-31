@@ -42,18 +42,15 @@
 #  define _LIBCPP_HAS_CLOCK_GETTIME
 #endif
 
-#if defined(_LIBCPP_WIN32API)
+#if defined(_LIBCPP_WIN32API) || defined(_WIN32_WCE)
 #  define WIN32_LEAN_AND_MEAN
 #  define VC_EXTRA_LEAN
 #  include <windows.h>
-// winapifamily.h is NT 8+ / WinRT.  On WinCE both _WIN32_WINNT and
-// _WIN32_WINNT_WIN8 are typically undefined, so `>=` is 0 >= 0 and the
-// include would fire.  CE clocks use coredll GetSystemTime / QPC instead.
-#  if !defined(_WIN32_WCE) && defined(_WIN32_WINNT) && defined(_WIN32_WINNT_WIN8) &&                                    \
-      _WIN32_WINNT >= _WIN32_WINNT_WIN8
-#    include <winapifamily.h>
-#  endif
-#endif // defined(_LIBCPP_WIN32API)
+#endif
+#if defined(_LIBCPP_WIN32API) && defined(_WIN32_WINNT) && defined(_WIN32_WINNT_WIN8) &&                                 \
+    _WIN32_WINNT >= _WIN32_WINNT_WIN8
+#  include <winapifamily.h>
+#endif
 
 #if defined(__Fuchsia__)
 #  include <zircon/syscalls.h>
@@ -75,7 +72,7 @@ namespace chrono {
 // system_clock
 //
 
-#if defined(__WINCE__)
+#if defined(_WIN32_WCE)
 
 // Windows CE: coredll exports neither GetSystemTimeAsFileTime nor
 // GetSystemTimePreciseAsFileTime, and there is no kernel32.dll to
@@ -211,7 +208,7 @@ static steady_clock::time_point __libcpp_steady_clock_now() {
   return steady_clock::time_point(seconds(tp.tv_sec) + nanoseconds(tp.tv_nsec));
 }
 
-#  elif defined(_LIBCPP_WIN32API)
+#  elif defined(_LIBCPP_WIN32API) || defined(_WIN32_WCE)
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms644905(v=vs.85).aspx says:
 //    If the function fails, the return value is zero. <snip>
