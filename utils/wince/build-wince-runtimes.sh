@@ -2,17 +2,17 @@
 #===- utils/wince/build-wince-runtimes.sh - WinCE stage-3 ----------------===//
 #
 # Stage 3 of the WinCE toolchain build (after
-# utils/wince/build-wince-sysroot.sh assembled the mingwrt/w32api/pthreads
-# sysroot): cross-build compiler-rt builtins for arm-pc-wince and the
-# static C++ runtime stack libunwind + libc++abi + libc++, and stage the
-# results into the sysroot under the GNU names the clang driver's default
-# link line probes:
+# utils/wince/build-wince-sysroot.sh assembled the mingwrt/w32api sysroot):
+# cross-build compiler-rt builtins for arm-pc-wince and the static C++
+# runtime stack libunwind + libc++abi + libc++, and stage the results
+# into the sysroot under the GNU names the clang driver's default link
+# line probes:
 #
 #   libclang_rt.builtins-arm.a   (the -lgcc replacement)
 #   libunwind.a  libc++abi.a  libc++
 #
-# libc++ uses the pthread threading API on this target, served by the
-# pthreads4w static library (libpthread.a) built by the sysroot stage.
+# These runtimes sit on bare CE (mingwrt + COREDLL).  pthreads4w and the
+# posix shim are optional sysroot extras, not a requirement here.
 #
 # Usage:
 #   build-wince-runtimes.sh --toolchain <dir> [--sysroot <dir>] \
@@ -111,16 +111,18 @@ cmake -S "$REPO_ROOT/runtimes" -B "$BLD/runtimes" \
   -DLIBUNWIND_ENABLE_SHARED=OFF -DLIBUNWIND_ENABLE_STATIC=ON \
   -DLIBUNWIND_ENABLE_PIC=OFF \
   -DLIBUNWIND_HIDE_SYMBOLS=ON \
+  -DLIBUNWIND_ENABLE_THREADS=OFF \
   -DLIBCXXABI_ENABLE_SHARED=OFF -DLIBCXXABI_ENABLE_STATIC=ON \
   -DLIBCXXABI_ENABLE_PIC=OFF \
   -DLIBCXXABI_USE_COMPILER_RT=ON \
   -DLIBUNWIND_USE_COMPILER_RT=ON \
   -DLIBCXXABI_ENABLE_EXCEPTIONS=ON \
+  -DLIBCXXABI_ENABLE_THREADS=OFF \
   -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC=ON \
   -DLIBCXX_ENABLE_PIC=OFF \
   -DLIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY=ON \
   -DLIBCXX_ENABLE_MONOTONIC_CLOCK=ON \
-  -DLIBCXX_HAS_PTHREAD_API=ON \
+  -DLIBCXX_ENABLE_THREADS=OFF \
   -DLIBCXX_ENABLE_FILESYSTEM=OFF \
   -DLIBCXX_ENABLE_WIDE_CHARACTERS=ON
 

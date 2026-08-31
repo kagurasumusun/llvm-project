@@ -6,7 +6,7 @@
 #
 #   wince-sysroot/mingwrt        CeGCC-lineage mingw-runtime (kagurasumusun/mingwrt)
 #   wince-sysroot/w32api         WinCE w32api + libce defs   (kagurasumusun/w32api)
-#   wince-sysroot/pthread-win32  pthreads4w fork             (GerHobbelt, + WinCE fixes)
+#   wince-sysroot/pthread-win32  pthreads4w (optional extra, not the CE CRT)
 #
 # mingwrt and w32api are built *as-is* through their own configure/make
 # with the LLVM/Clang WinCE cross compiler in place of GCC/binutils:
@@ -21,7 +21,7 @@
 # at build time.
 #
 # Result layout (CeGCC-compatible, GNU-named):
-#   <sysroot>/include/...      mingwrt + w32api + pthreads headers
+#   <sysroot>/include/...      mingwrt + w32api headers
 #   <sysroot>/lib/
 #     crt3.o dllcrt3.o         CRT startup objects (mingwrt CRT0S)
 #     libmingw32.a libm.a      mingwrt glue libraries (MINGW_OBJS(ce))
@@ -29,7 +29,8 @@
 #     libceoldname.a           old-name aliases via COREDLL (mingwrt)
 #     libcoredll.a libcoredll6.a  COREDLL import libraries (mingwrt)
 #     lib*.a                   w32api libce import libraries
-#     libpthread.a             pthreads4w static library
+#     libpthread.a             optional; link with -mthreads / -pthread
+#     libposix.a               optional POSIX shim; not on the default link line
 #
 # Stage 3 (compiler-rt builtins + libunwind/libc++abi/libc++) is driven by
 # utils/wince/build-wince-runtimes.sh.
@@ -319,7 +320,7 @@ install -m 644 "$GMON_BUILD/gcrt3.o" "$SYSROOT/lib/gcrt3.o"
 "$LLVM_RANLIB" "$SYSROOT/lib/libgmon.a"
 
 # --- POSIX process/signal/popen layer (libposix.a) --------------------------
-echo "== [5/5] posix (exec/system/waitpid/popen/signal)"
+echo "== [5/5] posix shim (optional extra; not the CE CRT)"
 POSIX_SRC="$REPO_ROOT/wince-sysroot/posix"
 POSIX_BUILD="$BUILD/posix"
 rm -rf "$POSIX_BUILD"

@@ -307,23 +307,11 @@ option(LIBCXX_HAS_EXTERNAL_THREAD_API
   "Build libc++ with an externalized threading API.
    This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON." OFF)
 
-# Windows CE cross builds (target triples with a "wince" OS component) are
-# Windows in CMake terms but need their own libc++ support layer (coredll
-# instead of MSVCRT): select the wince sources and force the pthread
-# threading API (implemented by the pthreads4w static library in the
-# sysroot, wince-sysroot/pthread-win32); the win32
-# thread API uses SRWLOCK/CONDITION_VARIABLE/INIT_ONCE, which do not
-# exist on Windows CE.
+# Windows CE is not NT and not POSIX.  Do not force pthreads4w (a
+# third-party substitute) or the desktop win32 thread API (SRWLOCK).
+# The Stage 3 script builds libc++ with LIBCXX_ENABLE_THREADS=OFF.
 if(CMAKE_C_COMPILER_TARGET MATCHES "(-|^)wince" OR CMAKE_CXX_COMPILER_TARGET MATCHES "(-|^)wince")
   set(LIBCXX_TARGETS_WINCE ON)
-  if(NOT LIBCXX_HAS_PTHREAD_API)
-    set(LIBCXX_HAS_PTHREAD_API ON)
-    if(LIBCXX_HAS_WIN32_THREAD_API)
-      message(FATAL_ERROR "WinCE targets require the pthread thread API"
-                          " (LIBCXX_HAS_PTHREAD_API); LIBCXX_HAS_WIN32_THREAD_API"
-                          " uses APIs that do not exist on Windows CE.")
-    endif()
-  endif()
 endif()
 
 if (LIBCXX_ENABLE_THREADS)

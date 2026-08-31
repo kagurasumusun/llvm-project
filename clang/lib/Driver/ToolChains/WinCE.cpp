@@ -249,7 +249,8 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("libclang_rt.builtins-arm.a");
   CmdArgs.push_back("libceoldname.a");
   CmdArgs.push_back("libmingwex.a");
-  CmdArgs.push_back("libposix.a");
+  // libposix.a / libpthread.a are third-party shims, not the CE CRT.
+  // pthread is linked only with -mthreads / -pthread, above.
   if (WantProfiling)
     CmdArgs.push_back("libgmon.a");
 

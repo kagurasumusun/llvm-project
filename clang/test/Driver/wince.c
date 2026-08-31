@@ -74,7 +74,8 @@
 // LINK: libclang_rt.builtins-arm.a
 // LINK: libceoldname.a
 // LINK: libmingwex.a
-// LINK: libposix.a
+// LINK-NOT: libposix.a
+// LINK-NOT: libpthread.a
 // LINK: libcoredll6.a
 
 /// CE 5.0 triple selects the CE 5.0 COREDLL surface.
