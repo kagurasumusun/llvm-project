@@ -1,10 +1,10 @@
-# WinCE toolchain status (2026-08-31)
+# WinCE toolchain status (2026-09-01)
 
 Branch: `llvm-wince`.
-HEAD at the time of this note: see git. CI run
-[33364840614](https://github.com/kagurasumusun/llvm-project/actions/runs/33364840614)
-was the first **full-pipeline green** at `b10d3fa` (Stage 1 lit, Stage 2
-sysroot, Stage 3 runtimes, package, `/opt` sanity).
+First full-pipeline green: [33364840614](https://github.com/kagurasumusun/llvm-project/actions/runs/33364840614)
+at `b10d3fa` (Stage 1–3 + package). Third-party app + no Absolute-0
+`__text_start__`: [33437887749](https://github.com/kagurasumusun/llvm-project/actions/runs/33437887749)
+at `7b59bc2c`.
 
 This file is the current snapshot. Older notes in this directory
 (`README.md` inventory, `WINCE-WINEH-STATUS.md`) are historical unless
@@ -18,6 +18,7 @@ they match a heading here.
 | Stage 2 mingwrt/w32api sysroot + smoke | pass |
 | Stage 3 compiler-rt builtins + libunwind + libc++abi + libc++ | pass; `libc++.a` in the sysroot |
 | Package + `/opt` compile sanity | pass |
+| Stage 4 TECLIB/glpi-wince-agent (unmodified `make`) | pass; artifacts uploaded |
 | CPU / ABI | `arm926ej-s`, soft-float, GNU `lib*.a` |
 
 ## Runtime layering (do not flatten)

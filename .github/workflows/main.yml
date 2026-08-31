@@ -296,7 +296,54 @@ jobs:
           llvm-readobj --file-headers "$EXE"
           llvm-objdump -h "$EXE" | head -40
 
-      - name: Upload toolchain artifact
+          # Stage products for upload (RUNNER_TEMP is not an artifact).
+          DEST="$PWD/products/glpi-wince-agent"
+          mkdir -p "$DEST"
+          cp -a "$EXE" "$DEST/"
+          for f in glpi-wince-agent-setup.dll glpi-wince-agent-service.dll; do
+            [ -f "$SRC/src/$f" ] && cp -a "$SRC/src/$f" "$DEST/"
+          done
+          llvm-readobj --file-headers "$EXE" \
+            > "$DEST/glpi-wince-agent.exe.headers.txt"
+          {
+            echo "upstream: TECLIB/glpi-wince-agent"
+            echo "commit: eb88be1a8224d731f255a9c4aae56c9812f6cc20"
+            echo "unmodified: yes (their Makefile, no patches)"
+            echo "toolchain: ${{ github.sha }}"
+            echo "target: $TARGET"
+            echo
+            sha256sum "$DEST"/* || true
+          } > "$DEST/SHA256SUMS"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## WinCE toolchain products"
+            echo
+            echo "- commit: \`${{ github.sha }}\`"
+            echo "- target: \`$TARGET\`"
+            echo
+            if ls wince-llvm-*.tar.zst >/dev/null 2>&1; then
+              echo "### Toolchain"
+              echo
+              echo '```'
+              ls -l wince-llvm-*.tar.zst*
+              sha256sum wince-llvm-*.tar.zst
+              echo '```'
+            fi
+            if [ -d products/glpi-wince-agent ]; then
+              echo
+              echo "### TECLIB/glpi-wince-agent (unmodified)"
+              echo
+              echo '```'
+              ls -l products/glpi-wince-agent
+              cat products/glpi-wince-agent/SHA256SUMS
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload toolchain
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -306,6 +353,15 @@ jobs:
             wince-llvm-*.tar.zst.sha256
           retention-days: 14
           if-no-files-found: ignore
+
+      - name: Upload glpi-wince-agent
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: glpi-wince-agent-${{ env.TARGET }}
+          path: products/glpi-wince-agent/
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Upload build logs (on failure)
         if: failure()
