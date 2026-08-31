@@ -10,6 +10,20 @@ This file is the current snapshot. Older notes in this directory
 (`README.md` inventory, `WINCE-WINEH-STATUS.md`) are historical unless
 they match a heading here.
 
+## Repository layout (2026-08-31 reorganization)
+
+* **This repository = compiler side only**: driver, cmake cache,
+  lld/COFF, lit tests, docs. CI = Stage 1 + WinCE lit gate.
+* **`kagurasumusun/cellvm-build`** = the full pipeline (sysroot, runtimes,
+  packaging, TECLIB/glpi, EasyRPG Player) with submodules
+  `llvm-project@llvm-wince` + `mingwrt@master` + `w32api@wip` +
+  `pthread-win32@master`, plus the in-house sysroot code
+  (`sysroot/{gmon,posix,include-overlay}`) and the build scripts that used
+  to live in `wince-sysroot/` / `utils/wince/` here.
+* The WinCE fixes to mingwrt/w32api/pthread-win32 are pushed to
+  `kagurasumusun/{mingwrt,w32api,pthread-win32}` (see WINCE-HANDOFF.md §14).
+  `wince-sysroot/` is deleted from this repository.
+
 ## What is green
 
 | Layer | Result |

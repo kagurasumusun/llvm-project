@@ -19,10 +19,12 @@
 
 - **目的**: `kagurasumusun/llvm-project`(LLVM 22.1.8ベースのフォーク)を、**Windows CE (CE 6.0中心、5.0/4.x/3.0/2.xまで設定で対応) の完全なクロス開発ツールチェーン**にすること。
 - **◎ 唯一の対象 = 32ビット ARM、ARMv5TE 級、`armel` ABI(リトルエンディアン・soft-float・AAPCS)、既定 CPU `arm926ej-s`(i.MX28)**。他CPUは**スコープ外(非目標)**。特に **x86(i386-mingw32ce/CEPC)、x86-64、AArch64(ARM64/ARM64EC/ARM64X)、armhf、ビッグエンディアン、MIPS/SH3/SH4/PPC の import thunk**は「実装・完了・拡張・検証」の対象にしない。評価/監査表に x86/64 項目が出てきても**コンテキスト注記**であり、作業項目ではない(詳細は `utils/wince/README.md` の「Scope and non-goals」)。
-- **方針**: 独自ランタイムは作らない。**kagurasumusun/mingwrt + kagurasumusun/w32api(CeGCC系)+ pthreads4w を in-tree ベンダーし、それぞれ自身の configure/make で clang を使ってビルドする**。LLVM/Clang/LLD 側の改修は「正規の機構」として in-tree で行う。
+- **方針**: 独自ランタイムは作らない。mingwrt / w32api(CeGCC系) / pthread-win32 は **kagurasumusun の各リポジトリ**(WinCE 修正コミット適用済み)からサブモジュールとして消費し、それぞれ自身の configure/make で clang を使ってビルドする。LLVM/Clang/LLD 側の改修は「正規の機構」として本リポジトリ(in-tree)で行う。
+- **リポジトリ構成(2026-08-31 リ-org 完了・§14)**: 本リポジトリ = **コンパイラ側のみ**(ドライバ / CMake キャッシュ / lld COFF / lit テスト / ドキュメント / コンパイラゲート CI)。ツールチェーンのフルパイプライン(sysroot・ランタイム・パッケージ化・アプリ)は **`kagurasumusun/cellvm-build`**(サブモジュール: llvm-project@llvm-wince + mingwrt + w32api + pthread-win32)に移管。cegcc-build と同型の「サブモジュール + ビルドスクリプト」構成。
 - **現状**: アプリ/ドライバ/OAL 開発に必要な一式はほぼ実装済み・検証済み(下記)。OS イメージ(sysgen/makeimg/BIB)のビルド基盤は **AE600 ソース(ユーザー手元)が前提**で、実装計画は確定済み・未実装。
 - **直近のブロッカー(解消済み・2026-08-30)**: `kagurasumusun/wince-source` への**トークンアクセスが復帰**(200 OK 確認、ce600 完整ソース 145,461 ファイル参照可能)。代替だった §4g 検証(実バイナリ .pdata の解析)と WINEH-ABI-FACTS.md §4d–4g の対照がそのまま有効。旧ブロッカーの残タスクは §6.1。
-- **現在のブロッカー(Phase 3 着手時点)**: Stage 1 CI が全 5 ラン失敗中。失敗の進行は §13.2、直前に潰した原因は TableGen 検査(診断メッセージの大文字始まり、`warn_drv_wince_sysroot_missing`)。外部レビューで lld/COFF の P0/P1 不備が指摘され、§13 で修正・記録した(いずれも**ソースレベル修正で、CI による初回検証待ち**)。
+- **現在のブロッカー(Phase 3 時点)**: Stage 1 CI が全 5 ラン失敗中。失敗の進行は §13.2、直前に潰した原因は TableGen 検査(診断メッセージの大文字始まり、`warn_drv_wince_sysroot_missing`)。外部レビューで lld/COFF の P0/P1 不備が指摘され、§13 で修正・記録した(いずれも**ソースレベル修正で、CI による初回検証待ち**)。
+- **2026-08-31 時点**: コンパイラ CI(Stage 1 + WinCE lit)は本リポジトリで継続。**フルパイプライン(Stage 2–5)は `kagurasumusun/cellvm-build` に移管済み**(§14)。Stage 5 の進行(zlib→libpng→pixman→libiconv→SDL→liblcf→Player)は cellvm-build 側 CI で継続中(直近の停止点は libpng のテスト exe 群 `CreateMutexA` undefined → cecompat で対処し pixman へ進行)。
 
 ---
 
@@ -33,61 +35,51 @@
 | ワークスペース | なし(サンドボックス制約のためクローンを作らず GitHub REST API で作業。2026-08-30 時点) |
 | ブランチ | `llvm-wince`(デフォルトブランチ。**作業対象はこれ**) |
 | リモート | `origin` = `https://github.com/kagurasumusun/llvm-project.git` |
-| HEAD | `23644c7075` (Phase 2 のコミット適用後) |
+| HEAD | リ-org 後: `a9c0d082a`(CI 削減)→ `696f2a437`(wince-sysroot 削除)→ `43d0852d6`(スクリプト類移管)→ 文書更新。進捗は §14 |
 | 注意 | `arena/wince-wineh-ce` は **diverged (ahead 7 / behind 35)**。SEH を別方式(ターゲット全体 WinEH)で実装した未統合分岐。詳細は §11.3 |
-| プッシュ | **全コミット push 済み**(`Everything up-to-date` 状態) |
+| プッシュ | **全コミット push 済み**。コンポーネントリポジトリ側の WinCE 修正も push 済み(§14) |
 | upstream tag | `refs/tags/upstream-22.1.8`(差分確認用に fetch 済み) |
 
 ### 認証(重要な罠)
 
-- ユーザー提供の fine-grained トークン(`github_pat_11CD5...`)は **`llvm-project` のみ有効**。
-  - `llvm-project` への push/blob 作成: ✅
-  - `kagurasumusun/mingwrt`, `pthread-win32` への書き込み: ❌ 403(過去に拒否された経緯あり → ユーザーの指示で「他人リポはいじるな」になり、pthread への直接コミットは撤回済み)
-  - `kagurasumusun/wince-source`(private): ❌ **404 = トークンの Repository access に含まれていない**
-- サンドボックスにはシステム側の GitHub 認証(ボット)もあり、`git push origin` は `llvm-project` に限定して動く。**トークンを URL 埋め込みで push すると bot 認証が優先され 403 になる**ことがある → `llvm-project` 以外への push は REST API 経脈か、ユーザー自身が行う。
-- **ユーザーへの依頼中の事項**:
-  1. fine-grained トークンに `wince-source` を追加(Contents: Read で可)
-  2. `kagurasumusun/mingwrt` にローカルコミット `5ed3cc4` "Build with LLVM/Clang in addition to GCC" を push(clang対応のため。llvm-project 側のベンダーツリーには同変更済みなので、push は整合性のためだけに必要)
+- ユーザー提供の fine-grained トークンは **kagurasumusun の全リポジトリに admin**(2026-08-31 確認: llvm-project / w32api / mingwrt / pthread-win32)。旧トークンの llvm-project 限定制約は解消済み。
+  - 4 つのリポジトリすべてに push 可能(リ-org の push はすべてこのトークンで実施)。
+  - `kagurasumusun/wince-source`(private): トークンの Repository access に含まれない場合あり(404)。
+- **ルール(ユーザー指示)**: トークンは単一 bash コマンド内の一時的環境変数としてのみ使用。**ファイル・ログ・コミット・指示文に一切記録しない**。
+- push の方法: `git push https://x:${GH_PAT}@github.com/...`(インメモリ URL)。**`.git/config` に token を書き込まない**(`origin` は token なしの通常 URL)。
 
 ---
 
 ## 2. ディレクトリマップ(追加・変更したもの)
 
 ```
-wince-sysroot/                    ← 登録済み LLVM ランタイムプロジェクト本体
-├── CMakeLists.txt                ランタイム登録(LLVM_ENABLE_RUNTIMES=wince-sysroot)
-├── include-overlay/              sysroot include に最後に重ねるヘッダ(SAL, intrin.h)
-├── mingwrt/                      kagurasumusun/mingwrt@7c35691 + clang対応コミット相当
-│                                 (include/_mingw.h __declspecプローブに __clang__ 追加、
-│                                  Makefile.in の .def 前処理から -C 除去、
-│                                  coredll_stubs.c setlocale引数の名前化)
-├── w32api/                       kagurasumusun/w32api@51de0ad 無修正
-├── pthread-win32/                GerHobbelt/pthread-win32@06e7608(=上流HEAD)+ WinCE修正3点
-│                                 (詳細は同dir README.llvmvendor.md)
-├── gmon/                         -pg サンプリングプロファイラ (gcrt3.c, libgmon.c)
-└── posix/                        execv/execl(p)/system/waitpid/popen/pclose/signal/alarm
-    └── sys/wait.h
+# 本リポジトリ(kagurasumusun/llvm-project, branch llvm-wince)= コンパイラ側のみ
+clang/lib/Basic/Targets/ARMCE.*          CE6/CE5/CE4/CE3/CE2 ターゲット定義
+clang/lib/Driver/ToolChains/WinCE.{h,cpp}  ドライバ(sysroot は <prefix>/wince-sysroot を参照)
+clang/cmake/caches/WinCE.cmake           ステージ1(ホストビルド)キャッシュ
+clang/test/Driver/wince*.c               ドライバ lit テスト
+clang/test/CodeGen/ARM/wince-*.c         EHABI テーブル / グローバル ctor / SEH テスト
+clang/test/{Parser,Sema}/ms-*.c          MSVC 構文テスト
+lld/COFF + lld/test/COFF/wince-*.s       lld の CE 挙動(image/ctors/relocs/thunk/exidx/pdata)
+llvm/test/MC/ARM/wince-*.s               MC レベルの CE テスト
+llvm/test/CodeGen/ARM/wince-*.ll         llc レベルの CE テスト
+utils/wince/README.md                    ★全仕様・監査表・検証状況の一次資料(必読)
+utils/wince/STATUS.md                    現状・do-not-revive 一覧
+utils/wince/WINEH-ABI-FACTS.md           WinEH/CE 実 ABI の検証済み事実
+utils/wince/WINCE-WINEH-*.md             WINEH 設計/状況
+WINCE-HANDOFF.md                         本ドキュメント
 
-utils/wince/
-├── build-wince-sysroot.sh        ステージ2(sysroot組み立て)本体。検証済み
-├── build-wince-runtimes.sh       ステージ3(compiler-rt/libunwind/libcxx)ドライバ
-├── audit-coredll.py              dumpbin出力 vs def 突合ツール
-├── armasm/armasm-convert.py      armasm→GNU 変換器(フォールバック用。後述)
-└── README.md                     ★全仕様・監査表・検証状況の一次資料(必読)
-
-clang/cmake/caches/WinCE.cmake    ステージ1(ホストビルド)キャッシュ
-clang/test/Driver/wince.c         ドライバ lit テスト(更新済)
-clang/test/Driver/wince-x86.c     i386-mingw32ce テスト
-clang/test/Driver/wince-ctors.c?  → 実ファイルは clang/test/CodeGen/ARM/wince-global-ctors.c
-clang/test/CodeGen/ARM/wince-*.c  EHABI テーブル / グローバル ctor テスト
-clang/test/Parser/ms-pragmas-full.c  MSVCプラグマ実装テスト
-clang/test/Sema/ms-extern.c       extern extern 等の MSVC 構文テスト
-lld/test/COFF/wince-*.s           lld の CE 挙動テスト(image/ctors/relocs/thunk/exidx)
-llvm/test/MC/ARM/wince-*.s        MCレベルのCEテスト
-.actions/build-wince-llvm.yml     CI(ユーザーが .github/workflows/main.yml へ移動済み)
+# ツールチェーンのパイプラインは kagurasumusun/cellvm-build に移管(§14):
+#   cellvm-build/
+#   ├── .gitmodules        llvm-project@llvm-wince + mingwrt@master + w32api@wip + pthread-win32@master
+#   ├── sysroot/gmon|posix|include-overlay   社内向け sysroot コード(gmon, execv/system/waitpid/popen/signal, SAL/intrin)
+#   ├── build-wince-sysroot.sh / build-wince-runtimes.sh / build-easyrpg-player.sh / bind-cegcc-names.sh / audit-coredll.py
+#   ├── armasm/armasm-convert.py
+#   ├── easyrpg-player/    MaxSignal/Player の Makefile オーバーレイ
+#   └── .github/workflows/ フルパイプライン CI(Stage 1–5)
 ```
 
-削除したもの: `wince-crt/`(旧ベスポークCRT)、`.gitmodules`+`third-party/*` サブモジュール(すべて in-tree 化)、`utils/wince/patches/`(不要化)。
+削除したもの: `wince-sysroot/`(→ cellvm-build、§14)、`wince-crt/`(旧ベスプーク CRT)、`.gitmodules`+`third-party/*` サブモジュール(一時 in-tree 化)、`utils/wince/patches/`(不要化)、`utils/wince/` のビルドスクリプト群(→ cellvm-build、§14)。(旧ベスポークCRT)、`.gitmodules`+`third-party/*` サブモジュール(すべて in-tree 化)、`utils/wince/patches/`(不要化)。
 
 ---
 
@@ -593,8 +585,8 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
 2. armasm Path B の残構文(§12.2: IF/ENDIF、MACRO/MEND、GBLA/SETA、DCFU 系、EQU 文字列/論理)。CI 緑化後。
 3. ~~x86 CE の SEH 実装~~ → **非目標(スコープ外)**。x86 CE は本ツールチェーンの対象ではないため実装しない(B10 の診断はそのまま)。詳細は「Scope and non-goals」。
 4. ~~PDB 生成時の CE CPUType マッピング・`getFileFormatName` の CE 名~~ → 解決済み: CPUType は既存で ARM7 にマップ済み(§13.5 確認)、`getFileFormatName` は `fb4d8843856b` + テスト `32d24c0ae710` で対応。
-5. `.actions` と `.github/workflows/main.yml` の重複解消(ユーザー判断待ち)。
-6. ユーザー依存: mingwrt `5ed3cc4` の push(本 PAT は該リポに書込不可)。
+5. ~~`.actions` と `.github/workflows/main.yml` の重複解消~~ → 解消済み(`a9c0d082a` で死んだコピー両方削除)。
+6. ~~mingwrt `5ed3cc4` 相当の push~~ → 済み(2026-08-31、リ-org 時に kagurasumusun/mingwrt へ push、§14)。
 7. デバイス検証(未実施・デバイスなし。gweslab/cerf エミュ可能性は調査済)。
 8. CI 緑化後の最初の WinCE lit 実行: 既存テスト(wince-pdata.test の手計算期待値等)+ 本セッション追加 2 件を初検証。
 
@@ -603,3 +595,34 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
 - **本セッションの全コード修正はソースレベルのみ**: ビルド・リンク・実行・lit 実行はこの環境では実施していない。CI(push 後)が初回検証者。
 - 本セッションで実施した検証: レビュー指摘の全箇所を HEAD ソースで直接確認(ファイル:行で引用)、apply 系 reloc 関数の全コード読取、thunk 機構(createThunks/verifyRanges/margin loop)の読取、既存テスト構造の読取、符号値 convention の伝播経路(WinCOFFObjectWriter → DefinedCOFF::getRVA)の確認。
 - インストラクタ定数(`ldr ip,[pc]` = 0xE59FC000 等)は importThunkARMCE と同一 pattern の手計算 + binutils jmp_arm_bytes との一致で確定。**実行による確認は未実施**。
+
+---
+
+## 14. Phase 4 (2026-08-31): リポジトリ再編 — パイプラインを `cellvm-build` へ分離
+
+### 14.1 方針(ユーザー決定)
+
+- `llvm-project` には**サードパーティツリーを内蔵しない**(cegcc と同じ形にする)。
+  mingwrt / w32api / pthread-win32 を `kagurasumusun` 各リポジトリから分離。
+- **新規リポジトリ `kagurasumusun/cellvm-build`**(public、cegcc-build 型): サブモジュール + 1 つのビルドパイプライン + CI。
+  サブモジュールは **4 つ**: `llvm-project@llvm-wince` + `mingwrt@master` + `w32api@wip` + `pthread-win32@master`
+  (cegcc-build の前例: w32api + mingw + binutils + gcc。mingwrt もビルドに必須のため同様にサブモジュール化)。
+- 社内向けコード(gmon / posix / include-overlay)とビルドスクリプト・CI はすべて `cellvm-build` へ。
+- `llvm-project` にはコンパイラ側の変更・テスト・ドキュメントだけを残し、CI は **Stage 1 + WinCE lit ゲート**に削減。
+
+### 14.2 各リポジトリへの push(2026-08-31、すべて fast-forward)
+
+| リポジトリ | ブランチ | push 前 HEAD | push 後 HEAD | 内容 |
+|---|---|---|---|---|
+| kagurasumusun/mingwrt | master | `7c35691` | `69043bc` | (1) clang ビルド対応(Makefile.in の `-C` 除去 + `_mingw.h` の `__clang__` プローブ) (2) ヘッダの Clang/libc++ 互換(float.h / stdlib.h / `__small`) (3) coredll+coredll6 の def 完全化(30 名) (4) mingwex/wince の CE 数学系 8 種追加+Makefile 登録 (5) coredll_stubs.c の C17 対応 |
+| kagurasumusun/w32api | wip | `51de0ad` | `7192b73` | libce/coredll.def の def 完全化(30 名・mingwrt と同一作業) |
+| kagurasumusun/pthread-win32 | master | `06e7608` | `4ae6417` | (1) WinCE のスレッド作成を CreateThread/ExitThread 経路へ(_beginthreadex の WINCE ガード 5 ファイル) (2) GNU interlocked ブロックの x86 限定 (3) `_ptw32.h` の `__declspec` プローブに `__clang__` 追加 |
+| kagurasumusun/llvm-project | llvm-wince | `ac4a5ca7d` | (進行中) | `a9c0d082a` CI を Stage 1+lit に削減(死んだ .actions/.github/actions コピー削除) → `696f2a437` wince-sysroot 削除(1841 ファイル)+ LLVM_SUPPORTED_RUNTIMES 登録 revert → `43d0852d6` utils/wince のビルドスクリプト群削除 → 本コミット(文書更新) |
+| kagurasumusun/cellvm-build | master | (新規作成) | (進行中) | サブモジュール 4 つ + 社内向け sysroot コード + 適応済みスクリプト + フルパイプライン CI + README |
+
+### 14.3 留意事項
+
+- **並行セッション**: リ-org 実行中に別セッションが llvm-wince にコミットを重ねていた(zlib→libpng→pixman の Stage 5 修正群)。push ごとに `git fetch` → 必要なら rebase → fast-forward push で衝突を回避。**cellvm-build の llvm-project 固定は rebase 後の最終 tip に更新する**。
+- **wince-sysroot のベンダリング差分はすべてコンポーネントリポジトリへ反映済み**: push 前の diff 検証で、各コンポーネントの push 後ツリーが旧ベンダーツリーと完全一致(CVS メタデータと README.llvmvendor.md を除く)を確認。
+- **cellvm-build の CI がフルパイプラインの唯一の実行者**: llvm-project 側 CI はコンパイラゲートのみ。Stage 5(zlib→…→EasyRPG Player)の CI 反復は cellvm-build 側で継続。
+- **認証**: push はすべてユーザー提供 PAT(一時的環境変数経由、記録なし)。

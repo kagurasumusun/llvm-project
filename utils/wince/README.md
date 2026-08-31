@@ -1,8 +1,16 @@
 # Windows CE toolchain: sysroot, runtime and compiler-side support
 
-> **Current status (2026-08-31):** CI
-> [33364840614](https://github.com/kagurasumusun/llvm-project/actions/runs/33364840614)
-> **green** at `b10d3fa` (Stage 1 lit, Stage 2, Stage 3, package).
+> **Current status (2026-08-31, repo reorganization complete):** this
+> repository holds the **compiler side only** (driver, cmake cache,
+> lld/COFF, lit tests, docs; CI = Stage 1 + WinCE lit gate). The full
+> toolchain pipeline (sysroot, runtimes, packaging, TECLIB/glpi,
+> EasyRPG Player) now runs in
+> **[kagurasumusun/cellvm-build](https://github.com/kagurasumusun/cellvm-build)**,
+> which consumes `llvm-project@llvm-wince` plus
+> [`mingwrt`](https://github.com/kagurasumusun/mingwrt),
+> [`w32api`](https://github.com/kagurasumusun/w32api) and
+> [`pthread-win32`](https://github.com/kagurasumusun/pthread-win32) as
+> submodules (the WinCE fixes are pushed to those repositories).
 > See **[STATUS.md](STATUS.md)**. Where this README disagrees, STATUS.md wins.
 
 
@@ -15,20 +23,27 @@ and platform headers are the **unmodified** CeGCC-lineage
 * [`kagurasumusun/mingwrt`](https://github.com/kagurasumusun/mingwrt) (mingwrt),
 * [`kagurasumusun/w32api`](https://github.com/kagurasumusun/w32api) (w32api),
 
-plus the pthreads4w static thread library.  There is no bespoke CRT: the
+plus the pthread-win32 static thread library.  There is no bespoke CRT: the
 sysroot is assembled by building those trees **with their own
 configure/make**, with Clang in place of GCC and the LLVM binary tools in
-place of binutils — the same role CeGCC's GCC played.  All three trees are
-vendored in-tree under `wince-sysroot/` (this runtime project), matching
-LLVM's structure: `wince-sysroot` is a registered runtime
-(`LLVM_ENABLE_RUNTIMES=wince-sysroot`) whose subdirectories hold the
-imported sources.
+place of binutils — the same role CeGCC's GCC played.
+
+Since the 2026-08-31 reorganization the pipeline is not in this
+repository: it lives in `kagurasumusun/cellvm-build` (submodule + build
+scripts + CI, in the cegcc-build style).  The stages, as executed there:
 
 ```
-stage 1  clang/lld/llvm-tools host build     (clang/cmake/caches/WinCE.cmake)
-stage 2  sysroot: mingwrt + w32api + pthread (utils/wince/build-wince-sysroot.sh)
-stage 3  compiler-rt + libunwind/libc++abi/libc++  (utils/wince/build-wince-runtimes.sh)
+stage 1  clang/lld/llvm-tools host build     (this repo, clang/cmake/caches/WinCE.cmake)
+stage 2  sysroot: mingwrt + w32api + pthread (cellvm-build/build-wince-sysroot.sh)
+stage 3  compiler-rt + libunwind/libc++abi/libc++  (cellvm-build/build-wince-runtimes.sh)
+stage 4  unmodified TECLIB/glpi-wince-agent   (cellvm-build CI)
+stage 5  MaxSignal/EasyRPG Player 0.6.2.3-wince (cellvm-build CI)
 ```
+
+The in-house sysroot code (gmon, posix, include-overlay) and the build
+scripts that used to live under `wince-sysroot/` / `utils/wince/` in this
+repository moved to `cellvm-build` as well; this README remains the
+authoritative spec for how the pieces fit.
 
 ## Scope and non-goals (read this before anything else)
 
@@ -100,21 +115,24 @@ Tool substitutions (GNU -> LLVM):
 
 ### Third-party source policy
 
-Each tree carries a provenance note in its `README.llvmvendor.md`:
+The trees are the actual repositories (submodules of `cellvm-build`); the
+WinCE changes that used to live only in this repository's vendored copy
+were pushed to them on 2026-08-31 (see WINCE-HANDOFF.md §14.2):
 
-* **`wince-sysroot/mingwrt`** — kagurasumusun/mingwrt @ `7c35691` plus one
-  compiler-compat commit (also pushed upstream): `include/_mingw.h` accepts
-  `__clang__` at the `#ifdef __declspec` probe that selects the
-  `__DECLSPEC_SUPPORTED` / `__MINGW_IMPORT` / `_CRTIMP` declarations
-  (GCC's PE targets predefine `__declspec` as a macro, Clang implements it
-  as a keyword), and `Makefile.in` preprocesses the generated `.def` files
-  without `-C` (the preserved C comments are outside the def-file grammar
-  llvm-dlltool implements).  No runtime-semantic changes.
-* **`wince-sysroot/w32api`** — kagurasumusun/w32api @ `51de0ad`, unmodified.
-* **`wince-sysroot/pthread-win32`** — GerHobbelt/pthread-win32 (the actively
-  maintained combined successor of pthreads-win32/pthreads4w; upstream
-  pthreads4w is dormant) @ `06e7608` plus three WinCE 6.0 build fixes
-  committed in-tree:
+* **`kagurasumusun/mingwrt` @ `69043bc`** (master) — upstream `7c35691`
+  plus: clang build support (the `__declspec` probe in `_mingw.h` accepts
+  `__clang__`; `Makefile.in` preprocesses the generated `.def` files
+  without `-C`), clang/libc++ header compatibility (float.h / stdlib.h /
+  `__small`), the COREDLL def completion (30 export names in
+  coredll.def/coredll6.def), the CE math set (8 objects in
+  mingwex/wince + Makefile registration), and C17-named setlocale params
+  in coredll_stubs.c.
+* **`kagurasumusun/w32api` @ `7192b73`** (wip) — upstream `51de0ad` plus
+  the same COREDLL def completion in libce/coredll.def.
+* **`kagurasumusun/pthread-win32` @ `4ae6417`** (master) — GerHobbelt's
+  actively maintained combined successor of pthreads-win32/pthreads4w
+  (upstream pthreads4w is dormant) at `06e7608` plus three WinCE 6.0 build
+  fixes:
   1. thread entry/exit take the `_beginthreadex`/`_endthreadex` paths,
      which `implement.h` maps to `CreateThread`/`ExitThread` under
      `NEED_CREATETHREAD` (the guards keyed on `__MINGW32__`/`__MSVCRT__`
