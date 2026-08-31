@@ -4,7 +4,7 @@
 /// headers); clang accepts them as an extension warning, and the
 /// reordered spellings behave identically.
 
-// RUN: %clang_cc1 -triple arm-pc-wince -target-cpu arm926ej-s -fsyntax-only -fms-extensions -fms-compatibility -verify -Wno-unused-variable %s
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fsyntax-only -fms-extensions -Xclang -verify -Wno-unused-variable %s
 
 extern extern int duplicate_extern;      // expected-warning {{duplicate 'extern' declaration specifier}}
 extern extern extern int triple_extern;  // expected-warning 2 {{duplicate 'extern' declaration specifier}}

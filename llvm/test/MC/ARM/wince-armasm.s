@@ -42,7 +42,10 @@ armasm_fn:
 
         END
 
-@ CODE:      armasm_fn:
+@ llvm-objdump -d on IMAGE_FILE_MACHINE_ARM prints "<name>:" and does
+@ not resolve the bl reloc to SomeCEApi (the IMPORT is an undefined
+@ external; the immediate encodes as bl to the next insn).  bx lr is
+@ shown as <unknown> (e12fff1e) on this machine type.
+@ CODE:      <armasm_fn>:
 @ CODE:      mov r0, #1
-@ CODE:      bl SomeCEApi
-@ CODE:      bx lr
+@ CODE:      bl

@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 %s -triple arm-pc-wince -target-cpu arm926ej-s -fms-extensions -fms-compatibility -emit-llvm -O1 -disable-llvm-passes -o - \
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fms-extensions -O1 -Xclang -disable-llvm-passes -S -emit-llvm -o - %s \
 // RUN:     | FileCheck %s
-// RUN: %clang_cc1 %s -triple arm-pc-wince -target-cpu arm926ej-s -fms-extensions -fms-compatibility -fsyntax-only -o - 2>&1 \
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fms-extensions -fsyntax-only %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=SYNTAX
 //
 // Windows CE on ARM uses the compressed .pdata SEH mechanism with

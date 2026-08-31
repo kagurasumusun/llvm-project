@@ -1,5 +1,5 @@
 /// Full-syntax MSVC pragmas (Windows CE / eMbedded Visual C++ era sources).
-// RUN: %clang_cc1 -triple arm-pc-wince -target-cpu arm926ej-s -fsyntax-only -fms-extensions -fms-compatibility -verify %s
+// RUN: %clang --target=arm-pc-wince -Wno-wince-sysroot-missing -fsyntax-only -fms-extensions -Xclang -verify %s
 
 #pragma auto_inline(off)
 int not_inlined_1(void) { return 1; }
