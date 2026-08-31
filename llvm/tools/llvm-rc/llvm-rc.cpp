@@ -714,7 +714,9 @@ void doCvtres(std::string Src, std::string Dest, std::string TargetTriple) {
     break;
   case Triple::arm:
   case Triple::thumb:
-    MachineType = COFF::IMAGE_FILE_MACHINE_ARMNT;
+    // WinCE ARM PE uses IMAGE_FILE_MACHINE_ARM, not ARMNT (Windows 8+).
+    MachineType = T.isWindowsCE() ? COFF::IMAGE_FILE_MACHINE_ARM
+                                  : COFF::IMAGE_FILE_MACHINE_ARMNT;
     break;
   case Triple::aarch64:
     if (T.isWindowsArm64EC())

@@ -1,5 +1,11 @@
 # Windows CE toolchain: sysroot, runtime and compiler-side support
 
+> **Current status (2026-08-31):** CI
+> [33364840614](https://github.com/kagurasumusun/llvm-project/actions/runs/33364840614)
+> **green** at `b10d3fa` (Stage 1 lit, Stage 2, Stage 3, package).
+> See **[STATUS.md](STATUS.md)**. Where this README disagrees, STATUS.md wins.
+
+
 This directory holds the tooling that turns a freshly built LLVM/Clang/LLD
 (the "stage 1" host toolchain, configured with
 `clang/cmake/caches/WinCE.cmake`) into a complete, self-contained
@@ -128,10 +134,12 @@ Each tree carries a provenance note in its `README.llvmvendor.md`:
 Cross-builds `compiler-rt/lib/builtins` (the `-lgcc` replacement) and the
 static `libunwind + libc++abi + libc++` stack against the stage-2 sysroot
 and stages them as `libclang_rt.builtins-<arch>.a`, `libunwind.a`,
-`libc++abi.a`, `libc++.a` plus `include/c++/v1`.  libc++ uses the pthread
-threading API (`LIBCXX_HAS_PTHREAD_API`), served by the stage-2
-`libpthread.a`; the WinCE locale backend
-(`libcxx/src/support/wince/locale_wince.cpp`) and clock paths are in-tree.
+`libc++abi.a`, `libc++.a` plus `include/c++/v1`.  These sit on **bare CE**
+(mingwrt + COREDLL).  libc++/libunwind are `ENABLE_THREADS=OFF`;
+pthreads4w is an optional extra, not the C++ thread API.  CE is not
+`_LIBCPP_WIN32API` / `_LIBCPP_MSVCRT_LIKE`.  Static libc++ is hermetic
+(`LIBCXX_HERMETIC_STATIC_LIBRARY=ON`).  compiler-rt CRT objects stay off
+(`COMPILER_RT_BUILD_CRT=OFF`; PE startup is mingwrt `crt3.o`).
 
 ## Driver behavior (the Clang side)
 
@@ -143,15 +151,16 @@ the CeGCC link line on lld-link:
 |----------------------------------|-----------------------------------------------------|
 | `STARTFILE_SPEC` crt3/dllcrt3    | `crt3.o` (EXE) / `dllcrt3.o` (DLL) from the sysroot |
 | `-e DllMainCRTStartup` (DLL)     | `/entry:DllMainCRTStartup`                          |
-| pe.em subsystem-9 default entry  | `/entry:WinMainCRTStartup` (console: `mainCRTStartup`) |
+| pe.em subsystem-9 default entry  | `/entry:WinMainCRTStartup` (always; mingwrt `winmain_ce.o` bridges `main`) |
 | arm-wince emulation defaults     | `/subsystem:windowsce /base:0x10000 /fixed` (DLLs: `0x10000000`, keep `.reloc`) |
 | `%{mthreads:-lmingwthrd} -lmingw32 -lgcc -lceoldname -lmingwex -lcoredll` | `-mthreads`/`-pthread`: `libmingwthrd.a` (mingwrt, as CeGCC) + `libpthread.a` (pthreads4w) and `-D_MT`; then `libmingw32.a`, `libclang_rt.builtins-*.a`, `libceoldname.a`, `libmingwex.a`, `libcoredll.a` |
 | `%{mthreads:-D_MT}` (CPP_SPEC)   | `-D_MT` at compile time                             |
 | (GNU ld pe.em: __CTOR_LIST__/__DTOR_LIST__ bracketing) | clang emits global ctors/dtors in the GNU convention for WinCE (`.ctors`/`.dtors`, priority subsections `.ctors.NNNNN`, associative grouping); lld-link `-wince` sorts and brackets them with the -1 head sentinel and 0 terminator, `__CTOR_LIST__`/`__DTOR_LIST__` point at the head, and mingwrt's `__main` (`gccmain.c`) walks them: global C++ constructors run before `main`/`WinMain`, destructors run through the atexit table.  (The MSVC `.CRT$XCU`/`.CRT$XTX` tables would need `__xc_a` startup objects that the CE runtime does not provide — verified not used for this target.) |
 | (GCC default: gnu89 inline)      | `-fgnu89-inline` by default — the pre-C99 `extern __inline` convention used by eMbedded Visual C++ / old mingwrt headers keeps its external-definition semantics (`-fno-gnu89-inline` to override) |
 
-Libraries are probed GNU-first (`lib<name>.a`) with MS-style (`<name>.lib`)
-fallback so both sysroot layouts resolve.  `-Wl,` GNU spellings
+Libraries are GNU-named (`lib<name>.a`) only — no MS `.lib` aliases.
+`-mthreads`/`-pthread` add `libmingwthrd.a` + `libpthread.a`; `libposix.a`
+is **not** on the default line.  `-Wl,` GNU spellings
 (`-subsystem`, `-e/--entry`, `--image-base`, `--stack`, `--dll`, `--def`,
 `--out-implib`, `--major/--minor-image-version`, `--dynamicbase`) are
 translated to their lld-link forms.
@@ -273,7 +282,7 @@ audited end to end:
 | atexit / `_onexit` | complete: mingwrt's private atexit table (COREDLL exports neither), flushed by `_cexit` at the end of `crt3`/`dllcrt1` |
 | argv / WinMain | complete: mingwrt `crt3.c` dispatches to `WinMain`; `winmain_ce.o` in libmingw32 provides the `WinMain -> main` adapter, `mainCRTStartup` builds argv from `GetCommandLineW` |
 | runtime pseudo relocations & import thunks | complete: ARM-mode `ldr ip,[pc]` thunks identical to binutils `jmp_arm_bytes`, `_pei386_runtime_relocator` handles imported-data offsets |
-| branch range extension (far A32 B/BL) | added 2026-08-30 (source-level; CI verification pending): `RangeExtensionThunkARMCE` in lld - the same jmp_arm_bytes pair as the import thunk plus the target's absolute address literal (HIGHLOW base relocation on non-fixed images); A32 branch callers are thunked, and the CE symbol-value convention (bit 0 = Thumb) interworks the stub to either code mode. Out-of-range branches from Thumb-mode callers (T1/T32) still fail with "relocation out of range" until Thumb sections are placed at odd RVAs (WINCE-HANDOFF.md section 13.6). The PE entry point / export table keep the symbol's bit 0 for CE (no forced `|= 1` as on ARMNT - that would corrupt ARM entries). Tests: `lld/test/COFF/wince-range-thunk.s`, `lld/test/COFF/wince-thumb-bit.s` |
+| branch range extension (far A32 B/BL) | added 2026-08-30 (covered by lld lit in Stage 1): `RangeExtensionThunkARMCE` in lld - the same jmp_arm_bytes pair as the import thunk plus the target's absolute address literal (HIGHLOW base relocation on non-fixed images); A32 branch callers are thunked, and the CE symbol-value convention (bit 0 = Thumb) interworks the stub to either code mode. Out-of-range branches from Thumb-mode callers (T1/T32) still fail with "relocation out of range" until Thumb sections are placed at odd RVAs (WINCE-HANDOFF.md section 13.6). The PE entry point / export table keep the symbol's bit 0 for CE (no forced `|= 1` as on ARMNT - that would corrupt ARM entries). Tests: `lld/test/COFF/wince-range-thunk.s`, `lld/test/COFF/wince-thumb-bit.s` |
 | thread-local storage | **supported via emutls**: CE has exported `TlsAlloc`/`TlsFree` since CE 1.0 (MSDN, "Windows CE OS 1.0 and later") - the CeGCC `coredll.def` simply omitted them; the vendored def files list them now.
 
 ### COREDLL def completeness (web-verified)
@@ -323,7 +332,8 @@ runtime was written:
   `basename`/`dirname`/`tsearch` family, wide-char variants, `imax*`
   inttypes - each backed by the closest COREDLL Win32 call.
 * **Implemented POSIX process/signal layer** (`wince-sysroot/posix/`,
-  built as `libposix.a`, linked by default; headers: `sys/wait.h`):
+  built as `libposix.a`, **optional extra — not on the default driver
+  link line**; headers: `sys/wait.h`):
   * `execv`/`execvp`/`execl`/`execlp` - CreateProcess-based image
     replacement approximation (create, wait, exit with the child's
     code, so a waiting parent observes the right status).
@@ -673,15 +683,16 @@ is libc++, the builtins runtime is compiler-rt):
 | `68f61cad451` + `6c297094847` i386-mingw32ce defines, UNDER_CE alignment | new: `WinCETargetInfo` (x86-32) in `clang/lib/Basic/Targets/X86.{h,cpp}` — `_X86_`, `__CEGCC_VERSION__`, `__COREDLL__`, `__MINGW32(CE)__`, `UNDER_CE`/`_WIN32_WCE` (versioned), Unicode predefines, `__stdcall`->cdecl macro rewrite, calling conventions accepted-and-ignored |
 | `3624235625c` sincos gate | N/A (LLVM has no sincos fusion pass) |
 | `5892f02ab71`/`tsystem.h`, `db4740f6642`/`dccf64141cb` libgcc, `61d1f7ff138` libssp | N/A (compiler-rt builtins; no libgcc/libssp in this toolchain) |
-| `d2e4720baf6`..`8736e9b611d` libstdc++ WinCE workarounds | covered by the libc++ WinCE configuration (locale backend, no filesystem, pthread API); libc++ needs none of the libstdc++-specific workarounds |
+| `d2e4720baf6`..`8736e9b611d` libstdc++ WinCE workarounds | covered by the libc++ WinCE configuration (no filesystem, `ENABLE_THREADS=OFF`, CE is not WIN32API/MSVCRT); libc++ needs none of the libstdc++-specific workarounds |
 
 ## MSVC syntax support additions
 
-For maximum compatibility with eMbedded Visual C++ / Platform Builder era
-sources (this target always compiles with `-fms-extensions
--fms-compatibility -fdelayed-template-parsing
--fms-compatibility-version=1900`), the era's MSVC pragmas are fully
-implemented (see `clang/lib/Parse/ParsePragma.cpp`):
+GNU clang on this target defaults to `-fms-extensions -fms-compatibility
+-fms-compatibility-version=1900` (w32api `__declspec` plus the Clang
+lookup libc++ ctype overloads need).  **Delayed template parsing is off**
+on the GNU driver and on for clang-cl.  eMbedded Visual C++ / Platform
+Builder-era MSVC pragmas are implemented (see
+`clang/lib/Parse/ParsePragma.cpp`):
 
 * `#pragma auto_inline([on|off])` — functions in an `off` range get
   `noinline` (`__forceinline` still wins, matching MSVC); Sema applies it
@@ -707,14 +718,10 @@ See `clang/test/Sema/ms-extern.c`.
 
 ## Verification status
 
-* End-to-end stage-2 verified with a host-clang stand-in for the target
-  compiler: mingwrt CRT objects, `libmingw32.a`, full CE `libmingwex.a`,
-  `libceoldname.a`, COREDLL import libraries, all 71 w32api libce import
-  libraries, 420+ staged headers and `libpthread.a` build cleanly, and a
-  client TU including `windows.h`/`stdio.h`/`pthread.h`/`semaphore.h`/
-  `tchar.h` compiles against the staged sysroot alone.
-* Stage 1/3 require a real build of this tree (`WinCE.cmake` cache); lit
-  coverage: `clang/test/Driver/wince.c`, `clang/test/Driver/wince-x86.c`,
+* **CI green (2026-08-31, `b10d3fa`, run 33364840614):** Stage 1 lit,
+  Stage 2 sysroot/smoke, Stage 3 runtimes, package, `/opt` sanity.
+  Details: [STATUS.md](STATUS.md).
+* Lit coverage: `clang/test/Driver/wince.c`, `clang/test/Driver/wince-x86.c`,
   `lld/test/COFF/wince-*.ll*(s)`, `llvm/test/MC/ARM/wince-*.s`.  SEH-specific:
   `llvm/test/MC/ARM/wince-seh-pdata.s` (CE `.pdata` 16-byte records with
   FUNCLEN/PROLOG pseudo-relocations), `lld/test/COFF/wince-pdata.test`
@@ -737,18 +744,9 @@ See `clang/test/Sema/ms-extern.c`.
   float/double to `__aeabi_*` helpers and i64 mul to `__aeabi_lmul` — no
   VFP on the baseline), and the `arm926ej-s`/`+soft-float`/
   `+soft-float-abi`/`-mfloat-abi=soft` checks in `clang/test/Driver/wince.c`.
-  All were authored source-level
-  (no build in this environment); the `.pdata`-layout expectations
-  assume `.text` at 0x11000 and `.pdata` at 0x12000 under the default
-  `/base:0x10000 /fixed` link and should be re-verified at first real build.
-* **CI now runs them.**  `.github/workflows/main.yml` runs the WinCE lit
-  files listed above with the stage-1 `llvm-lit` before it packages the
-  toolchain, so the gap that let two CE `.pdata` bugs survive (the
-  FUNCLEN/PROLOG relocations measured lengths from the start of `.text`
-  and patched different words - see `lld/COFF/Chunks.cpp`) is closed for
-  everything that has a test.  The first CI run is still the first time
-  any of these tests executes, so treat "lit passes" as the milestone
-  that turns the source-level claims below into verified ones.
+  These lit files run in Stage 1 of `.github/workflows/main.yml` before
+  package.  `.pdata` layout still wants a dump from a real CE image
+  (FileCheck is not a device).
 * armasm: `llvm/test/MC/ARM/wince-armasm.s` covers the structural
   directives and `llvm/test/MC/ARM/wince-armasm-labels.s` the statement
   and data syntax that `-masm=armasm` implements (see the armasm

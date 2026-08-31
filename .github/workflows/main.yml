@@ -98,7 +98,8 @@ jobs:
         run: |
           cmake --build build --target clang lld llc \
             llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc llvm-readobj \
-            llvm-objdump llvm-config FileCheck split-file not count
+            llvm-objdump llvm-objcopy llvm-rc llvm-config \
+            FileCheck split-file not count
 
           BIN=build/bin
           [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
@@ -175,7 +176,8 @@ jobs:
 
           for t in clang clang++ clang-cl lld ld.lld lld-link \
                    llvm-ar llvm-ranlib llvm-dlltool llvm-lib llvm-nm llvm-mc \
-                   llvm-readobj llvm-objdump llvm-config; do
+                   llvm-readobj llvm-objdump llvm-objcopy llvm-strip llvm-rc \
+                   llvm-windres llvm-config; do
             if [ -e "build/bin/$t" ] || [ -L "build/bin/$t" ]; then
               cp -a "build/bin/$t" "$BIN/"
             fi
@@ -254,6 +256,45 @@ jobs:
 
           "$PWD/install/wince-llvm/bin/clang" --target="$TARGET" \
             -### -o /tmp/hi.exe /dev/null 2>&1 | head -5
+
+      # -----------------------------------------------------------------
+      # Stage 4: unmodified third-party WinCE application
+      # TECLIB/glpi-wince-agent (GPLv2). Their Makefile, their sources.
+      # -----------------------------------------------------------------
+
+      - name: "Stage 4: TECLIB/glpi-wince-agent (unmodified)"
+        run: |
+          PREFIX="$PWD/install/wince-llvm"
+          BIN="$PREFIX/bin"
+          [ -e "$BIN/clang++" ] || ln -sf clang "$BIN/clang++"
+          [ -e "$BIN/llvm-windres" ] || ln -sf llvm-rc "$BIN/llvm-windres"
+          sh utils/wince/bind-cegcc-names.sh "$BIN"
+          export PATH="$BIN:$PATH"
+
+          echo "CeGCC-named tools:"
+          ls -l "$BIN"/arm-mingw32ce-*
+          arm-mingw32ce-gcc --version | head -1
+
+          SRC="$RUNNER_TEMP/glpi-wince-agent"
+          # Pin the upstream commit. Fetch that SHA only; do not patch.
+          mkdir -p "$SRC"
+          git -C "$SRC" init
+          git -C "$SRC" remote add origin \
+            https://github.com/TECLIB/glpi-wince-agent.git
+          git -C "$SRC" fetch --depth 1 origin \
+            eb88be1a8224d731f255a9c4aae56c9812f6cc20
+          git -C "$SRC" checkout --detach FETCH_HEAD
+          test "$(git -C "$SRC" rev-parse HEAD)" = \
+            eb88be1a8224d731f255a9c4aae56c9812f6cc20
+          git -C "$SRC" status --porcelain
+
+          # Their Makefile. Do not patch the tree.
+          make -C "$SRC" -j"$(nproc)"
+
+          EXE="$SRC/src/glpi-wince-agent.exe"
+          test -s "$EXE"
+          llvm-readobj --file-headers "$EXE"
+          llvm-objdump -h "$EXE" | head -40
 
       - name: Upload toolchain artifact
         uses: actions/upload-artifact@v4

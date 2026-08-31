@@ -5190,6 +5190,16 @@ let Flags = [TargetSpecific] in {
 def mfloat_abi_EQ : Joined<["-"], "mfloat-abi=">, Group<m_Group>, Values<"soft,softfp,hard">;
 def mfpmath_EQ : Joined<["-"], "mfpmath=">, Group<m_Group>;
 def mfpu_EQ : Joined<["-"], "mfpu=">, Group<m_Group>;
+// GCC ARM / mingw32ce flags used by existing WinCE applications.
+// -mpoke-function-name writes the function name in the text section before
+// the prologue (GCC ARM debug aid). Not implemented; accepted so CeGCC
+// Makefiles compile. -mwin32 is GCC/MinGW's MS-runtime flavor; WinCE
+// already defines _WIN32, so it is a no-op here.
+def mpoke_function_name : Flag<["-"], "mpoke-function-name">, Group<m_Group>,
+  HelpText<"GCC ARM: embed function names before prologues (accepted, not implemented)">;
+def mno_poke_function_name : Flag<["-"], "mno-poke-function-name">, Group<m_Group>;
+def mwin32 : Flag<["-"], "mwin32">, Group<m_Group>,
+  HelpText<"GCC/MinGW MS-runtime flavor (no-op on this target)">;
 def mhwdiv_EQ : Joined<["-"], "mhwdiv=">, Group<m_Group>;
 def mhwmult_EQ : Joined<["-"], "mhwmult=">, Group<m_Group>;
 } // let Flags = [TargetSpecific]
