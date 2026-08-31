@@ -82,14 +82,15 @@ COMMON_CMAKE=(
 
 # --- compiler-rt builtins (the -lgcc replacement) ----------------------------
 echo "== [1/2] compiler-rt builtins ($RT_ARCH)"
-# Builtins need the compiler float.h plus CRT stdlib.h (int_util.c abort
-# on _WIN32).  mingwrt float.h is clang-aware so include_next does not
-# recurse.
+# Builtins are the -lgcc replacement but still compile against this
+# tree's mingwrt (int_util.c abort via stdlib.h).  float.h is
+# clang-aware so resource include_next does not recurse.
 cmake -S "$REPO_ROOT/compiler-rt/lib/builtins" -B "$BLD/builtins" \
   "${COMMON_CMAKE[@]}" \
-  -DCMAKE_C_FLAGS="--target=$TARGET" \
-  -DCMAKE_CXX_FLAGS="--target=$TARGET" \
-  -DCMAKE_ASM_FLAGS="--target=$TARGET" \
+  -DCMAKE_SYSROOT="$SYSROOT" \
+  -DCMAKE_C_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
+  -DCMAKE_CXX_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
+  -DCMAKE_ASM_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
   -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
   -DCOMPILER_RT_BAREMETAL_BUILD=ON
 cmake --build "$BLD/builtins" -j "$(nproc 2>/dev/null || echo 2)"
