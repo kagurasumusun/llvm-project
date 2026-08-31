@@ -13,7 +13,7 @@
 #ifndef __RWMUTEX_HPP__
 #define __RWMUTEX_HPP__
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__WINCE__)
 #include <windows.h>
 #elif !defined(_LIBUNWIND_HAS_NO_THREADS)
 #include <pthread.h>
@@ -34,7 +34,7 @@ public:
   bool unlock() { return true; }
 };
 
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__WINCE__)
 
 class _LIBUNWIND_HIDDEN RWMutex {
 public:

@@ -951,9 +951,7 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 @  values pointer is in r0
 @
   .p2align 2
-#if defined(__ELF__)
   .fpu vfpv3-d16
-#endif
 DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMDEPv)
   vstmia r0, {d0-d15}
   JMP(lr)
@@ -965,9 +963,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMDEPv)
 @  values pointer is in r0
 @
   .p2align 2
-#if defined(__ELF__)
   .fpu vfpv3-d16
-#endif
 DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMXEPv)
   vstmia r0, {d0-d15} @ fstmiax is deprecated in ARMv7+ and now behaves like vstmia
   JMP(lr)
