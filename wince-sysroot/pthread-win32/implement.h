@@ -1047,7 +1047,7 @@ PTW32_END_C_DECLS
                      (LPTHREAD_START_ROUTINE) start_proc, \
                      arg, \
                      flags, \
-                     pid)
+                     (PDWORD)(pid))
 
 #define _endthreadex ExitThread
 
