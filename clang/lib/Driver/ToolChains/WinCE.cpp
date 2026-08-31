@@ -96,7 +96,7 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
   // compatibility / delayed template parsing is the clang-cl dialect, not
   // the GNU/CeGCC one (defaulting them on made libc++ `using ::remove`
   // collide with std::remove).
-  const bool CLMode = getDriver().CCCIsCL();
+  const bool CLMode = getDriver().IsCLMode();
   if (DriverArgs.hasFlag(options::OPT_fms_extensions,
                          options::OPT_fno_ms_extensions, true))
     CC1Args.push_back("-fms-extensions");
