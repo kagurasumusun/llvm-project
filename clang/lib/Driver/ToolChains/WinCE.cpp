@@ -120,6 +120,16 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
       !compilingCXX(DriverArgs))
     CC1Args.push_back("-fgnu89-inline");
 
+  // These MinGW-style -m flags are TargetSpecific.  Without marking them
+  // in-range for this triple, the driver errors on -mconsole/-mwindows/-mdll
+  // (CI 33345845097: CONSOLE RUN exit 1 after LINK50 passed).  Same loop as
+  // MinGW::addClangTargetOptions.  CE images stay subsystem 9 regardless.
+  for (auto Opt : {options::OPT_mthreads, options::OPT_mwindows,
+                   options::OPT_mconsole, options::OPT_mdll}) {
+    if (Arg *A = DriverArgs.getLastArgNoClaim(Opt))
+      A->ignoreTargetSpecific();
+  }
+
   // Unwind tables: getDefaultUnwindTableLevel() returns Asynchronous for
   // this target, which makes the driver pass -fasynchronous-unwind-tables
   // (ARM EHABI tables are mandatory; the Itanium-based unwinder has to
