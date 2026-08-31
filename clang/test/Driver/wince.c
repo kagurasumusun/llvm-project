@@ -89,6 +89,24 @@
 // RUN:   | FileCheck %s --check-prefix=LINK50
 // LINK50: lld-link
 // LINK50: libcoredll.a
+// LINK50-NOT: libcoredll6.a
+// LINK50-NOT: libcoredll4.a
+
+/// CE 4.x triples select the CE 4.x (CE.net) COREDLL surface.
+// RUN: %clang -target arm-pc-wince4.2 %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINK42
+// LINK42: lld-link
+// LINK42: libcoredll4.a
+// LINK42-NOT: libcoredll.a
+// LINK42-NOT: libcoredll6.a
+
+/// CE 3.0 triples select the CE 3.0 COREDLL surface.
+// RUN: %clang -target arm-pc-wince3.0 %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINK30
+// LINK30: lld-link
+// LINK30: libcoredll3.a
+// LINK30-NOT: libcoredll4.a
+// LINK30-NOT: libcoredll6.a
 
 /// -mconsole: CE images are always subsystem 9 and always enter through
 /// WinMainCRTStartup (main() is bridged by mingwrt's winmain_ce.o).

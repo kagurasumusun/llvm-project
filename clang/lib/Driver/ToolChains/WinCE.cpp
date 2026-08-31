@@ -281,9 +281,25 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (TC.getDriver().CCCIsCXX() || compilingCXX(Args))
     TC.AddCXXStdlibLibArgs(Args, CmdArgs);
 
+  // The COREDLL import surface is version-specific: each generation
+  // exported a different set (the def files are parsed from the CE shared
+  // source; see the provenance notes in mingwrt/coredll*.def).  Select by
+  // the triple's OS version; the bare spelling defaults to CE 6.0.
   llvm::VersionTuple OSVer = TC.getTriple().getOSVersion();
-  CmdArgs.push_back(OSVer.getMajor() && OSVer.getMajor() < 6 ? "libcoredll.a"
-                                                             : "libcoredll6.a");
+  switch (OSVer.getMajor()) {
+  case 3:
+    CmdArgs.push_back("libcoredll3.a");
+    break;
+  case 4:
+    CmdArgs.push_back("libcoredll4.a");
+    break;
+  case 5:
+    CmdArgs.push_back("libcoredll.a");
+    break;
+  default:
+    CmdArgs.push_back("libcoredll6.a");
+    break;
+  }
 
   // Resolve lld-link next to clang (GetProgramPath). A bare "lld-link"
   // depends on PATH; posix_spawn then fails with ENOENT when a third-party
