@@ -127,6 +127,16 @@ esac
 
 TARGET_CC="$CLANG --target=$TARGET $ARCH_FLAGS"
 
+# mingwrt's Makefile passes -nostdinc and GCC's -iwithprefixbefore include
+# (CI 33348144762: stddef.h / stdarg.h not found).  Clang builtins are in
+# the resource dir, not next to the binary.
+CLANG_BUILTIN_INC="$("$CLANG" --target="$TARGET" -print-resource-dir)/include"
+if [ ! -f "$CLANG_BUILTIN_INC/stddef.h" ]; then
+  echo "$PROGRAM: clang builtins missing at $CLANG_BUILTIN_INC" >&2
+  exit 1
+fi
+BUILTIN_INC="-isystem $CLANG_BUILTIN_INC"
+
 # --- llvm-dlltool compatibility shim ---------------------------------------
 # mingwrt/w32api Makefiles invoke dlltool with GNU-only spellings that
 # llvm-dlltool does not implement (--def, -U) or ignores (--as).  Translate.
@@ -182,7 +192,7 @@ if [ ! -f Makefile ]; then
   CC="$TARGET_CC" \
   AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
   AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
-  CFLAGS="-O2 -g0 -fno-ident -fgnu89-inline -fms-extensions" \
+  CFLAGS="-O2 -g0 -fno-ident -fgnu89-inline -fms-extensions $BUILTIN_INC" \
   W32API_INCLUDE="-I $W32API_SRC/include" \
   /bin/sh "$MINGWRT_SRC/configure" \
     --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
@@ -225,7 +235,7 @@ if [ ! -f Makefile ]; then
   CC="$TARGET_CC" \
   AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
   AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
-  CFLAGS="-O2 -g0 -nostdinc -isystem $MINGWRT_SRC/include -isystem $SYSROOT/include" \
+  CFLAGS="-O2 -g0 -nostdinc $BUILTIN_INC -isystem $MINGWRT_SRC/include -isystem $SYSROOT/include" \
   /bin/sh "$W32API_SRC/configure" \
     --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
     --prefix="$SYSROOT" \
@@ -257,7 +267,7 @@ mkdir -p "$PTHREAD_BUILD"
 # PTW32_CLEANUP_C: structured-exception unwinding does not exist on WinCE;
 # the setjmp/longjmp C cleanup variant is the supported configuration.
 PTHREAD_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
- -fms-extensions -std=c17 -nostdinc \
+ -fms-extensions -std=c17 -nostdinc $BUILTIN_INC \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
  -I $PTHREAD_SRC -DHAVE_CONFIG_H \
  -D_MT -DPTW32_STATIC_LIB -D__CLEANUP_C -D__PTHREAD_JUMBO_BUILD__"
@@ -278,7 +288,7 @@ GMON_BUILD="$BUILD/gmon"
 rm -rf "$GMON_BUILD"
 mkdir -p "$GMON_BUILD"
 GMON_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
- -fms-extensions -std=c17 -nostdinc \
+ -fms-extensions -std=c17 -nostdinc $BUILTIN_INC \
  -D__COREDLL__ -U__CRTDLL__ -U__MSVCRT__ -fgnu89-inline \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
  -iwithprefixbefore include"
@@ -299,7 +309,7 @@ POSIX_BUILD="$BUILD/posix"
 rm -rf "$POSIX_BUILD"
 mkdir -p "$POSIX_BUILD"
 POSIX_CFLAGS="--target=$TARGET $ARCH_FLAGS -O2 -g0 -fno-ident \
- -fms-extensions -std=c17 -nostdinc \
+ -fms-extensions -std=c17 -nostdinc $BUILTIN_INC \
  -D_MT -D__COREDLL__ -U__CRTDLL__ -U__MSVCRT__ -fgnu89-inline \
  -isystem $MINGWRT_SRC/include -isystem $W32API_SRC/include \
  -iwithprefixbefore include -I $POSIX_SRC"
