@@ -141,8 +141,8 @@ BUILTIN_INC="-isystem $CLANG_BUILTIN_INC"
 cat > "$BUILD/bin/wince-cc" <<EOF
 #!/bin/sh
 exec "$CLANG" --target="$TARGET" $ARCH_FLAGS \\
-  -std=gnu89 -fno-ms-extensions -fno-ms-compatibility \\
-  -D__cdecl= -D__stdcall= $BUILTIN_INC "\$@"
+  -std=gnu89 -fshort-wchar -fno-ms-extensions -fno-ms-compatibility \\
+  -D__cdecl= -D__stdcall= -D__NO_INLINE__ $BUILTIN_INC "\$@"
 EOF
 chmod +x "$BUILD/bin/wince-cc"
 TARGET_CC="$BUILD/bin/wince-cc"
@@ -213,10 +213,10 @@ fi
 # CRT0S(ce) + MINGW_OBJS(ce) archives + COREDLL import libraries (their rules).
 make -j "$JOBS" crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
      libmingw32.a libm.a libcoredll.a libcoredll6.a libceoldname.a \
-     >> build.log 2>&1 || { tail -30 build.log; exit 1; }
+     >> build.log 2>&1 || { tail -80 build.log; exit 1; }
 # mingwex CE object set (the Makefile selects MATHCE/STDIO_CE/etc. by host).
 make -j "$JOBS" -C mingwex libmingwex.a >> mingwex.log 2>&1 || \
-  { tail -30 mingwex.log; exit 1; }
+  { tail -80 mingwex.log; exit 1; }
 
 install -m 644 crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
   libmingw32.a libm.a libceoldname.a \

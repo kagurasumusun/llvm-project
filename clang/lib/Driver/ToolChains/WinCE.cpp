@@ -83,6 +83,10 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
                                   Action::OffloadKind DeviceOffloadKind) const {
   // Maximum MSVC source compatibility is a core requirement for this target.
   // Users may turn individual pieces off (e.g. -fno-delayed-template-parsing).
+  // WinCE wchar_t is 16-bit (CeGCC / UTF-16).  The generic ARM default is
+  // 32-bit; without this, mingwrt wcstoimax hits "Relocation not aligned"
+  // (CI 33349448269).
+  CC1Args.push_back("-fshort-wchar");
   if (DriverArgs.hasFlag(options::OPT_fms_extensions,
                          options::OPT_fno_ms_extensions, true))
     CC1Args.push_back("-fms-extensions");
