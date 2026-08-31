@@ -47,6 +47,14 @@ export LDFLAGS="-L$PREFIX/lib ${LDFLAGS:-}"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
 
+if [ ! -f "$PREFIX/lib/libcecompat.a" ]; then
+  mkdir -p "$PREFIX/include" "$PREFIX/lib"
+  cp -a "$OVERLAY/ce-strerror.h" "$PREFIX/include/"
+  "$CC" -O2 -c -o "$WORK/ce-strerror.o" "$OVERLAY/ce-strerror.c"
+  "$AR" rcs "$PREFIX/lib/libcecompat.a" "$WORK/ce-strerror.o"
+  "$RANLIB" "$PREFIX/lib/libcecompat.a"
+fi
+
 # --- zlib ---
 if [ ! -f "$PREFIX/lib/libz.a" ]; then
   fetch https://github.com/madler/zlib/archive/refs/tags/v1.3.1.tar.gz zlib-1.3.1.tar.gz
@@ -83,7 +91,7 @@ if [ ! -f "$PREFIX/lib/libpng16.a" ] && [ ! -f "$PREFIX/lib/libpng.a" ]; then
   make -C libpng-1.6.43 -f scripts/makefile.gcc -j"$JOBS" \
     CC="$CC" AR="$AR" RANLIB="$RANLIB" \
     ZLIBINC="$PREFIX/include" ZLIBLIB="$PREFIX/lib" \
-    CFLAGS="-O2 -Wall -include string.h" \
+    CFLAGS="-O2 -Wall -include $OVERLAY/ce-strerror.h" \
     libpng.a
   mkdir -p "$PREFIX/include" "$PREFIX/include/libpng16" "$PREFIX/lib"
   cp -a libpng-1.6.43/libpng.a "$PREFIX/lib/libpng.a"

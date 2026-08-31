@@ -27,7 +27,7 @@ CFLAGS   += -O2
 
 LDFLAGS  += -L$(PREFIX)/lib
 # SDL_main before SDL. GNU lib*.a names only.
-LIBS     += -lSDLmain -lSDL -llcf -lpixman-1 -lpng16 -lz -liconv
+LIBS     += -lSDLmain -lSDL -llcf -lpixman-1 -lpng16 -lz -liconv -lcecompat
 
 SRCS = \
 	src/async_handler.cpp \
