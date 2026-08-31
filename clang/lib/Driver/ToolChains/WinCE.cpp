@@ -92,16 +92,16 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
   // the driver flag -fshort-wchar is rejected by -cc1 (CI 33349660794).
   CC1Args.push_back("-fwchar-type=short");
   CC1Args.push_back("-fno-signed-wchar");
-  // Like MinGW: w32api needs __declspec (-fms-extensions). Full MSVC
-  // compatibility / delayed template parsing is the clang-cl dialect, not
-  // the GNU/CeGCC one (defaulting them on made libc++ `using ::remove`
-  // collide with std::remove).
+  // w32api needs __declspec (-fms-extensions). Delayed template parsing is
+  // the clang-cl dialect, not CeGCC (it made libc++ `using ::remove` collide).
+  // -fms-compatibility stays on: libc++ `using ::isblank` must overload the
+  // locale templates against this CRT; without it Stage 3 fails in __locale.
   const bool CLMode = getDriver().IsCLMode();
   if (DriverArgs.hasFlag(options::OPT_fms_extensions,
                          options::OPT_fno_ms_extensions, true))
     CC1Args.push_back("-fms-extensions");
   if (DriverArgs.hasFlag(options::OPT_fms_compatibility,
-                         options::OPT_fno_ms_compatibility, CLMode))
+                         options::OPT_fno_ms_compatibility, true))
     CC1Args.push_back("-fms-compatibility");
   if (DriverArgs.hasFlag(options::OPT_fdelayed_template_parsing,
                          options::OPT_fno_delayed_template_parsing, CLMode))
@@ -110,7 +110,7 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
           DriverArgs.getLastArg(options::OPT_fms_compatibility_version))
     CC1Args.push_back(DriverArgs.MakeArgString(
         Twine("-fms-compatibility-version=") + A->getValue()));
-  else if (CLMode)
+  else
     CC1Args.push_back("-fms-compatibility-version=1900");
   // The WinCE C library headers are GNU-era sources (mingw-runtime /
   // w32api from CeGCC); they probe the compiler with __GNUC__.  Pretend

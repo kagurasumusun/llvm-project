@@ -10,22 +10,18 @@
 // RUN: %clang -target arm-mingw32ce -print-target-triple 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=TRIPLE
 
-/// Like MinGW: -fms-extensions (__declspec) is on. Full MSVC compatibility
-/// and delayed template parsing are opt-in, not the CeGCC dialect.
+/// -fms-extensions (__declspec) and -fms-compatibility (libc++ ctype
+/// using-declarations) are on. Delayed template parsing is clang-cl only.
 // RUN: %clang -target arm-pc-wince -c %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=MSFLAGS
 // The cc1 arg order places -funwind-tables=2 before the -fms* flags, so the
 // checks below mirror that order.
 // MSFLAGS: "-funwind-tables=2"
 // MSFLAGS: "-fms-extensions"
-// MSFLAGS-NOT: "-fms-compatibility"
+// MSFLAGS: "-fms-compatibility"
 // MSFLAGS-NOT: "-fdelayed-template-parsing"
-// MSFLAGS-NOT: "-fms-compatibility-version
+// MSFLAGS: "-fms-compatibility-version=1900"
 // MSFLAGS: "-fgnu89-inline"
-
-// RUN: %clang -target arm-pc-wince -fms-compatibility -c %s -o /dev/null -### 2>&1 \
-// RUN:   | FileCheck %s --check-prefix=MSCOMPAT
-// MSCOMPAT: "-fms-compatibility"
 
 /// WinCE predefined macros.  The default deployment is Windows Embedded CE
 /// 6.0 (0x600 == 1536).
