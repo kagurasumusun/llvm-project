@@ -88,26 +88,27 @@ ToolChain::CXXStdlibType WinCE::GetCXXStdlibType(const ArgList &Args) const {
 void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
                                   ArgStringList &CC1Args,
                                   Action::OffloadKind DeviceOffloadKind) const {
-  // Maximum MSVC source compatibility is a core requirement for this target.
-  // Users may turn individual pieces off (e.g. -fno-delayed-template-parsing).
   // WinCE wchar_t is 16-bit unsigned (CeGCC / UTF-16).  cc1 spelling;
   // the driver flag -fshort-wchar is rejected by -cc1 (CI 33349660794).
   CC1Args.push_back("-fwchar-type=short");
   CC1Args.push_back("-fno-signed-wchar");
+  // Like MinGW, not clang-cl: w32api needs __declspec (-fms-extensions).
+  // Full MSVC compatibility / delayed template parsing is opt-in; defaulting
+  // them on made libc++ `using ::remove` collide with std::remove and is
+  // not the CeGCC language dialect.
   if (DriverArgs.hasFlag(options::OPT_fms_extensions,
                          options::OPT_fno_ms_extensions, true))
     CC1Args.push_back("-fms-extensions");
   if (DriverArgs.hasFlag(options::OPT_fms_compatibility,
-                         options::OPT_fno_ms_compatibility, true))
+                         options::OPT_fno_ms_compatibility, false))
     CC1Args.push_back("-fms-compatibility");
   if (DriverArgs.hasFlag(options::OPT_fdelayed_template_parsing,
-                         options::OPT_fno_delayed_template_parsing, true))
+                         options::OPT_fno_delayed_template_parsing, false))
     CC1Args.push_back("-fdelayed-template-parsing");
-  // MSVC 14.x (Visual Studio 2015, the last MSVC to ship WinCE-era
-  // compatibility support) is the compatibility reference unless overridden
-  // with -fms-compatibility-version=.
-  if (!DriverArgs.hasArg(options::OPT_fms_compatibility_version))
-    CC1Args.push_back("-fms-compatibility-version=1900");
+  if (const Arg *A =
+          DriverArgs.getLastArg(options::OPT_fms_compatibility_version))
+    CC1Args.push_back(DriverArgs.MakeArgString(
+        Twine("-fms-compatibility-version=") + A->getValue()));
   // The WinCE C library headers are GNU-era sources (mingw-runtime /
   // w32api from CeGCC); they probe the compiler with __GNUC__.  Pretend
   // to be the GCC major the CeGCC runtime was last built with, so the

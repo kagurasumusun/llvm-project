@@ -124,7 +124,8 @@ cmake -S "$REPO_ROOT/runtimes" -B "$BLD/runtimes" \
   -DLIBCXX_ENABLE_MONOTONIC_CLOCK=ON \
   -DLIBCXX_ENABLE_THREADS=OFF \
   -DLIBCXX_ENABLE_FILESYSTEM=OFF \
-  -DLIBCXX_ENABLE_WIDE_CHARACTERS=ON
+  -DLIBCXX_ENABLE_WIDE_CHARACTERS=ON \
+  -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON
 
 # The runtimes umbrella is one Ninja graph.  Subdirs have no build.ninja
 # (CI 33362273917: ninja: loading 'build.ninja' after libc++.a linked).
