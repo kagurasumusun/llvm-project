@@ -10,12 +10,14 @@
 
 // RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:WinMainCRTStartup \
 // RUN:   /base:0x10000 /fixed %t.obj
-// RUN: llvm-readobj --headers --coff-imports %t.exe | FileCheck %s
+// RUN: llvm-readobj --headers --coff-imports --symbols %t.exe | FileCheck %s
 
 // CHECK: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
 // CHECK: SubSystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (0x9)
 // CHECK: ImageBase: 0x10000
 // CHECK-NOT: BaseRelocationTable
+// CHECK: Name: __text_start__
+// CHECK: Name: __text_end__
 
 	.text
 	.globl	WinMainCRTStartup
@@ -32,3 +34,10 @@ getmsg:
 	.long	message
 
 	.comm	message, 4, 2
+
+// Force the CE text-bounds symbols to be referenced like mingwrt
+// pseudo-reloc.o does. lld must define them before reporting undefines.
+	.globl	ref_text_bounds
+ref_text_bounds:
+	.long	__text_start__
+	.long	__text_end__
