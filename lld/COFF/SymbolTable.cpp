@@ -510,9 +510,13 @@ void SymbolTable::resolveRemainingUndefines(std::vector<Undefined *> &aliases) {
       continue;
 
     // WinCE linker-defined section bounds. Writer::insertTextStartEndSymbols
-    // binds them to .text; they are not Absolute(0) placeholders.
+    // binds them to .text and Writer::insertEXIdxBoundsSymbols binds the
+    // exidx bounds to .ARM.exidx (the libunwind EHABI unwinder reads the
+    // table through them).  Resolved after this pass; if the binding cannot
+    // happen, the writer reports a Fatal (never silently dropped).
     if (ctx.config.wince &&
-        (name == "__text_start__" || name == "__text_end__")) {
+        (name == "__text_start__" || name == "__text_end__" ||
+         name == "__exidx_start" || name == "__exidx_end")) {
       undef->deferUndefined = true;
       continue;
     }

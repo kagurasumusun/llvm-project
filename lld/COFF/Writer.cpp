@@ -2579,19 +2579,23 @@ void Writer::insertTextStartEndSymbols() {
 
 // Windows CE specific: bind __exidx_start / __exidx_end to the bounds of
 // the merged .ARM.exidx output section, mirroring what ELF linkers do for
-// the ARM EHABI unwinder.  Only symbols that are actually referenced are
-// replaced.
+// the ARM EHABI unwinder (libunwind reads the table through them).  Only
+// referenced symbols are replaced; a reference with no .ARM.exidx in the
+// image is a hard error, like __text_start__ without .text.
 void Writer::insertEXIdxBoundsSymbols() {
-  OutputSection *exidxSec = findSection(".ARM.exidx");
-  if (!exidxSec || exidxSec->chunks.empty())
-    return;
   Symbol *startSym = ctx.symtab.find("__exidx_start");
   Symbol *endSym = ctx.symtab.find("__exidx_end");
+  if (!startSym && !endSym)
+    return;
+  OutputSection *exidxSec = findSection(".ARM.exidx");
+  if (!exidxSec || exidxSec->chunks.empty())
+    Fatal(ctx) << "undefined symbol: __exidx_start/__exidx_end referenced, "
+                 "but the image has no .ARM.exidx section to bind to";
   Chunk *last = exidxSec->chunks.back();
-  if (startSym)
+  if (startSym && isa<Undefined>(startSym))
     replaceSymbol<DefinedSynthetic>(startSym, startSym->getName(),
                                     exidxSec->chunks.front());
-  if (endSym)
+  if (endSym && isa<Undefined>(endSym))
     replaceSymbol<DefinedSynthetic>(endSym, endSym->getName(), last,
                                     last->getSize());
 }
