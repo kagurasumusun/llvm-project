@@ -199,6 +199,13 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-auto-import");
   CmdArgs.push_back("-runtime-pseudo-reloc");
 
+  // Always emit the sysroot lib dir.  Do not probe it with fs::exists
+  // (that was a -### crash vector).  The assembler script also installs
+  // MS-style .lib aliases next to the GNU archives.
+  const auto &WCE = static_cast<const toolchains::WinCE &>(TC);
+  CmdArgs.push_back(Args.MakeArgString(
+      Twine("/libpath:") + WCE.getSysRootPath() + "/lib"));
+
   if (Output.isFilename())
     CmdArgs.push_back(Args.MakeArgString(Twine("/out:") + Output.getFilename()));
   else
