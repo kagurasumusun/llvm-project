@@ -108,6 +108,24 @@
 // LINK30-NOT: libcoredll4.a
 // LINK30-NOT: libcoredll6.a
 
+/// -gcodeview is accepted for the CE target (CodeView debug info); the
+/// cc1 gets -gcodeview.
+// RUN: %clang -target arm-pc-wince -gcodeview -c %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CV
+// CV: "-gcodeview"
+
+/// -g maps to lld-link -debug (the image carries the objects' debug
+/// info; the MSVC convention) and is absent without -g.
+// RUN: %clang -target arm-pc-wince -g %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINKDEBUG
+// LINKDEBUG: lld-link
+// LINKDEBUG: -debug
+
+// RUN: %clang -target arm-pc-wince %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINKNODEBUG
+// LINKNODEBUG: lld-link
+// LINKNODEBUG-NOT: -debug
+
 /// -mconsole: CE images are always subsystem 9 and always enter through
 /// WinMainCRTStartup (main() is bridged by mingwrt's winmain_ce.o).
 // RUN: %clang -target arm-pc-wince -mconsole %s -o /dev/null -### 2>&1 \

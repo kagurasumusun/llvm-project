@@ -235,6 +235,14 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   const bool WantProfiling = Args.hasArg(options::OPT_pg);
   const bool WantThreads = Args.hasArg(options::OPT_mthreads) ||
                            Args.hasArg(options::OPT_pthread);
+  // Debug info: mirror the MSVC convention — -g (any level, including
+  // -gcodeview/-gdwarf) asks lld-link to embed the objects' debug info in
+  // the image (-debug: the CodeView sections plus the debug directory).
+  // lld has no PDB writer; the CodeView data in the image is the PDB's
+  // raw material (see utils/wince/README.md, "PDB / CodeView").
+  if (const Arg *A = Args.getLastArg(options::OPT_g_Group))
+    if (!A->getOption().matches(options::OPT_g0))
+      CmdArgs.push_back("-debug");
 
   CmdArgs.push_back("/subsystem:windowsce");
   if (IsDLL) {
