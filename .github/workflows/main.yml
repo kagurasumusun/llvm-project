@@ -297,6 +297,7 @@ jobs:
           llvm-objdump -h "$EXE" | head -40
 
       - name: Upload toolchain artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: wince-llvm-${{ env.TARGET }}-${{ runner.os }}
@@ -304,7 +305,7 @@ jobs:
             wince-llvm-*.tar.zst
             wince-llvm-*.tar.zst.sha256
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: ignore
 
       - name: Upload build logs (on failure)
         if: failure()
