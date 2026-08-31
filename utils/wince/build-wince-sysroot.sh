@@ -216,7 +216,16 @@ make -j "$JOBS" crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
      >> build.log 2>&1 || { tail -80 build.log; exit 1; }
 # mingwex CE object set (the Makefile selects MATHCE/STDIO_CE/etc. by host).
 make -j "$JOBS" -C mingwex libmingwex.a >> mingwex.log 2>&1 || \
-  { tail -80 mingwex.log; exit 1; }
+  {
+    tail -80 mingwex.log
+    echo "=== strtoimax -S (assembler diagnosis) ==="
+    (cd mingwex && $TARGET_CC -S -O2 -g0 -fno-ident -std=gnu89 -fgnu89-inline \
+      -fno-ms-extensions -D__cdecl= -D__stdcall= $BUILTIN_INC \
+      -I"$MINGWRT_SRC/mingwex" -I"$MINGWRT_SRC" -I"$MINGWRT_SRC/include" \
+      -nostdinc -I "$W32API_SRC/include" -D_IEEE_LIBM \
+      "$MINGWRT_SRC/mingwex/strtoimax.c" -o - | head -n 250) || true
+    exit 1
+  }
 
 install -m 644 crt3.o dllcrt3.o CRT_noglob.o crtmt.o crtst.o \
   libmingw32.a libm.a libceoldname.a \
