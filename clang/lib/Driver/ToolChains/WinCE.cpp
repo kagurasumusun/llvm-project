@@ -209,7 +209,7 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // hasArg of these GNU flags is the same surface addClangTargetOptions
   // already uses.  Do not walk the full ArgList (filtered / getLastArg /
-  // ClaimAllArgs) or call GetProgramPath / fs::exists here.
+  // ClaimAllArgs) or call fs::exists here.
   CmdArgs.push_back("-wince");
   CmdArgs.push_back("-auto-import");
   CmdArgs.push_back("-runtime-pseudo-reloc");
@@ -270,8 +270,12 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back(II.getFilename());
   }
 
+  // Resolve lld-link next to clang (GetProgramPath). A bare "lld-link"
+  // depends on PATH; posix_spawn then fails with ENOENT when a third-party
+  // Makefile invokes arm-mingw32ce-gcc to link.
+  const char *Exec = Args.MakeArgString(TC.GetProgramPath("lld-link"));
   C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(),
-                                         "lld-link", CmdArgs, Inputs, Output));
+                                         Exec, CmdArgs, Inputs, Output));
 }
 
 } // end namespace wince
