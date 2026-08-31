@@ -741,21 +741,21 @@ private:
   COFFLinkerContext &ctx;
 };
 
-// Windows CE Thumb-1 (ARMv5TE) range-extension veneer. arm926ej-s has no
-// Thumb-2 movw/movt, so RangeExtensionThunkARM (ARMNT) is not usable.
-// GNU ld's v4t Thumb long-branch stub, entered in Thumb:
-//   bx  pc               ; drop to ARM at the following word
-//   nop
-//   ldr pc, [pc, #-4]    ; ARMv5 ldr-to-pc interworks (bit 0 = Thumb)
-//   .word dest
-// The stub is 4-byte aligned so the ARM ldr is aligned. HIGHLOW at +8.
+// Windows CE Thumb-1 range veneer. arm926ej-s has no Thumb-2 movw/movt.
+// coff-arm.c Thumb->ARM glue is only `bx pc; nop; b dest` (interworking,
+// still +/-32 MB). Range trampolines are a TODO there. Compose the real
+// pieces that file already emits:
+//   bx  pc / nop                 t2a1_bx_pc_insn / t2a2_noop_insn
+//   ldr ip, [pc] / bx ip / .word ARM2THUMB_GLUE (same as A32 range stub)
+// The .word is the target VA (bit 0 = Thumb), never Absolute 0.
+// HIGHLOW at +12. 4-byte aligned so the ARM half is aligned.
 class RangeExtensionThunkARMCEThumb : public NonSectionCodeChunk {
 public:
   explicit RangeExtensionThunkARMCEThumb(COFFLinkerContext &ctx, Defined *t)
       : target(t), ctx(ctx) {
     setAlignment(4);
   }
-  size_t getSize() const override { return 12; }
+  size_t getSize() const override { return 16; }
   void writeTo(uint8_t *buf) const override;
   void getBaserels(std::vector<Baserel> *res) override;
   MachineTypes getMachine() const override {

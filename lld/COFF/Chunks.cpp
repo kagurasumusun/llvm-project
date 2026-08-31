@@ -1021,20 +1021,25 @@ void RangeExtensionThunkARMCE::getBaserels(std::vector<Baserel> *res) {
   res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
 }
 
-// GNU ld v4t Thumb long-branch (ARMv5 ldr-to-pc interworks).
+// coff-arm.c Thumb preamble (t2a1_bx_pc / t2a2_noop) then the same
+// ARM2THUMB_GLUE used by RangeExtensionThunkARMCE. PE ld has no range
+// trampoline (coff-arm.c TODO); composing those two real sequences is
+// the 32-bit reach. Do not use a zero literal.
 const uint8_t rangeExtThunkARMCEThumb[] = {
-    0x78, 0x47,             // bx pc
-    0xc0, 0x46,             // nop (mov r8, r8)
-    0x04, 0xf0, 0x1f, 0xe5, // ldr pc, [pc, #-4]
+    0x78, 0x47,             // bx pc          (coff-arm t2a1_bx_pc_insn)
+    0xc0, 0x46,             // nop            (coff-arm t2a2_noop_insn)
+    0x00, 0xc0, 0x9f, 0xe5, // ldr ip, [pc]   (ARM2THUMB a2t1_ldr_insn)
+    0x1c, 0xff, 0x2f, 0xe1, // bx  ip         (ARM2THUMB a2t2_bx_r12_insn)
 };
 
 void RangeExtensionThunkARMCEThumb::writeTo(uint8_t *buf) const {
   memcpy(buf, rangeExtThunkARMCEThumb, sizeof(rangeExtThunkARMCEThumb));
-  write32le(buf + 8, uint32_t(target->getRVA() + ctx.config.imageBase));
+  uint32_t dest = uint32_t(target->getRVA() + ctx.config.imageBase);
+  write32le(buf + 12, dest);
 }
 
 void RangeExtensionThunkARMCEThumb::getBaserels(std::vector<Baserel> *res) {
-  res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
+  res->emplace_back(getRVA() + 12, IMAGE_REL_BASED_HIGHLOW);
 }
 
 void RangeExtensionThunkARM64::writeTo(uint8_t *buf) const {

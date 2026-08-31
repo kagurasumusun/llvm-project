@@ -1,18 +1,19 @@
-// LLD COFF: Windows CE Thumb-1 branch range-extension veneer.
+// LLD COFF: Windows CE Thumb-1 range veneer.
 //
-// Thumb BL (IMAGE_REL_ARM_BRANCH24T) stays in Thumb, so it cannot land
-// on the ARM-mode RangeExtensionThunkARMCE. The veneer is GNU ld's v4t
-// Thumb long-branch (ARMv5TE / arm926ej-s has no Thumb-2 movw/movt):
-//   bx  pc
-//   nop
-//   ldr pc, [pc, #-4]
-//   .word <target VA, bit 0 = Thumb>
+// coff-arm.c ARM2THUMB_GLUE (ldr ip,[pc] / bx ip / .word dest) is the
+// real ARM-mode stub. Thumb BL cannot enter it. Prepend coff-arm's
+// t2a1/t2a2 (bx pc / nop). The .word is the callee VA with Thumb bit 0;
+// a zero literal is the rejected placeholder.
 //
 // REQUIRES: arm-registered-target
 //
 // RUN: llvm-mc -filetype=obj -triple=thumb-pc-wince %s -o %t.obj
 // RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 %t.obj
-// RUN: llvm-objdump -s --section=.text %t.exe | FileCheck %s
+// RUN: llvm-objdump -s --section=.text %t.exe | FileCheck %s --check-prefix=HEX
+// RUN: llvm-nm %t.exe | FileCheck %s --check-prefix=NM
+// RUN: llvm-objdump -s --section=.text %t.exe > %t.text
+// RUN: llvm-nm %t.exe > %t.nm
+// RUN: %python %S/wince-range-thunk-thumb-check.py %t.nm %t.text
 
 	.syntax unified
 	.thumb
@@ -23,7 +24,6 @@ main:
 	bl	callee
 	bx	lr
 
-// 0x2200000 (> 16 MB) of BSS so the Thumb BL is out of range.
 	.bss
 	.space	0x2200000
 
@@ -34,5 +34,7 @@ main:
 callee:
 	bx	lr
 
-// Thumb-1 veneer bytes: bx pc; nop; ldr pc, [pc, #-4]
-// CHECK: {{78 47 c0 46 04 f0 1f e5|7847c046 04f01fe5|7847c04604f01fe5}}
+// coff-arm: 4778 46c0 e59fc000 e12fff1c
+// HEX: {{78 47 c0 46 00 c0 9f e5 1c ff 2f e1|7847c046 00c09fe5 1cff2fe1|7847c04600c09fe51cff2fe1}}
+// HEX-NOT: {{1cff2fe1 00000000|1c ff 2f e1 00 00 00 00}}
+// NM: {{[0-9a-fA-F]+}} {{[Tt]}} callee
