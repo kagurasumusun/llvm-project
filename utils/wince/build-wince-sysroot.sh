@@ -192,7 +192,7 @@ if [ ! -f Makefile ]; then
   CC="$TARGET_CC" \
   AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
   AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
-  CFLAGS="-O2 -g0 -fno-ident -fgnu89-inline -fms-extensions $BUILTIN_INC" \
+  CFLAGS="-O2 -g0 -fno-ident -std=gnu89 -fgnu89-inline -fms-extensions $BUILTIN_INC" \
   W32API_INCLUDE="-I $W32API_SRC/include" \
   /bin/sh "$MINGWRT_SRC/configure" \
     --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
@@ -235,7 +235,7 @@ if [ ! -f Makefile ]; then
   CC="$TARGET_CC" \
   AR="$LLVM_AR" RANLIB="$LLVM_RANLIB" \
   AS="${LLVM_MC:-$CLANG}" DLLTOOL="$BUILD/bin/dlltool" \
-  CFLAGS="-O2 -g0 -nostdinc $BUILTIN_INC -isystem $MINGWRT_SRC/include -isystem $SYSROOT/include" \
+  CFLAGS="-O2 -g0 -std=gnu89 -nostdinc $BUILTIN_INC -isystem $MINGWRT_SRC/include -isystem $SYSROOT/include" \
   /bin/sh "$W32API_SRC/configure" \
     --host="$HOST_ALIAS" --target="$HOST_ALIAS" \
     --prefix="$SYSROOT" \
