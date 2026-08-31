@@ -315,25 +315,6 @@ done
 mkdir -p "$SYSROOT/include/sys"
 install -m 644 "$POSIX_SRC/sys/wait.h" "$SYSROOT/include/sys/wait.h"
 
-# lld-link / the clang driver FileCheck line use MS .lib spellings.
-# Keep the GNU archives as the real files (CeGCC layout) and alias.
-ms_alias() {
-  src="$SYSROOT/lib/$1"
-  dst="$SYSROOT/lib/$2"
-  if [ -f "$src" ] && [ ! -e "$dst" ]; then
-    ln -s "$1" "$dst"
-  fi
-}
-ms_alias libmingw32.a mingw32.lib
-ms_alias libmingwex.a mingwex.lib
-ms_alias libceoldname.a ceoldname.lib
-ms_alias libcoredll.a coredll.lib
-ms_alias libcoredll6.a coredll6.lib
-ms_alias libposix.a posix.lib
-ms_alias libpthread.a pthread.lib
-ms_alias libmingwthrd.a mingwthrd.lib
-ms_alias libm.a m.lib
-
 echo "== done: $SYSROOT"
 echo "   next: utils/wince/build-wince-runtimes.sh --toolchain $TOOLCHAIN \\"
 echo "         --sysroot $SYSROOT"

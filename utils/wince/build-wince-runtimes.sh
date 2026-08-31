@@ -132,18 +132,5 @@ if [ -d "$BLD/runtimes/include/c++/v1" ]; then
   cp -r "$BLD/runtimes/include/c++/v1" "$SYSROOT/include/c++/"
 fi
 
-# MS-style aliases matching clang Driver/wince.c FileCheck / lld-link.
-ms_alias() {
-  src="$SYSROOT/lib/$1"
-  dst="$SYSROOT/lib/$2"
-  if [ -f "$src" ] && [ ! -e "$dst" ]; then
-    ln -s "$1" "$dst"
-  fi
-}
-ms_alias "libclang_rt.builtins-$RT_ARCH.a" "clang_rt.builtins-$RT_ARCH.lib"
-ms_alias libc++.a c++.lib
-ms_alias libc++abi.a c++abi.lib
-ms_alias libunwind.a unwind.lib
-
 echo "== done:"
 ls -l "$SYSROOT/lib" | grep -E 'clang_rt|unwind|c\+\+'

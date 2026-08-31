@@ -70,18 +70,18 @@
 // LINK: /base:0x10000
 // LINK: /fixed
 // LINK: crt3.o
-// LINK: mingw32.lib
-// LINK: clang_rt.builtins-arm.lib
-// LINK: ceoldname.lib
-// LINK: mingwex.lib
-// LINK: posix.lib
-// LINK: coredll6.lib
+// LINK: libmingw32.a
+// LINK: libclang_rt.builtins-arm.a
+// LINK: libceoldname.a
+// LINK: libmingwex.a
+// LINK: libposix.a
+// LINK: libcoredll6.a
 
 /// CE 5.0 triple selects the CE 5.0 COREDLL surface.
 // RUN: %clang -target arm-pc-wince5.0 %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LINK50
 // LINK50: lld-link
-// LINK50: coredll.lib
+// LINK50: libcoredll.a
 
 /// -mconsole: CE images are always subsystem 9 and always enter through
 /// WinMainCRTStartup (main() is bridged by mingwrt's winmain_ce.o).
@@ -115,21 +115,21 @@
 // RUN: %clang -target arm-pc-wince -mthreads %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=THREADS
 // THREADS: "-D_MT"
-// THREADS: mingwthrd.lib
-// THREADS: pthread.lib
+// THREADS: libmingwthrd.a
+// THREADS: libpthread.a
 
 // RUN: %clang -target arm-pc-wince -pthread %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=PTHREAD
 // PTHREAD: "-D_MT"
-// PTHREAD: mingwthrd.lib
-// PTHREAD: pthread.lib
+// PTHREAD: libmingwthrd.a
+// PTHREAD: libpthread.a
 
 /// C++ pulls in libc++/libc++abi/libunwind (GNU-named sysroot archives).
 // RUN: %clang -target arm-pc-wince -x c++ %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CXX
-// CXX: c++.lib
-// CXX: c++abi.lib
-// CXX: unwind.lib
+// CXX: libc++.a
+// CXX: libc++abi.a
+// CXX: libunwind.a
 
 int x;
 

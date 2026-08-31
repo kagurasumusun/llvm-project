@@ -173,11 +173,11 @@ void WinCE::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
 
 void WinCE::AddCXXStdlibLibArgs(const ArgList &Args,
                                 ArgStringList &CmdArgs) const {
-  // Bare MS-style names: probing the sysroot with fs::exists was another
-  // -### crash vector.  FileCheck looks for these substrings.
-  CmdArgs.push_back("c++.lib");
-  CmdArgs.push_back("c++abi.lib");
-  CmdArgs.push_back("unwind.lib");
+  // GNU archive names the sysroot script actually installs (libc++.a).
+  // Do not invent MS .lib spellings or alias them.
+  CmdArgs.push_back("libc++.a");
+  CmdArgs.push_back("libc++abi.a");
+  CmdArgs.push_back("libunwind.a");
 }
 
 
@@ -200,8 +200,7 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-runtime-pseudo-reloc");
 
   // Always emit the sysroot lib dir.  Do not probe it with fs::exists
-  // (that was a -### crash vector).  The assembler script also installs
-  // MS-style .lib aliases next to the GNU archives.
+  // (that was a -### crash vector).  Archives keep their GNU names.
   const auto &WCE = static_cast<const toolchains::WinCE &>(TC);
   CmdArgs.push_back(Args.MakeArgString(
       Twine("/libpath:") + WCE.getSysRootPath() + "/lib"));
@@ -232,14 +231,14 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back(StartFile);
 
   if (WantThreads) {
-    CmdArgs.push_back("mingwthrd.lib");
-    CmdArgs.push_back("pthread.lib");
+    CmdArgs.push_back("libmingwthrd.a");
+    CmdArgs.push_back("libpthread.a");
   }
-  CmdArgs.push_back("mingw32.lib");
-  CmdArgs.push_back("clang_rt.builtins-arm.lib");
-  CmdArgs.push_back("ceoldname.lib");
-  CmdArgs.push_back("mingwex.lib");
-  CmdArgs.push_back("posix.lib");
+  CmdArgs.push_back("libmingw32.a");
+  CmdArgs.push_back("libclang_rt.builtins-arm.a");
+  CmdArgs.push_back("libceoldname.a");
+  CmdArgs.push_back("libmingwex.a");
+  CmdArgs.push_back("libposix.a");
   if (WantProfiling)
     CmdArgs.push_back("libgmon.a");
 
@@ -247,8 +246,8 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     TC.AddCXXStdlibLibArgs(Args, CmdArgs);
 
   llvm::VersionTuple OSVer = TC.getTriple().getOSVersion();
-  CmdArgs.push_back(OSVer.getMajor() && OSVer.getMajor() < 6 ? "coredll.lib"
-                                                             : "coredll6.lib");
+  CmdArgs.push_back(OSVer.getMajor() && OSVer.getMajor() < 6 ? "libcoredll.a"
+                                                             : "libcoredll6.a");
 
   for (const auto &II : Inputs) {
     if (II.isFilename())
