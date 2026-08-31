@@ -22,6 +22,7 @@
 // MSFLAGS-NOT: "-fdelayed-template-parsing"
 // MSFLAGS: "-fms-compatibility-version=1900"
 // MSFLAGS: "-fgnu89-inline"
+// MSFLAGS: "-fcommon"
 
 /// WinCE predefined macros.  The default deployment is Windows Embedded CE
 /// 6.0 (0x600 == 1536).

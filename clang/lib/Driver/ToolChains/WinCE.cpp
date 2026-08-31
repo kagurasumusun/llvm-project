@@ -134,6 +134,12 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
                          options::OPT_fno_gnu89_inline, true) &&
       !compilingCXX(DriverArgs) && !getDriver().CCCIsCXX())
     CC1Args.push_back("-fgnu89-inline");
+  // GCC < 10 (mingw32ce 4.6, the compiler TECLIB/glpi-wince-agent and
+  // other CE apps were written for) merges tentative definitions as
+  // COMMON. Clang defaults to -fno-common and reports duplicate symbols.
+  if (DriverArgs.hasFlag(options::OPT_fcommon, options::OPT_fno_common, true) &&
+      !compilingCXX(DriverArgs) && !getDriver().CCCIsCXX())
+    CC1Args.push_back("-fcommon");
 
   // These MinGW-style -m flags are TargetSpecific.  Without marking them
   // in-range for this triple, the driver errors on -mconsole/-mwindows/-mdll
