@@ -161,7 +161,10 @@
 #  define __int8 char
 # endif
 # ifndef __small
-#  define __small char
+/* 16-bit memory-model leftover; libc++ uses __small as an identifier. */
+#  if !defined(__clang__)
+#   define __small char
+#  endif
 # endif
 # ifndef __hyper
 #  define __hyper long long

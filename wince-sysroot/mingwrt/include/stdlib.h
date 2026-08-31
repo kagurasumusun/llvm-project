@@ -16,9 +16,14 @@
 
 #ifdef __COREDLL__
 /*
- * On Windows CE, including stdio.h or stdlib.h has the same result.
+ * On Windows CE, including stdio.h or stdlib.h has the same result
+ * for C.  In C++ libc++ wraps <stdlib.h> with include_next; pulling
+ * stdio.h here re-enters that wrapper before ldiv_t is declared
+ * (CI 33359028397).
  */
+#ifndef __cplusplus
 #include <stdio.h>
+#endif
 #endif
 
 #define __need_size_t
