@@ -45,6 +45,7 @@
 #include <string>
 #include <cwchar>   // mbstate_t, wchar_t, btowc/wctob
 #include <cwctype>  // wint_t, iswctype, towupper, towlower
+#include <time.h>   // ::strftime, struct tm (not pulled in by <ctime> wrappers)
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #  pragma GCC system_header
