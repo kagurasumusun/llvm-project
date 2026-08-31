@@ -53,11 +53,12 @@ if [ ! -f "$PREFIX/lib/libz.a" ]; then
   rm -rf zlib-1.3.1
   tar -xzf zlib-1.3.1.tar.gz
   # zlib gzlib.c uses _lseeki64 on all _WIN32; CE has lseek. Do not patch zlib.
+  # Build libz.a only — the gcc makefile's `all` also links example_d.exe.
   make -C zlib-1.3.1 -f win32/Makefile.gcc -j"$JOBS" \
     PREFIX="$CROSS-" \
-    LOC="-DUNDER_CE -D_lseeki64=lseek" \
+    LOC="-D_lseeki64=lseek" \
     SHAREDLIB= SHAREDLIBV= SHAREDLIBM= \
-    STATICLIB=libz.a
+    libz.a
   mkdir -p "$PREFIX/include" "$PREFIX/lib" "$PREFIX/lib/pkgconfig"
   cp -a zlib-1.3.1/zconf.h zlib-1.3.1/zlib.h "$PREFIX/include/"
   cp -a zlib-1.3.1/libz.a "$PREFIX/lib/"
