@@ -334,7 +334,17 @@ __mbrtowc(wchar_t* __restrict, const char* __restrict, size_t, mbstate_t* __rest
 
 inline _LIBCPP_HIDE_FROM_ABI int __mbtowc(wchar_t* __pwc, const char* __pmb, size_t __max, __locale_t __loc) {
   (void)__loc;
-  return ::mbtowc(__pwc, __pmb, __max);
+  // COREDLL does not export mbtowc; CRT conversions on CE are the C locale.
+  if (__pmb == nullptr)
+    return 0;
+  if (__max == 0 || *__pmb == '\0') {
+    if (__pwc)
+      *__pwc = L'\0';
+    return 0;
+  }
+  if (__pwc)
+    *__pwc = static_cast<unsigned char>(*__pmb);
+  return 1;
 }
 
 _LIBCPP_EXPORTED_FROM_ABI size_t __mbrlen(const char* __restrict, size_t, mbstate_t* __restrict, __locale_t);

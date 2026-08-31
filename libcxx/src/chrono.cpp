@@ -46,7 +46,11 @@
 #  define WIN32_LEAN_AND_MEAN
 #  define VC_EXTRA_LEAN
 #  include <windows.h>
-#  if _WIN32_WINNT >= _WIN32_WINNT_WIN8
+// winapifamily.h is NT 8+ / WinRT.  On WinCE both _WIN32_WINNT and
+// _WIN32_WINNT_WIN8 are typically undefined, so `>=` is 0 >= 0 and the
+// include would fire.  CE clocks use coredll GetSystemTime / QPC instead.
+#  if !defined(_WIN32_WCE) && defined(_WIN32_WINNT) && defined(_WIN32_WINNT_WIN8) &&                                    \
+      _WIN32_WINNT >= _WIN32_WINNT_WIN8
 #    include <winapifamily.h>
 #  endif
 #endif // defined(_LIBCPP_WIN32API)
