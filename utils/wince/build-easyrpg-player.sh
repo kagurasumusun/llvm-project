@@ -79,14 +79,18 @@ if [ ! -f "$PREFIX/lib/libpng16.a" ] && [ ! -f "$PREFIX/lib/libpng.a" ]; then
   fetch https://github.com/pnggroup/libpng/archive/refs/tags/v1.6.43.tar.gz libpng-1.6.43.tar.gz
   rm -rf libpng-1.6.43
   tar -xzf libpng-1.6.43.tar.gz
-  (
-    cd libpng-1.6.43
-    ./configure --host="$CROSS" --prefix="$PREFIX" \
-      --disable-shared --enable-static \
-      --with-zlib-prefix="$PREFIX"
-    make -j"$JOBS"
-    make install
-  )
+  # Their scripts/makefile.gcc. Do not patch libpng C. libpng.a only (skip pngtest).
+  make -C libpng-1.6.43 -f scripts/makefile.gcc -j"$JOBS" \
+    CC="$CC" AR="$AR" RANLIB="$RANLIB" \
+    ZLIBINC="$PREFIX/include" ZLIBLIB="$PREFIX/lib" \
+    libpng.a
+  mkdir -p "$PREFIX/include" "$PREFIX/include/libpng16" "$PREFIX/lib"
+  cp -a libpng-1.6.43/libpng.a "$PREFIX/lib/libpng.a"
+  ln -sf libpng.a "$PREFIX/lib/libpng16.a"
+  cp -a libpng-1.6.43/png.h libpng-1.6.43/pngconf.h libpng-1.6.43/pnglibconf.h \
+    "$PREFIX/include/"
+  cp -a libpng-1.6.43/png.h libpng-1.6.43/pngconf.h libpng-1.6.43/pnglibconf.h \
+    "$PREFIX/include/libpng16/"
 fi
 
 # --- pixman (soft-float: no ARM SIMD/NEON) ---
