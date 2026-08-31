@@ -1034,7 +1034,12 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
     setOperationAction(ISD::UDIV,  MVT::i32, LibCall);
   }
 
-  if (TT.isOSWindows() && !Subtarget->hasDivideInThumbMode()) {
+  // ARMNT (Thumb-2 only) uses MSVC __rt_*div + WIN__DBZCHK (tCMPi8/t2Bcc).
+  // WinCE is ARM-mode CeGCC: AEABI libcalls.  Inserting Thumb dbzchk into an
+  // ARM function misaligns subsequent B/BL (CI 33349851485: "Relocation not
+  // aligned" in mingwex strtoimax).
+  if (TT.isOSWindows() && !TT.isWindowsCE() &&
+      !Subtarget->hasDivideInThumbMode()) {
     setOperationAction(ISD::SDIV, MVT::i32, Custom);
     setOperationAction(ISD::UDIV, MVT::i32, Custom);
 
@@ -10465,11 +10470,13 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     return LowerRESET_FPMODE(Op, DAG);
   case ISD::MUL:           return LowerMUL(Op, DAG);
   case ISD::SDIV:
-    if (Subtarget->isTargetWindows() && !Op.getValueType().isVector())
+    if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE() &&
+        !Op.getValueType().isVector())
       return LowerDIV_Windows(Op, DAG, /* Signed */ true);
     return LowerSDIV(Op, DAG, Subtarget);
   case ISD::UDIV:
-    if (Subtarget->isTargetWindows() && !Op.getValueType().isVector())
+    if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE() &&
+        !Op.getValueType().isVector())
       return LowerDIV_Windows(Op, DAG, /* Signed */ false);
     return LowerUDIV(Op, DAG, Subtarget);
   case ISD::UADDO_CARRY:
@@ -10617,7 +10624,8 @@ void ARMTargetLowering::ReplaceNodeResults(SDNode *N,
     return;
   case ISD::UDIV:
   case ISD::SDIV:
-    assert(Subtarget->isTargetWindows() && "can only expand DIV on Windows");
+    assert(Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE() &&
+           "can only expand DIV on Windows NT");
     return ExpandDIV_Windows(SDValue(N, 0), DAG, N->getOpcode() == ISD::SDIV,
                              Results);
   case ISD::ATOMIC_CMP_SWAP:
