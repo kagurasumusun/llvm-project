@@ -85,6 +85,8 @@ echo "== [1/2] compiler-rt builtins ($RT_ARCH)"
 # Builtins are the -lgcc replacement but still compile against this
 # tree's mingwrt (int_util.c abort via stdlib.h).  float.h is
 # clang-aware so resource include_next does not recurse.
+# ELF crtbegin/crtend (.init/.fini %progbits) is not the PE startup;
+# mingwrt already supplies crt3.o (CI 33355649455).
 cmake -S "$REPO_ROOT/compiler-rt/lib/builtins" -B "$BLD/builtins" \
   "${COMMON_CMAKE[@]}" \
   -DCMAKE_SYSROOT="$SYSROOT" \
@@ -92,7 +94,8 @@ cmake -S "$REPO_ROOT/compiler-rt/lib/builtins" -B "$BLD/builtins" \
   -DCMAKE_CXX_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
   -DCMAKE_ASM_FLAGS="--target=$TARGET --sysroot=$SYSROOT" \
   -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
-  -DCOMPILER_RT_BAREMETAL_BUILD=ON
+  -DCOMPILER_RT_BAREMETAL_BUILD=ON \
+  -DCOMPILER_RT_BUILD_CRT=OFF
 cmake --build "$BLD/builtins" -j "$(nproc 2>/dev/null || echo 2)"
 
 # --- libunwind + libc++abi + libc++ (static) ---------------------------------
