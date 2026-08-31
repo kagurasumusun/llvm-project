@@ -1,3 +1,2 @@
-/// Moved to Parser/ms-extern.c (Sema lit forbids %clang).
-// UNSUPPORTED: *
+/// Relocated to Parser/ms-extern.c: Sema lit forbids %clang.
 // RUN: true
