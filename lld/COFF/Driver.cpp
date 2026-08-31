@@ -2662,14 +2662,6 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
       symtab.addAbsolute(symtab.mangle("__CTOR_LIST__"), 0);
       symtab.addAbsolute(symtab.mangle("__DTOR_LIST__"), 0);
     }
-    if (config->wince) {
-      // mingwrt pseudo-reloc.o references __text_start__/__text_end__.
-      // Writer::insertTextStartEndSymbols rebinds them to .text bounds,
-      // but that runs after resolveRemainingUndefines, so they must be
-      // placeholders here (same pattern as __CTOR_LIST__).
-      symtab.addAbsolute(symtab.mangle("__text_start__"), 0);
-      symtab.addAbsolute(symtab.mangle("__text_end__"), 0);
-    }
     if (config->mingw) {
       symtab.addAbsolute("__data_start__", 0);
       symtab.addAbsolute("__data_end__", 0);

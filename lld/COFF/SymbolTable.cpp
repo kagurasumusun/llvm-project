@@ -509,6 +509,14 @@ void SymbolTable::resolveRemainingUndefines(std::vector<Undefined *> &aliases) {
     if (name.contains("_PchSym_"))
       continue;
 
+    // WinCE linker-defined section bounds. Writer::insertTextStartEndSymbols
+    // binds them to .text; they are not Absolute(0) placeholders.
+    if (ctx.config.wince &&
+        (name == "__text_start__" || name == "__text_end__")) {
+      undef->deferUndefined = true;
+      continue;
+    }
+
     if (ctx.config.autoImport && handleMinGWAutomaticImport(sym, name))
       continue;
 

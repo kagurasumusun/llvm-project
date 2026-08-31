@@ -2533,18 +2533,22 @@ void Writer::insertCtorDtorSymbols() {
 // of the .text output section (mingwrt's pseudo-reloc derives the image
 // base from __text_start__; GNU ld's arm-wince emulation defined these).
 void Writer::insertTextStartEndSymbols() {
-  OutputSection *textSec = findSection(".text");
-  if (!textSec || textSec->chunks.empty())
-    return;
-  Symbol *startSym = ctx.symtab.find("__text_start__");
-  Symbol *endSym = ctx.symtab.find("__text_end__");
-  Chunk *last = textSec->chunks.back();
-  if (startSym)
-    replaceSymbol<DefinedSynthetic>(startSym, startSym->getName(),
-                                    textSec->chunks.front());
-  if (endSym)
-    replaceSymbol<DefinedSynthetic>(endSym, endSym->getName(), last,
-                                    last->getSize());
+  auto bind = [&](StringRef name, Chunk *chunk, uint64_t extra = 0) {
+    Symbol *s = ctx.symtab.find(name);
+    if (!s)
+      return;
+    if (!isa<Undefined>(s) && !isa<DefinedAbsolute>(s))
+      return;
+    if (!chunk)
+      Fatal(ctx) << "undefined symbol: " << name
+                 << " (referenced, but image has no .text to bind)";
+    replaceSymbol<DefinedSynthetic>(s, s->getName(), chunk, extra);
+  };
+  OutputSection *sec = textSec ? textSec : findSection(".text");
+  Chunk *first = (sec && !sec->chunks.empty()) ? sec->chunks.front() : nullptr;
+  Chunk *last = (sec && !sec->chunks.empty()) ? sec->chunks.back() : nullptr;
+  bind("__text_start__", first);
+  bind("__text_end__", last, last ? last->getSize() : 0);
 }
 
 // Windows CE specific: bind __exidx_start / __exidx_end to the bounds of
