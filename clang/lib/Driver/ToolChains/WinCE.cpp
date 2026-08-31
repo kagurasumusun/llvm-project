@@ -251,6 +251,14 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
       IsDLL ? "dllcrt3.o" : (WantProfiling ? "gcrt3.o" : "crt3.o");
   CmdArgs.push_back(StartFile);
 
+  // User objects and their -l first, then the CRT archives. Putting
+  // libmingw32.a (winmain_ce.o) before a program that already defines
+  // WinMain pulls a second WinMain (TECLIB/glpi-wince-agent).
+  for (const auto &II : Inputs) {
+    if (II.isFilename())
+      CmdArgs.push_back(II.getFilename());
+  }
+
   if (WantThreads) {
     CmdArgs.push_back("libmingwthrd.a");
     CmdArgs.push_back("libpthread.a");
@@ -270,11 +278,6 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   llvm::VersionTuple OSVer = TC.getTriple().getOSVersion();
   CmdArgs.push_back(OSVer.getMajor() && OSVer.getMajor() < 6 ? "libcoredll.a"
                                                              : "libcoredll6.a");
-
-  for (const auto &II : Inputs) {
-    if (II.isFilename())
-      CmdArgs.push_back(II.getFilename());
-  }
 
   // Resolve lld-link next to clang (GetProgramPath). A bare "lld-link"
   // depends on PATH; posix_spawn then fails with ENOENT when a third-party
