@@ -105,6 +105,12 @@ llvm_config.feature_config(
     ]
 )
 
+# The Windows CE lld tests additionally require the ARM target in the LLD
+# build (the COFF format is always built into lld in this toolchain; the
+# CE registered-relocation handling lives in the ARM COFF backend).
+if "arm" in config.available_features:
+    config.available_features.add("arm-registered-target")
+
 # Set a fake constant version so that we get consistent output.
 config.environment["LLD_VERSION"] = "LLD 1.0"
 
