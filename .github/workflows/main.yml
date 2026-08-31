@@ -32,7 +32,7 @@ on:
         options: [arm-pc-wince]
       run_full:
         description: "Also run Stage 2 sysroot + Stage 3 runtimes + package"
-        default: false
+        default: true
         type: boolean
 
 permissions:
