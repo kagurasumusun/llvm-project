@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <unwind.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__WINCE__)
   #include <windows.h>
   #include <ntverp.h>
 #endif
