@@ -371,11 +371,6 @@ bool ARMCOFFMasmParser::parseDirectiveImport(StringRef Directive, SMLoc Loc) {
   getStreamer().emitCOFFSymbolStorageClass(COFF::IMAGE_SYM_CLASS_EXTERNAL);
   getStreamer().emitCOFFSymbolType(0);
   getStreamer().endCOFFSymbolDef();
-  // WinCOFFWriter only emits symbols that appear in MCContext's table *and*
-  // are considered used.  A bare IMPORT (or a `bl` whose operand was folded
-  // to an immediate) otherwise vanishes from llvm-readobj --symbols.
-  // A section-relative reloc keeps the undefined external live.
-  getStreamer().emitCOFFSecRel32(Sym, /*Offset=*/0);
   while (getLexer().isNot(AsmToken::EndOfStatement))
     Lex();
   return false;

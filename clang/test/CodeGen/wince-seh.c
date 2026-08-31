@@ -83,6 +83,6 @@ void finally_basic(void) {
 // CHECK-LABEL: define dso_local {{.*}}void @finally_basic()
 // CHECK: call ptr @llvm.localaddress()
 // CHECK: call arm_aapcscc void @__fin_finally_basic({{i8 noundef( zeroext)?}} 0, ptr noundef %{{.*}})
-// CHECK: define internal void @__fin_finally_basic
+// CHECK: define internal arm_aapcscc void @__fin_finally_basic
 
 // SYNTAX-NOT: error:

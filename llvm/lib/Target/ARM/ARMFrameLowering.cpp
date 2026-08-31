@@ -994,6 +994,13 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
   int FPCXTSaveSize = 0;
   bool NeedsWinCFI = needsWinCFI(MF);
+  // CE SEH parents carry EH funclets.  Even if the prologue path does not
+  // insert SEH_* opcodes (Thumb vs ARM, empty frame), ARMException keys
+  // .seh_proc off hasWinCFI; set it here so mixed C++ TUs emit WinCFI
+  // frames instead of EHABI .fnstart.
+  if (MF.getTarget().getTargetTriple().isWindowsCE() &&
+      (NeedsWinCFI || MF.hasEHFunclets()))
+    MF.setHasWinCFI(true);
   ARMSubtarget::PushPopSplitVariation PushPopSplit =
       STI.getPushPopSplitVariation(MF);
 

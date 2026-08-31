@@ -152,6 +152,9 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   const Thumb1InstrInfo &TII =
       *static_cast<const Thumb1InstrInfo *>(STI.getInstrInfo());
 
+  if (MF.getTarget().getTargetTriple().isWindowsCE() && MF.hasEHFunclets())
+    MF.setHasWinCFI(true);
+
   unsigned ArgRegsSaveSize = AFI->getArgRegsSaveSize();
   unsigned NumBytes = MFI.getStackSize();
   assert(NumBytes >= ArgRegsSaveSize &&

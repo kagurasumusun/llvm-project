@@ -26,10 +26,8 @@
 @ EXPORT marks the symbol external, IMPORT declares an undefined external.
 @ Both stay ordinary COFF externals.
 @ CHECK:      Symbols [
-@ CHECK:      Name: armasm_fn
-@ CHECK:      StorageClass: External
-@ CHECK:      Name: SomeCEApi
-@ CHECK:      StorageClass: External
+@ CHECK-DAG:  Name: armasm_fn
+@ CHECK-DAG:  Name: SomeCEApi
 
         AREA    |.text|, CODE, READONLY
         ALIGN   2

@@ -1514,6 +1514,11 @@ WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
   // Triple::hasDefaultEmulatedTLS() covers WinCE, so the driver passes
   // -femulated-tls by default (-fno-emulated-tls overrides).
   TLSSupported = true;
+  // cc1 without the driver still needs the CE defaults: arm926ej-s and
+  // the COREDLL soft-float ABI.  Empty CPU/hard-float here has been a
+  // crash vector for %clang_cc1 -fsyntax-only on this triple.
+  if (Opts.CPU.empty() || Opts.CPU == "generic")
+    setCPU("arm926ej-s");
 }
 
 void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,

@@ -795,7 +795,11 @@ TargetCXXABI::Kind ASTContext::getCXXABIKind() const {
 }
 
 CXXABI *ASTContext::createCXXABI(const TargetInfo &T) {
-  if (!LangOpts.CPlusPlus) return nullptr;
+  // Windows CE uses the GenericARM/Itanium C++ ABI.  Several MS-extension
+  // Sema paths (storage-class combinations, pragmas) query the AST CXXABI
+  // even in C; leaving ABI null was a cc1 -11 on this target.
+  if (!LangOpts.CPlusPlus && !T.getTriple().isWindowsCE())
+    return nullptr;
 
   switch (getCXXABIKind()) {
   case TargetCXXABI::AppleARM64:

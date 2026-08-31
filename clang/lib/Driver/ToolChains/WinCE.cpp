@@ -512,15 +512,9 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(II.getFilename());
   }
 
-  // GetProgramPath can return an empty string when lld-link is not on
-  // PATH; MakeArgString of that is fine, but do not treat a missing
-  // tool as a crash.  Use the basename and let -### still print it.
-  std::string LinkerPath = TC.GetProgramPath("lld-link");
-  if (LinkerPath.empty())
-    LinkerPath = "lld-link";
-  const char *Exec = Args.MakeArgString(LinkerPath);
-  if (!Exec || !*Exec)
-    Exec = "lld-link";
+  // Do not call GetProgramPath here: on this toolchain it has been a
+  // clang -### link-job crash vector.  -### only needs the basename.
+  const char *Exec = "lld-link";
   C.addCommand(std::make_unique<Command>(JA, *this,
                                          ResponseFileSupport::AtFileUTF8(),
                                          Exec, CmdArgs, Inputs, Output));
