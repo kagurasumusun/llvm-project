@@ -4,6 +4,7 @@
 extern "C" {
 #endif
 char *strerror(int errnum);
+int remove(const char *path);
 #ifdef __cplusplus
 }
 #endif
