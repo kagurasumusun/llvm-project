@@ -50,9 +50,16 @@ static bool compilingCXX(const ArgList &Args) {
         V == "c++-header" || V == "c++-pch")
       return true;
   }
-  for (StringRef F : Args.getAllArgValues(options::OPT_INPUT))
-    if (types::isCXX(types::lookupTypeForExtension(llvm::sys::path::extension(F))))
+  for (StringRef F : Args.getAllArgValues(options::OPT_INPUT)) {
+    StringRef Ext = llvm::sys::path::extension(F);
+    if (Ext.starts_with("."))
+      Ext = Ext.drop_front();
+    // lookupTypeForExtension wants "cxx", not ".cxx".  The dotted form
+    // made CMake's testCXXCompiler.cxx look like C and inherited
+    // -fgnu89-inline (CI 33353039440).
+    if (types::isCXX(types::lookupTypeForExtension(Ext)))
       return true;
+  }
   return false;
 }
 
@@ -121,7 +128,7 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
   // has no C99 inline model to restore), so skip it there.
   if (DriverArgs.hasFlag(options::OPT_fgnu89_inline,
                          options::OPT_fno_gnu89_inline, true) &&
-      !compilingCXX(DriverArgs))
+      !compilingCXX(DriverArgs) && !getDriver().CCCIsCXX())
     CC1Args.push_back("-fgnu89-inline");
 
   // These MinGW-style -m flags are TargetSpecific.  Without marking them
