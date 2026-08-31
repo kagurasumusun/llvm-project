@@ -83,6 +83,7 @@ if [ ! -f "$PREFIX/lib/libpng16.a" ] && [ ! -f "$PREFIX/lib/libpng.a" ]; then
   make -C libpng-1.6.43 -f scripts/makefile.gcc -j"$JOBS" \
     CC="$CC" AR="$AR" RANLIB="$RANLIB" \
     ZLIBINC="$PREFIX/include" ZLIBLIB="$PREFIX/lib" \
+    CFLAGS="-O2 -Wall -include string.h" \
     libpng.a
   mkdir -p "$PREFIX/include" "$PREFIX/include/libpng16" "$PREFIX/lib"
   cp -a libpng-1.6.43/libpng.a "$PREFIX/lib/libpng.a"
