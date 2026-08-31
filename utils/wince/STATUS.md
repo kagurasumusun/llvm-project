@@ -69,6 +69,13 @@ GitHub Actions clones **unmodified**
 installs CeGCC-style names that bind `--target=arm-pc-wince`. The app
 tree is not patched.
 
+Stage 5 downloads the official
+[MaxSignal/Player 0.6.2.3-wince](https://github.com/MaxSignal/Player/archive/refs/tags/0.6.2.3-wince.zip)
+zip and copies an LLVM/Clang `Makefile` over it. Player C++ is not patched.
+Audio stays off (`SUPPORT_AUDIO` is not defined). UI is SDL 1.2 WINDIB. Deps
+(zlib, libpng, pixman, libiconv, SDL 1.2.15, liblcf 0.6.2) are built into a
+separate prefix, not the CRT sysroot.
+
 ## Do not revive
 
 Empty `__cdecl`/`__stdcall`; `#ifdef __clang__` skip of `include_next`;
@@ -84,4 +91,6 @@ force-push.
 * **WinEH / compressed `.pdata` on a real CE image** — lit + object dumps
   only.
 * **libc++ `std::thread` / filesystem** — explicitly off.
-* **App CI coverage** — one pinned app (GLPI-Agent). `make cab` not run.
+* **App CI coverage** — GLPI-Agent (unmodified `make`) plus MaxSignal/Player
+  `0.6.2.3-wince` (official zip, Clang Makefile overlay, no audio). `make cab`
+  not run.

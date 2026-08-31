@@ -6,6 +6,8 @@
 #   Stage 2: sysroot
 #   Stage 3: runtimes
 #   Packaging + install/compile sanity check
+#   Stage 4: unmodified TECLIB/glpi-wince-agent
+#   Stage 5: MaxSignal/Player 0.6.2.3-wince (Makefile overlay, no audio)
 #
 # Caching keeps the hot loop fast: ccache and the Ninja build directory are
 # restored by key and resumed incrementally, so a small fix after a prior run
@@ -48,7 +50,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             ninja-build cmake python3 python3-psutil zlib1g-dev gcc g++ make \
-            lld ccache zstd mold
+            lld ccache zstd mold unzip pkg-config autoconf automake libtool
 
           if ! command -v ld.mold >/dev/null 2>&1; then
             sudo ln -sf "$(command -v mold)" /usr/local/bin/ld.mold
@@ -316,6 +318,25 @@ jobs:
             sha256sum "$DEST"/* || true
           } > "$DEST/SHA256SUMS"
 
+      # -----------------------------------------------------------------
+      # Stage 5: MaxSignal/Player 0.6.2.3-wince (official zip).
+      # Overlay LLVM/Clang Makefile only. No Player C++ patches. No audio.
+      # -----------------------------------------------------------------
+
+      - name: "Stage 5: MaxSignal/Player 0.6.2.3-wince (no audio)"
+        run: |
+          PREFIX="$PWD/install/wince-llvm"
+          BIN="$PREFIX/bin"
+          [ -e "$BIN/clang++" ] || ln -sf clang "$BIN/clang++"
+          [ -e "$BIN/llvm-windres" ] || ln -sf llvm-rc "$BIN/llvm-windres"
+          sh utils/wince/bind-cegcc-names.sh "$BIN"
+          export PATH="$BIN:$PATH"
+          export PREFIX="$PWD/install/wince-easyrpg-deps"
+          export DEST="$PWD/products/easyrpg-player"
+          export WORK="$RUNNER_TEMP/easyrpg-wince"
+          export JOBS="$(nproc)"
+          sh utils/wince/build-easyrpg-player.sh
+
       - name: Job summary
         if: always()
         run: |
@@ -342,6 +363,15 @@ jobs:
               cat products/glpi-wince-agent/SHA256SUMS
               echo '```'
             fi
+            if [ -d products/easyrpg-player ]; then
+              echo
+              echo "### MaxSignal/Player 0.6.2.3-wince (no audio, Makefile overlay)"
+              echo
+              echo '```'
+              ls -l products/easyrpg-player
+              cat products/easyrpg-player/SHA256SUMS
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload toolchain
@@ -356,13 +386,22 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload glpi-wince-agent
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: glpi-wince-agent-${{ env.TARGET }}
           path: products/glpi-wince-agent/
           retention-days: 14
-          if-no-files-found: error
+          if-no-files-found: ignore
+
+      - name: Upload easyrpg-player
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: easyrpg-player-${{ env.TARGET }}
+          path: products/easyrpg-player/
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Upload build logs (on failure)
         if: failure()

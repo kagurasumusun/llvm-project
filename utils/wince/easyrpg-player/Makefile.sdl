@@ -1,0 +1,103 @@
+# LLVM/Clang Makefile for SDL 1.2.15 on WinCE (GDI / no audio).
+# Overlay only. Do not patch SDL C.
+
+CROSS   ?= arm-mingw32ce
+CC      ?= $(CROSS)-gcc
+AR      ?= $(CROSS)-ar
+RANLIB  ?= $(CROSS)-ranlib
+PREFIX  ?= /usr/local
+
+CPPFLAGS += -Iinclude -Isrc \
+	-Isrc/audio -Isrc/events -Isrc/video -Isrc/video/wincommon \
+	-Isrc/video/windib -Isrc/thread -Isrc/thread/win32 -Isrc/timer \
+	-Isrc/joystick -Isrc/cdrom -Isrc/loadso
+CPPFLAGS += -DUNDER_CE
+CFLAGS   += -O2
+
+SRCS = \
+	src/SDL.c \
+	src/SDL_error.c \
+	src/SDL_fatal.c \
+	src/audio/SDL_audio.c \
+	src/audio/SDL_audiocvt.c \
+	src/audio/SDL_audiodev.c \
+	src/audio/SDL_mixer.c \
+	src/audio/SDL_wave.c \
+	src/audio/dummy/SDL_dummyaudio.c \
+	src/cdrom/SDL_cdrom.c \
+	src/cdrom/dummy/SDL_syscdrom.c \
+	src/cpuinfo/SDL_cpuinfo.c \
+	src/events/SDL_active.c \
+	src/events/SDL_events.c \
+	src/events/SDL_expose.c \
+	src/events/SDL_keyboard.c \
+	src/events/SDL_mouse.c \
+	src/events/SDL_quit.c \
+	src/events/SDL_resize.c \
+	src/file/SDL_rwops.c \
+	src/joystick/SDL_joystick.c \
+	src/joystick/dummy/SDL_sysjoystick.c \
+	src/loadso/win32/SDL_sysloadso.c \
+	src/stdlib/SDL_getenv.c \
+	src/stdlib/SDL_iconv.c \
+	src/stdlib/SDL_malloc.c \
+	src/stdlib/SDL_qsort.c \
+	src/stdlib/SDL_stdlib.c \
+	src/stdlib/SDL_string.c \
+	src/thread/SDL_thread.c \
+	src/thread/win32/SDL_sysmutex.c \
+	src/thread/win32/SDL_syssem.c \
+	src/thread/win32/SDL_systhread.c \
+	src/thread/win32/win_ce_semaphore.c \
+	src/timer/SDL_timer.c \
+	src/timer/wince/SDL_systimer.c \
+	src/video/SDL_RLEaccel.c \
+	src/video/SDL_blit.c \
+	src/video/SDL_blit_0.c \
+	src/video/SDL_blit_1.c \
+	src/video/SDL_blit_A.c \
+	src/video/SDL_blit_N.c \
+	src/video/SDL_bmp.c \
+	src/video/SDL_cursor.c \
+	src/video/SDL_gamma.c \
+	src/video/SDL_pixels.c \
+	src/video/SDL_stretch.c \
+	src/video/SDL_surface.c \
+	src/video/SDL_video.c \
+	src/video/SDL_yuv.c \
+	src/video/SDL_yuv_sw.c \
+	src/video/dummy/SDL_nullevents.c \
+	src/video/dummy/SDL_nullmouse.c \
+	src/video/dummy/SDL_nullvideo.c \
+	src/video/wincommon/SDL_sysevents.c \
+	src/video/wincommon/SDL_sysmouse.c \
+	src/video/wincommon/SDL_syswm.c \
+	src/video/windib/SDL_dibevents.c \
+	src/video/windib/SDL_dibvideo.c
+
+MAIN_SRC = src/main/win32/SDL_win32_main.c
+
+OBJS = $(SRCS:.c=.o)
+MAIN_OBJ = $(MAIN_SRC:.c=.o)
+
+.PHONY: all install clean
+all: libSDL.a libSDLmain.a
+
+libSDL.a: $(OBJS)
+	$(AR) rcs $@ $(OBJS)
+	$(RANLIB) $@
+
+libSDLmain.a: $(MAIN_OBJ)
+	$(AR) rcs $@ $(MAIN_OBJ)
+	$(RANLIB) $@
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+install: all
+	mkdir -p $(PREFIX)/lib $(PREFIX)/include/SDL
+	cp -a libSDL.a libSDLmain.a $(PREFIX)/lib/
+	cp -a include/*.h $(PREFIX)/include/SDL/
+
+clean:
+	rm -f $(OBJS) $(MAIN_OBJ) libSDL.a libSDLmain.a
