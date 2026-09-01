@@ -69,7 +69,7 @@ WinCE::WinCE(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
   if (!llvm::sys::fs::exists(SysRootPath)) {
     D.Diag(diag::warn_drv_wince_sysroot_missing)
         << SysRootPath
-        << "utils/wince/build-wince-sysroot.sh";
+        << "build-wince-sysroot.sh in kagurasumusun/cellvm-build";
   }
 }
 
