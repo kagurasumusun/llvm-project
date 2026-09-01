@@ -15,7 +15,8 @@
 // CHECK: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
 // CHECK: ImageBase: 0x10000
 // CHECK: Subsystem: IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (0x9)
-// CHECK-NOT: BaseRelocationTable
+// CHECK: BaseRelocationTableRVA: 0x0
+// CHECK: BaseRelocationTableSize: 0x0
 
 	.text
 	.globl	WinMainCRTStartup

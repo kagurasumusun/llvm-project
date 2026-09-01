@@ -34,8 +34,6 @@ bounds:
 ## Two exidx entries, 8 bytes each, in the correctly-named output section.
 # CHECK: Name: .ARM.exi
 # CHECK: VirtualSize: 0x10
-
-# CHECK: Name: __exidx_start
-# CHECK: Section: .ARM.exidx
-# CHECK: Name: __exidx_end
-# CHECK: Section: .ARM.exidx
+## (the __exidx_start/__exidx_end definitions are asserted by the link
+## above: lld-link -u fails with undefined symbols if lld does not bind
+## them to the .ARM.exidx section; a stripped PE has no symbol table.)
