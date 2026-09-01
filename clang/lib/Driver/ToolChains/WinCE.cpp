@@ -103,6 +103,14 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
   if (DriverArgs.hasFlag(options::OPT_fms_compatibility,
                          options::OPT_fno_ms_compatibility, true))
     CC1Args.push_back("-fms-compatibility");
+  // MSVCCompat suppresses __STDC__ (an MSVC behavior), but the CE C
+  // ecosystem is GNU-era: mingwrt/w32api/gnulib headers probe __STDC__ the
+  // way CeGCC's GCC (which always defined it) let them, and gnulib's
+  // cdefs.h #errors without it (libiconv srclib, Stage 5).  Keep __STDC__
+  // for C like the upstream -fms-define-stdc escape hatch; C++ keeps the
+  // plain MSVC semantics libc++ relies on.
+  if (!compilingCXX(Args))
+    CC1Args.push_back("-fms-define-stdc");
   if (DriverArgs.hasFlag(options::OPT_fdelayed_template_parsing,
                          options::OPT_fno_delayed_template_parsing, CLMode))
     CC1Args.push_back("-fdelayed-template-parsing");

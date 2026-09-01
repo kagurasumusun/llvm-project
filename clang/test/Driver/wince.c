@@ -30,6 +30,9 @@
 // RUN:   | FileCheck %s --check-prefix=DEFINES
 // Macro definition order is not semantically meaningful, so the checks are
 // order-independent (DAG).  _M_ARM_NT must never appear (WinCE != Windows NT).
+// MSVCCompat is on for w32api (__declspec), but C keeps __STDC__ like
+// CeGCC's GCC did - gnulib's cdefs.h errors out without it.
+// DEFINES-DAG: #define __STDC__ 1
 // DEFINES-DAG: #define _ARM_ 1
 // DEFINES-DAG: #define _M_ARM 5
 // DEFINES-DAG: #define _WIN32_WCE 1536
