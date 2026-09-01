@@ -78,17 +78,16 @@ divert effort from the ARMv5TE/armel target.
 
 ## Stage 2: the sysroot
 
-    utils/wince/build-wince-sysroot.sh --toolchain <prefix>/bin \
+    cellvm-build: sh build-wince-sysroot.sh --toolchain <prefix>/bin \
         [--target arm-pc-wince] [--prefix <sysroot>] [--jobs N]
 
-`<sysroot>` defaults to `<prefix>/../wince-sysroot`, the location the WinCE
-driver probes.  The same flow is available through the standard LLVM
-runtimes machinery — `wince-sysroot` is a registered runtime project
-(`wince-sysroot/CMakeLists.txt`):
-
-    cmake -G Ninja -S llvm -B build -C clang/cmake/caches/WinCE.cmake
-    ninja -C build wince-sysroot           # or -DLLVM_ENABLE_RUNTIMES=wince-sysroot
-    ninja -C build install/wince-sysroot   # stages to <install-prefix>/wince-sysroot
+`<sysroot>` defaults to `<prefix>/wince-sysroot` (a sibling of the `bin`
+dir the compiler is installed in), which is exactly the location the WinCE
+driver probes.  The script lives in the `cellvm-build` repository together
+with the mingwrt/w32api/pthread-win32 submodules it consumes; it is not an
+LLVM runtime project and there is no `wince-sysroot/CMakeLists.txt` in this
+repository (the in-tree copy and its CMake registration were removed in the
+2026-08-31 reorganization).
 
 Resulting layout (CeGCC-compatible, GNU-named):
 
@@ -166,7 +165,7 @@ were pushed to them on 2026-08-31 (see WINCE-HANDOFF.md §14.2):
 
 ## Stage 3: compiler runtime + C++ runtime
 
-    utils/wince/build-wince-runtimes.sh --toolchain <prefix>/bin \
+    cellvm-build: bash build-wince-runtimes.sh --toolchain <prefix>/bin \
         [--sysroot <sysroot>]
 
 Cross-builds `compiler-rt/lib/builtins` (the `-lgcc` replacement) and the
@@ -242,9 +241,10 @@ Known caveats from the audit (not fixable without semantic changes):
 `pthread-win32` and `pthreads4w` are the same code lineage: the project
 was renamed pthreads4w for v3 (sourceware -> GitHub), and
 `GerHobbelt/pthread-win32` is the actively maintained combined fork of
-that tree.  The vendored directory tracks the fork's `master`
-(`06e7608`, current HEAD upstream) plus the three WinCE fixes - i.e. we
-are on the newest available code of the newest available lineage.
+that tree.  `kagurasumusun/pthread-win32` tracks the fork's `master`
+(upstream `06e7608`) plus the three WinCE fixes, and `cellvm-build` pins it
+as a submodule - i.e. we are on the newest available code of the newest
+available lineage.
 
 ### fork emulation: ecosystem survey
 
@@ -360,7 +360,7 @@ for any of the overrides above.
 The POSIX surface comes from two already-vendored layers - no additional
 runtime was written:
 
-* **pthreads4w** (`wince-sysroot/pthread-win32`): `pthread_*`,
+* **pthreads4w** (`cellvm-build` submodule `pthread-win32/`): `pthread_*`,
   `sem_*`, `sched_*` - threads, mutexes, condvars, semaphores, barriers,
   rwlocks, spinlocks, cancellation.
 * **mingwrt's CE mingwex set** (linked as `libmingwex.a`): `open`/`read`/
@@ -369,7 +369,7 @@ runtime was written:
   `time`/`gmtime`/`localtime`/`mktime`/`strftime`/`gettimeofday`/
   `basename`/`dirname`/`tsearch` family, wide-char variants, `imax*`
   inttypes - each backed by the closest COREDLL Win32 call.
-* **Implemented POSIX process/signal layer** (`wince-sysroot/posix/`,
+* **Implemented POSIX process/signal layer** (`cellvm-build/sysroot/posix/`,
   built as `libposix.a`, **optional extra — not on the default driver
   link line**; headers: `sys/wait.h`):
   * `execv`/`execvp`/`execl`/`execlp` - CreateProcess-based image
@@ -416,7 +416,7 @@ construction, with two documented caveats:
 `-pg` is fully wired: the driver links `gcrt3.o` (mingwrt's crt3 startup
 wrapped with the profiler lifecycle, replacing `crt3.o` per CeGCC's
 `%{pg:gcrt3%O%s}`) and `libgmon.a` (CeGCC's `%{pg:-lgmon}` position).
-Both live in `wince-sysroot/gmon/` and are built by the sysroot stage
+Both live in `cellvm-build/sysroot/gmon/` and are built by the sysroot stage
 (user-mode only; no WinCE platform behavior is touched).
 
 * What you get: a BSD/gprof `gmon.out` written next to the executable at
@@ -453,7 +453,7 @@ rule that protects the ABI also protects the platform boundary.
 
 | MSVC feature | status here |
 |---|---|
-| SAL annotations (`_In_`/`_Out_` + old `__in` style) | **provided**: `wince-sysroot/include-overlay/sal.h` (standard no-op spellings, analysis-off mode, old-style kept); CE-era headers use none/old-style and now both compile |
+| SAL annotations (`_In_`/`_Out_` + old `__in` style) | **provided**: `cellvm-build/sysroot/include-overlay/sal.h` (standard no-op spellings, analysis-off mode, old-style kept); CE-era headers use none/old-style and now both compile |
 | `<intrin.h>` (ARM) | **provided**: overlay `intrin.h` - MSVC spellings mapped (barrier/cache-flush/CLZ); `__dmb/__dsb/__isb` use native instructions on ARMv6+ and a CacheSync system barrier on the ARMv5TE baseline (the clang ACLE header has no v5 lowering) |
 | MSVC CRT | **by design replaced** by mingwrt (that IS the CeGCC CRT contract); `_MSC_VER`-conditional MSVC-CRT-specific extensions (e.g. `__dbg` heap APIs) are out of scope |
 | MSVC type mapping (`__int64`, `SIZE_T`, `DWORD_PTR`, ...) | provided: mingwrt/w32api headers define the full set; `__int64` is a clang keyword alias |

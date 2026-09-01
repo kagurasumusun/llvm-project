@@ -79,7 +79,7 @@ WINCE-HANDOFF.md                         本ドキュメント
 #   └── .github/workflows/ フルパイプライン CI(Stage 1–5)
 ```
 
-削除したもの: `wince-sysroot/`(→ cellvm-build、§14)、`wince-crt/`(旧ベスプーク CRT)、`.gitmodules`+`third-party/*` サブモジュール(一時 in-tree 化)、`utils/wince/patches/`(不要化)、`utils/wince/` のビルドスクリプト群(→ cellvm-build、§14)。(旧ベスポークCRT)、`.gitmodules`+`third-party/*` サブモジュール(すべて in-tree 化)、`utils/wince/patches/`(不要化)。
+削除したもの: `wince-sysroot/`(→ cellvm-build、§14)、`wince-crt/`(旧ベスポーク CRT)、`.gitmodules`+`third-party/*` サブモジュール(一時 in-tree 化)、`utils/wince/patches/`(パッチ不要化に伴い削除)、`utils/wince/` のビルドスクリプト群(→ cellvm-build、§14)。
 
 ---
 
@@ -131,7 +131,7 @@ GCC風オプションを lld-link へ翻訳。CeGCC の SPECS を再現:
 - プラグマ実装: `auto_inline(on/off)`→noinline範囲適用、`check_stack(on/off)`→no_stack_protector、`setlocale`/`conform` は完全文法解析+マッピング警告、`runtime_checks` は受入無視
 - `extern extern` 等の重複ストレージクラスは拡張警告で許可(clang本体機能、テスト `ms-extern.c`)
 - `__uuidof`/`__declspec(uuid)`: clang本体が対応済み(追加不要だった)
-- SAL: `wince-sysroot/include-overlay/sal.h` を新規作成(`_In_/_Out_` 系 + 旧 `__in` 系の no-op 定義)
+- SAL: `include-overlay/sal.h` を新規作成(現在は `cellvm-build/sysroot/include-overlay/sal.h`)(`_In_/_Out_` 系 + 旧 `__in` 系の no-op 定義)
 - `<intrin.h>`: `include-overlay/intrin.h` 新規。**ARMv5TE では arm_acle.h を include しない**(LLVMのACLEヘッダの `__dmb` は v6+ 専用 intrinsic で v5 で codegen エラーになる)。v5 は `CacheSync` ベースの `__dmb/__dsb/__isb` を提供、v6+ は ACLE。`_CountLeadingZeros` も実装
 
 ### 3.6 sysroot(ステージ2)
@@ -211,7 +211,7 @@ GCC風オプションを lld-link へ翻訳。CeGCC の SPECS を再現:
 
 1. **ベスポークCRTを廃止した理由**: ユーザー指摘どおり、mingwrt/w32api をそのまま使う方が正しい。wince-crt は削除済み
 2. **サブモジュール廃止 → in-tree vendoring**: ユーザー指摘。LLVMの構造ではランタイムが自身のソースを所有(compiler-rt と同型)
-3. **`third-party/` ではない場所に置く**: ユーザー指摘で `wince-sysroot/` ランタイムプロジェクト直下に移動
+3. **`third-party/` ではない場所に置く**: ユーザー指摘で `wince-sysroot/` ランタイムプロジェクト直下に移動(★歴史的決定: 2026-08-31 のリ-org でこの in-tree vendoring 自体を取りやめ、コンポーネントは `cellvm-build` のサブモジュールになった)
 4. **global ctor/dtor を GNU 形式にした理由**: `.CRT$XCU` は MSVC CRT の `__xc_a` 起動オブジェクトを要求し、CEランタイムに存在しない。mingwrt の `__main` が歩くのは `__CTOR_LIST__`
 5. **EXE エントリを常に WinMainCRTStartup にした理由**: crt3.o が定義する唯一のエントリ。`mainCRTStartup` はどこにも存在しない(過去に -mconsole リンクが必ず失敗していた)
 6. **libmingwthrd.a を crtmt.o 直アーカイブにした理由**: mingwrt の正規ルールは def 生成→DLLリンクを巻き込む。静的リンクに必要なのは crtmt.o のみ
@@ -293,9 +293,9 @@ export しており(coredll6.def 1213-1214行、確認済み)、ARM 版アンワ
 ### 6.2 【すぐできる】小タスク
 
 - [ ] `utils/wince/README.md` の「COREDLL def completeness」節: 「chunks 0/1/4/7 spot-check」の記述を「全9チャンク照合完了・欠落30追加・残ゼロ」に更新(§3.10 の通り作業は完了済み。README の記述だけ古い箇所が残っている可能性)
-- [ ] `.actions/build-wince-llvm.yml` と `.github/workflows/main.yml` の重複解消(ユーザーが main.yml に移動済み。`.actions` 側は残置。ユーザー判断で削除可と伝える)
-- [ ] `kagurasumusun/mingwrt` への push リマインド(コミット `5ed3cc4`。現在は llvm-project 内ベンダーに同内容があるためブロッカーではない)
-- [ ] `wince-sysroot/posix/` の `signal.c` — VEH(`AddVectoredExceptionHandler`)が CE カーネルに存在するか coredll.def に追記するかの検討(フォルト起因 SIGSEGV 対応のため)
+- [x] `.actions/build-wince-llvm.yml` と `.github/workflows/main.yml` の重複解消 → **済み**(`a9c0d082a` で両コピーを削除。HEAD に `.actions` は存在しない)
+- [x] `kagurasumusun/mingwrt` への push リマインド → **済み**(§14.2 で `69043bc` として push、以後も継続 push 中)
+- [ ] `cellvm-build/sysroot/posix/` の `signal.c` — VEH(`AddVectoredExceptionHandler`)が CE カーネルに存在するか coredll.def に追記するかの検討(フォルト起因 SIGSEGV 対応のため)
 - [ ] errno のスレッド対応(TlsAlloc が解禁されたので実装可能に。ただしランタイム意味論の変更なので要承認)
 
 ### 6.3 【将来】OS ビルド基盤(AE600 前提で実装可能と結論済み)
@@ -329,7 +329,8 @@ ninja -C build install   # install/wince-llvm に入る
 ### ステージ2(sysroot)
 
 ```bash
-utils/wince/build-wince-sysroot.sh \
+# (cellvm-build リポジトリのルートで実行)
+sh build-wince-sysroot.sh \
   --toolchain <install>/bin --target arm-pc-wince \
   --prefix <install>/wince-sysroot --jobs $(nproc)
 ```
@@ -340,7 +341,8 @@ zig bundled clang を `/tmp/fake-tc/bin/{clang,llvm-ar,llvm-ranlib,llvm-dlltool}
 ### ステージ3(ランタイム)
 
 ```bash
-utils/wince/build-wince-runtimes.sh --toolchain <install>/bin \
+# (cellvm-build リポジトリのルートで実行)
+bash build-wince-runtimes.sh --toolchain <install>/bin \
   --sysroot <install>/wince-sysroot
 ```
 
@@ -375,7 +377,7 @@ build/bin/llvm-lit -sv clang/test/Driver/wince.c lld/test/COFF/wince-ctors.s
 2. ユーザー: 「mingwrt/w32api を使え。wince-crt は不適切」→ wince-crt 廃止
 3. ユーザー: 「mingwrt 自体を clang でビルドできるように(パッチではなく)」→ mingwrt に直接コミット
 4. ユーザー: 「勝手に他人のリポを触るな。kagurasumusun だけにしろ」→ pthread はパッチ方式へ
-5. ユーザー: 「サブモジュールではなく正規の llvm&clang の一部として」→ in-tree vendoring(third-party は不適切と指摘され wince-sysroot/ へ)
+5. ユーザー: 「サブモジュールではなく正規の llvm&clang の一部として」→ in-tree vendoring(third-party は不適切と指摘され wince-sysroot/ へ)→ さらに 2026-08-31 の方針転換で「サードパーティツリーは本リポに内蔵しない」= cellvm-build サブモジュールへ(§14)
 6. ユーザー: 「断線経路を全部確認」「SEH/デストラクタが壊れている」→ 各種修正
 7. ユーザー: 「-pg 実装して」「posix 実装して」「armasm 正規実装して」「C17 更新して」→ 実施
 8. ユーザー: 「AE600 があるので OS ビルド基盤も自前実装可能では?」→ 実装計画策定(未実装)
@@ -386,7 +388,7 @@ build/bin/llvm-lit -sv clang/test/Driver/wince.c lld/test/COFF/wince-ctors.s
 ## 10. 関連ドキュメント
 
 - `utils/wince/README.md` — 一次資料(最も詳細)。矛盾があればこちらを優先し本資料を更新
-- `wince-sysroot/*/README.llvmvendor.md` — ベンダー証跡
+- 各コンポーネントリポジトリ(kagurasumusun/{mingwrt,w32api,pthread-win32})の WinCE 修正コミット — ベンダー証跡(in-tree の `README.llvmvendor.md` は §14 のリ-org で削除)
 - `clang/cmake/caches/WinCE.cmake` — ステージ1設定
 - 各テストファイル — 期待動作の仕様書を兼ねる
 
