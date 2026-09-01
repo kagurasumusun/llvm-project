@@ -1,6 +1,6 @@
 # Windows CE × LLVM/Clang ツールチェーン — 完全引き継ぎ資料 (HANDOFF)
 
-> 最終更新: 2026-08-30 (Phase 3) / ブランチ: `llvm-wince` / HEAD: 参照 §13
+> 最終更新: 2026-09-01 (§16) / ブランチ: `llvm-wince` / HEAD: 参照 §16
 >
 > **NOTE (2026-08-30):** §6.1 was rewritten and §11 added during Phase 2.
 > Everything dated before that describes an older tree: the
@@ -671,3 +671,58 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
 `test/MC/ARM/wince-armasm{,-labels,-data,-cond}.s` の RUN 行を全て実走して PASS。
 新規テストの byte 期待値は**すべて objdump 実出力から機械生成**(手計算不可)。
 CI のゲートリスト(`.github/workflows/main.yml`)にも 2 ファイルを追加済み。
+
+---
+
+## 16. (2026-09-01): 重複実装の監査と既存機構への統合
+
+「既存の LLVM/Clang 機構で済むのに自前実装してしまった箇所」の全数監査
+(fork HEAD ⇔ fork 直前の upstream 基底 `b91f74c49964` の全差分対比) の結果、
+既存機構の複製になっていた 4 箇所を既存経路へ統合した。lit ゲート (31 件) が
+挙動固定を持つため、CI が初回検証者。**マクロ集合・出力バイト列は不変**のはずで、
+変更は構造のみ。
+
+1. `[AsmPrinter]` `emitCESEHActionsForRange` (upstream `emitSEHActionsForRange` の
+   複製, 非コメント行 25/36 が逐語同一) と CE 版 `emitCESpecificHandlerTable`
+   (同 `emitCSpecificHandlerTable` の複製) を削除し、既存メンバに `IsCE` パラメータを
+   追加して共用にした。CE 固有部分は次の 3 点だけ:
+   (a) 親フレームオフセット = StackSize (x64 は `SEHSetFrameOffset`)
+   (b) カウント語に `ce_handlerdata` ラベル (PDATA_EH の handler-data が指す位置)
+   (c) エントリ絶対 ADDR32 — 32bit では `useImageRel32 == false` なので既存の
+   `create32bitRef` がそのまま絶対を出す。ウォーカのラベル参照を `getLabel`
+   (IMGREL 固定) から `create32bitRef` に変えたが、x64 では両者は同一式。
+   `llvm::emitCESpecificHandlerTable` は 3 行ラッパー (WinException を構築して
+   メンバ呼び出し) となり、`ARMAsmPrinter::emitCEHandlerData` 側は不変。
+2. `[lld][COFF]` `isInRange` の CE 分岐から ARMNT と逐語同一だった 3 ケースを削除し、
+   ARMNT と `IMAGE_FILE_MACHINE_ARM` で Thumb 範囲チェックを共用。真に CE 固有の
+   `IMAGE_REL_ARM_BRANCH24` (A32 B/BL/BLX, PC+8 基準) だけを machine ガード付きで残した。
+   ARMNT の挙動は不変 (BRANCH24 は ARMNT では発行されない)。
+3. `[MC][AsmLexer]` `%1010` 2 進リテラル: 既存 `LexMotorolaIntegers` (`%01010110`) と
+   同一処理の複製をやめ、`%` の 1 箇所に共用した。`&FF` / `n_xxxx` は upstream に
+   対応形が無いため armasm 専用フラグ (`LexArmasmIntegers`) のまま。
+4. `[clang][Targets]` ARM / x86 の WinCE ターゲットで二重定義されていた共通マクロ
+   (`__CEGCC_VERSION__`, `__COREDLL__`, `__MINGW32__`, `WIN32`, `WINNT`, `_UNICODE`,
+   `UNICODE`) を `addWinCEDefines` (OSTargets.cpp) の 1 箇所に統合。定義集合は不変
+   (wince.c / wince-x86.c の -dM チェックが固定、順序非依存)。
+5. 文書: armasm Path B の "Still missing" 一覧を現状に更新
+   (MACRO/MEND/WHILE/WEND/GET/INCLUDE/LTORG は名指し診断、SETS/SETB と
+   `IF :DEF:` リテラルは IFDEF/IFNDEF が正規の綴り)。
+
+### 16.1 llvm-ml / MasmParser への統一 (F4) — 今回は実施せず、計画を記録
+
+Path B (共有 AsmParser/AsmLexer の armasm 構文 + `ARMCOFFMasmParser`) は
+MasmParser (llvm-ml) と「ラベル前置 + `;` コメント + 独自リテラル + EQU」を重複して
+実装している。ただし今日削除すると動作中の機能 (armasm lit 4 件) が失われる。
+移行の成立条件を実コードで確認済み:
+
+* MasmParser 本体はほぼターゲット非依存 (x86 言及 2 箇所のみ、MASM32 組込みのゲート)。
+  ファクトリ `createMCMasmParser` が存在し、llvm-ml にアーチ限定ゲートは無い
+  (SafeSEH の x86 限定のみ)。
+* だが (a) clang 統合アセンブラ / llvm-mc のパーサ選択は GNU AsmParser 固定で、
+  `-masm=armasm` を MasmParser へ振る配管が無い、(b) `&FF`/`%1010`/`n_xxxx` は
+  MasmParser のリテラル機構に無い (MASM は `0ABCh`/`0b1101`)、(c) AREA/DCD 等
+  armasm 固有ディレクティブは MasmParser 上でも拡張登録が必要、(d) MASM の EQU/IF と
+  armasm の意味論差異 (EQU の再定義規則等) の確認が要る。
+* 結論: 複数コミット規模の移行プロジェクトであり、本節では実施しない。
+  README の "right endgame" 記述のとおり償却する。着手時は clang のパーサ選択点の
+  特定から始めること。

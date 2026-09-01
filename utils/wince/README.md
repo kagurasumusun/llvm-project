@@ -501,9 +501,20 @@ the second one:
   `llvm/test/MC/ARM/wince-armasm-labels.s` (statements + data) pin that
   down.
 
-  Still missing, so it is **not** yet a substitute for Path A: the
-  unaligned `DCFU`/`DCFSU`/`DCFDU`/`DCQU` variants, `GBLA`/`SETA`
-  variables, `MACRO`/`MEND` and `IF`/`ENDIF`.  Because of that the driver
+  Since 2026-09-01 it also covers, through the existing generic machinery
+  (no private re-implementation): `GBLA`/`GBLL`/`GBLS` and the local
+  `LCLA`/`LCLL`/`LCLS` declarations, `SETA`/`SETL` assignments (`EQU` is an
+  equivalence, like `.equ`), the unaligned `DCBU`/`DCWU`/`DCDU`/`DCQU`/
+  `DCFU`/`DCFSU`/`DCFDU` data forms, and `IF`/`ELSEIF`/`ELSE`/`ENDIF`/
+  `IFDEF`/`IFNDEF` as aliases of the generic conditional assembly (same
+  nesting and skip logic; `addAliasForDirective` is an existing
+  `MCAsmParser` API).
+
+  Still missing, so it is **not** yet a substitute for Path A: the macro
+  processor (`MACRO`/`MEND`, `WHILE`/`WEND`, `GET`/`INCLUDE`/`LTORG` are
+  diagnosed by name, never silently ignored) and the `SETS`/`SETB`
+  spellings plus the literal `IF :DEF:` form (`IFDEF`/`IFNDEF` are the
+  spellings that work).  Because of that the driver
   does **not** default WinCE assembly to it: `-masm=armasm` must be
   requested explicitly, and Platform Builder sources should keep going
   through Path A.

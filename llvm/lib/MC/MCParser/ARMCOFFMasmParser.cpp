@@ -15,9 +15,10 @@
 // the instruction mnemonics themselves are parsed by the regular
 // ARMAsmParser.
 //
-// Still missing for full armasm: the unaligned DCFU/DCFSU/DCFDU/DCQU
-// variants, GBLA/GBLL/GBLS variables with SETA/SETL/SETS, MACRO/MEND and
-// IF/ELSE/ENDIF.  See utils/wince/README.md.
+// Still missing for full armasm: the macro processor (MACRO/MEND,
+// WHILE/WEND, GET/INCLUDE/LTORG are diagnosed by name, never silently
+// ignored) and the SETS/SETB spellings plus the literal "IF :DEF:" form
+// (IFDEF/IFNDEF are the spellings that work).  See utils/wince/README.md.
 //
 //===----------------------------------------------------------------------===//
 
