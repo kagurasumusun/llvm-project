@@ -552,7 +552,8 @@ InvokeStateChangeIterator &InvokeStateChangeIterator::scan() {
 ///       imagerel32 LabelLPad;        // Zero means __finally.
 ///     } Entries[NumEntries];
 ///   };
-void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
+MCSymbol *WinException::emitCSpecificHandlerTable(const MachineFunction *MF,
+                                                  bool IsCE) {
   auto &OS = *Asm->OutStreamer;
   MCContext &Ctx = Asm->OutContext;
   const WinEHFuncInfo &FuncInfo = *MF->getWinEHFuncInfo();
@@ -570,8 +571,13 @@ void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
         GlobalValue::dropLLVMManglingEscape(MF->getFunction().getName());
     MCSymbol *ParentFrameOffset =
         Ctx.getOrCreateParentFrameOffsetSymbol(FLinkageName);
+    // Windows CE: the CE ARM unwinder computes the establisher frame as the
+    // SP at function entry (the prolog is reverse-executed; see CE's
+    // unwind.c ArmVirtualUnwind), so the frame offset is the stack size
+    // rather than SEHSetFrameOffset.
     const MCExpr *MCOffset =
-        MCConstantExpr::create(FuncInfo.SEHSetFrameOffset, Ctx);
+        IsCE ? MCConstantExpr::create(MF->getFrameInfo().getStackSize(), Ctx)
+             : MCConstantExpr::create(FuncInfo.SEHSetFrameOffset, Ctx);
     Asm->OutStreamer->emitAssignment(ParentFrameOffset, MCOffset);
   }
 
@@ -584,6 +590,17 @@ void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
   const MCExpr *LabelDiff = getOffset(TableEnd, TableBegin);
   const MCExpr *EntrySize = MCConstantExpr::create(16, Ctx);
   const MCExpr *EntryCount = MCBinaryExpr::createDiv(LabelDiff, EntrySize, Ctx);
+
+  // Windows CE: the PDATA_EH pair's handler-data pointer must point at the
+  // count word (like UNWIND_INFO.ExceptionData on x64), so label that
+  // position.
+  MCSymbol *HandlerData = nullptr;
+  if (IsCE) {
+    HandlerData =
+        Ctx.createTempSymbol("ce_handlerdata", /*AlwaysAddSuffix=*/true);
+    OS.emitLabel(HandlerData);
+  }
+
   AddComment("Number of call sites");
   OS.emitValue(EntryCount, 4);
 
@@ -616,6 +633,8 @@ void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
   }
 
   OS.emitLabel(TableEnd);
+
+  return HandlerData;
 }
 
 void WinException::emitSEHActionsForRange(const WinEHFuncInfo &FuncInfo,
@@ -646,10 +665,13 @@ void WinException::emitSEHActionsForRange(const WinEHFuncInfo &FuncInfo,
       ExceptOrNull = create32bitRef(Handler->getSymbol());
     }
 
+    // create32bitRef picks the addressing per target: image-relative
+    // (IMGREL32) on 64-bit targets, absolute ADDR32 on 32-bit ones -- the
+    // Windows CE scope-table format has no image-relative form.
     AddComment("LabelStart");
-    OS.emitValue(getLabel(BeginLabel), 4);
+    OS.emitValue(create32bitRef(BeginLabel), 4);
     AddComment("LabelEnd");
-    OS.emitValue(getLabel(EndLabel), 4);
+    OS.emitValue(create32bitRef(EndLabel), 4);
     AddComment(UME.IsFinally ? "FinallyFunclet" : UME.Filter ? "FilterFunction"
                                                              : "CatchAll");
     OS.emitValue(FilterOrFinally, 4);
@@ -1338,131 +1360,17 @@ void WinException::emitCLRExceptionTable(const MachineFunction *MF) {
 // Windows CE SEH scope table emission
 //===----------------------------------------------------------------------===//
 
-namespace {
-void emitCESEHActionsForRange(AsmPrinter &Asm, const WinEHFuncInfo &FuncInfo,
-                              const MCSymbol *BeginLabel,
-                              const MCSymbol *EndLabel, int State) {
-  auto &OS = *Asm.OutStreamer;
-  MCContext &Ctx = Asm.OutContext;
-  bool VerboseAsm = OS.isVerboseAsm();
-  auto AddComment = [&](const Twine &Comment) {
-    if (VerboseAsm)
-      OS.AddComment(Comment);
-  };
-
-  assert(BeginLabel && EndLabel);
-  while (State != -1) {
-    const SEHUnwindMapEntry &UME = FuncInfo.SEHUnwindMap[State];
-    const MCExpr *FilterOrFinally;
-    const MCExpr *ExceptOrNull;
-    auto *Handler = cast<MachineBasicBlock *>(UME.Handler);
-    // Windows CE tables use absolute addresses (ADDR32), not the
-    // image-relative IMGREL32 references of the x64 table.
-    if (UME.IsFinally) {
-      FilterOrFinally =
-          MCSymbolRefExpr::create(getMCSymbolForMBB(&Asm, Handler), Ctx);
-      ExceptOrNull = MCConstantExpr::create(0, Ctx);
-    } else {
-      // For an except, the filter can be 1 (catch-all) or a function label.
-      // Cast both ternary arms to const MCExpr*: MCSymbolRefExpr::create and
-      // MCConstantExpr::create return distinct derived pointer types, so the
-      // conditional expression needs an explicit common type.
-      FilterOrFinally =
-          UME.Filter
-              ? static_cast<const MCExpr *>(MCSymbolRefExpr::create(
-                    Asm.getSymbol(UME.Filter), Ctx))
-              : static_cast<const MCExpr *>(MCConstantExpr::create(1, Ctx));
-      ExceptOrNull =
-          MCSymbolRefExpr::create(Handler->getSymbol(), Ctx);
-    }
-
-    AddComment("LabelStart");
-    OS.emitValue(MCSymbolRefExpr::create(BeginLabel, Ctx), 4);
-    AddComment("LabelEnd");
-    OS.emitValue(MCSymbolRefExpr::create(EndLabel, Ctx), 4);
-    AddComment(UME.IsFinally ? "FinallyFunclet"
-                             : UME.Filter ? "FilterFunction" : "CatchAll");
-    OS.emitValue(FilterOrFinally, 4);
-    AddComment(UME.IsFinally ? "Null" : "ExceptionHandler");
-    OS.emitValue(ExceptOrNull, 4);
-
-    assert(UME.ToState < State && "states should decrease");
-    State = UME.ToState;
-  }
-}
-} // namespace
-
+// The Windows CE variant of the __C_specific_handler scope table: absolute
+// (ADDR32) entries instead of the x64 IMGREL32 ones, a labeled handler-data
+// word for the PDATA_EH pair, and the stack size as the parent-frame offset.
+// Everything else (entry count via label arithmetic, the denormalized invoke
+// walk, the 4-word entries) is exactly emitCSpecificHandlerTable's existing
+// emission, driven through IsCE.
+//
+// Kept as a free function because ARMAsmPrinter (lib/Target/ARM) does not
+// include this lib-local header; see ARMAsmPrinter::emitCEHandlerData.
 MCSymbol *llvm::emitCESpecificHandlerTable(AsmPrinter &Asm,
                                            const MachineFunction &MF) {
-  auto &OS = *Asm.OutStreamer;
-  MCContext &Ctx = Asm.OutContext;
-  const WinEHFuncInfo &FuncInfo = *MF.getWinEHFuncInfo();
-
-  bool VerboseAsm = OS.isVerboseAsm();
-  auto AddComment = [&](const Twine &Comment) {
-    if (VerboseAsm)
-      OS.AddComment(Comment);
-  };
-
-  // SEH helpers (outlined filters/finallys) receive the establisher frame
-  // from the CE runtime, which the CE ARM unwinder computes as the SP at
-  // function entry (the prologue is reverse-executed; see CE's unwind.c
-  // ArmVirtualUnwind).  llvm.localaddress must return that same value on the
-  // normal path, i.e. SP (after the prologue) + frame size.  Assign the frame
-  // size to the parent-frame-offset symbol that the ARM localaddress
-  // lowering adds to SP.  This mirrors the x64 emitCSpecificHandlerTable
-  // (which assigns SEHSetFrameOffset), with StackSize as the CE equivalent.
-  StringRef FLinkageName =
-      GlobalValue::dropLLVMManglingEscape(MF.getFunction().getName());
-  MCSymbol *ParentFrameOffset =
-      Ctx.getOrCreateParentFrameOffsetSymbol(FLinkageName);
-  Asm.OutStreamer->emitAssignment(
-      ParentFrameOffset,
-      MCConstantExpr::create(MF.getFrameInfo().getStackSize(), Ctx));
-
-  // Use the assembler to compute the number of table entries through label
-  // difference and division (same denormalized-table layout as the x64
-  // __C_specific_handler table, but with absolute addresses).
-  MCSymbol *TableBegin =
-      Ctx.createTempSymbol("lsda_begin", /*AlwaysAddSuffix=*/true);
-  MCSymbol *TableEnd =
-      Ctx.createTempSymbol("lsda_end", /*AlwaysAddSuffix=*/true);
-  MCSymbol *HandlerData =
-      Ctx.createTempSymbol("ce_handlerdata", /*AlwaysAddSuffix=*/true);
-  const MCExpr *LabelDiff = MCBinaryExpr::createSub(
-      MCSymbolRefExpr::create(TableEnd, Ctx),
-      MCSymbolRefExpr::create(TableBegin, Ctx), Ctx);
-  const MCExpr *EntrySize = MCConstantExpr::create(16, Ctx);
-  const MCExpr *EntryCount = MCBinaryExpr::createDiv(LabelDiff, EntrySize, Ctx);
-
-  // The handler-data pointer of a PDATA_EH pair must point at the count word
-  // (like UNWIND_INFO.ExceptionData on x64), so label that position.
-  OS.emitLabel(HandlerData);
-  AddComment("Number of call sites");
-  OS.emitValue(EntryCount, 4);
-
-  OS.emitLabel(TableBegin);
-
-  // Iterate over all the invoke try ranges (identical walk to
-  // WinException::emitCSpecificHandlerTable).
-  const MCSymbol *LastStartLabel = nullptr;
-  int LastEHState = -1;
-  MachineFunction::const_iterator End = MF.end();
-  MachineFunction::const_iterator Stop = std::next(MF.begin());
-  while (Stop != End && !Stop->isEHFuncletEntry())
-    ++Stop;
-  for (const auto &StateChange :
-       InvokeStateChangeIterator::range(FuncInfo, MF.begin(), Stop)) {
-    // Emit all the actions for the state we just transitioned out of
-    // if it was not the null state
-    if (LastEHState != -1)
-      emitCESEHActionsForRange(Asm, FuncInfo, LastStartLabel,
-                               StateChange.PreviousEndLabel, LastEHState);
-    LastStartLabel = StateChange.NewStartLabel;
-    LastEHState = StateChange.NewState;
-  }
-
-  OS.emitLabel(TableEnd);
-
-  return HandlerData;
+  WinException WE(&Asm);
+  return WE.emitCSpecificHandlerTable(&MF, /*IsCE=*/true);
 }

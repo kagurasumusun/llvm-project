@@ -25,12 +25,12 @@ class MCSection;
 struct WinEHFuncInfo;
 
 /// Emit the Windows CE SEH scope table for \p MF (the table consumed by the
-/// CE kernel's __C_specific_handler): a DWORD entry count followed by
-/// 16-byte {BeginAddress, EndAddress, HandlerAddress, JumpTarget} entries,
-/// all with absolute addresses (ADDR32). Unlike the x64 table, no image-
-/// relative relocations are used and no parent-frame-offset assignment is
-/// emitted. Returns the symbol at the start of the table (the count word),
-/// which a PDATA_EH pair's second word (handler data pointer) must point at.
+/// CE kernel's __C_specific_handler).  This is emitCSpecificHandlerTable's
+/// existing layout driven with IsCE: a DWORD entry count (labeled, the
+/// PDATA_EH handler-data pointer aims at it) followed by 16-byte
+/// {BeginAddress, EndAddress, HandlerAddress, JumpTarget} entries, all with
+/// absolute addresses (ADDR32 -- 32-bit targets are not useImageRel32); the
+/// parent-frame-offset assignment is the stack size.
 MCSymbol *emitCESpecificHandlerTable(AsmPrinter &Asm,
                                      const MachineFunction &MF);
 
@@ -62,7 +62,13 @@ class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
   /// The list of symbols to add to the ehcont section
   std::vector<const MCSymbol *> EHContTargets;
 
-  void emitCSpecificHandlerTable(const MachineFunction *MF);
+  /// Emit the __C_specific_handler scope table.  \p IsCE selects the
+  /// Windows CE variant: absolute (ADDR32) entries (32-bit targets have
+  /// useImageRel32 == false), the count word labeled for the PDATA_EH
+  /// handler-data pointer, and the stack size as the parent-frame offset.
+  /// Returns the handler-data symbol (null when !IsCE).
+  MCSymbol *emitCSpecificHandlerTable(const MachineFunction *MF,
+                                      bool IsCE = false);
 
   void emitSEHActionsForRange(const WinEHFuncInfo &FuncInfo,
                               const MCSymbol *BeginLabel,
