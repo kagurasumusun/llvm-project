@@ -655,17 +655,8 @@ public:
                         MacroBuilder &Builder) const override {
     WindowsX86_32TargetInfo::getTargetDefines(Opts, Builder);
     addWinCEDefines(getTriple(), Builder);
-    // CeGCC gcc/config/i386/mingw32ce.h EXTRA_OS_CPP_BUILTINS.
-    Builder.defineMacro("__CEGCC_VERSION__", "0x090909");
-    Builder.defineMacro("__COREDLL__");
-    Builder.defineMacro("__MINGW32__");
-    Builder.defineMacro("WIN32");
-    Builder.defineMacro("WINNT");
     // CeGCC gcc/config/i386/mingw32ce.h TARGET_OS_CPP_BUILTINS.
     Builder.defineMacro("_X86_", "1");
-    // Real Windows CE builds are Unicode-only.
-    Builder.defineMacro("_UNICODE");
-    Builder.defineMacro("UNICODE");
     // Unlike the CeGCC ARM flavor (which neutralizes stdcall entirely),
     // the i386 flavor redefines the calling-convention keywords to cdecl:
     // "This is what VS2008 does in windef.h when compiling for WinCE."

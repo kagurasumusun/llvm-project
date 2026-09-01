@@ -306,6 +306,22 @@ void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder) {
   // CeGCC/CeGCC-header compatibility: the mingwrt and w32api sources
   // guard their WinCE support behind this macro.
   Builder.defineMacro("__MINGW32CE__");
+  // The macros every CeGCC flavor shares (kept here so the ARM and x86
+  // target infos cannot drift apart).  w32api's include/cegcc.h.in
+  // hard-errors ("__CEGCC_VERSION__ isn't defined by the compiler") unless
+  // this is predefined; it then #undefs and recomputes it from
+  // __CEGCC_VERSION_{MAJOR,MINOR,PATCHLEVEL}__, so the numeric value
+  // predefined here is never actually observed by user code.  Kept in sync
+  // with the historical CeGCC value.  Real Windows CE builds are
+  // Unicode-only (there is no ANSI Win32 subset on the platform), and
+  // mingwrt/w32api's headers assume _UNICODE/UNICODE are always set.
+  Builder.defineMacro("__CEGCC_VERSION__", "0x090909");
+  Builder.defineMacro("__COREDLL__");
+  Builder.defineMacro("__MINGW32__");
+  Builder.defineMacro("WIN32");
+  Builder.defineMacro("WINNT");
+  Builder.defineMacro("_UNICODE");
+  Builder.defineMacro("UNICODE");
 }
 
 } // namespace targets
