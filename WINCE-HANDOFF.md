@@ -453,10 +453,12 @@ C++ 例外が EHABI を使う限り C++ WinEH 対応は不要。
 1. **実ビルド + lit 実行**(本セッションでは対象外)。CI を回して WinCE
    テスト一式を通すことが最優先。特に `lld/test/COFF/wince-pdata.test` の
    byte 期待値は**手計算で再導出したもの**であり要検証。
-2. armasm Path B の完全化。**第 2 弾で主要部分を実装済み(§12)**。
-   残りは `%`/`&`/`n_` 数値リテラル、`DCFS`/`DCFD`、`GBLA`/`SETA`、
-   `MACRO`/`MEND`、`IF`/`ENDIF`。実用経路は
-   `utils/wince/armasm/armasm-convert.py`(Path A)のまま。
+2. armasm Path B の完全化 → **第 3 弾で完了(§15)**。`%`/`&`/`n_` 数値リテラル、
+   `DCFS`/`DCFD`、`GBLA`/`SETA`、`IF`/`ELSEIF`/`ELSE`/`ENDIF`、`DCBU`〜`DCFDU`
+   は実装・llvm-mc 実走で検証済み。残るのはマクロ処理系
+   (`MACRO`/`MEND`、`WHILE`/`WEND`、`GET`/`INCLUDE`、`:DEF:`、`SETS`)だけで、
+   それは **converter 側で既に実装済み**(`cellvm-build:armasm/armasm-convert.py`。
+   本リポジトリの `llvm/utils/wince/...` という経路は実在しないので注意)。
 3. x86 CE の SEH → **非目標**。B10 は診断のみ(そのまま維持)。x86 は本ツールチェーンの対象外。
 4. `WINEH-ABI-FACTS.md` §4g の `dwSlot` 値など、private リポ
    `wince-source` 由来の前提の一次確認(今回は未参照)。
@@ -499,11 +501,18 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
   ソースはラベルを単独行か `PROC`/データ系の前に置く書き方が殆どなので
   実害は小さいと判断したが、**完全な armasm 互換ではない**。
 
-### 12.2 未実装(Path B)
+### 12.2 未実装(Path B) — **2026-09-01 更新: 下記は第 2 弾時点の記述**
 
-アラインメント未調整の `DCFU`/`DCFSU`/`DCFDU`/`DCQU`、`EQU` の文字列・
-論理演算子、`GBLA`/`SETA`、`MACRO`/`MEND`、`IF`/`ENDIF`。このためドライバは
-既定で armasm に切り替えない(第 1 弾の判断を維持)。
+実装済み: `DCBU`/`DCWU`/`DCDU`/`DCQU`/`DCFU`/`DCFSU`/`DCFDU`(※LLVM MC は
+そもそもデータ出力を整列しない。`emitValue` に整列引数は無く、
+`MCObjectStreamer::emitValueImpl` は行位置と範囲検査のみ = 「アラインメント未調整」
+という差は**存在しない**。よって U 版は同値の名前別として実装)、
+`GBLA`/`LCLA` 系宣言と `SETA`/`SETL` 代入、`IF`/`ELSEIF`/`ELSE`/`ENDIF`
+(汎用 `.if` 系統名)。
+今も未実装: `MACRO`/`MEND`、`WHILE`/`WEND`、`GET`/`INCLUDE`、`IF :DEF:`、
+`SETS`、`EQU` の文字列・論理演算子、`name!n` 配列要素。うちマクロ処理系は
+**無視せず診断**する(§15)。このためドライバは既定で armasm に切り替えない
+(第 1 弾の判断を維持)。
 
 ### 12.3 追加で気をつけたい点
 
@@ -628,3 +637,37 @@ Phase 2 第 1 弾で「ディスパッチが届かない」を直しただけで
 - **wince-sysroot のベンダリング差分はすべてコンポーネントリポジトリへ反映済み**: push 前の diff 検証で、各コンポーネントの push 後ツリーが旧ベンダーツリーと完全一致(CVS メタデータと README.llvmvendor.md を除く)を確認。
 - **cellvm-build の CI がフルパイプラインの唯一の実行者**: llvm-project 側 CI はコンパイラゲートのみ。Stage 5(zlib→…→EasyRPG Player)の CI 反復は cellvm-build 側で継続。
 - **認証**: push はすべてユーザー提供 PAT(一時的環境変数経由、記録なし)。
+
+## 15. Phase 2 第 3 弾 (2026-09-01): armasm Path B の残構文を「既存経路」で実装
+
+**方針**: 新しい機構を作らない。`DCxU`・`GBLA`・`SETA`・`IF` 系は
+**汎用 AsmParser が既に持つディレクティブと同じ経路**で処理した。
+- `addAliasForDirective` は `AsmParser::DirectiveKindMap` にキーを足すだけ
+  (`lib/MC/MCParser/AsmParser.cpp` の実装は 1 行)。参照は
+  **文の先頭トークンを lower しただけの文字列**で行われる
+  (`parseStatement` 内 `DirectiveKindMap.find(IDVal.lower())`)ため、
+  ドット無し `IF`/`ELSEIF`/`ELSE`/`ENDIF`/`IFDEF`/`ifndef` がそのまま汎用実装に届く。
+  汎用の条件アセンブリは `TheCondState` で**入れ子と未実行分岐のスキップ**を管理し、
+  その判定は拡張ディスパッチより**前**にある。よって armasm 側に
+  スキップ機構は不要(誤って `.else`/`.endif` を無視ハンドラで潰すと入れ子が壊れる)。
+- `DCxU` は汎用 `.byte/.short/...` 相当だが、**ラベル前置形**(`a DCDU 4`)は
+  拡張の登録表(`lookupMasmDirective`)にしか登録されないため、拡張ハンドラとして
+  実装し `parseDirectiveDataValue`/`parseDirectiveDCF` の薄いラッパにした。
+- `GBLA`/`LCLA` は「宣言=0 代入」(= `.set` と同じ `emitAssignment`)、
+  `SETA`/`SETL` は `name EQU expr` 用に**フォークが既に持っていた**
+  `parseStatement` の代入キーワード分岐を 1 分岐に拡張して
+  `parseAssignment(Kind::Set)` に流す。`EQU` は `Kind::Equiv` に変更し、
+  `.set` と同じ「多重定義を弾かない」経路から `.equ` 相当の再定義エラーに修正
+  (実測: `e EQU 1` + `e EQU 2` → `error: redefinition of 'e'`)。
+**意図的に外した**もの: `SETB TRUE/FALSE`(汎用式は TRUE/FALSE を読めず、
+通すと**黙って 0 になる**実測があった。よってキーワードから外し、既存のエラーにする)。
+`IF :DEF:` も式として通らない(実測 `unknown token in expression`)ので、
+同義の `IFDEF name` を別名で提供して回避経路を示す。
+**マクロ処理系は診断化**: `IgnoreDirective` で黙って無視していた
+`WHILE`/`WEND`/`MACRO`/`MEND`/`GET`/`INCLUDE`/`LTORG` は
+`parseDirectiveNeedsMacroPass` が名指しでエラーに変換(無視は誤ったプログラムを
+組み立てるため)。
+**検証**: ローカルに ARM のみ llvm-mc/llvm-readobj/llvm-objdump/FileCheck を実ビルドし、
+`test/MC/ARM/wince-armasm{,-labels,-data,-cond}.s` の RUN 行を全て実走して PASS。
+新規テストの byte 期待値は**すべて objdump 実出力から機械生成**(手計算不可)。
+CI のゲートリスト(`.github/workflows/main.yml`)にも 2 ファイルを追加済み。
