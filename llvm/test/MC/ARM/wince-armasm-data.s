@@ -1,7 +1,7 @@
 @ RUN: llvm-mc -triple arm-pc-wince -masm-armasm -filetype=obj -o %t.o %s
 @ RUN: llvm-objdump -s --section=.data %t.o | FileCheck %s
 @ RUN: llvm-readobj --symbols %t.o | FileCheck %s --check-prefix=SYM
-@ RUN: llvm-readobj --symbols %t.o | grep 'Name:' ; false
+@ RUN: llvm-readobj --symbols %t.o | false
 
 @ The armasm data and variable statements, and where their implementation
 @ lives - nothing here has a private parser path of its own:
