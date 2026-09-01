@@ -18,10 +18,13 @@
 @ are deliberately not checked: this file has not yet been assembled by a
 @ real build, so byte-level expectations would be guesses.
 @
-@ Not handled by the in-tree parser yet: the unaligned DCFU/DCFSU/DCFDU/DCQU
-@ variants, GBLA/SETA variables, MACRO/MEND and IF/ENDIF.  Full Platform
-@ Builder sources are still best translated to GNU syntax by
-@ utils/wince/armasm/armasm-convert.py.
+@ Covered by sibling tests, not this file: DCFU/DCFSU/DCFDU/DCQU and the other
+@ '*U' data forms, GBLA/LCLA and SETA, and IF/ELSEIF/ELSE/ENDIF
+@ (wince-armasm-data.s, wince-armasm-cond.s).  Still not handled by the in-tree
+@ parser, and diagnosed rather than ignored: armasm's macro processor
+@ (MACRO/MEND, WHILE/WEND, GET/INCLUDE) and the SETS/:DEF: spellings that go
+@ with it - those need the converter in the toolchain builder
+@ (kagurasumusun/cellvm-build:armasm/armasm-convert.py).
 
 @ CHECK:      Name: armasm_proc
 @ CHECK:      StorageClass: External

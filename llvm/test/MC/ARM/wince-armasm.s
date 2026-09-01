@@ -8,11 +8,16 @@
 @ spelling), ALIGN, EXPORT, IMPORT and END, on top of the regular ARM
 @ instruction parser.
 @
-@ It deliberately does not claim more: armasm's own statement syntax
-@ (column-0 labels without a trailing ':', ';' comments, DCD/DCB/SPACE/EQU,
-@ macros, conditional assembly) is NOT handled here.  Full Platform Builder
-@ sources are translated to GNU syntax by
-@ utils/wince/armasm/armasm-convert.py; see utils/wince/README.md.
+@ It deliberately does not claim more than it implements: armasm's statement
+@ syntax (a label in front of a directive with no trailing ':', ';' comments,
+@ DCD/DCB/SPACE/EQU and the '*U' data spellings, GBLA/SETA variables,
+@ IF/ELSEIF/ELSE/ENDIF) is covered by wince-armasm-labels.s,
+@ wince-armasm-data.s and wince-armasm-cond.s.  What is still not handled here
+@ is armasm's macro processor (MACRO/MEND, WHILE/WEND, GET/INCLUDE), which is
+@ what the converter in the toolchain builder
+@ (kagurasumusun/cellvm-build:armasm/armasm-convert.py) expands before the
+@ file reaches this parser; those directives are diagnosed rather than
+@ ignored.
 
 @ The AREA name is the pipe form Platform Builder uses; CODE maps it to a
 @ CNT_CODE | MEM_EXECUTE | MEM_READ section (no synthesized .text.<name>).
