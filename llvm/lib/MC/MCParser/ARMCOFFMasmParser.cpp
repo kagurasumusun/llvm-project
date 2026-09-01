@@ -31,7 +31,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringRef.h"
@@ -105,11 +104,14 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
   /// PROC/ENDP and GBLA the current identifier is the name in every form
   /// the directive accepts.
   bool tokenIsInfixName() {
-    AsmToken Next;
-    MutableArrayRef<AsmToken> Buf(Next);
-    if (getLexer().peekTokens(Buf) == 0)
-      return false;
-    return !Next.is(AsmToken::EndOfStatement) && !Next.is(AsmToken::Comma);
+    // A Lex/UnLex round-trip, not peekTokens: MasmParser hands the infix
+    // form to the directive with the NAME pushed back through
+    // AsmLexer::UnLex, and peekTokens lexes from the raw buffer - it never
+    // sees the un-lexed token, so the peek would read what follows the
+    // first operand instead of what follows the NAME.
+    AsmToken T = Lex();
+    getLexer().UnLex(T);
+    return !T.is(AsmToken::EndOfStatement) && !T.is(AsmToken::Comma);
   }
 
   /// Emit the leading NAME of the current "NAME <directive>" statement as
@@ -395,9 +397,11 @@ bool ARMCOFFMasmParser::parseDirectiveProc(StringRef Directive, SMLoc Loc) {
   // current token) and "PROC NAME" both present the name as the current
   // token; a bare "PROC" has none.
   MCSymbol *Sym = nullptr;
-  if (getLexer().is(AsmToken::Identifier) && getParser().parseSymbol(Sym))
+  if (getLexer().is(AsmToken::Identifier))
+    if (getParser().parseSymbol(Sym))
+      return Error(Loc, "expected identifier for procedure");
+  if (!Sym)
     return Error(Loc, "expected identifier for procedure");
-  bool LabelEmitted = Sym != nullptr;
 
   // Optional [FRAME:handler] etc. - skip to end (CE sources rarely use it;
   // ARM32 CE has no SEH unwinding records).
@@ -411,8 +415,10 @@ bool ARMCOFFMasmParser::parseDirectiveProc(StringRef Directive, SMLoc Loc) {
     COFFSym->setExternal(false);
   COFFSym->setType(COFF::IMAGE_SYM_DTYPE_FUNCTION
                    << COFF::SCT_COMPLEX_TYPE_SHIFT);
-  if (!LabelEmitted)
-    getStreamer().emitLabel(Sym, Loc);
+  // Under MasmParser no machinery has emitted the NAME label for us (the
+  // infix form only un-lexes it back), so "NAME PROC" defines it here -
+  // and "PROC NAME" did too.
+  getStreamer().emitLabel(Sym, Loc);
   CurrentProcedures.push_back(Sym->getName());
   return false;
 }
