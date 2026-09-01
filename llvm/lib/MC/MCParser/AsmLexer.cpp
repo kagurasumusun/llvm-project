@@ -1039,11 +1039,9 @@ AsmToken AsmLexer::LexToken() {
     }
     return AsmToken(AsmToken::Exclaim, StringRef(TokStart, 1));
   case '%':
-    if (LexMotorolaIntegers && (*CurPtr == '0' || *CurPtr == '1')) {
-      return LexDigit();
-    }
-    // armasm binary integer: %[01]+
-    if (LexArmasmIntegers && (*CurPtr == '0' || *CurPtr == '1'))
+    // Motorola (%01010110) and armasm (%1010) share the binary-literal form.
+    if ((LexMotorolaIntegers || LexArmasmIntegers) &&
+        (*CurPtr == '0' || *CurPtr == '1'))
       return LexDigit();
     return AsmToken(AsmToken::Percent, StringRef(TokStart, 1));
   case '/':
