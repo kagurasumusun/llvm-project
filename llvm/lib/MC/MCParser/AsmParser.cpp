@@ -1986,11 +1986,29 @@ bool AsmParser::parseStatement(ParseStatementInfo &Info,
     Lex();
     return parseAssignment(IDVal, AssignmentKind::Equal);
   }
-  if (MasmLabelExt && Lexer.is(AsmToken::Identifier) &&
-      getTok().getString().equals_insensitive("equ")) {
-    Lex();
-    return parseAssignment(IDVal, AssignmentKind::Set);
+  // armasm writes the assignment keyword *between* the name and the value:
+  // "name EQU 4", "count SETA count+1".  Consuming the keyword here and
+  // handing the rest to the ordinary assignment path is what makes those
+  // names behave like the .equ/.set symbols the generic parser already
+  // supports - including re-reading the value in a later expression, which is
+  // the whole point of an armasm variable.
+  if (MasmLabelExt && Lexer.is(AsmToken::Identifier)) {
+    StringRef Kw = getTok().getString();
+    if (Kw.equals_insensitive("equ") || Kw.equals_insensitive("seta") ||
+        Kw.equals_insensitive("setl")) {
+      // EQU binds a constant (an armasm name defined twice is an error);
+      // SETA/SETL rebind, exactly like .set does.  SETB is left out on
+      // purpose: its value is TRUE/FALSE, which is not an expression here, and
+      // letting it through would silently bind zero.
+      AssignmentKind Kind =
+          Kw.equals_insensitive("equ") ? AssignmentKind::Equiv
+                                       : AssignmentKind::Set;
+      Lex(); // the keyword; parseAssignment reads the value and the EOL
+      return parseAssignment(IDVal, Kind);
+    }
   }
+
+
 
   // If macros are enabled, check to see if this is a macro instantiation.
   if (areMacrosEnabled())

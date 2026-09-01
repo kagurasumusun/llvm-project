@@ -74,6 +74,22 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
   bool parseDirectiveSpace(StringRef, SMLoc);
   bool parseDirectiveFill(StringRef, SMLoc);
   bool parseDirectiveEqu(StringRef, SMLoc);
+  /// GBLA/GBLL/GBLS and LCLA/LCLL/LCLS: armasm's variable storage.  Declaring
+  /// is exactly "name = 0", which is what makes the name readable from any
+  /// expression (SETA below, a DCD operand, an IF condition).
+  bool parseDirectiveVarDecl(StringRef, SMLoc);
+  /// DCDU/DCWU/DCBU/DCQU/DCFU/DCFSU/DCFDU: armasm's data forms that need not
+  /// sit at an aligned address.  LLVM MC never aligns a data emission, so
+  /// these are the aligned spellings with armasm's name, registered so that
+  /// the "name DCDU 4" label form works too.
+  bool parseDirectiveDCBU(StringRef, SMLoc);
+  bool parseDirectiveDCWU(StringRef, SMLoc);
+  bool parseDirectiveDCDU(StringRef, SMLoc);
+  bool parseDirectiveDCQU(StringRef, SMLoc);
+  bool parseDirectiveDCFU(StringRef, SMLoc);
+  bool parseDirectiveDCFDU(StringRef, SMLoc);
+  /// WHILE/WEND/MACRO/MEND/GET/INCLUDE: armasm's macro processor.
+  bool parseDirectiveNeedsMacroPass(StringRef, SMLoc);
   /// armasm's "name PROC" / "name DCD 1" define `name` right there, but the
   /// label in front of ENDP/ENDFUNC and EQU names an entity defined
   /// elsewhere, so it must not be emitted a second time.
@@ -125,8 +141,42 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveSpace>("space");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveFill>("fill");
     addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveEqu>("equ");
+    for (const char *D : {"gbla", "gbll", "gbls", "lcla", "lcll", "lcls"})
+      addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveVarDecl>(D);
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCBU>("dcbu");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCWU>("dcwu");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCDU>("dcdu");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCQU>("dcqu");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCFU>("dcfu");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCFS>("dcfsu");
+    addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveDCFDU>("dcfdu");
 
-    // armasm directives with no object-file effect.
+    // armasm's conditional assembly.  .if/.else/.endif already carry the
+    // nesting *and* the "skip the untaken branch" handling, and the generic
+    // conditional lookup runs on the lowercased first token of the statement
+    // - which for this dialect is the dotless name - so spelling these as
+    // aliases is enough.  (The data forms below cannot use an alias: the
+    // generic directive table is only consulted for names starting with '.',
+    // and everything dotless is ours to dispatch.)
+    getParser().addAliasForDirective("if", ".if");
+    getParser().addAliasForDirective("elseif", ".elseif");
+    getParser().addAliasForDirective("else", ".else");
+    getParser().addAliasForDirective("endif", ".endif");
+    // armasm spells "is this name defined?" as IF :DEF: name, whose ': ' the
+    // expression grammar cannot read.  The equivalent test in this syntax is
+    // the dotless spelling of .ifdef, which needs no other change.
+    getParser().addAliasForDirective("ifdef", ".ifdef");
+    getParser().addAliasForDirective("ifndef", ".ifndef");
+
+    // armasm's macro processor has no counterpart in a one-pass assembler,
+    // and silently dropping the statements - which is what the no-op handler
+    // below would do - would assemble a program the source does not describe.
+    for (const char *D :
+         {"while", "wend", "macro", "mend", "get", "include", "ltorg"})
+      addDirectiveHandler<&ARMCOFFMasmParser::parseDirectiveNeedsMacroPass>(D);
+
+    // armasm directives with no object-file effect (these really are
+    // annotations: they cannot change the emitted bytes).
     for (const char *D :
          {"preserve8", "require8", "require", "keep", "nocrossref", "nofp",
           "rout", "opt", "ttl", "subt", "code32", "code16", "arm", "thumb",
@@ -153,6 +203,65 @@ public:
   ARMCOFFMasmParser() = default;
 };
 
+bool ARMCOFFMasmParser::parseDirectiveDCBU(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 1);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCWU(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 2);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCDU(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 4);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCQU(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDataValue(Directive, Loc, 8);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCFU(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDCF(Directive, Loc, false);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveDCFDU(StringRef Directive, SMLoc Loc) {
+  return parseDirectiveDCF(Directive, Loc, true);
+}
+
+bool ARMCOFFMasmParser::parseDirectiveVarDecl(StringRef Directive, SMLoc Loc) {
+  // Both spellings occur in CE sources: "count GBLA 4" (name in front, and
+  // then the ordinary label handling has already taken it) and "GBLA count"
+  // (name after the keyword, which the extension's own dispatch leaves to us).
+  MCSymbol *Sym = getParser().takeMasmLabel();
+  if (!Sym) {
+    StringRef Name;
+    if (getParser().parseIdentifier(Name))
+      return Error(Loc, "expected a name after " + Directive);
+    Sym = getContext().getOrCreateSymbol(Name);
+  }
+
+  // A trailing ",N" is the element count of an array.  The elements are
+  // separate armasm variables written NAME!n, which the expression grammar
+  // cannot spell, so only the count is consumed here: the line is read
+  // correctly and the scalar exists, which is what driver sources use.
+  while (getLexer().isNot(AsmToken::EndOfStatement))
+    Lex();
+
+  getStreamer().emitAssignment(Sym, MCConstantExpr::create(0, getContext()));
+  // armasm variables are reassigned by SETA; only a symbol marked
+  // redefinable survives the check the generic assignment path applies.
+  Sym->setRedefinable(true);
+  return false;
+}
+
+bool ARMCOFFMasmParser::parseDirectiveNeedsMacroPass(StringRef Directive,
+                                                     SMLoc Loc) {
+  while (getLexer().isNot(AsmToken::EndOfStatement))
+    Lex();
+  return Error(Loc, "'" + Directive + "' is armasm's macro processor, which "
+                                    "llvm-mc does not implement; translate the "
+                                    "file with "
+                                    "cellvm-build:armasm/armasm-convert.py");
+}
 } // end anonymous namespace
 
 bool ARMCOFFMasmParser::parseSectionSwitch(StringRef SectionName,
