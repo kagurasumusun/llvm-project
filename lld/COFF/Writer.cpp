@@ -425,7 +425,19 @@ void OutputSection::splitECChunks() {
 // of type relType at address P.
 bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
                        MachineTypes machine) {
-  if (machine == ARMNT) {
+  if (machine == ARMNT || machine == IMAGE_FILE_MACHINE_ARM) {
+    // Windows on ARM (ARMNT) and Windows CE (IMAGE_FILE_MACHINE_ARM) share
+    // the Thumb branch range checks; the one ARM-mode-only relocation is
+    // A32 B/BL/BLX (IMAGE_REL_ARM_BRANCH24, Windows CE only): 24-bit
+    // word-aligned offset from PC+8, i.e. |s - (p + 8)| < 2^25 -- see
+    // applyBranch24A.  ARMNT never emits it (Thumb-only target).
+    if (relType == IMAGE_REL_ARM_BRANCH24) {
+      if (machine == IMAGE_FILE_MACHINE_ARM) {
+        int64_t diff = AbsoluteDifference(s, p + 8) + margin;
+        return isInt<26>(diff & ~3);
+      }
+      return true;
+    }
     int64_t diff = AbsoluteDifference(s, p + 4) + margin;
     switch (relType) {
     case IMAGE_REL_ARM_BRANCH20T:
@@ -433,28 +445,6 @@ bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
     case IMAGE_REL_ARM_BRANCH24T:
     case IMAGE_REL_ARM_BLX23T:
       return isInt<25>(diff);
-    default:
-      return true;
-    }
-  } else if (machine == IMAGE_FILE_MACHINE_ARM) {
-    // Windows CE ARM (interworking). A32 B/BL/BLX: 24-bit word-aligned
-    // offset from PC+8, i.e. |s - (p + 8)| < 2^25 - see applyBranch24A.
-    // Thumb BL/BLX (BRANCH24T/BLX23T): Thumb-2-shaped 24-bit encoding,
-    // PC+4, +/- 16 MB (applyBranch24T). BRANCH20T: +/- 1 MB.
-    switch (relType) {
-    case IMAGE_REL_ARM_BRANCH24: {
-      int64_t diff = AbsoluteDifference(s, p + 8) + margin;
-      return isInt<26>(diff & ~3);
-    }
-    case IMAGE_REL_ARM_BRANCH20T: {
-      int64_t diff = AbsoluteDifference(s, p + 4) + margin;
-      return isInt<21>(diff);
-    }
-    case IMAGE_REL_ARM_BRANCH24T:
-    case IMAGE_REL_ARM_BLX23T: {
-      int64_t diff = AbsoluteDifference(s, p + 4) + margin;
-      return isInt<25>(diff);
-    }
     default:
       return true;
     }
