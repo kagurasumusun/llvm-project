@@ -721,6 +721,7 @@ public:
 
 
   bool shouldUseLogicalShr() const { return UseLogicalShr; }
+  bool allowBareLabels() const { return AllowBareLabels; }
 
   bool shouldUseMotorolaIntegers() const { return UseMotorolaIntegers; }
 

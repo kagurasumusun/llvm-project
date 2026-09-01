@@ -2303,7 +2303,7 @@ bool MasmParser::parseStatement(ParseStatementInfo &Info,
   // (ARMCOFFMCAsmInfoGNU, the Windows CE assembly dialect); plain MASM
   // keeps requiring the colon, so an unknown lone mnemonic still reaches
   // the instruction parser and its diagnostic.
-  if (MAI.AllowBareLabels && ID.is(AsmToken::Identifier) &&
+  if (MAI.allowBareLabels() && ID.is(AsmToken::Identifier) &&
       getTok().is(AsmToken::EndOfStatement) &&
       getTargetParser().isLabel(ID)) {
     Lex(); // the end-of-statement
