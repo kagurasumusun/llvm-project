@@ -115,6 +115,14 @@ public:
   WinException(AsmPrinter *A);
   ~WinException() override;
 
+  /// Emit the Windows CE __C_specific_handler scope table (the private
+  /// IsCE path) and return the handler-data symbol for the PDATA_EH pair.
+  /// Entry point for ARMAsmPrinter's free-function wrapper, which exists
+  /// because lib/Target/ARM does not include this lib-local header.
+  MCSymbol *emitCEHandlerTable(const MachineFunction *MF) {
+    return emitCSpecificHandlerTable(MF, /*IsCE=*/true);
+  }
+
   /// Emit all exception information that should come after the content.
   void endModule() override;
 

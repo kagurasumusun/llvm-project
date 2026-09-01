@@ -1371,6 +1371,5 @@ void WinException::emitCLRExceptionTable(const MachineFunction *MF) {
 // include this lib-local header; see ARMAsmPrinter::emitCEHandlerData.
 MCSymbol *llvm::emitCESpecificHandlerTable(AsmPrinter &Asm,
                                            const MachineFunction &MF) {
-  WinException WE(&Asm);
-  return WE.emitCSpecificHandlerTable(&MF, /*IsCE=*/true);
+  return WinException(&Asm).emitCEHandlerTable(&MF);
 }
