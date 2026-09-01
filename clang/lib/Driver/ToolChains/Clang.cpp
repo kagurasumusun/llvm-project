@@ -8645,14 +8645,17 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
   getToolChain().addClangCC1ASTargetOptions(Args, CmdArgs);
 
   // armasm dialect (Windows CE Platform Builder sources): forwarded when it
-  // is asked for explicitly.  It is deliberately NOT the default for WinCE:
-  // the in-tree ARMCOFFMasmParser is a directive-level extension on top of
-  // the GNU parser (see llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp) and does
-  // not implement armasm's own statement syntax (column-0 labels without a
-  // trailing ':', ';' comments, macros, conditional assembly, or the
-  // 2_/&/numeric literal forms).  Real PB sources go through
-  // utils/wince/armasm/armasm-convert.py (Path A), which emits GNU syntax;
-  // forcing the dialect on for every .s would only risk mis-parsing those.
+  // is asked for explicitly.  It is deliberately NOT the default for WinCE.
+  // The in-tree ARMCOFFMasmParser (llvm/lib/MC/MCParser/ARMCOFFMasmParser.cpp)
+  // now covers armasm's statement syntax - ';' comments, a label in front of a
+  // directive, the data and '*U' data forms, EQU, GBLA/LCLA with SETA, and
+  // IF/ELSEIF/ELSE/ENDIF - but not its macro processor (MACRO/MEND,
+  // WHILE/WEND, GET/INCLUDE, and the IF :DEF: / SETS spellings that go with
+  // it), which the parser diagnoses rather than guesses at.  Real Platform
+  // Builder sources are macro-heavy, and those go through the converter in the
+  // toolchain builder (kagurasumusun/cellvm-build:armasm/armasm-convert.py),
+  // which expands them and emits GNU syntax; defaulting the dialect on for
+  // every .s would turn those files into diagnostics instead of objects.
   if (Arg *A = Args.getLastArg(options::OPT_masm_EQ)) {
     StringRef V = A->getValue();
     if (V == "armasm") {
