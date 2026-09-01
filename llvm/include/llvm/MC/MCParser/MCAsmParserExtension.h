@@ -17,7 +17,6 @@
 
 namespace llvm {
 
-class MCSymbol;
 class Twine;
 
 /// Generic interface for extending the MCAsmParser,
@@ -49,18 +48,6 @@ public:
   /// The extension should use the AsmParser interfaces to register its
   /// parsing routines.
   virtual void Initialize(MCAsmParser &Parser);
-
-  /// Emit the label that introduces a MASM-family statement of the form
-  /// "name <directive> ...", or deliberately skip it when the directive
-  /// refers to an entity the label names instead of defining one there.
-  /// armasm's "name ENDP" closes the procedure opened by "name PROC" and
-  /// "name EQU 4" defines a symbolic constant, so neither one is a label.
-  ///
-  /// \p Directive is the directive that follows the label; it is empty when
-  /// the label stands alone on its line.
-  ///
-  /// \return True on error.
-  virtual bool emitMasmLabel(MCSymbol *Sym, SMLoc Loc, StringRef Directive);
 
   /// \name MCAsmParser Proxy Interfaces
   /// @{
