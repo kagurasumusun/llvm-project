@@ -109,7 +109,7 @@ void WinCE::addClangTargetOptions(const ArgList &DriverArgs,
   // cdefs.h #errors without it (libiconv srclib, Stage 5).  Keep __STDC__
   // for C like the upstream -fms-define-stdc escape hatch; C++ keeps the
   // plain MSVC semantics libc++ relies on.
-  if (!compilingCXX(Args))
+  if (!compilingCXX(DriverArgs))
     CC1Args.push_back("-fms-define-stdc");
   if (DriverArgs.hasFlag(options::OPT_fdelayed_template_parsing,
                          options::OPT_fno_delayed_template_parsing, CLMode))
