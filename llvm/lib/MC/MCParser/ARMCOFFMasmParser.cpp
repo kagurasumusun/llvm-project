@@ -108,10 +108,16 @@ class ARMCOFFMasmParser : public MCAsmParserExtension {
     // form to the directive with the NAME pushed back through
     // AsmLexer::UnLex, and peekTokens lexes from the raw buffer - it never
     // sees the un-lexed token, so the peek would read what follows the
-    // first operand instead of what follows the NAME.
-    AsmToken T = Lex();
-    getLexer().UnLex(T);
-    return !T.is(AsmToken::EndOfStatement) && !T.is(AsmToken::Comma);
+    // first operand instead of what follows the NAME.  Note that
+    // AsmLexer::Lex() consumes the current token and returns the one AFTER
+    // it: the NAME (the current token) must be saved and pushed back
+    // itself.  Pushing back the returned token instead would duplicate the
+    // first operand and silently drop the NAME from the stream.
+    AsmToken Name = getLexer().getTok();
+    Lex();
+    getLexer().UnLex(Name);
+    return !getLexer().is(AsmToken::EndOfStatement) &&
+           !getLexer().is(AsmToken::Comma);
   }
 
   /// Emit the leading NAME of the current "NAME <directive>" statement as

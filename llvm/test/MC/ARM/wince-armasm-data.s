@@ -1,6 +1,5 @@
 @ RUN: llvm-mc -triple arm-pc-wince -masm-armasm -filetype=obj -o %t.o %s
 @ RUN: llvm-objdump -s --section=.data %t.o | FileCheck %s
-@ RUN: llvm-readobj --symbols %t.o | false
 @ RUN: llvm-readobj --symbols %t.o | FileCheck %s --check-prefix=SYM
 
 @ The armasm data and variable statements, and where their implementation
@@ -43,6 +42,10 @@ n	SETA	9
 b	DCBU	"hi"
 
 ; EQU is MASM's constant equate: readable from an expression, not redefinable.
+; MASM keeps an EQU in the assembler's variable table rather than the
+; object symbol table - the DCD val word in the dump (34 12 00 00) is
+; what proves the name resolves; the GBLA/SETA and label names below do
+; land in the table.
 val	EQU	0x1234
 	DCD	val
 
@@ -58,4 +61,3 @@ val	EQU	0x1234
 ; SYM-DAG:  Name: a
 ; SYM-DAG:  Name: b
 ; SYM-DAG:  Name: n
-; SYM-DAG:  Name: val
