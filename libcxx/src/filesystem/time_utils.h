@@ -294,6 +294,20 @@ inline TimeSpec extract_atime(StatT const& st) {
   TimeSpec TS = {st.st_atime, st.st_atime_n};
   return TS;
 }
+#elif defined(_WIN32_WCE) || defined(__WINCE__)
+// The mingwrt CE CRT keeps the MSVCRT-shaped struct stat
+// (st_atime/st_mtime/st_ctime are time_t).  CE FAT timestamps are
+// 2-second granular, so widening to a timespec would add nothing and
+// would break the cegcc-compatible struct layout; extract the time_t
+// fields directly.
+inline TimeSpec extract_mtime(StatT const& st) {
+  TimeSpec TS = {st.st_mtime, 0};
+  return TS;
+}
+inline TimeSpec extract_atime(StatT const& st) {
+  TimeSpec TS = {st.st_atime, 0};
+  return TS;
+}
 #else
 inline TimeSpec extract_mtime(StatT const& st) { return st.st_mtim; }
 inline TimeSpec extract_atime(StatT const& st) { return st.st_atim; }
