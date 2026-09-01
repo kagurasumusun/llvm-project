@@ -137,6 +137,10 @@ void ARMCOFFMCAsmInfoGNU::anchor() { }
 ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU() {
   AlignmentIsInBytes = false;
   HasSingleParameterDotFile = true;
+  // armasm labels a line with a bare identifier.  Only MasmParser reads
+  // this (the armasm dialect runs on it); GNU-syntax assembly is parsed by
+  // AsmParser, which defines labels with ':' and ignores the flag.
+  AllowBareLabels = true;
 
   CommentString = "@";
   AllowDollarAtStartOfIdentifier = false;

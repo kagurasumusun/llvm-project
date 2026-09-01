@@ -2298,6 +2298,19 @@ bool MasmParser::parseStatement(ParseStatementInfo &Info,
   if (checkForValidSection())
     return true;
 
+  // armasm labels a line with a bare identifier, where MASM spells that
+  // "identifier :".  The MCAsmInfo for the dialects that do it opts in
+  // (ARMCOFFMCAsmInfoGNU, the Windows CE assembly dialect); plain MASM
+  // keeps requiring the colon, so an unknown lone mnemonic still reaches
+  // the instruction parser and its diagnostic.
+  if (MAI.AllowBareLabels && ID.is(AsmToken::Identifier) &&
+      getTok().is(AsmToken::EndOfStatement) &&
+      getTargetParser().isLabel(ID)) {
+    Lex(); // the end-of-statement
+    Out.emitLabel(getContext().parseSymbol(IDVal), IDLoc);
+    return false;
+  }
+
   // Canonicalize the opcode to lower case.
   std::string OpcodeStr = IDVal.lower();
   ParseInstructionInfo IInfo(Info.AsmRewrites);

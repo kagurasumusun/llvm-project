@@ -140,6 +140,12 @@ protected:
   /// all treated as comments in addition to the string specified by the
   /// CommentString attribute.
   /// Default is true.
+  /// A bare identifier alone on a statement line is a label (the ARM armasm
+  /// dialect labels code that way), rather than an attempted instruction
+  /// mnemonic.  Consumed by MasmParser; the GNU-syntax parser dialects
+  /// never read it.
+  bool AllowBareLabels = false;
+
   bool AllowAdditionalComments = true;
 
   /// This is appended to emitted labels.  Defaults to ":"

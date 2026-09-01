@@ -2,19 +2,20 @@
 @ RUN: llvm-objdump -s --section=.data %t.o | FileCheck %s
 @ RUN: llvm-readobj --symbols %t.o | FileCheck %s --check-prefix=SYM
 
-@ The armasm data and variable statements the in-tree parser answers with the
-@ *same* code the generic AsmParser uses for its own directives, rather than a
-@ private re-implementation:
-@   - DCBU/DCWU/DCDU/DCQU/DCFU/DCFSU/DCFDU, the forms armasm allows at an
-@     unaligned address.  LLVM MC never aligns a data emission in the first
-@     place, so the only difference from DCB/DCW/DCD/DCQ/DCF is the name; the
-@     dump below is a stream with no padding anywhere, which is that claim.
-@     Going through the extension (and not only adding the names to the generic
-@     directive table, which is keyed on a leading '.') is also what makes
-@     "name DCDU 4" - a label in front of the directive - parse.
-@   - GBLA declaration and SETA assignment, which make the name an ordinary
-@     symbol with a value exactly as .set does.  That is what lets it be read
-@     back from any expression, including the right-hand side of the next SETA.
+@ The armasm data and variable statements, and where their implementation
+@ lives - nothing here has a private parser path of its own:
+@   - DCD/DCW/DCQ and their 'U' spellings are aliases for MASM's DD/DW/DQ
+@     (MasmParser's own value parsing, including the "name DCDU 4" infix
+@     label form).  LLVM MC never aligns a data emission, so the 'U' forms
+@     emit the same bytes; the dump below is a stream with no padding
+@     anywhere, which is that claim.
+@   - DCB/DCBU (quoted strings) and the DCFS/DCFD float forms stay real
+@     handlers in the extension: MASM's value parsing has no string form and
+@     no single-precision narrowing.
+@   - EQU is MASM's EQU (a constant name, redefinition is an error), GBLA
+@     declares the name as an ordinary redefinable symbol, and SETA gives it
+@     a value - so it reads back from any expression, including the
+@     right-hand side of the next SETA, exactly as .set would.
 
         AREA    |.data|, DATA, READWRITE
 ; A quoted armasm string in both the aligned and the unaligned spelling, then
@@ -40,15 +41,20 @@ n	SETA	9
 	DCD	n
 b	DCBU	"hi"
 
+; EQU is MASM's constant equate: readable from an expression, not redefinable.
+val	EQU	0x1234
+	DCD	val
+
 	END
 
 ; CHECK:	Contents of section .data:
 ; CHECK-NEXT:	 0000 61626364 65665544 33221188 77887766  abcdefUD3"..w.wf
 ; CHECK-NEXT:	 0010 55443322 11000000 3f000000 3f000000  UD3"....?...?...
 ; CHECK-NEXT:	 0020 000000e0 3fefbead de000000 00090000  ....?...........
-; CHECK-NEXT:	 0030 006869                               .hi
+; CHECK-NEXT:	 0030 006869 34120000                          .hi.4..
 ; The names are ordinary local symbols in the object file, not parser scratch:
 ; without that, the two words above could not be attributed to anything.
 ; SYM-DAG:  Name: a
 ; SYM-DAG:  Name: b
 ; SYM-DAG:  Name: n
+; SYM-DAG:  Name: val

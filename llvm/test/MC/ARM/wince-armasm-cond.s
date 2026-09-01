@@ -2,11 +2,11 @@
 @ RUN: llvm-objdump -s --section=.data %t.o | FileCheck %s
 @ RUN: llvm-readobj --symbols %t.o | FileCheck %s --check-prefix=SYM
 
-@ armasm's IF/ELSEIF/ELSE/ENDIF are aliases for the generic .if/.elseif/
-@ .else/.endif, so they inherit that implementation's nesting and its treatment
-@ of the branch that is not taken.  Two properties of that implementation are
-@ worth pinning down, because they are what makes the alias honest rather than
-@ a superficial spelling difference:
+@ armasm's IF/ELSEIF/ELSE/ENDIF are MasmParser's own conditional directives
+@ (the same spelling MASM uses), so they inherit that implementation's nesting
+@ and its treatment of the branch that is not taken.  Two properties of that
+@ implementation are worth pinning down, because they are what makes the
+@ spelling reuse honest rather than a superficial coincidence:
 @   - the untaken branch is dropped before it is parsed, so the label and the
 @     value inside it come to nothing at all (see not_taken / zero_case);
 @   - the condition is an ordinary expression, so a name declared by GBLA and

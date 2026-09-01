@@ -53,6 +53,7 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
+#include <ctime>
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
@@ -624,8 +625,15 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
 
   bool Failed = false;
 
+  // armasm dialect (-masm=armasm): run the MASM-family statement parser
+  // (llvm-ml's MasmParser), which has the MASM-family statement forms
+  // natively, with the ARM armasm directive extension attached below.  The
+  // timestamp feeds MASM's @Date/@Time macros, which armasm never uses.
+  struct tm TimeParts = {};
   std::unique_ptr<MCAsmParser> Parser(
-      createMCAsmParser(SrcMgr, Ctx, *Str, *MAI));
+      Opts.MasmDialect == /*armasm*/ 2
+          ? createMCMasmParser(SrcMgr, Ctx, *Str, *MAI, TimeParts, 0)
+          : createMCAsmParser(SrcMgr, Ctx, *Str, *MAI));
 
   // armasm dialect (-masm=armasm): attach the ARM armasm directive
   // extension (AREA/PROC/ENDP/EXPORT/IMPORT/ALIGN...) so Windows CE

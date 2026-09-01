@@ -45,6 +45,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/TargetParser/Host.h"
+#include <ctime>
 #include <memory>
 
 using namespace llvm;
@@ -364,8 +365,18 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
   // the parser raw pointers to the extension object.
   std::unique_ptr<MCAsmParserExtension> ArmasmExt;
 
+  // armasm dialect (-masm-armasm): run the MASM-family statement parser
+  // (llvm-ml's MasmParser) with the ARM armasm directive extension, instead
+  // of teaching the GNU statement parser a second dialect.  MasmParser has
+  // the MASM-family statement forms natively (the "NAME <directive>" infix
+  // form, EQU, IF/ENDIF, bare dialect labels via MCAsmInfo::AllowBareLabels);
+  // the mnemonics keep being parsed by the ARM AsmParser.  The timestamp
+  // feeds MASM's @Date/@Time macros, which armasm sources never use.
+  struct tm TimeParts = {};
   std::unique_ptr<MCAsmParser> Parser(
-      createMCAsmParser(SrcMgr, Ctx, Str, MAI));
+      MasmArmasmDialect
+          ? createMCMasmParser(SrcMgr, Ctx, Str, MAI, TimeParts, 0)
+          : createMCAsmParser(SrcMgr, Ctx, Str, MAI));
   std::unique_ptr<MCTargetAsmParser> TAP(
       TheTarget->createMCAsmParser(STI, *Parser, MCII, MCOptions));
 
