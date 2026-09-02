@@ -809,7 +809,7 @@ void Writer::writePEChecksum() {
 // __exidx_start/__exidx_end bounds and the exception directory derived from
 // it only cover functions that are actually present.
 static void cullExidxForDiscardedFunctions(COFFLinkerContext &ctx) {
-  for (ObjFile *file : ctx.objFiles) {
+  for (ObjFile *file : ctx.objFileInstances) {
     for (Chunk *c : file->getChunks()) {
       auto *sc = dyn_cast<SectionChunk>(c);
       if (!sc || !sc->live)
