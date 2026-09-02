@@ -107,7 +107,7 @@
 /// ships no coredll3.def): the link fails with an explicit diagnostic.
 // RUN: %clang -target arm-pc-wince3.0 %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LINK30
-// LINK30: error: Windows CE 3.0 is not supported by this toolchain
+// LINK30: error: unsupported Windows CE version 3
 // LINK30-NOT: libcoredll3.a
 
 /// -gcodeview is accepted for the CE target (CodeView debug info); the

@@ -23,8 +23,8 @@ def err_drv_unsupported_option_argument : Error<
 def err_drv_unsupported_option_argument_for_target : Error<
   "unsupported argument '%1' to option '%0' for target '%2'">;
 def err_drv_unsupported_wince_version : Error<
-  "Windows CE %0 is not supported by this toolchain; the supported "
-  "generations are CE 4.x, 5.x and 6.0">;
+  "unsupported Windows CE version %0; the supported generations are "
+  "CE 4.x, 5.x and 6.0">;
 def err_drv_unknown_stdin_type : Error<
   "-E or -x required when input is from standard input">;
 def err_drv_unknown_stdin_type_clang_cl : Error<
