@@ -105,7 +105,7 @@
 
 /// CE 3.0 is out of scope (def set and header floor are 4.x+; mingwrt
 /// ships no coredll3.def): the link fails with an explicit diagnostic.
-// RUN: %clang -target arm-pc-wince3.0 %s -o /dev/null -### 2>&1 \
+// RUN: not %clang -target arm-pc-wince3.0 %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LINK30
 // LINK30: error: unsupported Windows CE version 3
 // LINK30-NOT: libcoredll3.a
