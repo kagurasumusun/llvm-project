@@ -101,7 +101,7 @@
 // The CRT is mingwrt + COREDLL.  Do not take the Win32API/MSVCRT-like paths
 // (rand_s, SRWLOCK, winapifamily.h, _aligned_malloc, FormatMessageA, ...).
 #    define _LIBCPP_SHORT_WCHAR 1
-#    define _LIBCPP_HAS_OPEN_WITH_WCHAR 0
+#    define _LIBCPP_HAS_OPEN_WITH_WCHAR 1
 #    define _LIBCPP_HAS_BITSCAN64 0
 #  else
 #    define _LIBCPP_HAS_OPEN_WITH_WCHAR 0
