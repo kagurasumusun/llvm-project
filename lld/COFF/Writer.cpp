@@ -799,12 +799,47 @@ void Writer::writePEChecksum() {
   peHeader->CheckSum = sum;
 }
 
+// Windows CE / EHABI: drop .ARM.exidx and .ARM.extab entries whose function
+// lost COMDAT duplicate resolution.  The losing function's chunk is marked
+// dead (live = false, replaced by the winner) while the entry's relocation
+// still references it, which would otherwise be a relocation into a section
+// that does not exist in the image - and the EHABI unwinder walks the merged
+// index unconditionally.  ELF linkers drop such entries; do the same here,
+// before createSections, so the merged .ARM.exidx output, the
+// __exidx_start/__exidx_end bounds and the exception directory derived from
+// it only cover functions that are actually present.
+static void cullExidxForDiscardedFunctions(COFFLinkerContext &ctx) {
+  for (ObjFile *file : ctx.objFiles) {
+    for (Chunk *c : file->getChunks()) {
+      auto *sc = dyn_cast<SectionChunk>(c);
+      if (!sc || !sc->live)
+        continue;
+      StringRef name = sc->getSectionName();
+      if (name != ".ARM.exidx" && name != ".ARM.extab")
+        continue;
+      for (Symbol *sym : sc->symbols()) {
+        auto *d = dyn_cast_or_null<DefinedRegular>(sym);
+        if (!d)
+          continue;
+        auto *target = dyn_cast_or_null<SectionChunk>(d->getChunk());
+        if (target && !target->live) {
+          Log(ctx) << "removing " << name << " entry for discarded section: "
+                   << sym->getName();
+          sc->live = false;
+          break;
+        }
+      }
+    }
+  }
+}
+
 // The main function of the writer.
 void Writer::run() {
   {
     llvm::TimeTraceScope timeScope("Write PE");
     ScopedTimer t1(ctx.codeLayoutTimer);
 
+    cullExidxForDiscardedFunctions(ctx);
     calculateStubDependentSizes();
     if (ctx.config.machine == ARM64X)
       ctx.dynamicRelocs = make<DynamicRelocsChunk>();
