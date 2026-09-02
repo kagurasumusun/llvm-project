@@ -817,14 +817,26 @@ static void cullExidxForDiscardedFunctions(COFFLinkerContext &ctx) {
       StringRef name = sc->getSectionName();
       if (name != ".ARM.exidx" && name != ".ARM.extab")
         continue;
+      // Mirror SectionChunk::applyRelocation's notion of a discarded
+      // target: a null symbol slot means the target was discarded early
+      // (its COMDAT group lost, so its section symbol resolved to
+      // nothing), and a Defined whose SectionChunk is dead was discarded
+      // late.  Either way the function this entry describes is not in
+      // the image, so the entry must go with it.
       for (Symbol *sym : sc->symbols()) {
-        auto *d = dyn_cast_or_null<DefinedRegular>(sym);
-        if (!d)
-          continue;
-        auto *target = dyn_cast_or_null<SectionChunk>(d->getChunk());
-        if (target && !target->live) {
-          Log(ctx) << "removing " << name << " entry for discarded section: "
-                   << sym->getName();
+        auto *d = dyn_cast_or_null<Defined>(sym);
+        bool dead;
+        if (!d) {
+          dead = true;
+        } else if (isa<DefinedAbsolute>(d) || isa<DefinedSynthetic>(d)) {
+          dead = false;
+        } else {
+          auto *target = dyn_cast_or_null<SectionChunk>(d->getChunk());
+          dead = target && !target->live;
+        }
+        if (dead) {
+          Log(ctx) << "removing " << name << " entry for discarded section"
+                   << (sym ? ": " + std::string(sym->getName()) : " (symbol discarded early)");
           sc->live = false;
           break;
         }
