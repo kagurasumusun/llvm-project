@@ -3,23 +3,23 @@
 # RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t1.obj %t/1.s
 # RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t2.obj %t/2.s
 # RUN: lld-link -wince -debug /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t1.obj %t2.obj
-# RUN: llvm-pdbutil dump -summary %t.pdb | FileCheck %s
-# RUN: llvm-pdbutil dump -modules %t.pdb | FileCheck %s
-# RUN: llvm-pdbutil dump -publics %t.pdb | FileCheck %s
+# RUN: llvm-pdbutil dump -summary %t.pdb | FileCheck %s --check-prefix=SUMMARY
+# RUN: llvm-pdbutil dump -modules %t.pdb | FileCheck %s --check-prefix=MODULES
+# RUN: llvm-pdbutil dump -publics %t.pdb | FileCheck %s --check-prefix=PUBS
 
 ## -debug on a WinCE image must produce a standalone PDB next to the image:
 ## the MSF container with the standard stream set, one DBI module per input
 ## object, and the surviving external symbols as publics.  Windows CE itself
 ## never reads the PDB; it exists for the host-side debugger.
 
-# CHECK: Summary
-# CHECK: Has Debug Info: true
-# CHECK: Modules
-# CHECK-DAG: Obj: {{`.*1.obj`}}:
-# CHECK-DAG: Obj: {{`.*2.obj`}}:
-# CHECK: Public Symbols
-# CHECK-DAG: "entry"
-# CHECK-DAG: "helper"
+# SUMMARY: Summary
+# SUMMARY: Has Debug Info: true
+# MODULES: Modules
+# MODULES-DAG: Obj: {{`.*1.obj`}}:
+# MODULES-DAG: Obj: {{`.*2.obj`}}:
+# PUBS: Public Symbols
+# PUBS-DAG: "entry"
+# PUBS-DAG: "helper"
 
 #--- 1.s
 	.syntax unified
