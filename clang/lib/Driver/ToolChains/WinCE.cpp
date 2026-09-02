@@ -301,11 +301,17 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // exported a different set (the def files are parsed from the CE shared
   // source; see the provenance notes in mingwrt/coredll*.def).  Select by
   // the triple's OS version; the bare spelling defaults to CE 6.0.
+  // CE 1.x-3.x are out of scope everywhere else too (the header floor and
+  // the def set are 4.x+; see utils/wince/README.md "Version policy" and
+  // the mingwrt/w32api scope commits), and mingwrt ships no coredll3.def:
+  // diagnose instead of emitting a link line that can only fail.
   llvm::VersionTuple OSVer = TC.getTriple().getOSVersion();
-  switch (OSVer.getMajor()) {
-  case 3:
-    CmdArgs.push_back("libcoredll3.a");
-    break;
+  unsigned CEVer = OSVer.getMajor();
+  if (CEVer != 0 && CEVer < 4) {
+    TC.getDriver().Diag(diag::err_drv_unsupported_wince_version) << CEVer;
+    return;
+  }
+  switch (CEVer) {
   case 4:
     CmdArgs.push_back("libcoredll4.a");
     break;

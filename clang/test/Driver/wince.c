@@ -103,13 +103,12 @@
 // LINK42-NOT: libcoredll.a
 // LINK42-NOT: libcoredll6.a
 
-/// CE 3.0 triples select the CE 3.0 COREDLL surface.
+/// CE 3.0 is out of scope (def set and header floor are 4.x+; mingwrt
+/// ships no coredll3.def): the link fails with an explicit diagnostic.
 // RUN: %clang -target arm-pc-wince3.0 %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LINK30
-// LINK30: lld-link
-// LINK30: libcoredll3.a
-// LINK30-NOT: libcoredll4.a
-// LINK30-NOT: libcoredll6.a
+// LINK30: error: Windows CE 3.0 is not supported by this toolchain
+// LINK30-NOT: libcoredll3.a
 
 /// -gcodeview is accepted for the CE target (CodeView debug info); the
 /// cc1 gets -gcodeview.
