@@ -228,6 +228,16 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-auto-import");
   CmdArgs.push_back("-runtime-pseudo-reloc");
 
+  // User -L search paths first, then the sysroot lib dir (user paths take
+  // precedence, the GNU convention).  -L is a link-only option: without
+  // claiming and translating it here, clang drops it with an
+  // "argument unused during compilation" warning and lld-link never sees
+  // the directory (third-party Makefiles pass -L$(prefix)/lib for their
+  // dependency libraries; Stage 5 hit exactly that).
+  for (const Arg *A : Args.filtered(options::OPT_L)) {
+    A->claim();
+    CmdArgs.push_back(Args.MakeArgString(Twine("/libpath:") + A->getValue()));
+  }
   // Always emit the sysroot lib dir.  Do not probe it with fs::exists
   // (that was a -### crash vector).  Archives keep their GNU names.
   const auto &WCE = static_cast<const toolchains::WinCE &>(TC);

@@ -110,6 +110,14 @@
 // LINK30: error: unsupported Windows CE version 3
 // LINK30-NOT: libcoredll3.a
 
+/// -L adds a library search path for lld-link (translated to /libpath:,
+/// ahead of the sysroot lib dir); dropped, third-party -L deps are not found.
+// RUN: %clang -target arm-pc-wince -L/opt/easyrpg-deps/lib %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LLIBPATH
+// LLIBPATH: /libpath:/opt/easyrpg-deps/lib
+// LLIBPATH: /libpath:
+// LLIBPATH: libcoredll6.a
+
 /// -gcodeview is accepted for the CE target (CodeView debug info); the
 /// cc1 gets -gcodeview.
 // RUN: %clang -target arm-pc-wince -gcodeview -c %s -o /dev/null -### 2>&1 \
