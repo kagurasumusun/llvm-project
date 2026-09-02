@@ -151,9 +151,10 @@ force-push.
 
 ## Still open (not blocking CI)
 
-* **PDB generation** — CodeView debug info is emitted (`-gcodeview`) and
-  embedded by `lld-link -debug`; lld has no PDB writer, so no standalone
-  `.pdb` (see README "PDB / CodeView debug info").
+* **PDB generation** — **done (lit-gated)**: `lld-link -debug` writes a
+  standalone `.pdb` (streams + DBI modules + publics), verified with
+  `llvm-pdbutil` in `lld/test/COFF/wince-pdb.test`; the Stage 5 CI emits
+  `easyrpg-player.pdb` and the rolling `wince-latest` release ships it.
 * **On-device execution** — CI only compiles/links; no CE hardware.
 * **Thumb far-branch veneer** — implemented (A32 stub + Thumb-1 `bx pc` /
   `ldr pc`); not executed on a device.

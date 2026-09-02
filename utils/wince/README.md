@@ -157,11 +157,13 @@ were pushed to them on 2026-08-31 (see WINCE-HANDOFF.md §14.2):
   mirroring the MSVC convention. `lld-link -debug` merges the CodeView
   sections from the objects and writes the debug directory into the
   image. End-to-end check in the cellvm-build CI (Stage 3 smoke).
-* **PDB**: lld has no PDB writer, so a standalone `.pdb` file is NOT
-  produced. The CodeView data embedded in the image is the PDB's raw
-  material; a debugger/tool that needs a PDB would have to synthesize
-  one from the image (no in-tree tool does this yet). This is the
-  known gap against the MSVC toolchain for CE debugging.
+* **PDB**: `-debug` writes a standalone `.pdb` next to the image
+  (MSF container: Info/DBI/TPI/IPI streams, one DBI module per object,
+  publics from the surviving externals).  CE itself never reads the
+  PDB; it exists for the host-side debugger.  Gated by
+  `lld/test/COFF/wince-pdb.test` and verified with `llvm-pdbutil`
+  (built in CI).  The Stage 5 Player build emits the PDB in CI
+  (`PLAYER_PDB=1`) and the rolling `wince-latest` release ships it.
 
 ## Stage 3: compiler runtime + C++ runtime
 
