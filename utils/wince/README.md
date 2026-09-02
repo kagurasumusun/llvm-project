@@ -336,8 +336,13 @@ CeGCC omitted on purpose) - has been added.**  Zero gaps remain
 only referenced symbols).  `utils/wince/audit-coredll.py` mechanizes
 re-verification: run it against a `dumpbin /EXPORTS` of YOUR device's
 CoreDLL.dll (OEM variation is real) and it lists def gaps/extra
-entries. `thread_local`/`__thread` lower to emutls (`__emutls_v.*` + `__emutls_get_address` from compiler-rt, whose Windows path uses TlsAlloc), and `Triple::hasDefaultEmulatedTLS()` covers WinCE so `-femulated-tls` is the driver default. Caveat: mingwrt's `_errno()` remains a single shared static |
-| profiling (`-pg`, `gcrt3.o`/`libgmon`) | not provided by the mingw32ce build of mingwrt (the `profile/` sources are desktop-CRT only); CeGCC's LIB_SPEC kept the hook but nothing satisfied it |
+entries. `thread_local`/`__thread` lower to emutls (`__emutls_v.*` + `__emutls_get_address` from compiler-rt, whose Windows path uses TlsAlloc), and `Triple::hasDefaultEmulatedTLS()` covers WinCE so `-femulated-tls` is the driver default.
+
+(The `-pg` profiler row of the old table here was stale: `libgmon.a` IS
+provided now - the in-house sampler in cellvm-build `sysroot/gmon/`, which
+the driver links by default.  And the `_errno()` caveat is obsolete: this
+fork's `coredll_stubs.c` provides `_errno` as a per-thread TlsAlloc slot,
+not a shared static.)
 
 ## Version policy (nothing is hard-wired to a single generation)
 

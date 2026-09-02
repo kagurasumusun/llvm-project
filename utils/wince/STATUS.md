@@ -1,4 +1,4 @@
-# WinCE toolchain status (2026-09-01)
+# WinCE toolchain status (2026-09-02)
 
 Branch: `llvm-wince`.
 First full-pipeline green: [33364840614](https://github.com/kagurasumusun/llvm-project/actions/runs/33364840614)
@@ -9,6 +9,28 @@ at `7b59bc2c`.
 This file is the current snapshot. Older notes in this directory
 (`README.md` inventory, `WINCE-WINEH-STATUS.md`) are historical unless
 they match a heading here.
+
+## 2026-09-02 collision / duplication sweep
+
+Systematic audit of every cross-tree name collision, duplication and
+process conflict (full results in WINCE-HANDOFF.md §17):
+
+* **`__small` macro collision** (the only live one of 374 candidate CE-header
+  macros × 9308 C++-runtime identifiers): w32api `basetyps.h` no longer
+  defines it under clang, mirroring the `_mingw.h` precedent.  A
+  windows.h + libc++ `<functional>` TU now compiles.
+* **Driver**: `arm-pc-wince` OS versions below 4.0 now fail the link with
+  `err_drv_unsupported_wince_version` instead of emitting a line against the
+  nonexistent `libcoredll3.a` (CE 3.0 was shelved in mingwrt/w32api; the
+  driver case was the last remnant).
+* **Headers**: mingwrt's x86-legacy `excpt.h` deleted (w32api's ARM-shaped
+  one is canonical and is what `windows.h` includes); the COREDLL
+  `coredll{,4,6}.def` mirror in `w32api/libce` is now guarded by a
+  byte-equality check in the sysroot build.
+* **cellvm-build Stage 5**: the missing `wincehelper.cpp` overlay copy was
+  restored (it had landed as an unreferenced commit), the `(void*)0` typo in
+  it fixed, and MSVC-style include spellings (`Windows.h`, `Shellapi.h`)
+  are covered by case-alias forwarders plus a generator script.
 
 ## Repository layout (2026-08-31 reorganization)
 
@@ -107,7 +129,13 @@ force-push.
   `ldr pc`); not executed on a device.
 * **WinEH / compressed `.pdata` on a real CE image** — lit + object dumps
   only.
-* **libc++ `std::thread` / filesystem** — explicitly off.
+* **libc++ `std::thread`** — explicitly off (runtimes built with
+  `ENABLE_THREADS=OFF`).
+* **libc++ `<filesystem>`** — in progress, not off: `LIBCXX_ENABLE_FILESYSTEM=ON`
+  in the Stage 3 runtimes build since 2026-09-01, with the POSIX declaration
+  surface and the `mingwex/wince` file-API shims it needs landed in mingwrt
+  and the CE branches in `libcxx` (mkdir/mtime, `_LIBCPP_HAS_OPEN_WITH_WCHAR`).
+  Compile-level green; not yet exercised by an app in CI.
 * **App CI coverage** — GLPI-Agent (unmodified `make`) plus MaxSignal/Player
   `0.6.2.3-wince` (official zip, Clang Makefile overlay, no audio). `make cab`
   not run.

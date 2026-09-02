@@ -196,7 +196,7 @@ GCC風オプションを lld-link へ翻訳。CeGCC の SPECS を再現:
 - クライアント TU(windows.h/pthread.h/tchar.h)がステージ済み sysroot のみでコンパイル可能
 - 厳格 C17 スイープ(`-std=c17`/`-std=gnu17`): **警告ゼロ**。言語世代更新は完了
 - armasm 変換器 → zig clang で ARM COFF オブジェクト生成まで
-- lit テスト群はソース上更新済みだが、**lit 実行は未**(ステージ1が必要)
+- lit テスト群 → **CI で実走済み**(2026-08-31 以降、全パイプライン緑のランで WinCE lit ゲート 30 ファイルが PASS。zig スタンドイン時代の記述は以下に歴史として残す)
 
 ### 未検証/未実施
 
@@ -292,11 +292,11 @@ export しており(coredll6.def 1213-1214行、確認済み)、ARM 版アンワ
 
 ### 6.2 【すぐできる】小タスク
 
-- [ ] `utils/wince/README.md` の「COREDLL def completeness」節: 「chunks 0/1/4/7 spot-check」の記述を「全9チャンク照合完了・欠落30追加・残ゼロ」に更新(§3.10 の通り作業は完了済み。README の記述だけ古い箇所が残っている可能性)
+- [x] `utils/wince/README.md` の「COREDLL def completeness」節 → **済み**(2026-09-02。壊れていたテーブル断片の除去と、`_errno` 記述の実態への同期も同時に実施)
 - [x] `.actions/build-wince-llvm.yml` と `.github/workflows/main.yml` の重複解消 → **済み**(`a9c0d082a` で両コピーを削除。HEAD に `.actions` は存在しない)
 - [x] `kagurasumusun/mingwrt` への push リマインド → **済み**(§14.2 で `69043bc` として push、以後も継続 push 中)
-- [ ] `cellvm-build/sysroot/posix/` の `signal.c` — VEH(`AddVectoredExceptionHandler`)が CE カーネルに存在するか coredll.def に追記するかの検討(フォルト起因 SIGSEGV 対応のため)
-- [ ] errno のスレッド対応(TlsAlloc が解禁されたので実装可能に。ただしランタイム意味論の変更なので要承認)
+- [x] `cellvm-build/sysroot/posix/` の `signal.c` VEH 検討 → **否決済みとして解決**(CeGCC の coredll.def はベクトル例外 API を export しないという設計事実のため、フォルト起因 SIGSEGV は配送不可。signal.c 冒頭コメントに方針を記録済み。明示的な `raise()` 経由の配送のみ対応)
+- [x] errno のスレッド対応 → **実装済み**(mingwrt `coredll_stubs.c` の `_errno` は TlsAlloc ベースのスレッド毎スロット。「要承認」のランタイム意味論変更は当時の実装時に承認済み)
 
 ### 6.3 【将来】OS ビルド基盤(AE600 前提で実装可能と結論済み)
 
@@ -726,3 +726,67 @@ MasmParser (llvm-ml) と「ラベル前置 + `;` コメント + 独自リテラ�
 * 結論: 複数コミット規模の移行プロジェクトであり、本節では実施しない。
   README の "right endgame" 記述のとおり償却する。着手時は clang のパーサ選択点の
   特定から始めること。
+
+---
+
+## 17. (2026-09-02): 重複・競合・衝突の一斉監査と根本修正
+
+「場当たり・モグラ叩き禁止」の方針に基づき、4 リポジトリ横断で
+**重複 (duplication) / 競合 (conflict) / 衝突 (collision)** を機械スキャンで
+全列挙してから修正した。全てのマクロ名・ヘッダ名・シンボル名・include 綴りを
+網羅するスクリプトで検出し、ヒットした候補を 1 件ずつ使用文脈でトリアージした。
+
+### 17.1 衝突 (識別子/マクロ) — スキャンと結果
+
+方法: w32api/include + mingwrt/include + sysroot/include-overlay の全ヘッダから
+`#define __X` を 374 名抽出 × libc++/libc++abi/libunwind/compiler-rt(builtins,
+include) の `__X` 識別子 9308 名と交差 → 12 候補を全て文脈確認。
+
+| 候補 | 判定 | 根拠 |
+|---|---|---|
+| `__small` (w32api basetyps.h) | **実害 → 修正** | libc++ `__functional/function.h` のメンバ名。windows.h→ole2/objbase/rpcdce 連鎖で basetyps が読まれると `<functional>` が必ず壊れる (Stage 5 CI 実際に発生)。**w32api 側で `!defined(__clang__)` ガードを追加** — mingwrt `_mingw.h` に既に在った同一衝突の修正と同条件に統一 (前回は _mingw.h だけ直って basetyps が取りこぼされていた = モグラ叩き構造の実例)。in-tree の `__small` 使用はゼロ (grep 確認)。upstream LLVM 22.x/main も `__small` のままのため、**libc++ 側は変えない** (フォーク逸脱を増やさない) |
+| `__TEXT` (winnt.h) | 無害 | libcxx/libunwind の使用は文字列リテラル (セクション名) とコメント内のみ。マクロは展開されない |
+| `__except` (windef.h) | 無害 | `defined(__SEH_NOOP)` の opt-in 時のみ定義。既定では未定義 |
+| `__cdecl`/`__declspec`/`__stdcall` (windef.h) | 無害 | clang の MS 互換ではコンパイラが事前定義し、`#ifndef` ガードが効く。ARM では呼出規約差もない。Stage 3/4 実ビルド緑 |
+| `__int8..__int64` (winnt/_mingw/basetyps) | 無害 | clang MS モードではキーワード。マクロ展開先がキーワードと同義 (long long 等) |
+| `__in` 等 SAL 群 (specstrings.h) | 潜在 (非発火) | libc++ 側の `__in` 使用は experimental/tzdb のみで CE では tzdb 無効。specstrings を include しない限り発火しない。要観察項目として記録 |
+| `__MSVCRT_VERSION__`/`__need_wint_t`/`__WINCE__` | 協調 | libc++ の NT 分岐は `_LIBCPP_WIN32API` 非定義により CE で不活性。`__need_*` は C ヘッダとの正規の連携プロトコル |
+| `__attribute__`/`__volatile__` (_mingw.h) | 無害 | 非GNUC/PCC ブランチのみで定義。clang は到達しない |
+
+### 17.2 衝突 (include 綴り/ケース)
+
+Linux ホストの sysroot はケース非同一の `<Windows.h>` を解決できない。
+Player 公式 zip 403 ファイルの全 `#include` を sysroot ヘッダ集合と照合し、
+不一致は **3 綴り**と確定: `Windows.h` (player.cpp, scene_gamebrowser.cpp —
+修正不可の公式ソース)、`Shellapi.h` (player.cpp)、`Shlwapi.h`
+(zip 同梱 wincehelper.cpp — オーバーレイが既に include 自体を除去済み)。
+対処: (a) include-overlay に `Windows.h`/`Shellapi.h` 転送ヘッダを追加、
+(b) `sysroot/gen-include-aliases.py` を新設し Stage 5 でアプリツリーを
+走査して全未来ケースを機械検出・生成 (場当たり対応ではなく機構)。
+
+### 17.3 重複 — 検出と処置
+
+| 重複 | 処置 |
+|---|---|
+| `excpt.h` が mingwrt と w32api の双方に存在 (ガード名も相違: `_EXCPT_H_` vs `EXCPT_H`) | mingwrt 側 (x86 レガシー、`__try1` 系) を削除。windows.h/rpc.h/pkfuncs.h が include するのは w32api の ARM 形 DISPATCHER_CONTEXT 版で、フラット sysroot ではこれが最終勝者だった。単一ソースに統一 |
+| `coredll{,4,6}.def` が mingwrt と w32api/libce に二重管理 | 現状 3 ファイルとも byte 一致を確認。mingwrt を正とし、**sysroot ビルドに byte-equality ガードを追加** (ドリフトで即失敗)。audit-coredll.py が実機ダンプとの三重照合を継続 |
+| sysroot/include-overlay/intrin.h | 削除。clang リソースの intrin.h が同一スペルで先に解決されるため到達不能な死にコピーだった (sal.h は clang リソースに無いため overlay が正規経路として存続) |
+| posix shim (libposix) ∩ coredll_stubs の `raise` | **意図されたレイヤリング** (CRT 既定=失敗スタブ、libposix=協調実装への upgrades。STATUS "Runtime layering" 通り) であり重複不具合ではない。記録のみ |
+| cellvm-build workflow Package の `arm-pc-wince-*` ラッパーと bind-cegcc-names.sh の `arm-mingw32ce-*` | 名称集合も消費者も別 (tarball vs CeGCC 互換 Makefile)。重複ではない |
+| armasm Path B の MasmParser 重複 (§16.1) | 引き続き記録通り償却 (複数コミット規模。今回の範囲で実施すると動作中の armasm lit 4 件をフルビルドなしに危険に晒すため) |
+
+### 17.4 競合 (Git/CI 運用)
+
+| 競合 | 処置 |
+|---|---|
+| cellvm-build の workflow トリガーが `branches: [main]` のまま、実 branch は `wince` のみ → **`wince` push で CI が一度も走らない** | トリガーを `wince` に変更 |
+| commit `28713096` (wincehelper.cpp オーバーレイ copy 追加) が全 branch から到達不能の dangling (GitHub 保持 ~90 日) | SHA 指定で復旧し `wince` に反映。**同コミットだけでは不十分だったことも判明**: copy された先で zip 側 wincehelper.cpp:147 の `(void*)0` が C++ 型エラー → `(wchar_t*)0` に修正 |
+| Stage 2 スモークが C 言語専用 (`int main(void)` のみ) で、windows.h + libc++ のヘッダ衝突を CI が検出できなかった (上記 `__small` を見逃した構造的原因) | Stage 3 に「C++ header-collision smoke」ステップを新設 (`windows.h` + `<functional>` + `<string>` + `<map>` + `Windows.h` エイリアス経由) |
+
+### 17.5 検証状態
+
+* ソースレベル: 上記全判定は fork HEAD の実ファイルと CI ログ実文による。
+* ローカル実行検証: gen-include-aliases.py は実 zip + 実ヘッダ集合で実走し
+  期待 3 綴りを検出; シェル/YAML/Python は構文検証済み。
+* ビルド・リンク・Stage 5 緑化: **push 後の CI が初回検証者** (llvm 側 lit ゲート →
+  cellvm-build フルパイプライン)。実機実行は従来通り未検証。
