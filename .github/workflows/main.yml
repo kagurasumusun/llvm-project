@@ -100,7 +100,7 @@ jobs:
         run: |
           cmake --build build --target clang lld llc \
             llvm-ar llvm-ranlib llvm-dlltool llvm-nm llvm-mc llvm-readobj \
-            llvm-objdump llvm-objcopy llvm-rc llvm-config \
+            llvm-objdump llvm-objcopy llvm-rc llvm-config llvm-pdbutil \
             FileCheck split-file not count
 
           BIN=build/bin
@@ -148,6 +148,7 @@ jobs:
             lld/test/COFF/wince-exidx-comdat.s \
             lld/test/COFF/wince-image.s \
             lld/test/COFF/wince-pdata.test \
+            lld/test/COFF/wince-pdb.test \
             lld/test/COFF/wince-range-thunk.s \
             lld/test/COFF/wince-range-thunk-thumb.s \
             lld/test/COFF/wince-thumb-bit.s \

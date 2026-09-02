@@ -1,0 +1,49 @@
+# REQUIRES: arm-registered-target
+# RUN: split-file %s %t
+# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t1.obj %t/1.s
+# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t2.obj %t/2.s
+# RUN: %lld-link -wince -debug -out:%t.exe -subsystem:windowsce -entry:entry -base:0x10000 -fixed %t1.obj %t2.obj
+# RUN: llvm-pdbutil dump -summary %t.pdb | FileCheck %s
+# RUN: llvm-pdbutil dump -modules %t.pdb | FileCheck %s
+# RUN: llvm-pdbutil dump -publics %t.pdb | FileCheck %s
+
+## -debug on a WinCE image must produce a standalone PDB next to the image:
+## the MSF container with the standard stream set, one DBI module per input
+## object, and the surviving external symbols as publics.  Windows CE itself
+## never reads the PDB; it exists for the host-side debugger.
+
+# CHECK: Streams
+# CHECK: PDB Stream
+# CHECK: DBI Stream
+# CHECK: TPI Stream
+# CHECK: IPI Stream
+# CHECK: Global Symbol Stream
+# CHECK: Public Symbol Stream
+# CHECK: Modules
+# CHECK-DAG: {{.*}}1.obj
+# CHECK-DAG: {{.*}}2.obj
+# CHECK: Publics
+# CHECK-DAG: S_PUB32 {{.*}} "entry"
+# CHECK-DAG: S_PUB32 {{.*}} "helper"
+
+#--- 1.s
+	.syntax unified
+	.arm
+	.text
+	.globl	entry
+entry:
+	.fnstart
+	.cantunwind
+	bx	lr
+	.fnend
+
+#--- 2.s
+	.syntax unified
+	.arm
+	.text
+	.globl	helper
+helper:
+	.fnstart
+	.cantunwind
+	bx	lr
+	.fnend
