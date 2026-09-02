@@ -18,8 +18,8 @@
 # MODULES-DAG: Obj: {{`.*1.obj`}}:
 # MODULES-DAG: Obj: {{`.*2.obj`}}:
 # PUBS: Public Symbols
-# PUBS-DAG: "entry"
-# PUBS-DAG: "helper"
+# PUBS-DAG: S_PUB32 {{.*}} `entry`
+# PUBS-DAG: S_PUB32 {{.*}} `helper`
 
 #--- 1.s
 	.syntax unified
