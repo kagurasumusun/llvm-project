@@ -814,8 +814,8 @@ Player 公式 zip 403 ファイルの全 `#include` を sysroot ヘッダ集合�
 
 ### 18.2 最終緑と成果物検証
 
-* llvm lit ゲート 31 テスト (`afc91e89`、run 33599541919 相当) — 30 passed
-  + 1 unsupported、failure 0。
+* llvm lit ゲート 31 テスト (`afc91e89`、[run 33600017067](https://github.com/kagurasumusun/llvm-project/actions/runs/33600017067))
+  — 30 passed + 1 unsupported、failure 0。
 * cellvm-build フルパイプライン (S1 lit → S2 sysroot → S3 runtimes+C++
   smoke → package → S4 glpi → S5 Player)
   [33600018503](https://github.com/kagurasumusun/cellvm-build/actions/runs/33600018503)
