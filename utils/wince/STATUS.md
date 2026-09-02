@@ -5,6 +5,12 @@ First full-pipeline green: [33364840614](https://github.com/kagurasumusun/llvm-p
 at `b10d3fa` (Stage 1–3 + package). Third-party app + no Absolute-0
 `__text_start__`: [33437887749](https://github.com/kagurasumusun/llvm-project/actions/runs/33437887749)
 at `7b59bc2c`.
+**First Stage 5 green (EasyRPG Player links)**: llvm `afc91e89` /
+cellvm-build `c83b9f4`
+([33600018503](https://github.com/kagurasumusun/cellvm-build/actions/runs/33600018503));
+`easyrpg-player.exe` 5,346,816 bytes, PE verified (ARM, subsystem 9,
+entry `.text+0`, import/IAT resolved, merged `.ARM.exidx`/`.ARM.extab`).
+Causes and fixes: WINCE-HANDOFF.md §18.
 
 This file is the current snapshot. Older notes in this directory
 (`README.md` inventory, `WINCE-WINEH-STATUS.md`) are historical unless
@@ -32,6 +38,29 @@ process conflict (full results in WINCE-HANDOFF.md §17):
   it fixed, and MSVC-style include spellings (`Windows.h`, `Shellapi.h`)
   are covered by case-alias forwarders plus a generator script.
 
+## Stage 5 greening (2026-09-02, full table in WINCE-HANDOFF.md §18)
+
+Each round exposed the next structural cause; every fix is a mechanism or a
+single-sourcing, not a local dodge:
+
+* libc++ `std::to_string` ambiguity → wincehelper shim overloads deleted
+  (`5cc3d9d`).
+* Driver ignored `-L` for the wince linker job → translated to `/libpath:`
+  with a claim, lit-checked (`219e86dd`).
+* `strerror` duplicate symbol → `ce-strerror.c` copy removed; mingwrt
+  `coredll_stubs` is the sole provider (`bbce715`).
+* `-lmmtimer.lib is not allowed in .drectve` → SDL patch forces the
+  threaded-timer path; no MM timer dependency (`bbce715`).
+* `wcstold` / `__mingw_aligned_malloc` undefined → mingwrt CE `LIB_OBJS`
+  omissions fixed (`993c7e4`).
+* `AudioSeCache`/`AudioDecoder`/`Struct<RPG::TestBattler>` undefined →
+  three missing sources in the overlay Makefiles (`66db512`, `e2d95ba`).
+* `WIN_GL_*` undefined → `SDL_dibvideo.c` GL call sites guarded; GL is
+  not built for WINDIB (`66db512`).
+* `.ARM.exidx` relocations against COMDAT-discarded functions → lld/COFF
+  now culls exidx/extab entries whose function was discarded, ELF-style,
+  lit-checked `wince-exidx-comdat.s` (`afc91e89`).
+
 ## Repository layout (2026-08-31 reorganization)
 
 * **This repository = compiler side only**: driver, cmake cache,
@@ -55,6 +84,7 @@ process conflict (full results in WINCE-HANDOFF.md §17):
 | Stage 3 compiler-rt builtins + libunwind + libc++abi + libc++ | pass; `libc++.a` in the sysroot |
 | Package + `/opt` compile sanity | pass |
 | Stage 4 TECLIB/glpi-wince-agent (unmodified `make`) | pass; artifacts uploaded |
+| Stage 5 MaxSignal/Player 0.6.2.3-wince (Clang Makefile overlay) | **pass; `easyrpg-player.exe` links** (audio off, SDL 1.2 WINDIB) |
 | CPU / ABI | `arm926ej-s`, soft-float, GNU `lib*.a` |
 
 ## Runtime layering (do not flatten)

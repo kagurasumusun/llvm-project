@@ -790,3 +790,48 @@ Player 公式 zip 403 ファイルの全 `#include` を sysroot ヘッダ集合�
   期待 3 綴りを検出; シェル/YAML/Python は構文検証済み。
 * ビルド・リンク・Stage 5 緑化: **push 後の CI が初回検証者** (llvm 側 lit ゲート →
   cellvm-build フルパイプライン)。実機実行は従来通り未検証。
+
+## 18. (2026-09-02): Stage 5 緑化 — MaxSignal/Player 0.6.2.3-wince のリンク到達
+
+§17 の一斉監査の後、Stage 5 (Player) を緑にするまでの各 CI ラウンドで
+露出した原因を、すべて機構・単一ソース化・正しい経路への接続で解消した。
+場当たり的な回避は行っていない。各項の根拠は該当 CI ランのログ実文。
+
+### 18.1 原因と修正 (時系列)
+
+| # | 症状 (CI ログ実文) | 構造的原因 | 修正 (commit) |
+|---|---|---|---|
+| a | libc++ `<string>` の `std::to_string` が曖昧 | wincehelper.cpp が `std::to_string` 9 種を自前定義し libc++ と衝突 | shim 削除。libc++ が唯一の提供者 (cellvm `5cc3d9d`) |
+| b | `-L` が unused warning になり lib が解決されない | wince 用 Linker::ConstructJob が `-L` を claim せず lld-link に `/libpath:` を渡していない | driver が `-L` を `/libpath:` 変換 (user paths 先頭) + claim。lit `wince.c` に LLIBPATH 検証追加 (llvm `219e86dd`) |
+| c | `duplicate symbol: strerror` | ce-strerror.c と mingwrt coredll_stubs.c が二重提供 | ce-strerror.c 側を削除。coredll_stubs が唯一の提供者 (cellvm `bbce715`) |
+| d | `-lmmtimer.lib is not allowed in .drectve` | SDL wince timer が `_WIN32_WCE>420` で MM timer path を選び `#pragma` で mmtimer を要求。COREDLL に MM 関数は無い | SDL patch で threaded timer path を強制 (CE の COREDLL で実行可能なのは thread path のみ) (cellvm `bbce715`) |
+| e | `undefined: wcstold` | mingwrt に wcstold.c は存在するが CE LIB_OBJS から漏れ | `__COREDLL__` 分岐で wcstod 実装 (armel long double ≡ double) + LIB_OBJS 追加 (mingwrt `993c7e4`) |
+| f | `undefined: __mingw_aligned_malloc/free` | mingw-aligned-malloc.c が CE LIB_OBJS から漏れ | CE LIB_OBJS に追加 (mingwrt `993c7e4`) |
+| g | `undefined: AudioSeCache::*` / `Struct<RPG::TestBattler>::*` | overlay Makefile (Player/liblcf) のビルド対象漏れ | audio_secache.cpp / ldb_testbattler.cpp を追加 (cellvm `66db512`) |
+| h | `undefined: WIN_GL_ShutDown/WIN_GL_SetupWindow` | upstream SDL は wingl.c を常時ビルドするが overlay は非ビルド。SDL_dibvideo.c の GL 呼び出し 3 箇所が無ガード | SDL_dibvideo.c の 3 箇所を `SDL_VIDEO_OPENGL` ガードで保護する hunk を patch に追加 (diff -u 機械生成・実 upstream で検証) (cellvm `66db512`) |
+| i | `undefined: AudioDecoder::*` (vtable/typeinfo 含む) | overlay Makefile の audio_decoder.cpp 漏れ | 追加。decoder 依存は全て HAVE_* ガード内で未定義なら null decoder (cellvm `e2d95ba`) |
+| j | `.ARM.exidx` relocation against discarded section (bitmap.o, ldb_state.o, lmu_movecommand.o) | テンプレート実体化の COMDAT 敗者が破棄された後、その関数の exidx/extab エントリが生き残り敗者チャンクを参照し続ける。EHABI アンワインダは統合インデックスを無条件に走査するため、イメージに無い関数のエントリは存在してはならない (ELF リンカは捨てる) | lld/COFF Writer が `createSections()` 前に生きている `.ARM.exidx`/`.ARM.extab` チャンクを走査し、破棄済みターゲットを参照するものを `live=false` に。述語は `SectionChunk::applyRelocation` と同一 (null シンボル=早期破棄 / 死んだ SectionChunk=後期破棄)。lit `wince-exidx-comdat.s` 追加 (llvm `0b8e3439` → `664bbbef` (objFileInstances) → `afc91e89` (null 述語)) |
+
+### 18.2 最終緑と成果物検証
+
+* llvm lit ゲート 31 テスト (`afc91e89`、run 33599541919 相当) — 30 passed
+  + 1 unsupported、failure 0。
+* cellvm-build フルパイプライン (S1 lit → S2 sysroot → S3 runtimes+C++
+  smoke → package → S4 glpi → S5 Player)
+  [33600018503](https://github.com/kagurasumusun/cellvm-build/actions/runs/33600018503)
+  green @ `c83b9f4` (submodule llvm-project @ `afc91e89`)。
+* 成果物: `easyrpg-player.exe` 5,346,816 バイト。llvm-readobj による PE 検証:
+  Machine `IMAGE_FILE_MACHINE_ARM`, Subsystem `IMAGE_SUBSYSTEM_WINDOWS_CE_GUI (9)`,
+  entry `.text+0` (WinMainCRTStartup), import/IAT 解決済み, セクション
+  `.text/.rdata/.data/.ctors/.dtors/.ARM.exidx(0x51F8)/.ARM.extab(0x2E95C)`,
+  RELOCS_STRIPPED (ImageBase 0x10000 固定)。
+* 実機実行は未検証 (CE ハード無し)。検証上限はこの CI と PE 構造まで。
+
+### 18.3 運用修正
+
+* ユーザー指示により cellvm-build の作業ブランチを `main` に一本化
+  (`wince` ブランチは削除)。workflow トリガーは全 branch push +
+  手動 dispatch。llvm-project 側の作業ブランチ名は `llvm-wince` (fork の
+  main ラインとして運用、STATUS 冒頭の記載通り)。
+* llvm 側の docs-only コミットでは submodule pin を動かさない
+  (pin は検証済みビルド状態を指す)。
