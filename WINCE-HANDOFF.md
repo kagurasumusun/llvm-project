@@ -835,3 +835,81 @@ Player 公式 zip 403 ファイルの全 `#include` を sysroot ヘッダ集合�
   main ラインとして運用、STATUS 冒頭の記載通り)。
 * llvm 側の docs-only コミットでは submodule pin を動かさない
   (pin は検証済みビルド状態を指す)。
+
+## 19. (2026-09-03): 実機クラッシュ調査 — §4e訂正 + トップレベル__tryクラッシュロガー
+
+ユーザーから、imx28/WinCE 6.0/ARM/RAM12MB実機でEasyRPG Playerが「一瞬起動
+してクラッシュする」との報告。GitHub PAT経由で本リポジトリ・cellvm-build・
+mingwrt・w32apiの全ドキュメントとCIログを精査した上での対応。
+
+### 19.1 WINEH-ABI-FACTS.md §4eの訂正(重要)
+
+過去のセッションが「CodeGen由来のEHABIテーブル生成が配線されているか
+未確認」と記録していた件(§4e)は、**grep漏れによる誤り**だったことが実ソース
+確認で判明した:
+
+* 実際の呼び出し元は `llvm/lib/CodeGen/AsmPrinter/ARMException.cpp`
+  (`ARMException::beginFunction`/`endFunction`)で、`AsmPrinter`が
+  `ExceptionHandling::ARM`のとき全`MachineFunction`ごとに呼ぶ標準機構。
+  過去の調査はこのファイルを見ていなかった。
+* `arm-pc-wince`では`ARMMCTargetDesc.cpp`が明示的に
+  `MAI->setExceptionsType(ExceptionHandling::ARM)`を設定している。
+* `WinCE::getDefaultUnwindTableLevel()`が無条件に`Asynchronous`を返す
+  ため、**リーフ関数を含む全関数**が`.ARM.exidx`エントリを持つ
+  (`clang/test/CodeGen/ARM/wince-ehabi-tables.c`でlitテスト済み)。
+
+結論: 「C++例外はEHABI経由で動く」という前提はcodegenレベルでは健全。
+§4eは§4h(訂正版)に置き換え、旧記述は経緯として §4e に残した。
+
+### 19.2 実機クラッシュの残る本命候補(§4h参照)
+
+EHABIの配線問題が消えたことで、残る候補は:
+
+1. **libunwindのCE(COFF)向けリーダ**: `ARMWinCOFFStreamer`はabsolute
+   `IMAGE_REL_ARM_ADDR32`でexidx/extabを書くが、libunwindの標準実装は
+   ELF PREL31 + `__exidx_start/end`前提。CEのCOFF形式に対応したリーダが
+   本当にlibunwind側にあるか、実リンク・実行で未検証(lit テストは
+   コンパイラ出力側のみを見ている)。
+2. **CEカーネルのハードウェア例外ディスパッチとEHABIは別物**: データ
+   アボート等はCEネイティブの`.pdata`(PDATA_EH, `__try`関数のみに存在)
+   経由でしかOSに拾われない。`.ARM.exidx`はlibunwind専用で、OSの
+   ハードウェア例外ディスパッチには一切関与しない。EasyRPG/SDL/liblcf/
+   pixman/libpng/zlibはどれも`__try`を使わないため、**ハードウェア例外
+   (不整列アクセス等)が起きた場合、これまでは一切ログが残らず、
+   ただちにプロセスが消えるだけだった**。
+
+### 19.3 実装した対策: トップレベル `__try/__except` クラッシュロガー
+
+`kagurasumusun/mingwrt`の`crt3.c`(`WinMainCRTStartup`、全WinCEアプリの
+唯一の合流点)で`WinMain(...)`呼び出し全体を`__try/__except`で包み、
+例外コード・発生アドレス・パラメータを`<exe名>.crash.log`に書き出す
+ようにした。これは:
+
+* 既に実装・lit テスト済みの`__try/__except`機構(WINEH-ABI-FACTS.md
+  §4d/4f/4g、`clang/test/CodeGen/wince-seh.c`)をそのまま使うだけなので、
+  EHABIまわりの未検証部分に依存しない(SEHはCEネイティブ`.pdata`経路で
+  あり、EHABI `.ARM.exidx`とは独立)。
+* クラッシュを直せるわけではない(常にプロセスは終了する)が、
+  「原因不明の無言死」を「例外コード+アドレス入りログ」に変える。
+  次にユーザーが実機で再現させたとき、ハードウェア例外(データ
+  アボート等、アライメント起因の疑いが強い)なのか、それとも
+  C++例外の巻き戻り失敗なのか、あるいは`ExitProcess`/`abort`による
+  正常終了なのかを、ログのExceptionCodeで即座に切り分けられる。
+* `crt3.c`は元々`-fno-ms-extensions`でビルドされる木の一部だが、
+  `Makefile.in`の`crt3.o dllcrt3.o:`ルールにのみ`-fms-extensions`を
+  追加(このファイル1つだけの例外; ツリー全体のデフォルトは変えない)。
+
+**未検証**(このサンドボックスではLLVM/Clang自体のビルド不可、
+既存の制約と同じ): 実際にビルドしてクラッシュログが正しく出力される
+ことをデバイス上で確認する必要がある。次に実機でクラッシュを
+再現させたら、まず`<exe名>.crash.log`の有無と中身を確認すること。
+
+### 19.4 残作業(優先度順)
+
+1. 実機で再現させ、`.crash.log`の内容(ExceptionCode)を確認する。
+   `STATUS_DATATYPE_MISALIGNMENT`相当のコードが出れば§19.2の1番
+   (ARMv5TE厳格アライメント)がほぼ確定する。ログ自体が作られない
+   場合はlibunwind/ファイルI/O層(19.2の1番、または単にファイル書き込み
+   権限)を疑う。
+2. ARMv5TE厳格アライメント対策の実装(ユーザー指示により次フェーズ)。
+3. libunwindのCE COFF対応が実在するか実ソース確認(19.2の1番)。

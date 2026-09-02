@@ -1,4 +1,24 @@
-# WinCE toolchain status (2026-09-02)
+# WinCE toolchain status (2026-09-03)
+
+## 2026-09-03 first real on-device report (imx28, CE 6.0, ARM, 12MB RAM)
+
+User-reported: EasyRPG Player (Stage 5 build) starts briefly then
+crashes on real hardware — the first ever on-device signal this
+toolchain has received. Findings and fixes: WINCE-HANDOFF.md §19.
+
+* **WINEH-ABI-FACTS.md §4e corrected**: the "CodeGen-driven EHABI table
+  generation may not be wired up" open question was a false alarm from
+  an incomplete grep (missed `ARMException.cpp`). Verified against
+  source: it is wired up and lit-tested
+  (`clang/test/CodeGen/ARM/wince-ehabi-tables.c`). See §4h for where the
+  remaining EHABI-shaped risk actually is.
+* **Top-level `__try/__except` crash logger added** to `mingwrt`'s
+  `crt3.c` (`WinMainCRTStartup`): every WinCE program built by this
+  toolchain now writes `<exe>.crash.log` with the exception code/address
+  on an unhandled hardware or software exception, instead of the process
+  silently disappearing. Not yet exercised on a real build/device.
+* ARMv5TE strict-alignment audit of the app-side dependencies
+  (pixman/libpng/zlib/liblcf/SDL) — planned next, not yet started.
 
 Branch: `llvm-wince`.
 First full-pipeline green: [33364840614](https://github.com/kagurasumusun/llvm-project/actions/runs/33364840614)

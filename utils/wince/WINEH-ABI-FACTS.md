@@ -330,35 +330,88 @@ Both edits are therefore behaviorally inert for all existing/tested code
 paths; they only add a new, previously-unreachable branch. This is a much
 narrower risk profile than option 1's target-wide flip (§4c).
 
-## 4e. Open question, not resolved by inspection: does CE's EHABI table
-actually get generated for *compiled* C++ today?
+## 4e. RESOLVED (2026-09-03): CE's EHABI table generation for *compiled*
+C++ is wired up correctly. The earlier "open question" below was based on
+an incomplete grep and was wrong.
 
-While tracing where WinCFI's `.seh_*` directives get emitted from (to
-find the corresponding EHABI `.fnstart`/`.fnend` call site to also gate),
-`ARMTargetStreamer::emitFnStart()`/`emitFnEnd()` -- the calls that open
-and close a `.ARM.exidx`/`.ARM.extab` table entry
-(`ARMWinCOFFStreamer::EHABIemitFnStart`/`EHABIemitFnEnd`) -- were found to
-be called **only from `ARMAsmParser.cpp`** (i.e. when assembling `.s`
-source containing an explicit `.fnstart`/`.fnend` directive, such as
-`armasm`-authored files). No call site was found in `ARMAsmPrinter.cpp`,
-generic `AsmPrinter.cpp`, `ARMISelLowering.cpp`, or `ARMFrameLowering.cpp`
-that would invoke this for a function CodeGen compiled directly from C/C++
-source.
+**Original concern (kept for the record):** a grep for
+`ARMTargetStreamer::emitFnStart()`/`emitFnEnd()` call sites only turned up
+`ARMAsmParser.cpp` (i.e. hand-written `.fnstart`/`.fnend` in `.s` files).
+No call site was found in `ARMAsmPrinter.cpp`, generic `AsmPrinter.cpp`,
+`ARMISelLowering.cpp`, or `ARMFrameLowering.cpp`, so it was flagged as an
+unresolved risk to the entire "C++ exceptions work via EHABI" premise.
 
-This was **not resolved** -- it needs either (a) confirming there's a
-legitimate implicit/generic mechanism elsewhere that this pass didn't
-find, by tracing further or by building and inspecting the `.ARM.exidx`
-section of a compiled test binary, or (b) concluding that CodeGen-driven
-EHABI table generation for compiled (not hand-assembled) WinCE C++ is not
-actually wired up yet, independent of anything to do with SEH. Given the
-significance either way (this would be foundational to the "C++
-exceptions already work via EHABI" premise this whole SEH investigation
-has been resting on), **this should be checked with an actual build and
-a minimal `try { throw ...; } catch { ... }` compile-and-disassemble test
-before any further EH work on this target proceeds**, rather than assumed
-in either direction. Flagging this explicitly rather than guessing was
-judged safer than either asserting it works or silently leaving it
-unmentioned.
+**Why that grep missed it:** the actual call site is in
+`llvm/lib/CodeGen/AsmPrinter/ARMException.cpp`, which the earlier session
+did not check. `ARMException` is a standard `EHStreamer` subclass,
+constructed by `AsmPrinter::AsmPrinter()`
+(`llvm/lib/CodeGen/AsmPrinter/AsmPrinter.cpp:643`,
+`case ExceptionHandling::ARM: ES = new ARMException(this);`) whenever
+`MCAsmInfo::getExceptionHandlingType() == ExceptionHandling::ARM`. For
+`arm-pc-wince`, `ARMMCTargetDesc.cpp` (`createARMMCAsmInfo`, the WinCE
+branch) sets exactly that: `MAI->setExceptionsType(ExceptionHandling::ARM)`.
+`ARMException::beginFunction`/`endFunction` (invoked by `AsmPrinter` once
+per `MachineFunction`, i.e. for **every compiled function**, not just
+hand-assembled ones) call `getTargetStreamer().emitFnStart()`/`emitFnEnd()`
+exactly like the ELF ARM EHABI path does, except when
+`MF->hasWinCFI()` is true (the SEH `__try` case, which takes the WinCFI
+`.seh_proc`/CE-`.pdata` branch instead — the two paths are mutually
+exclusive per function, matching §4d).
+
+**Confirmed further:** `WinCE::addClangTargetOptions` forces
+`UnwindTableLevel::Asynchronous` unconditionally
+(`clang/lib/Driver/ToolChains/WinCE.h`,
+`getDefaultUnwindTableLevel() { return UnwindTableLevel::Asynchronous; }`),
+so **every function gets a `.ARM.exidx` entry regardless of whether it can
+throw** — matching real ARM EHABI practice (the unwinder must be able to
+walk plain C frames too). This is lit-tested end-to-end:
+`clang/test/CodeGen/ARM/wince-ehabi-tables.c` compiles a leaf function and
+a function with a real stack frame and checks for `.fnstart`/`.setfp`/
+`.fnend` in the emitted assembly, in both ARM and Thumb mode.
+
+**Conclusion:** the "C++ exceptions already work via EHABI" premise this
+whole SEH investigation rested on is sound at the codegen level. This is
+not the explanation for the on-device EasyRPG Player crash reported
+2026-09-03; look elsewhere (§4h).
+
+## 4h. On-device crash investigation (2026-09-03): where EHABI *can* still
+go wrong, now that codegen wiring is confirmed correct
+
+With 4e resolved, the remaining EHABI-shaped risks for the reported
+"starts, runs briefly, then dies with no diagnostic" symptom on real CE
+6.0/imx28 hardware are runtime-side, not codegen-wiring-side:
+
+1. **libunwind's `.ARM.exidx` reader vs. this toolchain's COFF layout.**
+   `ARMWinCOFFStreamer` emits exidx/extab entries with **absolute
+   `IMAGE_REL_ARM_ADDR32` addresses**, not the ELF PREL31-encoded, sorted,
+   `__exidx_start/__exidx_end`-bounded table libunwind's stock
+   `UnwindCursor::findUnwindSections`/`EHABICurrentUnwindInfo` code
+   expects. If `libunwind`'s CE port does not have a COFF-specific reader
+   for this exact layout (absolute addresses, PE section rather than ELF
+   `PT_ARM_EXIDX` program header), a real `throw` will walk garbage and
+   crash instead of unwinding — this is a **runtime library** concern,
+   not a compiler-emission concern. `libunwind.a` is fetched from the
+   vendored `runtimes` tree, whose CE support (if any) is not part of
+   `llvm-wince`'s own lit suite (lit tests check the *compiler's*
+   `.ARM.exidx` output, not `libunwind`'s consumption of it against a
+   linked binary — nothing here has exercised that on a real link+run).
+2. **Where the personality routine is found at runtime.** `.ARM.extab`
+   entries reference `__gnu_unwind_execute`'s conventional personality
+   symbols, resolved by the static link exactly like ELF. This should be
+   fine for a statically-linked EXE (no cross-DLL personality lookup), but
+   has never been exercised on-device.
+3. **The two unwind mechanisms are genuinely separate and this is easy to
+   forget when debugging a crash log**: the CE kernel's own hardware-fault
+   dispatch (data/prefetch abort, illegal instruction) uses the
+   `.pdata`/`PDATA_EH` mechanism in §4g, gated on `__try` — **not**
+   `.ARM.exidx`. A hardware fault inside ordinary (non-`__try`) C++ code
+   has no CE-native handler entry to dispatch to, independent of whether
+   `.ARM.exidx` is correct. If the crash the user is seeing is a hardware
+   fault (e.g. an unaligned access on this strict-alignment ARMv5TE
+   device) rather than a thrown C++ exception, §4e/this section's fixes
+   are irrelevant to it and the crash needs to be diagnosed at that layer
+   instead (see `WINCE-HANDOFF.md` §19 for the top-level `__try` crash
+   logger added to help with exactly this ambiguity).
 
 ## 4g. CE exception dispatch & PDATA_EH — verified against exdsptch.c (2026-08-29)
 
