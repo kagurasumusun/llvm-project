@@ -1,4 +1,77 @@
-# WinCE toolchain status (2026-09-03)
+# WinCE toolchain status (2026-09-04)
+
+## 2026-09-04 — WinCE lit gate fully green (41/41); first end-to-end green run since the gate was added
+
+cellvm-build CI
+[33779871059](https://github.com/kagurasumusun/cellvm-build/actions/runs/33779871059)
+(llvm `ad56d0510715`, cellvm-build `b7dad121e486`) finished **success** with all 26
+steps green — Stage 1 configure/build, the WinCE lit gate at
+`Passed: 41 (100.00%)`, the isolated install, Stage 2 sysroot assembly and its
+25-row platform-header smoke, Stage 3 runtimes, the C++ header-collision and
+CodeView smokes, packaging, and both real-world projects (glpi-wince-agent.exe and
+easyrpg-player). Three artifacts uploaded: the toolchain (89.7 MB),
+glpi-wince-agent (49.7 KB), easyrpg-player (6.7 MB).
+
+The two failures that had been blocking the gate are closed (full evidence chain in
+WINEH-ABI-FACTS.md §4p):
+
+* **FAIL A — product defect, `7cb85c678b0c`.** `createX86MCAsmInfo` had no WinCE
+  branch, so `i386-pc-wince` — which matches none of the MachO / ELF / MSVC-env /
+  CoreCLR / UEFI / Cygwin-MinGW / Itanium tests — fell through to the ELF default
+  and got an `X86ELFMCAsmInfo`. The AsmPrinter's first section switch then went
+  through `MCAsmInfoELF::printSwitchToSection`: `-filetype=asm` segfaulted,
+  `-filetype=obj` died in `MCAssembler::registerSymbol` under
+  `MCWinCOFFStreamer::changeSection`, and only `-filetype=null` survived, which is
+  what made the crash look intermittent. It now returns `X86MCAsmInfoGNUCOFF`,
+  mirroring `createARMMCAsmInfo`'s `ARMCOFFMCAsmInfoGNU` for WinCE and the rest of
+  this toolchain's GNU dialect.
+* **FAIL B — test defect, `ad56d0510715`.** `wince-pdata-every-function.ll`'s
+  `cpp_func` had a cleanup-only landing pad that resumed its own value immediately,
+  which is exactly the shape `SimplifyCFGOpt::simplifySingleResume` converts into a
+  plain call through `removeUnwindEdge` (no personality, clause or cleanup guard)
+  and then deletes, gated only on `isCleanupBlockEmpty()`. With `getLandingPads()`
+  empty, `ARMException::emitEHABIFunctionEnd` correctly emits no
+  `.personality`/`.handlerdata`. `-print-after-all` named the pass: the pad is
+  present after `atomic-expand` and gone after "Simplify the CFG (simplifycfg)" on
+  armv7 but not on armv5te, while the personality stays in the IR on both. The pad
+  now does real work (`extractvalue` plus a call to an external `cleanup_helper`),
+  so the transform cannot fire at any target or optimization level. All 33 COMMON
+  checks and all 6 RUN lines are unchanged. It was not XFAILed and no backend
+  change was made: the directives were absent because they *should* have been.
+
+Also in `b7dad121e486`, three defects that the new section-J diagnostic exposed in
+my own GL smoke checks — two of them duplicated verbatim into Stage 2's block,
+which had never run:
+
+* `<EGL/eglext.h>` is not self-contained. It includes only `<EGL/eglplatform.h>`
+  but uses `EGLBoolean`/`EGLDisplay`/`EGLSurface`/`EGLint`, which CE declares in
+  `egl.h:22-28`; `eglplatform.h` supplies just the `EGLNative*` aliases and the
+  `EGLAPIENTRY`/`EGLAPI` dllimport boilerplate. Both checks failed on "unknown type
+  name 'EGLDisplay'" at `eglext.h:74-75`. `egl.h` now comes first — which is also
+  upstream Khronos' order — so the header is left exactly as CE shipped it.
+* GLES2's `glViewport` takes no `GLenum`: CE declares
+  `glViewport (GLint x, GLint y, GLsizei width, GLsizei height)` at `gl2.h:647`.
+  The check used the desktop OpenGL signature and got "incompatible function
+  pointer types" on both `arm-pc-wince` and `i386-pc-wince`.
+* `... 2>&1 | head -20` followed by `echo "  rc=$?"` reported `head`'s status, so
+  all six rows printed `rc=0` while four of them were printing compiler errors;
+  clang's own status is now captured into `$RC` first. Stage 2 additionally asserted
+  `EGLint`-is-`int32_t` with `std::is_same` from `<type_traits>`, but Stage 2 runs
+  before Stage 3 builds the runtimes, so libc++ headers are not installed yet and
+  that check could never have compiled; it now uses the same hand-rolled two-line
+  trait section J used.
+
+Stage 2's header smoke consequently ran for the first time and passed all 25 rows,
+including the five new EGL/GLES2 ones. The w32api import itself needed no change:
+`egl.h`/`eglplatform.h` and both `.def` files (`libegl.def` 34 exports,
+`libglesv2.def` 142) were already right, and `<stdint.h>` with `<EGL/egl.h>`
+compiles in C with `EGLint` being `int32_t` as a *type* rather than merely the same
+size — the whole point of the one deviation from CE's `eglplatform.h` text.
+
+Branches: llvm `ad56d0510715`, mingwrt `a1477a2b2278`, w32api `e3158236bc3d`,
+cellvm-build `b7dad121e486`. This documentation commit changes no build input, so
+cellvm-build stays pinned at `ad56d0510715` instead of spending a run on it.
+
 
 ## 2026-09-03 — Option-B vestige removed; `.pdata` regression test; native SEH verified
 

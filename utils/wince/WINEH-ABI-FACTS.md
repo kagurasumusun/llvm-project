@@ -1098,3 +1098,117 @@ For x86-pc-wince C++ EH the two candidate strategies are:
 3. Once fixed, re-land `WinCETargetInfo` → Microsoft CXXABI + the
    personality-follows-CXXABI change, with a passing catch test, then build
    libc++/libc++abi for the Microsoft ABI on x86-pc-wince and add an x86 CI lane.
+
+
+## 4p. The last two `.pdata` regression-test failures: an x86 MCAsmInfo gap and a test-only landing-pad shape (2026-09-04, this session)
+
+§4i added all-function `.pdata` emission for WinCE ARM plus regression tests for
+it. Two of those tests were failing in cellvm-build CI, for reasons that had
+nothing to do with the `.pdata` work itself, and both are now closed: the
+41-test WinCE lit gate is green end to end in CI
+[33779871059](https://github.com/kagurasumusun/cellvm-build/actions/runs/33779871059)
+(2026-09-03T16:46Z), which also ran Stage 2's platform-header smoke, Stage 3's
+runtimes and both real-world projects for the first time since the gate was added.
+
+### FAIL A — `createX86MCAsmInfo` had no WinCE branch (product defect; fixed `7cb85c678b0c`)
+
+`llvm/test/MC/X86/wince-pdata-compat.s` crashed `llc` rather than failing a CHECK.
+`createX86MCAsmInfo` (`llvm/lib/Target/X86/MCTargetDesc/X86MCTargetDesc.cpp`)
+dispatches on MachO / ELF / MSVC-environment / CoreCLR / UEFI / Cygwin-MinGW /
+Itanium and defaults to ELF, and **no branch can match `i386-pc-wince`**:
+`isWindowsMSVCEnvironment()` deliberately excludes WinCE (`Triple.h`: an
+unspecified environment only counts as MSVC when `!isWindowsCE()`), and with the
+environment unspecified `isOSCygMing()` and `isWindowsItaniumEnvironment()` do not
+match either. A COFF target was therefore handed an `X86ELFMCAsmInfo`, and the
+AsmPrinter's very first section switch went through
+`MCAsmInfoELF::printSwitchToSection`, which touches ELF-only section state:
+
+```
+MCAsmInfoELF::printSwitchToSection
+<- MCTargetStreamer::changeSection
+<- MCAsmStreamer::switchSection
+<- AsmPrinter::emitFunctionHeader
+<- X86AsmPrinter::runOnMachineFunction
+```
+
+`-filetype=asm` segfaulted there; `-filetype=obj` died in
+`MCAssembler::registerSymbol` under `MCWinCOFFStreamer::changeSection` for the
+same reason; `-filetype=null`, which never switches sections, was the only mode
+that survived — which is why the crash looked intermittent across RUN lines.
+
+The fix inserts `else if (TheTriple.isWindowsCE()) MAI = new
+X86MCAsmInfoGNUCOFF(TheTriple);` ahead of the MSVC test, mirroring
+`createARMMCAsmInfo`, which already picks `ARMCOFFMCAsmInfoGNU` for WinCE. GNU
+COFF rather than MSVC COFF is the consistent choice for this toolchain: everything
+else about it is GNU dialect — `crt3.o`, `lib*.a`, `-lfoo` resolving to
+`libfoo.a`, `llvm-dlltool`'s i386 single-underscore handling. `.seh_*` directives
+stay legal because `MCStreamer::EnsureValidWinFrameInfo` already admits them for a
+WinCE triple even when the `MCAsmInfo` does not set `usesWindowsCFI`. First
+verified green in CI 33773683221 and still green in 33779871059.
+
+### FAIL B — the test's landing pad was exactly the shape `SimplifyCFG` deletes (test defect; fixed `ad56d0510715`)
+
+`llvm/test/CodeGen/ARM/wince-pdata-every-function.ll` failed only on its
+`thumbv7-pc-wince` RUN line: `cpp_func` emitted no `.personality` and no
+`.handlerdata`, while `armv5te` and `thumbv5te` emitted both. That reads like an
+architecture-dependent WinCE EH bug. It is not — it is
+`SimplifyCFGOpt::simplifySingleResume` doing precisely what it exists to do, on IR
+the test should never have depended on. Evidence chain, all against this tree:
+
+1. With `cpp_func` alone in the module (no WinEH `seh_func` beside it), armv5te and
+   thumbv5te still emit an LSDA and 8 `.Ltmp` references while armv7 and thumbv7
+   emit none — so the neighbouring Windows-EH function is not involved.
+2. On armv7, `-O0` keeps the LSDA and 12 `.Ltmp` references; `-O1`, `-O2` and `-O3`
+   lose them. The RUN lines pass no `-O`, so `llc`'s default `-O2` applies. An
+   optimization level changing the outcome means an IR pass, not the backend.
+3. A sweep over 17 triples puts the boundary at `hasV6Ops() && !isThumb1Only()`:
+   armv4, armv4t, armv5, armv5te, armv6m, thumbv4t and thumbv6 keep the pad;
+   armv6, armv6k, armv6t2, armv7, armv7a, armv7r, armv7m, armv8a, thumbv7 and
+   thumbv8a lose it.
+4. `-print-after-all` reduced to one row per dump (section I of the Stage-1
+   diagnostics) shows both triples still holding the landing pad after
+   `atomic-expand`, and on armv7 it is gone after **"Simplify the CFG
+   (simplifycfg)"** while on armv5te it survives. The `personality` stays in the IR
+   on both throughout. An earlier reading of that same table as "the personality is
+   stripped from the IR" was wrong.
+5. `simplifySingleResume` (`llvm/lib/Transforms/Utils/SimplifyCFG.cpp`) is reached
+   unconditionally from `simplifyOnce` for every `ResumeInst` whose block starts
+   with the landing pad it resumes. Its only gate is `isCleanupBlockEmpty()`: no
+   instructions between the `landingpad` and the `resume` other than debug
+   intrinsics. When that holds it calls `llvm::removeUnwindEdge` on every
+   predecessor and deletes the block.
+6. `removeUnwindEdge` (`llvm/lib/Transforms/Utils/Local.cpp`) turns the `invoke`
+   into a `call` via `changeToCall` and has **no personality, clause or cleanup
+   guard whatsoever**.
+
+`cpp_func`'s pad was `landingpad cleanup` followed immediately by `resume` of that
+same value — precisely the removable shape. With `getLandingPads()` empty,
+`ARMException::emitEHABIFunctionEnd` computes `shouldEmitPersonality` as false and
+emits neither `.personality` nor `.handlerdata`, which is the correct answer for
+the IR it was handed.
+
+So the fix belongs in the test; XFAILing it, or "forcing" the directives out of the
+backend, would both have been wrong. The pad now extracts the exception pointer
+and selector and passes them to an external `cleanup_helper`, which makes
+`isCleanupBlockEmpty` false, so the transform cannot fire on any target at any
+optimization level. All 33 COMMON check lines and all 6 RUN lines are unchanged;
+only `cpp_func`'s body and the declarations grow. `seh_func` needed no change — its
+pad is a WinEH `catchswitch`/`catchpad`, not a `ResumeInst`, so `simplifyResume`
+never applied to it and its `COMMON-NOT` checks on `.personality` were always about
+something else.
+
+**Why the architecture version changes whether the transform fires was not
+root-caused**, and nothing here depends on it. It is a correlation observed across
+17 triples, not a backend rule; the test's comment records both the mechanism and
+that gap rather than implying the version dependence is understood.
+
+### Diagnostics kept as the record
+
+Sections A0–J of cellvm-build's Stage-1 diagnostics step stay in place. A0–H are
+what bracketed FAIL B to an IR pass; I is what named `simplifycfg`; J compiles the
+newly imported EGL/GLES2 headers against the checked-out trees so the header
+surface is exercised even while the lit gate fails and Stage 2's smoke is skipped.
+Section I still prints `landingpad=n` on armv7 after `simplifycfg` because it feeds
+`-print-after-all` its own deliberately minimal IR rather than the repo test: it
+documents the transform, it does not re-test the fix. Section J's six rows are all
+`clang rc=0`.
