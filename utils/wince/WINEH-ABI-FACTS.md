@@ -23,27 +23,48 @@ public `eh.h` are present. So: **no C++ `FuncInfo` v1 layout facts below** — t
 about ARM `RUNTIME_FUNCTION` / prologue unwinding comes from `DLL/ARM/unwind.c`, which *is*
 present in full.
 
-## 2. CE ARM `RUNTIME_FUNCTION` layout — differs from NT ARM
+## 2. CE ARM `RUNTIME_FUNCTION` layout — corrected against `nkarm.h` (2026-09-03)
 
-Inferred from field-access patterns (`FunctionEntry->BeginAddress`,
-`FunctionEntry->PrologEndAddress`, `FunctionEntry->EndAddress`) in the Thumb and ARM
-`*VirtualUnwind` routines:
+There are **two distinct forms**; conflating them was the source of an earlier error in
+this section (which inferred a three-field struct from the fields the *unwinder* happens
+to touch).
+
+**(a) On disk, in `.pdata` — the compressed 8-byte `IMAGE_CE_RUNTIME_FUNCTION_ENTRY`**
+(ARM/SH4; see §4g and `exdsptch.c`), one per function:
 
 ```
-struct RUNTIME_FUNCTION_CE {   // fact-derived name, not the original identifier
-    ULONG BeginAddress;
-    ULONG PrologEndAddress;
-    ULONG EndAddress;
-};
+word0 = pFuncStart        // absolute VA; Thumb marker in bit 0
+word1 = PrologLen:8 | FuncLen:22 | ThirtyTwoBit:1 | ExceptionFlag:1
 ```
 
-This is **three absolute addresses**, not the packed `{BeginAddress, UnwindData}` pair (or
-`{BeginAddress, PackedUnwindData}` compact form) used by modern Windows-on-ARM NT unwind
-info, and not an xdata-offset scheme either. There is no packed-opcode `UnwindData` word
-and — as far as the available file shows — **no `.xdata` section is consulted by the
-unwinder at all**. `EncodingType::CE`'s comment in LLVM ("Windows CE ARM, PowerPC, SH3,
-SH4") is consistent with this being an older, simpler, non-table-driven scheme shared
-across those CE-supported architectures.
+`PrologLen`/`FuncLen` count *instructions* (InstSize = 4 ARM / 2 Thumb), not bytes. This
+is what `ARMWinCOFFStreamer::CEEmitUnwindInfo` emits and what lld's
+`sortCEExceptionTable` compacts the 16-byte object intermediate down to.
+
+**(b) In kernel, expanded — `_RUNTIME_FUNCTION` (`ce600/PRIVATE/WINCEOS/COREOS/NK/INC/
+nkarm.h`)**, which `RtlLookupFunctionEntry` fills in from (a) at lookup time. It has
+**five** fields, byte-for-byte the same as w32api `excpt.h`'s `RUNTIME_FUNCTION`:
+
+```
+typedef struct _RUNTIME_FUNCTION {
+    ULONG BeginAddress;       // = pFuncStart (low bit masked off)
+    ULONG EndAddress;         // = pFuncStart + FuncLen   * InstSize
+    ULONG ExceptionHandler;   // from the PDATA_EH pair iff ExceptionFlag, else 0
+    PVOID HandlerData;        // from the PDATA_EH pair iff ExceptionFlag, else 0
+    ULONG PrologEndAddress;   // = pFuncStart + PrologLen * InstSize
+} RUNTIME_FUNCTION;
+```
+
+The prologue-re-execution unwinder (`*VirtualUnwind`, §3) only *reads* `BeginAddress`,
+`PrologEndAddress` and `EndAddress`; `ExceptionHandler`/`HandlerData` are the dispatch
+fields used by the kernel and a frame handler (§4g) — populated from the in-text
+`PDATA_EH` pair when `ExceptionFlag=1`, zero for a plain function. This is **not** the
+packed `{BeginAddress, UnwindData}` / `{BeginAddress, PackedUnwindData}` form of modern
+Windows-on-ARM NT, and there is no `.xdata` opcode table: CE unwinds by re-executing the
+prologue machine code (§3). `EncodingType::CE`'s comment ("Windows CE ARM, PowerPC, SH3,
+SH4") reflects this older, simpler, non-table-driven scheme shared across those
+architectures.
+
 
 Address handling notes (structural, not implementation):
 - Both `BeginAddress` and `PrologEndAddress` have their low bit masked off
@@ -816,3 +837,91 @@ with it.
 Type equality itself (`is_equal` → `std::type_info::operator==`) compares
 addresses; that is sound here because the image is statically linked and
 lld dedups typeinfo COMDATs by symbol name across all objects.
+
+## 4l. C++ EH direction: Option A (EHABI user-space self-unwind); Option B removed (2026-09-03, this session)
+
+**Decision.** Windows CE C++ (Itanium) exceptions are unwound entirely in *user space* by
+this toolchain's libunwind through the ARM EHABI `.ARM.exidx`/`.ARM.extab` tables — the
+model CeGCC/GCC used for `arm-wince-pe`. The alternative "Option B" (bridge C++ throws
+onto the CE kernel dispatcher) was implemented on this branch and then **removed**.
+
+**What Option B was.** `_Unwind_RaiseException` rerouted (under `__WINCE__`) to
+`wince_unwind_raise_exception`, which called
+`RaiseException(WINCE_CXX_EH_NUMBER, EXCEPTION_NONCONTINUABLE, {WINCE_CXX_EH_MAGIC, ex})`.
+Every C++ frame claimed a CE handler (`.seh_handler __wince_cxx_frame_handler`) so its
+`.pdata` carried `ExceptionFlag=1` plus an in-text `PDATA_EH` pair
+`{__wince_cxx_frame_handler, &FuncInfoB}`. The handler (`cxxeh_wince.cpp`) ran the Itanium
+personality on a cursor built from the fault `CONTEXT`, stashed the exception object in
+`__wince_cxx_current_obj`, and resumed the kernel unwind.
+
+**Why it was removed — two defects.**
+
+1. *Emission gate.* `ARMAsmPrinter::emitFunctionEntryLabel` gated the C++ `PDATA_EH` pair
+   on `functionUsesWinCFI(MF) && functionUsesCXXEHABI(MF)`. `functionUsesWinCFI` is
+   SEH-only (`MSVC_TableSEH`/`MSVC_X86SEH`), so the conjunction was *always false* for a
+   `GNU_CXX` function: `ARMException` set `ExceptionFlag=1` (via `.seh_handler`) but no
+   pair was emitted, so the kernel read the 8 bytes before the function as a live
+   `{handler, handlerData}` and jumped into garbage. (A parallel Option-B track fixed the
+   gate to `functionUsesCXXEHABI && functionNeedsWinCFIFrame` in `aefd3f1157`; recorded for
+   history — it does not change the conclusion below.)
+
+2. *Register-contract defect (decisive; never fixed).* On resume the CE kernel sets
+   `CONTEXT_TO_RETVAL(ctx) = ReturnValue = ExceptionCode` into **R0** (`nkarm.h`:
+   `#define CONTEXT_TO_RETVAL(Context) ((Context)->R0)`; ARM `RtlUnwind` in `exdsptch.c`).
+   An Itanium landing pad expects **R0 = `_Unwind_Exception*`** (`eh_return_data_regno(0)`).
+   So even with the gate fixed and the handler running the personality correctly, the
+   landing pad — hence `catch (T obj)`, rethrow and `__cxa_begin_catch` — receives the
+   *exception code* (`0x20100001`) instead of the object. Option B would need a
+   *compiler-generated* landing-pad wrapper reloading R0 from `__wince_cxx_current_obj`
+   before the real landing pad; no such wrapper exists in the backend, and adding one means
+   fighting the kernel's resume contract in codegen. EHABI self-unwind sidesteps this:
+   libunwind sets the landing-pad registers itself.
+
+**What Option A keeps.** A C++ function still gets a WinCFI frame, hence a compressed
+`.pdata` entry — but with `ExceptionFlag=0`, so the kernel can still
+reverse-execution-unwind through the frame for a hardware fault or an enclosing SEH
+`__try`, yet never dispatches a C++ throw to a handler. The EHABI frame
+(`.personality __gxx_personality_v0` + LSDA), the every-function `.pdata` (§4i), lld's
+`.ARM.exidx` sort + `__exidx_start/__exidx_end` (§4j), libunwind's `__WINCE__` exidx/extab
+reader, and `read_target2_value`'s `__WINCE__` branch (§4k) are all retained — together
+they *are* the Option A path.
+
+**Removed** (`e73be4d975`, then deletions `9a3ab21740` / `a2fc4a2b34`): the `__WINCE__`
+reroute in `_Unwind_RaiseException`; the C++ `.seh_handler` branch in
+`ARMException::beginFunction`; `ARMAsmPrinter::emitCXXHandlerData` + its call site;
+`functionUsesCXXEHABI` (`ARMWinCFI.h`); `Unwind-WinCE.cpp` and `cxxeh_wince.cpp` (deleted
+and dropped from the libunwind/libcxxabi builds). `clang/test/CodeGen/ARM/
+wince-cxx-eh-pdata.cpp` was rewritten to assert the new behavior (EHABI personality
+present, **no** CE handler claimed). CI run **33728492946** (full toolchain + WinCE lit +
+glpi-wince-agent + easyrpg-player) is green on this state.
+
+**Vestige (harmless, left in place).** w32api's `wince_cxx_eh.h` and mingwrt's `crt3.c`
+VEH still define / skip `WINCE_CXX_EH_NUMBER`. Under Option A nothing raises that code, so
+the VEH skip is dead but harmless; left as-is to avoid cross-repo churn.
+
+## 4m. `.pdata` must not be `IMAGE_SCN_MEM_DISCARDABLE` (2026-09-03, this session)
+
+`ARMWinCOFFStreamer::CEEmitUnwindInfo` created `.pdata` with
+`CNT_INITIALIZED_DATA | MEM_READ | MEM_DISCARDABLE`. The discardable bit is wrong: the
+PE/COFF spec lists `.pdata` as `CNT_INITIALIZED_DATA | MEM_READ` (`MEM_DISCARDABLE` is for
+`.reloc` / `.debug$*`), the sibling `.ARM.exidx`/`.ARM.extab` are already non-discardable,
+and the CE kernel reads `.pdata` at *runtime* (`RtlLookupFunctionEntry`).
+
+It was not inert. lld's `SectionChunk::getOutputCharacteristics()` masks with
+`permMask = 0xFE000000`, which *includes* `MEM_DISCARDABLE`, so the object-level bit
+survives and bins into a separate output section `(".pdata", data|r|discardable)` instead
+of lld's builtin non-discardable `pdataSec` (`data|r`). Then:
+
+- `Writer::addBaserels()` and `Writer::createRuntimePseudoRelocs()` *skip*
+  `MEM_DISCARDABLE` sections, so the absolute `pFuncStart` VAs in `.pdata` received **no
+  base relocations**. Any CE module loaded off its preferred base (every DLL) would keep
+  unrelocated `.pdata` addresses; the kernel's binary search would read garbage and SEH
+  dispatch / hardware-fault unwinding would break. `/fixed` EXEs hide this (they emit no
+  relocations at all), which is why the lit tests passed.
+- `sectionOrder()` moves discardable sections to the end of the file, perturbing the
+  CeGCC-compatible image layout.
+
+**Fix** (`b73cd8d97e56`): drop `MEM_DISCARDABLE` so `.pdata` is `data|r`, matching the
+spec, the sibling EHABI sections and lld's builtin `pdataSec` — which restores base
+relocations for relocatable images.
+

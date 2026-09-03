@@ -1,5 +1,40 @@
 # WinCE toolchain status (2026-09-03)
 
+## 2026-09-03 — C++ EH switched to Option A (EHABI self-unwind); `.pdata` discardable bug fixed
+
+The WinCE C++ exception model was decided and implemented (details:
+WINEH-ABI-FACTS.md §4l/§4m, §2 correction):
+
+* **Option A adopted.** WinCE C++ (Itanium) exceptions now unwind in *user space* via
+  libunwind + the ARM EHABI `.ARM.exidx`/`.ARM.extab` tables (the CeGCC model). The
+  "Option B" kernel-dispatcher bridge (`RaiseException(WINCE_CXX_EH_NUMBER)` +
+  `__wince_cxx_frame_handler` + per-frame `PDATA_EH`) was **removed**: even with its
+  emission gate fixed, the CE kernel resumes a frame handler with **R0 = ExceptionCode**
+  (`CONTEXT_TO_RETVAL` = R0, nkarm.h), clobbering the `_Unwind_Exception*` an Itanium
+  landing pad needs in R0, and no compiler-side landing-pad wrapper exists to reload it —
+  so `catch (T obj)` / rethrow stayed broken. A C++ frame keeps a `.pdata` entry with
+  `ExceptionFlag=0` (the kernel can still unwind it for a hardware fault or an enclosing
+  SEH `__try`). llvm-wince `e73be4d975` + deletions `9a3ab21740`/`a2fc4a2b34`;
+  CI **33728492946** green (full toolchain + WinCE lit + glpi-wince-agent + easyrpg-player).
+* **`.pdata` no longer `IMAGE_SCN_MEM_DISCARDABLE`** (`b73cd8d97e56`). The discardable bit
+  made lld skip base relocations for `.pdata` (`addBaserels`/`createRuntimePseudoRelocs`
+  skip discardable sections), so a CE module loaded off its preferred base (any DLL) would
+  keep unrelocated `pFuncStart` VAs and break kernel unwinding; `/fixed` EXEs hid it. Now
+  `data|r`, matching the PE/COFF spec and the sibling `.ARM.exidx`/`.ARM.extab`.
+* **WINEH-ABI-FACTS.md §2 corrected.** The CE `_RUNTIME_FUNCTION` is the 5-field nkarm.h
+  struct `{BeginAddress, EndAddress, ExceptionHandler, HandlerData, PrologEndAddress}`
+  (= w32api `excpt.h`), expanded by `RtlLookupFunctionEntry` from the on-disk compressed
+  8-byte `IMAGE_CE_RUNTIME_FUNCTION_ENTRY`; the earlier 3-field derivation was only the
+  subset the prologue-re-execution unwinder touches.
+* **WinceClock caveat closed.** `GetSystemTime` / `SystemTimeToFileTime` /
+  `FileTimeToSystemTime` / `QueryPerformanceCounter` / `QueryPerformanceFrequency` /
+  `GetTickCount` are all exported by `libce/coredll*.def` (`GetSystemTimeAsFileTime` is
+  CE6-only but unused by libcxx's WinCE `system_clock`). The `system_clock` (µs) /
+  `steady_clock` (QPC) math was already correct.
+
+Branch `llvm-wince`; cellvm-build `llvm-project` pin bumped to match.
+
+
 ## 2026-09-03 first real on-device report (imx28, CE 6.0, ARM, 12MB RAM)
 
 User-reported: EasyRPG Player (Stage 5 build) starts briefly then
