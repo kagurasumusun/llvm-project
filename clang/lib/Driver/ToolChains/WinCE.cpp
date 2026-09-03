@@ -297,7 +297,7 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   }
   CmdArgs.push_back("libmingw32.a");
   // compiler-rt builtins are per-architecture (CeGCC parity: arm + i386).
-  CmdArgs.push_back(getTriple().getArch() == llvm::Triple::x86
+  CmdArgs.push_back(TC.getTriple().getArch() == llvm::Triple::x86
                         ? "libclang_rt.builtins-i386.a"
                         : "libclang_rt.builtins-arm.a");
   CmdArgs.push_back("libceoldname.a");
