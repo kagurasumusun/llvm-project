@@ -31,7 +31,12 @@ set(LLVM_ENABLE_PROJECTS "clang;lld" CACHE STRING "")
 # backend also lets the clang lit suite exercise the native x86-pc-wince EH
 # paths (Microsoft C++ ABI __CxxFrameHandler3 / _CxxThrowException and the
 # _except_handler3 SEH personality).
-set(LLVM_TARGETS_TO_BUILD "ARM;X86" CACHE STRING "")
+#
+# FORCE is required: CI restores a cached build dir whose CMakeCache still
+# holds the previous target list, and a non-FORCE CACHE set would not override
+# it -- the X86 backend would silently not be built and the x86 lit tests would
+# be reported Unsupported instead of running.
+set(LLVM_TARGETS_TO_BUILD "ARM;X86" CACHE STRING "" FORCE)
 
 # --- Runtimes are built as separate cross stages (utils/wince) -------------
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING "")
