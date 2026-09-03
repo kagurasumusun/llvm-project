@@ -987,20 +987,22 @@ exact filter-disposition decoding and unwind cannot be read. Everything it
 consumes (the PDATA_EH pair, the scope-table record model, absolute addressing)
 matches the documented MSVC ABI and the verified CE kernel dispatch (§4g), so
 on-device behavior is expected correct, but it is not directly inspectable.
-
-## 4o. x86 WinCE native EH path — Microsoft C++ ABI + `_except_handler3` SEH (2026-09-03, this session)
+## 4o. x86 WinCE native EH path — investigation, partial success, and a clang crash blocker (2026-09-03, this session)
 
 **Question.** ARM WinCE C++ EH uses the Itanium/EHABI ABI (Option A, §4l). Is
 there a *native* exception-handling path for the **x86** WinCE target
 (`i386-pc-wince`, the CeGCC `i386-mingw32ce` parity target)?
 
-**Answer: yes — and it is the MSVC-native model, not SJLJ/DWARF.**
+**Short answer.** Yes for SEH and for the C++ *throw*; the C++ *catch* under the
+Microsoft ABI currently **crashes clang**, so the native C++ EH path is not yet
+shippable. The foundational x86 enablement and the native SEH path landed and are
+CI-verified; the Microsoft-C++-ABI switch was implemented, proved the throw works,
+then **reverted** because of the catch crash.
 
 ### The runtime exists in coredll (authoritative: ce600 source)
 
 `ce600/.../corelib1.def` exports the complete MSVC-native EH/SEH/RTTI runtime
-under the `COREDLL_CRT_CPP_EH_AND_RTTI` SYSGEN component — **not arch-guarded**,
-so present on every CE architecture that enables it:
+under `COREDLL_CRT_CPP_EH_AND_RTTI` — **not arch-guarded**:
 
 | Symbol | Arch | Role |
 |---|---|---|
@@ -1011,77 +1013,88 @@ so present on every CE architecture that enables it:
 | `__abnormal_termination` | **x86** | `__finally` abnormal-termination query |
 | `__RTDynamicCast`, `__RTtypeid`, `__RTCastToVoid` | all | MSVC RTTI |
 
-The x86 C++ symbols use the `QAE`/`UAE` MSVC mangling (x86 `__cdecl`
-decoration) where ARM uses `QAA`/`UAA` — i.e. coredll's C++ exports are
-**MSVC-mangled per architecture**. This is decisive: an x86-pc-wince toolchain
-using the *Itanium* C++ ABI would mangle `std::exception`/`type_info`/`operator
-new` as `_ZNSt9exception...` and could not link coredll's `??0exception@std@@QAE...`
-exports at all.
+coredll's C++ exports are **MSVC-mangled per architecture** (x86 `QAE`/`UAE`
+`__cdecl` decoration vs ARM `QAA`/`UAA`). Consequence: an x86-pc-wince toolchain
+on the *Itanium* C++ ABI mangles `std::exception`/`type_info`/`operator new` as
+`_ZNSt9exception...` and cannot link coredll's `??0exception@std@@QAE...` exports.
 
-### Why x86-pc-wince was *not* already native
-
-Two independent gates, both keyed on the triple — and `i386-pc-wince` is
-OS=WinCE, environment≠MSVC:
+### The two gates (both keyed on the triple; wince fails them)
 
 1. **C++ ABI** — `TargetInfo.cpp:178`:
-   `TheCXXABI.set(Triple.isKnownWindowsMSVCEnvironment() || Triple.isUEFI() ? Microsoft : GenericItanium)`.
-   wince is not a "known Windows MSVC environment" → **GenericItanium** (same
-   family ARM gets). `WinCETargetInfo` (X86.h) did not override it.
+   `TheCXXABI.set(isKnownWindowsMSVCEnvironment() || isUEFI() ? Microsoft : GenericItanium)`.
+   `i386-pc-wince` is OS=WinCE, env≠MSVC → **GenericItanium** by default.
 2. **C++ EH personality** — `CGException.cpp getCXXPersonality()`: returns
-   `MSVC_CxxFrameHandler3` only `if (T.isWindowsMSVCEnvironment())`, else falls
-   through to `GNU_CPlusPlus` (+ SJLJ/DWARF per `CGOpts`).
-
-So out of the box x86-pc-wince C++ EH was Itanium → `__cxa_throw` + an x86
-unwinder. On CE that means **SJLJ or DWARF**, and DWARF needs `dl_iterate_phdr`
-(absent on CE) — exactly the problem the native path avoids.
+   `MSVC_CxxFrameHandler3` only `if (T.isWindowsMSVCEnvironment())`, else
+   `GNU_CPlusPlus` (+ SJLJ/DWARF per `CGOpts`).
 
 **SEH was already native.** `EHPersonality::get()` routes any `usesSEHTry()`
 function to `getSEHPersonalityMSVC(T)` — *not* gated on the MSVC environment —
-whose x86 branch returns `_except_handler3`. So `__try/__except` on
-x86-pc-wince already lowers to the native x86 SEH personality (the ARM
-counterpart is `__C_specific_handler`, §4n / `wince-seh.c`).
+whose x86 branch returns `_except_handler3`. So `__try/__except` on x86-pc-wince
+already lowers to the native x86 SEH personality (ARM counterpart:
+`__C_specific_handler`, §4n).
 
-### Implementation (this session)
+### What was implemented and CI-verified this session
 
-- `clang/lib/Basic/Targets/X86.h` — `WinCETargetInfo` ctor now sets
-  `TheCXXABI.set(TargetCXXABI::Microsoft)`. x86-pc-wince therefore uses the
-  Microsoft C++ ABI: `_CxxThrowException`, the `.xdata` ThrowInfo/CatchableType
-  tables, MSVC mangling and RTTI — matching coredll's x86 exports.
-- `clang/lib/CodeGen/CGException.cpp` — `getCXXPersonality()` and
-  `getObjCXXPersonality()` now select `MSVC_CxxFrameHandler3` when
-  `Target.getCXXABI().isMicrosoft()` (in addition to `isWindowsMSVCEnvironment()`).
-  The C++ EH personality follows the C++ ABI, so the Microsoft-ABI x86-pc-wince
-  target gets `__CxxFrameHandler3` without faking an `-msvc` triple. ARM
-  (GenericARM, not Microsoft) and desktop MSVC (already MSVC-env) are unchanged.
 - `clang/cmake/caches/WinCE.cmake` — `LLVM_TARGETS_TO_BUILD` `ARM` → `ARM;X86`
-  (CeGCC parity: both mingw32ce targets; also lets lit exercise the x86 paths).
-- `clang/lib/Driver/ToolChains/WinCE.cpp` — compiler-rt builtins are now
-  per-architecture (`libclang_rt.builtins-i386.a` for x86, `-arm.a` otherwise).
+  **with `FORCE`**. (Without `FORCE` the CI-restored Ninja build dir keeps its
+  cached `ARM` value and the X86 backend is silently not built — the x86 lit tests
+  then report `Unsupported` instead of running. This was caught in CI.)
+- `clang/lib/Driver/ToolChains/WinCE.cpp` — per-arch compiler-rt builtins
+  (`libclang_rt.builtins-i386.a` for x86 via `TC.getTriple()`, else `-arm.a`).
+- `clang/test/CodeGen/wince-x86-seh.c` — **passes**: `i386-pc-wince`
+  `__try/__except` → `personality ptr @_except_handler3`. Native x86 SEH confirmed.
 
-### Per-architecture C++ ABI (design)
+### The Microsoft-C++-ABI experiment (throw works, catch crashes → reverted)
 
-| Target | C++ ABI | C++ EH | SEH | Runtime source |
+Implemented then reverted in `clang/lib/Basic/Targets/X86.h`
+(`WinCETargetInfo` → `TheCXXABI.set(TargetCXXABI::Microsoft)`) and
+`clang/lib/CodeGen/CGException.cpp` (`getCXXPersonality`/`getObjCXXPersonality`
+select `__CxxFrameHandler3` when `getCXXABI().isMicrosoft()`).
+
+CI results for `clang/test/CodeGenCXX/wince-x86-cxx-eh.cpp` (`i386-pc-wince`,
+`-fcxx-exceptions -fms-extensions`):
+
+- **Throw path WORKS (native, confirmed in CI IR):**
+  `declare x86_stdcallcc void @_CxxThrowException(ptr, ptr)`,
+  `call void @_CxxThrowException(ptr %tmp, ptr @"_TI1?AUX@@")` (MSVC `.xdata`
+  ThrowInfo), and `@"??1X@@QAE@XZ"` (MSVC-mangled dtor, x86 `QAE` decoration).
+  So the Microsoft C++ ABI *is* selected and lowers the throw natively.
+- **Catch path CRASHES clang:** a `try { might_throw(); } catch (X) {}` made
+  `clang -cc1` exit **-11 (SIGSEGV)**. The release build (`LLVM_ENABLE_ASSERTIONS
+  OFF`) printed only `Stack dump: 0. Program arguments:` with **no frames**, so the
+  faulting function is not yet identified. (A degenerate `try { throw X(); } catch
+  (X) {}` does not crash but folds to `nounwind`, emitting no personality.)
+
+Because a segfault on ordinary `try/catch` makes the Microsoft-ABI x86-pc-wince
+C++ path unusable, both changes were **reverted** to the pre-change base
+(`fce7405`). x86-pc-wince C++ ABI is back to the inherited GenericItanium default.
+The crashing test was removed; the SEH test and the foundational enablement remain.
+
+### Current per-architecture C++ EH state
+
+| Target | C++ ABI | C++ EH | SEH | Status |
 |---|---|---|---|---|
-| `arm-pc-wince` | Itanium (`GenericARM`) | EHABI user-space self-unwind (Option A, §4l) | `__C_specific_handler` + `.pdata` (§4n) | libc++abi/libunwind |
-| `i386-pc-wince` | **Microsoft** | `__CxxFrameHandler3` + `_CxxThrowException` (native, SEH-chain) | `_except_handler3` (native) | **coredll** |
+| `arm-pc-wince` | Itanium (`GenericARM`) | EHABI self-unwind (Option A, §4l) | `__C_specific_handler` + `.pdata` (§4n) | **working, CI-green** |
+| `i386-pc-wince` | GenericItanium (default) | **OPEN** — see below | `_except_handler3` (native) | SEH **working**; C++ EH unresolved |
 
-Each architecture uses its platform-native C++ ABI; they never share object
-files, so the divergence is correct rather than a compatibility hazard.
+For x86-pc-wince C++ EH the two candidate strategies are:
+- **Native Microsoft ABI** (`__CxxFrameHandler3` + `_CxxThrowException` from
+  coredll): throw verified working, **blocked by the catch segfault**. This is the
+  preferred end state (platform-native, MSVC-mangled coredll interop, no
+  SJLJ/DWARF, no `dl_iterate_phdr`).
+- **Itanium + SJLJ** (CeGCC's `i386-mingw32ce` approach): ABI-consistent with ARM
+  but needs an SJLJ unwinder; DWARF is not viable on CE (no `dl_iterate_phdr`).
 
-### Tests (clang lit, run in CI stage 1)
+### Next steps to unblock the native x86 C++ EH
 
-- `clang/test/CodeGenCXX/wince-x86-cxx-eh.cpp` — `i386-pc-wince` throw →
-  `_CxxThrowException`; try/catch → `personality ptr @__CxxFrameHandler3`.
-- `clang/test/CodeGen/wince-x86-seh.c` — `i386-pc-wince` `__try/__except` →
-  `personality ptr @_except_handler3`.
-  Both `REQUIRES: x86-registered-target`.
-
-### Remaining for a full x86 toolchain (next phases)
-
-Compiler-side native EH is done and lit-verified. Still required to *build and
-link* x86-pc-wince C++ programs: (a) libc++/libc++abi built for the **Microsoft**
-C++ ABI on x86-pc-wince (the clang-cl libc++ configuration; `__cxa_throw` maps
-onto `_CxxThrowException`), with the EH/RTTI runtime resolved from coredll;
-(b) the driver exception-model wiring for x86-pc-wince (so `-fexceptions` via the
-driver selects the win32/SEH C++ EH model, as the cc1 tests already do);
-(c) an x86 WinCE sysroot (mingwrt + w32api `i386-mingw32ce`) and an x86 CI lane.
+1. Reproduce the catch segfault **locally with an assertions+backtrace build**
+   (`-DCMAKE_BUILD_TYPE=Debug -DLLVM_ENABLE_ASSERTIONS=ON`) to get the faulting
+   frame; a release CI build cannot. Likely candidates: a WinCE-vs-MSVC-env
+   assumption in `MicrosoftCXXABI`/`EHSjLj`-vs-SEH selection, the FuncInfo /
+   try-block-map emission, or the x86 catch-by-value copy path.
+2. Check whether the crash is specific to `extern "C"` functions or catch-by-value
+   (the failing test used both); a plain C++ `void f(){ try{g();}catch(T&){} }`
+   may behave differently.
+3. Once fixed, re-land `WinCETargetInfo` → Microsoft CXXABI + the
+   personality-follows-CXXABI change, with a passing catch test, then build
+   libc++/libc++abi for the Microsoft ABI on x86-pc-wince and add an x86 CI lane.
