@@ -136,6 +136,15 @@ extern _Unwind_Reason_Code _Unwind_VRS_Interpret(_Unwind_Context *context,
                                                  size_t offset, size_t len);
 #endif
 
+#if defined(__WINCE__)
+// Windows CE (Option B C++ EH): raise a throw through the kernel exception
+// dispatcher (RaiseException) so every frame's PDATA_EH handler is invoked,
+// like the MS CRT does for __try/__except.  Defined in Unwind-WinCE.cpp;
+// called from _Unwind_RaiseException.  See <wince_cxx_eh.h> for the ABI.
+extern _Unwind_Reason_Code wince_unwind_raise_exception(
+    _Unwind_Exception *exception_object);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

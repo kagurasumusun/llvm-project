@@ -4,6 +4,7 @@ set(LIBUNWIND_CXX_SOURCES
     libunwind.cpp
     Unwind-EHABI.cpp
     Unwind-seh.cpp
+    Unwind-WinCE.cpp
     )
 
 if("${CMAKE_SYSTEM_NAME}" MATCHES "AIX")
