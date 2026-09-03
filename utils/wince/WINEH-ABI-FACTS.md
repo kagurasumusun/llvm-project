@@ -766,3 +766,19 @@ Thumb1, Thumb2; leaf/frame/C++/SEH/GHC; `-filetype=obj` runs gate
 tables per function, `-c` object-level runs) and
 `llvm/test/CodeGen/ARM/wince-seh-parent-frame.ll` (both frames on the
 SEH parent).
+
+## 4j. lld sorts `.ARM.exidx` by function address (2026-09-03, this session)
+
+Completes the list item left open in §4i: `Writer::sortARMExIdxTable`
+(sortExceptionTables, wince branch, next to `sortCEExceptionTable`) sorts
+the merged `.ARM.exidx` output in the final image buffer -- after
+relocations are applied, so word 0 already holds the absolute function VA
+-- into ascending function order, as EHABI §5.2 requires for binary
+search (libunwind `EHABISectionUpperBound`).  Link order happens to be
+sorted only as long as nothing reorders `.text` relative to the index
+(`$`-grouped sections, ICF, `/ORDER`, ...).  Dense 8-byte entries are
+verified (no padding inside or between input sections; anything else is a
+hard error rather than a silently corrupted sort).  `__exidx_start` /
+`__exidx_end` (bound to the section bounds, §4g area) are unaffected by
+the in-place sort.  Lit: `lld/test/COFF/wince-exidx-sort.s` (index order
+disagreeing with `$`-sorted `.text` layout).

@@ -263,6 +263,7 @@ private:
   void sortSections();
   template <typename T> void sortExceptionTable(ChunkRange &exceptionTable);
   void sortCEExceptionTable(ChunkRange &exceptionTable);
+  void sortARMExIdxTable();
   void sortExceptionTables();
   void sortCRTSectionChunks(std::vector<Chunk *> &chunks);
   void addSyntheticIdata();
@@ -2937,6 +2938,57 @@ void Writer::sortCEExceptionTable(ChunkRange &exceptionTable) {
   });
 }
 
+// Sort the .ARM.exidx output section by function start address.  The ARM
+// EHABI (ehabi32 specification, section 5.2) requires index-table entries
+// in ascending function order because unwinders locate the entry for a PC
+// by binary search -- exactly what this toolchain's libunwind does
+// (UnwindCursor::EHABISectionUpperBound).  Link order only produces a
+// sorted table as long as nothing reorders .text relative to the index
+// ($-sorted section groups, ICF, /ORDER, hot/cold splitting, ...), so sort
+// defensively here, in the output buffer after relocations are applied,
+// mirroring sortCEExceptionTable above.
+void Writer::sortARMExIdxTable() {
+  OutputSection *sec = findSection(".ARM.exidx");
+  if (!sec || sec->chunks.empty())
+    return;
+
+  auto bufAddr = [&](Chunk *c) {
+    OutputSection *os = ctx.getOutputSection(c);
+    return buffer->getBufferStart() + os->getFileOff() + c->getRVA() -
+           os->getRVA();
+  };
+
+  // The table must be a dense run of 8-byte entries.  Verify that neither
+  // the chunk sizes (padding inside an input section) nor the chunk RVAs
+  // (alignment padding between input sections) introduce gaps; anything
+  // else would silently corrupt the sorted table.
+  for (Chunk *c : sec->chunks)
+    if (c->getSize() % 8 != 0)
+      Fatal(ctx) << "unexpected .ARM.exidx section size: " << c->getSize()
+                 << " is not a multiple of 8";
+  for (size_t i = 1; i < sec->chunks.size(); ++i)
+    if (sec->chunks[i - 1]->getRVA() + sec->chunks[i - 1]->getSize() !=
+        sec->chunks[i]->getRVA())
+      Fatal(ctx) << ".ARM.exidx contains padding between input sections; "
+                    "cannot sort the index table";
+
+  uint8_t *begin = bufAddr(sec->chunks.front());
+  uint8_t *end = bufAddr(sec->chunks.back()) + sec->chunks.back()->getSize();
+  const size_t count = (end - begin) / 8;
+
+  // Windows CE stores absolute function addresses (IMAGE_REL_ARM_ADDR32) in
+  // word 0 and the .ARM.extab reference / compact opcodes / EXIDX_CANTUNWIND
+  // in word 1; entry sizes are always exactly 8 bytes.
+  struct ExIdxEntry {
+    ulittle32_t fnStart, data;
+  };
+  MutableArrayRef<ExIdxEntry> entries(
+      reinterpret_cast<ExIdxEntry *>(begin), count);
+  parallelSort(entries, [](const ExIdxEntry &a, const ExIdxEntry &b) {
+    return a.fnStart < b.fnStart;
+  });
+}
+
 // Sort .pdata section contents according to PE/COFF spec 5.5.
 void Writer::sortExceptionTables() {
   llvm::TimeTraceScope timeScope("Sort exception table");
@@ -2949,9 +3001,12 @@ void Writer::sortExceptionTables() {
   };
 
   // Windows CE uses its own compressed 8-byte .pdata format (see
-  // sortCEExceptionTable).
+  // sortCEExceptionTable), and additionally carries the ARM EHABI
+  // .ARM.exidx index table, which must be sorted by function address
+  // (EHABI section 5.2; see sortARMExIdxTable).
   if (ctx.config.wince) {
     sortCEExceptionTable(pdata);
+    sortARMExIdxTable();
     return;
   }
 
