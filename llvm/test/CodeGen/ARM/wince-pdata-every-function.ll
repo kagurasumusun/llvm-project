@@ -1,8 +1,16 @@
-; RUN: llc -mtriple=armv5te-pc-wince -o - %s | FileCheck %s --check-prefixes=COMMON,ARM
+; Every check in this file is shared by all three triples, so all three RUN
+; lines use the single COMMON prefix.  They used to request three extra
+; prefixes (ARM, T1 and T2) alongside COMMON, but there are no ARM:, T1: or
+; T2: check strings in this file at all, and FileCheck treats a requested
+; prefix
+; with zero checks as a hard error ("no check strings found with prefix
+; 'ARM:'", exit 2) rather than a no-op -- so the test could never pass.
+;
+; RUN: llc -mtriple=armv5te-pc-wince -o - %s | FileCheck %s --check-prefix=COMMON
 ; RUN: llc -mtriple=armv5te-pc-wince -filetype=obj -o /dev/null %s
-; RUN: llc -mtriple=thumbv5te-pc-wince -o - %s | FileCheck %s --check-prefixes=COMMON,T1
+; RUN: llc -mtriple=thumbv5te-pc-wince -o - %s | FileCheck %s --check-prefix=COMMON
 ; RUN: llc -mtriple=thumbv5te-pc-wince -filetype=obj -o /dev/null %s
-; RUN: llc -mtriple=thumbv7-pc-wince -o - %s | FileCheck %s --check-prefixes=COMMON,T2
+; RUN: llc -mtriple=thumbv7-pc-wince -o - %s | FileCheck %s --check-prefix=COMMON
 ; RUN: llc -mtriple=thumbv7-pc-wince -filetype=obj -o /dev/null %s
 ;
 ; Windows CE: EVERY function carries both unwind tables (see
