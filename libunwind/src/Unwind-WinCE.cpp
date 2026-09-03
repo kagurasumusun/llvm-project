@@ -21,11 +21,16 @@
 
 #if defined(__WINCE__)
 
+// Include order matters on WinCE: winbase.h (RaiseException) and winnt.h
+// (CONTEXT) use basic types (DWORD, ...) defined by windef.h, and - unlike
+// windows.h - do not include them themselves.  windef.h defines the basic
+// types and then includes winnt.h, so it must come first (mirrors the
+// windows.h ordering: windef.h -> winbase.h).
+#include <windef.h>
+#include <winbase.h>
 #include <excpt.h>
 #include <string.h>
 #include <stdint.h>
-#include <winbase.h>
-#include <winnt.h>
 
 #include <wince_cxx_eh.h>
 
