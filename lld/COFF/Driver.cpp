@@ -1956,11 +1956,16 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
                    &config->majorSubsystemVersion,
                    &config->minorSubsystemVersion, &SubsystemVersionFromArg);
 
-  // CeGCC pe.em (TARGET_IS_arm_wince_pe): MajorSubsystemVersion 3.
-  // lld's generic default is 6.0 (Vista); do not use that on CE unless
-  // the user wrote /subsystem:windowsce,N.N.
+  // Windows CE: the arm-pc-wince target is CE 6.0 (clang defines
+  // _WIN32_WCE=600 for it).  The PE operating-system / subsystem version
+  // fields are informational only (the CE loader does not read or enforce
+  // them - only the Subsystem type, IMAGE_SUBSYSTEM_WINDOWS_CE_GUI, matters),
+  // but they should reflect the target CE version so the image is not
+  // misread as an older platform.  The previous values (subsystem 3.0 / OS
+  // 4.0) were copied from CeGCC's pe.em and made the image look like CE3.
+  // Overridable via /subsystem:windowsce,N.N and /osversion:N.N.
   if (config->wince && !SubsystemVersionFromArg) {
-    config->majorSubsystemVersion = 3;
+    config->majorSubsystemVersion = 6;
     config->minorSubsystemVersion = 0;
   }
 
@@ -1969,8 +1974,8 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     parseVersion(arg->getValue(), &config->majorOSVersion,
                  &config->minorOSVersion);
   } else if (config->wince) {
-    // pe.em: MajorOperatingSystemVersion 4, independent of subsystem 3.
-    config->majorOSVersion = 4;
+    // Reflect the CE 6.0 target (matches majorSubsystemVersion above).
+    config->majorOSVersion = 6;
     config->minorOSVersion = 0;
   } else {
     config->majorOSVersion = config->majorSubsystemVersion;
