@@ -352,6 +352,7 @@ not a shared static.)
 |---|---|---|
 | CE OS generation | Windows Embedded CE 6.0 (`_WIN32_WCE=0x600`) | versioned triple `arm-pc-wince5.0` / `arm-pc-wince6.0` (also feeds `_WIN32_WCE`), or `-D_WIN32_WCE=...` |
 | COREDLL import surface | `libcoredll6.a` (CE 6.0-only exports: `CeGetThreadPriority`, `FindFirstDevice`, ...) | link-time: chosen from the triple version - `arm-pc-wince5.0` selects `libcoredll.a` (the CE 5.0 surface) |
+| COREDLL **arch** surface | ARM (`coredll6.def`, parsed from the ARM-retail shared source) | link-time: `i386-pc-wince` selects `libcoredll6-x86.a` (from `coredll6-x86.def`), which carries the x86 SEH/C++ EH runtime, the x86 compiler helpers and the MSVC/`__thiscall` C++ mangling.  CE 4.x/5.0 have no x86 def yet - no x86 CE 4/5 shared source is available to parse |
 | MSVC compat persona | VS2015 (`-fms-compatibility-version=1900`) | `-fms-compatibility-version=1400` when importing eVC4/VS2005-era SDK headers that probe `_MSC_VER` |
 | GCC persona | GCC 14.2 (`-fgnuc-version=14.2`) | `-fgnuc-version=X.Y` for headers with `__GNUC__`-version gates |
 | CPU | arm926ej-s (ARMv5TE) | `-march=`/`-mcpu=`; sysroot stage: `WINCE_ARCH_FLAGS` |

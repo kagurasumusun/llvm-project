@@ -1,5 +1,5 @@
 /// Windows CE driver tests (GCC-style clang driver).
-/// REQUIRES: arm-registered-target
+/// REQUIRES: arm-registered-target, x86-registered-target
 
 /// The triple is recognized and canonicalized.
 // RUN: %clang -target arm-pc-wince -print-target-triple 2>&1 \
@@ -101,6 +101,7 @@
 // LINK-NOT: libposix.a
 // LINK-NOT: libpthread.a
 // LINK: libcoredll6.a
+// LINK-NOT: libcoredll6-x86.a
 
 // RUN: %clang -target arm-pc-wince -lcommctrl -liphlpapi %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LLIB
@@ -129,6 +130,40 @@
 // RUN:   | FileCheck %s --check-prefix=LINK30
 // LINK30: error: unsupported Windows CE version 3
 // LINK30-NOT: libcoredll3.a
+
+/// The COREDLL import surface is arch-specific as well as version-specific.
+/// x86 coredll exports the SEH/C++ EH runtime in-DLL (_except_handler3,
+/// _except_handler4_common, _local_unwind2/_local_unwind4, _EH_prolog,
+/// _EH_prolog2, _SEH_prolog/_SEH_epilog, __abnormal_termination,
+/// _CxxThrowException, _setjmp3), the x86 compiler helpers (_chkstk,
+/// _alloca_probe*, _ftol*, _all*/_aull*, the _CI* math intrinsics, _inp/_outp)
+/// and the MSVC/__thiscall QAE/UAE/AAE spellings of the C++ EH/RTTI exports.
+/// The ARM def has none of those (it forwards FP to FPCRT and uses
+/// __C_specific_handler for SEH), so linking libcoredll6.a into an x86 image
+/// left every __try/__except unresolved even though CodeGen emitted the
+/// platform-native x86 SEH correctly.  mingwrt builds libcoredll6-x86.a from
+/// coredll6-x86.def for an i386-*-mingw32ce target.
+// RUN: %clang -target i386-pc-wince %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINKX86
+// RUN: %clang -target i386-pc-wince6.0 %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINKX86
+// LINKX86: lld-link
+// LINKX86: libclang_rt.builtins-i386.a
+// LINKX86: libcoredll6-x86.a
+// LINKX86-NOT: libcoredll6.a
+// LINKX86-NOT: libclang_rt.builtins-arm.a
+
+/// CE 4.x/5.0 have no x86 def yet (no x86 CE 4/5 shared source is available
+/// to parse), so those generations keep the version-selected ARM-parsed
+/// surface whatever the architecture.
+// RUN: %clang -target i386-pc-wince5.0 %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINKX86CE5
+// RUN: %clang -target i386-pc-wince4.2 %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINKX86CE4
+// LINKX86CE5: libcoredll.a
+// LINKX86CE5-NOT: libcoredll6-x86.a
+// LINKX86CE4: libcoredll4.a
+// LINKX86CE4-NOT: libcoredll6-x86.a
 
 /// -L adds a library search path for lld-link (translated to /libpath:,
 /// ahead of the sysroot lib dir); dropped, third-party -L deps are not found.

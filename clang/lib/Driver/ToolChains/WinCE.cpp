@@ -310,10 +310,12 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (TC.getDriver().CCCIsCXX() || compilingCXX(Args))
     TC.AddCXXStdlibLibArgs(Args, CmdArgs);
 
-  // The COREDLL import surface is version-specific: each generation
-  // exported a different set (the def files are parsed from the CE shared
-  // source; see the provenance notes in mingwrt/coredll*.def).  Select by
-  // the triple's OS version; the bare spelling defaults to CE 6.0.
+  // The COREDLL import surface is both version- and arch-specific: each CE
+  // generation exported a different set, and within a generation the per-arch
+  // build exports a different set again (the def files are parsed from the CE
+  // shared source; see the provenance notes in mingwrt/coredll*.def).  Select
+  // by the triple's OS version and architecture; the bare spelling defaults to
+  // CE 6.0.
   // CE 1.x-3.x are out of scope everywhere else too (the header floor and
   // the def set are 4.x+; see utils/wince/README.md "Version policy" and
   // the mingwrt/w32api scope commits), and mingwrt ships no coredll3.def:
@@ -332,7 +334,27 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("libcoredll.a");
     break;
   default:
-    CmdArgs.push_back("libcoredll6.a");
+    // x86 coredll carries its SEH / C++ EH runtime and its compiler helpers
+    // in-DLL: _except_handler3 and _except_handler4_common (the __try/__except
+    // personalities), _local_unwind2/_local_unwind4 (__finally), _EH_prolog,
+    // _EH_prolog2, _SEH_prolog/_SEH_epilog (frame setup/teardown),
+    // __abnormal_termination, _CxxThrowException, _setjmp3, the 64-bit integer
+    // helpers (_alldiv/_allmul/_aullshr/...), the stack probes
+    // (_chkstk/_alloca_probe*), the FP conversions (_ftol/_ftol2/_ftol2_sse),
+    // the _CI* math intrinsics and the _inp/_outp port I/O family -- plus the
+    // MSVC/__thiscall (QAE/UAE/AAE) spellings of the C++ EH/RTTI exports that
+    // ARM spells with __cdecl mangling (QAA/UAA/AAA).  ARM instead forwards
+    // its floating point to FPCRT and uses __C_specific_handler for SEH.
+    // Linking the ARM surface into an x86 image therefore left every
+    // __try/__except and __CxxThrowException reference unresolved even though
+    // CodeGen emitted the platform-native x86 SEH correctly.  mingwrt builds
+    // libcoredll6-x86.a from coredll6-x86.def for an i386-*-mingw32ce target,
+    // so an x86 sysroot never contains the ARM import library.
+    // CE 4.x/5.0 have no x86 def yet (no x86 CE 4/5 shared source is
+    // available to parse), so those generations keep the ARM-parsed surface.
+    CmdArgs.push_back(TC.getTriple().getArch() == llvm::Triple::x86
+                          ? "libcoredll6-x86.a"
+                          : "libcoredll6.a");
     break;
   }
 
