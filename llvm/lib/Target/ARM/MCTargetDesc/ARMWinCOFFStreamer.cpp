@@ -392,7 +392,7 @@ void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
 
   MCSectionCOFF *PData = Ctx.getCOFFSection(
       ".pdata", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
-                    COFF::IMAGE_SCN_MEM_READ | COFF::IMAGE_SCN_MEM_DISCARDABLE);
+                    COFF::IMAGE_SCN_MEM_READ);
   switchSection(PData);
   emitValueToAlignment(Align(4));
 
