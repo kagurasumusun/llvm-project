@@ -46,6 +46,26 @@
 // RUN:   | FileCheck %s --check-prefix=CE5
 // CE5: #define _WIN32_WCE 1280
 
+/// _WIN32_WCE uses Microsoft's "VRR" encoding: V is the major version and RR
+/// is the *two-digit decimal* CE core version, one decimal digit per hex
+/// nibble.  Windows CE 4.2 is core version 4.20, so the macro is 0x0420 ==
+/// 1056 - precisely what w32api compares against (aygshell.h gates CE 4.2
+/// features on `_WIN32_WCE >= 0x0420`, shellapi.h on `>= 0x420`).  Encoding it
+/// as major*0x100 + minor instead yielded 0x0402 == 1026; since 1026 < 1056,
+/// every CE 4.1/4.2-gated API was silently disabled for a versioned triple.
+/// A single-digit minor is read as the tens digit, so 4.2 and 4.20 agree.
+// RUN: %clang -target arm-pc-wince4.2 -E -dM %s -o - 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CE42
+// RUN: %clang -target arm-pc-wince4.20 -E -dM %s -o - 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CE42
+// CE42-DAG: #define _WIN32_WCE 1056
+// CE42-DAG: #define UNDER_CE 1056
+
+/// CE 4.1 is core version 4.10 -> 0x0410 == 1040.
+// RUN: %clang -target arm-pc-wince4.1 -E -dM %s -o - 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CE41
+// CE41: #define _WIN32_WCE 1040
+
 /// The default CPU is the ARMv5TE baseline (arm926ej-s / i.MX28), soft-float
 /// (the WinCE/COREDLL FP ABI).  FloatABI::Soft maps to both the
 /// "+soft-float" and "+soft-float-abi" target features (software FP

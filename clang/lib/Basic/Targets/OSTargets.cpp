@@ -295,9 +295,29 @@ void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder) {
   unsigned _WIN32_WCE = 0x0600;
   llvm::VersionTuple OSVer = Triple.getOSVersion();
   if (OSVer.getMajor()) {
-    _WIN32_WCE = OSVer.getMajor() * 0x100;
-    if (OSVer.getMinor())
-      _WIN32_WCE += OSVer.getMinor().value();
+    // Microsoft spell this macro in "VRR" form: V is the major version and RR
+    // is the *two-digit decimal* revision, with each decimal digit occupying
+    // one hexadecimal nibble.  The CE "core version" of Windows CE 4.2 is
+    // 4.20, so _WIN32_WCE is 0x0420 -- NOT 0x0402.  Likewise CE 4.1 is core
+    // version 4.10 -> 0x0410, CE 2.10 -> 0x0210, CE 2.11 -> 0x0211,
+    // CE 2.12 -> 0x0212, CE 3.0 -> 0x0300, CE 5.0 -> 0x0500, CE 6.0 -> 0x0600.
+    //
+    // w32api encodes exactly this convention: aygshell.h guards CE 4.2
+    // features on `_WIN32_WCE >= 0x0420`, shellapi.h on `>= 0x420`, and
+    // windef.h documents "UNDER_CE=420, _WIN32_WCE=0x420".  Adding the raw
+    // minor value here instead produced 0x0402 for a versioned triple such as
+    // arm-pc-wince4.2, and 0x0402 < 0x0420, so every CE 4.1/4.2-gated API
+    // was silently disabled.
+    //
+    // A single-digit minor (wince4.2) is read as core version 4.20, i.e. the
+    // minor is the tens digit; spell the two-digit form (wince4.20, wince2.11)
+    // to be explicit.  A revision with a leading zero (CE 1.01 -> 0x0101)
+    // cannot be expressed through the triple because VersionTuple drops the
+    // leading zero -- pass -D_WIN32_WCE=0x0101 for those historical builds.
+    unsigned RR = OSVer.getMinor() ? OSVer.getMinor().value() : 0;
+    if (RR < 10)
+      RR *= 10; // 4.2 means core version 4.20
+    _WIN32_WCE = OSVer.getMajor() * 0x100 + (RR / 10) * 0x10 + (RR % 10);
   }
   Builder.defineMacro("_WIN32_WCE", Twine(_WIN32_WCE));
   Builder.defineMacro("UNDER_CE", Twine(_WIN32_WCE));
