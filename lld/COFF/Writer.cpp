@@ -800,30 +800,40 @@ void Writer::writePEChecksum() {
   peHeader->CheckSum = sum;
 }
 
-// Windows CE / EHABI: drop .ARM.exidx and .ARM.extab entries whose function
-// lost COMDAT duplicate resolution.  The losing function's chunk is marked
-// dead (live = false, replaced by the winner) while the entry's relocation
-// still references it, which would otherwise be a relocation into a section
-// that does not exist in the image - and the EHABI unwinder walks the merged
-// index unconditionally.  ELF linkers drop such entries; do the same here,
-// before createSections, so the merged .ARM.exidx output, the
-// __exidx_start/__exidx_end bounds and the exception directory derived from
-// it only cover functions that are actually present.
-static void cullExidxForDiscardedFunctions(COFFLinkerContext &ctx) {
+// Windows CE / EHABI: drop .ARM.exidx, .ARM.extab and .pdata entries whose
+// function is not present in the final image.  A function's chunk is marked
+// dead (live = false) when it is discarded by linker GC (an unreferenced
+// COMDAT) or loses COMDAT/ICF duplicate resolution (SectionChunk::replace
+// marks the loser dead), while the entry's relocations still reference it.
+// That would otherwise be a relocation into a section that does not exist in
+// the image - and both the kernel's compressed-.pdata walk and the EHABI
+// exidx binary search visit every entry unconditionally.  ELF linkers drop
+// such entries; do the same here, before createSections, so the merged
+// .ARM.exidx output, the __exidx_start/__exidx_end bounds and the exception
+// directory (both the CE .pdata and the ARM EHABI tables) only cover
+// functions that are actually present.
+//
+// .pdata carries one entry per function on Windows CE (see
+// sortCEExceptionTable), so it must be culled with the same predicate as
+// .ARM.exidx - otherwise a single discarded COMDAT function in an object
+// leaves its .pdata relocations (pFuncStart, FUNCLEN, PROLOG) dangling.
+static void cullCEUnwindTablesForDiscardedFunctions(COFFLinkerContext &ctx) {
   for (ObjFile *file : ctx.objFileInstances) {
     for (Chunk *c : file->getChunks()) {
       auto *sc = dyn_cast<SectionChunk>(c);
       if (!sc || !sc->live)
         continue;
       StringRef name = sc->getSectionName();
-      if (name != ".ARM.exidx" && name != ".ARM.extab")
+      if (name != ".ARM.exidx" && name != ".ARM.extab" && name != ".pdata")
         continue;
       // Mirror SectionChunk::applyRelocation's notion of a discarded
-      // target: a null symbol slot means the target was discarded early
-      // (its COMDAT group lost, so its section symbol resolved to
-      // nothing), and a Defined whose SectionChunk is dead was discarded
-      // late.  Either way the function this entry describes is not in
-      // the image, so the entry must go with it.
+      // target exactly: a null symbol slot means the target was discarded
+      // early (its COMDAT group lost, so its section symbol resolved to
+      // nothing); a Defined whose chunk is null or whose chunk is not live
+      // (a dead SectionChunk, or a dead import thunk) was discarded late.
+      // Either way the function this entry describes is not in the image, so
+      // the entry must go with it.  A live non-section target (an import
+      // thunk for an imported personality, ...) is kept.
       for (Symbol *sym : sc->symbols()) {
         auto *d = dyn_cast_or_null<Defined>(sym);
         bool dead;
@@ -832,8 +842,15 @@ static void cullExidxForDiscardedFunctions(COFFLinkerContext &ctx) {
         } else if (isa<DefinedAbsolute>(d) || isa<DefinedSynthetic>(d)) {
           dead = false;
         } else {
-          auto *target = dyn_cast_or_null<SectionChunk>(d->getChunk());
-          dead = target && !target->live;
+          Chunk *tc = d->getChunk();
+          if (!tc)
+            dead = true;
+          else if (auto *tsc = dyn_cast<SectionChunk>(tc))
+            dead = !tsc->live;
+          else if (auto *ttc = dyn_cast<ImportThunkChunk>(tc))
+            dead = !ttc->live;
+          else
+            dead = false;
         }
         if (dead) {
           Log(ctx) << "removing " << name << " entry for discarded section"
@@ -852,7 +869,7 @@ void Writer::run() {
     llvm::TimeTraceScope timeScope("Write PE");
     ScopedTimer t1(ctx.codeLayoutTimer);
 
-    cullExidxForDiscardedFunctions(ctx);
+    cullCEUnwindTablesForDiscardedFunctions(ctx);
     calculateStubDependentSizes();
     if (ctx.config.machine == ARM64X)
       ctx.dynamicRelocs = make<DynamicRelocsChunk>();
