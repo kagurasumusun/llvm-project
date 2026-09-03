@@ -1699,7 +1699,18 @@ void Writer::createSymbolAndStringTable() {
   for (OutputSection *sec : ctx.outputSections) {
     if (sec->name.size() <= COFF::NameSize)
       continue;
-    if ((sec->header.Characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0)
+    // The ARM EHABI unwind sections .ARM.exidx / .ARM.extab are 10 bytes and
+    // must keep their full (standard) names even though they are not
+    // discardable. Unlike a generic long-named section, their name is never
+    // consulted at runtime: the unwinder (libunwind) locates .ARM.exidx via
+    // the __exidx_start/__exidx_end symbols, which this linker binds to the
+    // section's bounds (see bindWinCEExidxBounds). So the full name may live
+    // in the (unmapped) string table, exactly as it does for discardable
+    // sections. If we skipped them (as for other non-discardable long names),
+    // their header would fall back to the 8-byte truncation, renaming them to
+    // the meaningless ".ARM.exi" / ".ARM.ext".
+    if ((sec->header.Characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0 &&
+        sec->name != ".ARM.exidx" && sec->name != ".ARM.extab")
       continue;
     if (ctx.config.warnLongSectionNames) {
       Warn(ctx)

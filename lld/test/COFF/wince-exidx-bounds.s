@@ -32,7 +32,7 @@ bounds:
 	.long	__exidx_end
 
 ## Two exidx entries, 8 bytes each, in the correctly-named output section.
-# CHECK: Name: .ARM.exi
+# CHECK: Name: .ARM.exidx
 # CHECK: VirtualSize: 0x10
 ## (the __exidx_start/__exidx_end definitions are asserted by the link
 ## above: lld-link -u fails with undefined symbols if lld does not bind

@@ -14,7 +14,7 @@
 ## merged index must hold exactly two entries: one for entry and one for
 ## the surviving copy of the COMDAT function (8 bytes each).
 
-# CHECK: Name: .ARM.exi
+# CHECK: Name: .ARM.exidx
 # CHECK: VirtualSize: 0x10
 
 #--- 1.s
