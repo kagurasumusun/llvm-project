@@ -1,8 +1,8 @@
 # REQUIRES: arm-registered-target
 # RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t.obj %s
-# TEMPORARY DIAGNOSTICS (will be reverted)
-# RUN: llvm-readobj --sections --relocations %t.obj
-# RUN: lld-link -wince /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed /verbose %t.obj 2>&1 | FileCheck /dev/null
+# TEMPORARY DIAGNOSTICS ROUND 2 (will be reverted)
+# RUN: lld-link -wince /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed /verbose %t.obj > %t.v.log 2>&1
+# RUN: grep -E "Discarded|ARM|exidx|text" %t.v.log || true
 # RUN: llvm-readobj --sections %t.exe
 # RUN: llvm-objdump -s --section=.ARM.exidx %t.exe | FileCheck %s
 
