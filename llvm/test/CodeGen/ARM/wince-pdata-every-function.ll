@@ -31,6 +31,7 @@
 declare void @may_crash()
 declare i32 @__gxx_personality_v0(...)
 declare void @__C_specific_handler(...)
+declare void @cleanup_helper(ptr, i32)
 
 ; A leaf function: empty prologue.  SEH_PrologEnd sits at the function
 ; start (PrologLen 0 -- the kernel's "no prolog" path).
@@ -64,6 +65,27 @@ entry:
 
 ; A C++ function: EHABI personality + LSDA on top of the WinCFI frame.
 ; The WinCFI frame never suppresses the EHABI one.
+;
+; The landing pad deliberately does real work, and the checks below depend on
+; it.  A cleanup-only pad that resumes its own value immediately is deleted
+; before codegen: SimplifyCFGOpt::simplifySingleResume
+; (llvm/lib/Transforms/Utils/SimplifyCFG.cpp) turns every invoke that unwinds
+; to such a pad into a plain call through llvm::removeUnwindEdge
+; (llvm/lib/Transforms/Utils/Local.cpp) - which has no personality, clause or
+; cleanup guard at all - and then zaps the unreachable block.  Its only gate is
+; isCleanupBlockEmpty(): no instructions between the landingpad and the resume
+; other than debug intrinsics.  With getLandingPads() empty,
+; ARMException::emitEHABIFunctionEnd then emits neither .personality nor
+; .handlerdata, which is the correct answer for that IR and not a WinCE defect.
+;
+; Empirically the transform fires on the hasV6Ops() && !isThumb1Only() targets
+; (armv6, armv6k, armv6t2, armv7, armv7a, armv7r, armv7m, armv8a, thumbv7,
+; thumbv8a) and not on armv4, armv4t, armv5, armv5te, armv6m, thumbv4t or
+; thumbv6, and only at -O1 and above - llc's default is -O2 and these RUN lines
+; pass no -O, which is why the thumbv7 line was the one that failed.  Why the
+; architecture version matters was not root-caused, and nothing here depends on
+; it: these two instructions make isCleanupBlockEmpty false, so the pad survives
+; on every target and at every optimization level.
 define i32 @cpp_func(i32 %x) personality ptr @__gxx_personality_v0 {
 entry:
   invoke void @may_crash() to label %cont unwind label %lpad
@@ -74,6 +96,9 @@ cont:
 lpad:
   %lp = landingpad { ptr, i32 }
           cleanup
+  %exc = extractvalue { ptr, i32 } %lp, 0
+  %sel = extractvalue { ptr, i32 } %lp, 1
+  call void @cleanup_helper(ptr %exc, i32 %sel)
   resume { ptr, i32 } %lp
 }
 
