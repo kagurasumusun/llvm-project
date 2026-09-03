@@ -134,11 +134,17 @@ extern "C" EXCEPTION_DISPOSITION __wince_cxx_frame_handler(
 
   if (dispatching) {
     // ===== DISPATCH (search) mode: local catch decision, no cleanup =====
-    // pDC->ControlPc is the return address of the call from this frame to the
-    // callee that raised - a code address inside this frame, so the EHT lookup
-    // resolves this frame's EHT/LSDA.
+    // Key the EHT lookup on pDC->FunctionEntry->BeginAddress: the CE kernel
+    // (exdsptch.c RtlLookupFunctionEntry) fills it from the .pdata entry's
+    // pFuncStart, i.e. this frame's function start. The EHT (.ARM.exidx) is
+    // sorted/keyed by function address, so the function start resolves to
+    // this frame's EHT/LSDA. We deliberately do NOT use pDC->ControlPc here:
+    // the dispatch (search) path does not guarantee it holds an in-frame code
+    // address (the kernel's RtlDispatchException seeds it to 0), whereas the
+    // function start is always valid for this frame.
     unw_cursor_t cursor;
-    if (!initFrameCursor(&cursor, (uintptr_t)pDC->ControlPc, cfa))
+    if (!initFrameCursor(&cursor, (uintptr_t)pDC->FunctionEntry->BeginAddress,
+                         cfa))
       return ExceptionContinueSearch;
     struct _Unwind_Context *ctx = reinterpret_cast<struct _Unwind_Context *>(&cursor);
 
@@ -167,12 +173,17 @@ extern "C" EXCEPTION_DISPOSITION __wince_cxx_frame_handler(
   // ===== UNWIND (cleanup) mode: run this frame's destructors =====
   // pCtx->Eip was set to the unwind target (the catch frame's landing pad) by
   // RtlUnwind before the walk, and pCtx->Esp is the fault SP - neither is this
-  // frame's own PC. The only reliable in-frame code address the kernel provides
-  // in this mode is pDC->FunctionEntry (the frame's function entry); if it is
-  // not a valid function entry the EHT lookup fails and we skip this frame's
-  // cleanup (safe: no destructor runs, but nothing is corrupted).
+  // frame's own PC. The kernel hands us pDC->FunctionEntry as a
+  // PRUNTIME_FUNCTION (a pointer to the per-function struct in .pdata, filled
+  // by RtlLookupFunctionEntry); its BeginAddress member is the frame's function
+  // start, which the EHT (.ARM.exidx) lookup resolves to this frame's EHT/LSDA.
+  // NOTE: the raw pDC->FunctionEntry value is the address of the
+  // RUNTIME_FUNCTION struct, NOT a code address - keying the EHT lookup on it
+  // would miss this frame's entry and its destructors would be silently
+  // skipped, so we must use ->BeginAddress.
   unw_cursor_t cursor;
-  if (!initFrameCursor(&cursor, (uintptr_t)pDC->FunctionEntry, cfa))
+  if (!initFrameCursor(&cursor, (uintptr_t)pDC->FunctionEntry->BeginAddress,
+                       cfa))
     return ExceptionContinueSearch;
   struct _Unwind_Context *ctx = reinterpret_cast<struct _Unwind_Context *>(&cursor);
 
