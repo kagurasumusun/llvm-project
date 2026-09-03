@@ -434,6 +434,34 @@ static MCAsmInfo *createX86MCAsmInfo(const MCRegisterInfo &MRI,
   } else if (TheTriple.isOSBinFormatELF()) {
     // Force the use of an ELF container.
     MAI = new X86ELFMCAsmInfo(TheTriple);
+  } else if (TheTriple.isWindowsCE()) {
+    // Windows CE, i.e. the CeGCC i386-mingw32ce flavor: GNU COFF, not MSVC
+    // COFF and not ELF.  None of the branches below can match this triple.
+    // isWindowsMSVCEnvironment() deliberately excludes WinCE (Triple.h: an
+    // unspecified environment only counts as MSVC when !isWindowsCE()), and
+    // i386-pc-wince has an unspecified environment, so isOSCygMing() and
+    // isWindowsItaniumEnvironment() -- which need a Cygnus/GNU/Itanium
+    // environment -- do not match either.  Falling through to the "default is
+    // ELF" case below therefore handed a COFF target an X86ELFMCAsmInfo, and
+    // the AsmPrinter's very first section switch went through
+    // MCAsmInfoELF::printSwitchToSection, which touches ELF-only section
+    // state: llc -mtriple=i386-pc-wince -filetype=asm segfaulted with
+    //   MCAsmInfoELF::printSwitchToSection
+    //   <- MCTargetStreamer::changeSection
+    //   <- MCAsmStreamer::switchSection
+    //   <- AsmPrinter::emitFunctionHeader
+    //   <- X86AsmPrinter::runOnMachineFunction
+    // and -filetype=obj died in MCAssembler::registerSymbol under
+    // MCWinCOFFStreamer::changeSection for the same reason.  -filetype=null,
+    // which never switches sections, was the only mode that survived.
+    //
+    // GNU COFF is also the consistent choice: createARMMCAsmInfo picks
+    // ARMCOFFMCAsmInfoGNU for WinCE, and the rest of this toolchain is GNU
+    // dialect (crt3.o, lib*.a, -lfoo resolving to libfoo.a, llvm-dlltool's
+    // i386 underscore handling).  .seh_* directives stay legal because
+    // MCStreamer::EnsureValidWinFrameInfo already admits them for a WinCE
+    // triple even when the MCAsmInfo does not set usesWindowsCFI.
+    MAI = new X86MCAsmInfoGNUCOFF(TheTriple);
   } else if (TheTriple.isWindowsMSVCEnvironment() ||
              TheTriple.isWindowsCoreCLREnvironment() || TheTriple.isUEFI()) {
     if (Options.getAssemblyLanguage().equals_insensitive("masm"))
