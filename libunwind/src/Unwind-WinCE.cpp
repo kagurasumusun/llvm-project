@@ -21,14 +21,12 @@
 
 #if defined(__WINCE__)
 
-// Include order matters on WinCE: winbase.h (RaiseException) and winnt.h
-// (CONTEXT) use basic types (DWORD, ...) defined by windef.h, and - unlike
-// windows.h - do not include them themselves.  windef.h defines the basic
-// types and then includes winnt.h, so it must come first (mirrors the
-// windows.h ordering: windef.h -> winbase.h).
-#include <windef.h>
-#include <winbase.h>
-#include <excpt.h>
+// Pull the CE SDK types (CONTEXT, RaiseException, EXCEPTION_NONCONTINUABLE,
+// DWORD/ULONG_PTR, va_list) via the umbrella <windows.h>, exactly like every
+// other WinCE translation unit (mingwrt, EasyRPG).  The individual SDK
+// headers (winbase.h, winnt.h) depend on stdarg.h / basic types that only
+// windows.h orders correctly, so do not include them standalone here.
+#include <windows.h>
 #include <string.h>
 #include <stdint.h>
 
