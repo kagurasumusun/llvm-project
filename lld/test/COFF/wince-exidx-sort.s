@@ -1,6 +1,9 @@
 # REQUIRES: arm-registered-target
 # RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t.obj %s
-# RUN: lld-link -wince /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t.obj
+# TEMPORARY DIAGNOSTICS (will be reverted)
+# RUN: llvm-readobj --sections --relocations %t.obj
+# RUN: lld-link -wince /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed /verbose %t.obj 2>&1 | FileCheck /dev/null
+# RUN: llvm-readobj --sections %t.exe
 # RUN: llvm-objdump -s --section=.ARM.exidx %t.exe | FileCheck %s
 
 ## The ARM EHABI requires .ARM.exidx entries in ascending function order:
