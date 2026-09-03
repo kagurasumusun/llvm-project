@@ -79,18 +79,31 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
     TS.emitCode32();
   }
 
-  // Windows CE SEH: the PDATA_EH pair must sit in the 8 bytes immediately
+  // Windows CE: the PDATA_EH pair must sit in the 8 bytes immediately
   // before the function's first instruction, exactly where the CE kernel
   // reads it (RtlLookupFunctionEntry in PRIVATE/.../CORE/DLL/exdsptch.c:
-  // (PPDATA_EH)(pFuncStart & ~(InstSize-1)) - 1). Emit the SEH scope table
-  // followed by the pair right before the function label. Only the parent
-  // function carries the pair; funclets are handler bodies without an
-  // exception flag. See ARMWinCFI.h / utils/wince/WINEH-ABI-FACTS.md.
+  // (PPDATA_EH)(pFuncStart & ~(InstSize-1)) - 1). It is emitted right before
+  // the function label, and only for functions whose .pdata entry actually
+  // carries ExceptionFlag=1 (which is what tells the kernel the pair exists)
+  // -- otherwise the kernel would read whatever code precedes the function as
+  // {handler, handlerData} and call it. Only the parent function carries the
+  // pair; funclets are handler bodies without an exception flag. See
+  // ARMWinCFI.h / utils/wince/WINEH-ABI-FACTS.md.
+  //
+  // SEH: the pair's handler-data is the scope table (__C_specific_handler).
   if (MF && TM.getTargetTriple().isWindowsCE() && functionUsesWinCFI(*MF) &&
       MF->hasEHFunclets())
     emitCEHandlerData(*MF);
+  // C++ (Itanium): the pair's handler is __wince_cxx_frame_handler and its
+  // handler-data is a per-function FuncInfoB. This gate must match exactly
+  // the condition under which ARMException::beginFunction claims the handler
+  // (hasWinCFI && GNU_CXX): on WinCE hasWinCFI is set iff
+  // functionNeedsWinCFIFrame (every non-GHC function), and a C++ function is
+  // functionUsesCXXEHABI. It is deliberately NOT gated on functionUsesWinCFI
+  // (that predicate is SEH-only and is always false for a GNU_CXX function,
+  // which would silently drop the pair while leaving ExceptionFlag=1 set).
   else if (MF && TM.getTargetTriple().isWindowsCE() &&
-           functionUsesWinCFI(*MF) && functionUsesCXXEHABI(*MF))
+           functionUsesCXXEHABI(*MF) && functionNeedsWinCFIFrame(*MF))
     emitCXXHandlerData(*MF);
 
   // Emit symbol for CMSE non-secure entry point

@@ -38,7 +38,18 @@ int cpp_func(int x) {
 }
 
 // A C++ function with a catch: the CE C++ frame handler is claimed
-// (ExceptionFlag=1) alongside the unchanged EHABI personality frame.
+// (ExceptionFlag=1) alongside the unchanged EHABI personality frame, and the
+// in-text PDATA_EH pair is emitted in the 8 bytes before the function label.
+//
+// The pair must exist whenever ExceptionFlag=1 is set (the kernel reads it
+// from there), so this is what the emission gate must guarantee.  The
+// FuncInfoB (magic "FINB" 0x424e4946 = 1112426822, version 1, flags,
+// reserved extab_va) sits immediately before the pair; its label is the
+// pair's handler-data word.
+// CHECK:      [[FI:.Lce_cxx_funcinfo[0-9]+]]:
+// CHECK:      .long 1112426822
+// CHECK:      .long __wince_cxx_frame_handler
+// CHECK-NEXT: .long [[FI]]
 // CHECK-LABEL: _Z8cpp_funci:
 // CHECK:      .seh_proc _Z8cpp_funci
 // CHECK:      .seh_handler __wince_cxx_frame_handler, %except
@@ -49,8 +60,13 @@ int cpp_func(int x) {
 // CHECK:      .seh_endproc
 
 // A nested try/catch (calls another C++ function inside the try): it also
-// carries the CE C++ frame handler, so an exception raised in cpp_func can
-// be unwound through this frame by the kernel and caught here.
+// carries the CE C++ frame handler and its own PDATA_EH pair, so an exception
+// raised in cpp_func can be unwound through this frame by the kernel and
+// caught here.
+// CHECK:      [[FI2:.Lce_cxx_funcinfo[0-9]+]]:
+// CHECK:      .long 1112426822
+// CHECK:      .long __wince_cxx_frame_handler
+// CHECK-NEXT: .long [[FI2]]
 // CHECK-LABEL: _Z10pass_alongi:
 // CHECK:      .seh_proc _Z10pass_alongi
 // CHECK:      .seh_handler __wince_cxx_frame_handler, %except
