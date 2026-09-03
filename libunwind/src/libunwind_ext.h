@@ -143,6 +143,11 @@ extern _Unwind_Reason_Code _Unwind_VRS_Interpret(_Unwind_Context *context,
 // called from _Unwind_RaiseException.  See <wince_cxx_eh.h> for the ABI.
 extern _Unwind_Reason_Code wince_unwind_raise_exception(
     _Unwind_Exception *exception_object);
+// Build an EHABI cursor at the frame represented by a CE CONTEXT* (the C++
+// frame handler uses it to run the Itanium personality on its own frame).
+// Defined in Unwind-WinCE.cpp.
+extern int __unw_init_local_at_frame(unw_cursor_t *cursor,
+                                     const void *ctx);
 #endif
 
 #ifdef __cplusplus
