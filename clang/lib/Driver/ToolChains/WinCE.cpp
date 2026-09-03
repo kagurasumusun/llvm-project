@@ -65,6 +65,45 @@ static bool compilingCXX(const ArgList &Args) {
 
 WinCE::WinCE(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
     : Generic_GCC(D, Triple, Args) {
+  // Windows CE shipped on five architectures across its life: SH3 and SH4
+  // (CE 1.0-5.0), MIPS (CE 1.0-5.0), PowerPC (CE 2.x only), ARM (CE 2.0-6.0)
+  // and x86 (CE 1.0-6.0).  Two hard limits decide which of those this driver
+  // can accept, and neither is a matter of taste:
+  //
+  //  1. clang only builds a WinCE-aware TargetInfo for arm/thumb
+  //     (WinCEARMTargetInfo) and for x86 (WinCETargetInfo).  Every other
+  //     architecture in Targets.cpp falls through to the generic target
+  //     class, which never calls addWinCEDefines - so _WIN32_WCE, UNDER_CE,
+  //     WINCE, __COREDLL__, UNICODE and _UNICODE would all be silently
+  //     absent, and w32api's "#ifdef _WIN32_WCE" guards would take the
+  //     desktop-Windows path while the triple still claimed WinCE.
+  //
+  //  2. LLVM has no SuperH backend at all, so CE on SH3/SH4 is unreachable
+  //     from an LLVM-based toolchain at any CE version.  CeGCC could serve
+  //     it only because GCC ships a SuperH backend.
+  //
+  // The driver selects this toolchain from the OS part of the triple alone
+  // (Driver.cpp: Triple::WinCE), and isOSWindows() is true for WinCE, so a
+  // mipsel- or armeb- or x86_64-pc-wince triple really does land here.  Left
+  // alone it used to reach Linker::ConstructJob, whose library choice is the
+  // binary test "x86 ? libcoredll6-x86.a : libcoredll6.a" - which hands ARM
+  // import libraries and libclang_rt.builtins-arm.a to a foreign-architecture
+  // image.  That is not a link error, it is a silently broken binary, so
+  // reject the architecture up front instead.  Emitting the diagnostic from
+  // the constructor is the established pattern for triple rejection here
+  // (MinGW.cpp: err_target_unknown_triple) and Driver::Diag is const, and an
+  // Error makes ExecuteCompilation return before any job runs.
+  switch (Triple.getArch()) {
+  case llvm::Triple::arm:
+  case llvm::Triple::thumb:
+  case llvm::Triple::x86:
+    break;
+  default:
+    D.Diag(diag::err_drv_unsupported_wince_arch)
+        << Triple.getArchName() << Triple.str();
+    break;
+  }
+
   SysRootPath = findDefaultSysRoot(D, Args);
   if (!llvm::sys::fs::exists(SysRootPath)) {
     D.Diag(diag::warn_drv_wince_sysroot_missing)

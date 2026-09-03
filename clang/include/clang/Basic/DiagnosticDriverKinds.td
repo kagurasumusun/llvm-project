@@ -25,6 +25,10 @@ def err_drv_unsupported_option_argument_for_target : Error<
 def err_drv_unsupported_wince_version : Error<
   "unsupported Windows CE version %0; the supported generations are "
   "CE 4.x, 5.x and 6.0">;
+def err_drv_unsupported_wince_arch : Error<
+  "unsupported architecture '%0' for Windows CE target '%1'; this toolchain "
+  "ships WinCE import libraries for ARM and x86 only, and LLVM has no SuperH "
+  "backend for the SH3/SH4 CE generations">;
 def err_drv_unknown_stdin_type : Error<
   "-E or -x required when input is from standard input">;
 def err_drv_unknown_stdin_type_clang_cl : Error<
