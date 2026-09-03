@@ -102,6 +102,12 @@ bool initFrameCursor(unw_cursor_t *cursor, uintptr_t pc, uintptr_t cfa) {
 
 } // namespace
 
+// Prototype (satisfies -Wmissing-prototypes); the symbol is referenced by the
+// compiler-generated PDATA_EH pair.
+extern "C" EXCEPTION_DISPOSITION __wince_cxx_frame_handler(
+    PEXCEPTION_RECORD pExr, void *EstablisherFrame, PCONTEXT pCtx,
+    PDISPATCHER_CONTEXT pDC);
+
 extern "C" EXCEPTION_DISPOSITION __wince_cxx_frame_handler(
     PEXCEPTION_RECORD pExr, void *EstablisherFrame, PCONTEXT pCtx,
     PDISPATCHER_CONTEXT pDC) {
