@@ -72,13 +72,20 @@ catch:
 ; local offset and the frame size ($parent_frame_offset) used by
 ; llvm.localaddress.  The frame-size assignment is emitted just before the
 ; function label (inside the CE handler-data emission); the literal pool
-; holds the symbol for ARMv5.
+; holds the symbol for ARMv5.  The SEH parent also carries the EHABI frame
+; (.fnstart, see wince-seh-ehabi-mixed.c) on top of its WinCFI one.
 ; ARM5: .Lalloc_func$parent_frame_offset = {{[0-9]+}}
 ; ARM5-LABEL: alloc_func:
+; ARM5: .seh_proc alloc_func
+; ARM5: .seh_handler __C_specific_handler, %except
+; ARM5: .fnstart
 ; ARM5: .Lalloc_func$frame_escape_0 = {{-?[0-9]+}}
 
 ; T2: .Lalloc_func$parent_frame_offset = {{[0-9]+}}
 ; T2-LABEL: alloc_func:
+; T2: .seh_proc alloc_func
+; T2: .seh_handler __C_specific_handler, %except
+; T2: .fnstart
 ; T2: .Lalloc_func$frame_escape_0 = {{-?[0-9]+}}
 ; T2: movw r{{[0-9]+}}, :lower16:.Lalloc_func$parent_frame_offset
 ; T2: movt r{{[0-9]+}}, :upper16:.Lalloc_func$parent_frame_offset

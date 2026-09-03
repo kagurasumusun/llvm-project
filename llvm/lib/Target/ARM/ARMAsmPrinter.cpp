@@ -13,6 +13,7 @@
 
 #include "ARMAsmPrinter.h"
 #include "ARM.h"
+#include "ARMBaseInstrInfo.h"
 #include "ARMConstantPoolValue.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMTargetMachine.h"
@@ -1268,6 +1269,14 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
   assert(MI->getFlag(MachineInstr::FrameSetup) &&
       "Only instruction which are involved into frame setup code are allowed");
 
+  // Windows CE: SEH_* WinCFI pseudo-instructions share the FrameSetup flag
+  // with the real prologue instructions (every function carries both
+  // unwind tables there).  They describe the .pdata frame and are printed
+  // as .seh_* directives by emitInstruction -- there is nothing to
+  // translate into EHABI opcodes.
+  if (isSEHInstruction(*MI))
+    return;
+
   MCTargetStreamer &TS = *OutStreamer->getTargetStreamer();
   ARMTargetStreamer &ATS = static_cast<ARMTargetStreamer &>(TS);
   const MachineFunction &MF = *MI->getParent()->getParent();
@@ -1994,16 +2003,17 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
 
   // Emit unwinding stuff for frame-related instructions
   //
-  // On Windows CE, functions using an SEH personality (compiled from
-  // __try) need WinCFI (.seh_*) unwind info instead of ARM EHABI -- see
-  // ARMWinCFI.h and utils/wince/WINEH-ABI-FACTS.md section 4c. Their
-  // FrameSetup instructions include SEH_* pseudo-instructions that
-  // EmitUnwindingInstruction's EHABI translator below does not recognize
-  // (it would hit its "Unsupported opcode for unwinding information"
-  // fallback), so this must be excluded here, not just left for
-  // EmitUnwindingInstruction to reject internally.
+  // On Windows CE every function carries BOTH unwind tables (see
+  // ARMWinCFI.h): the WinCFI (.seh_*, CE .pdata) frame and the ARM EHABI
+  // (.fnstart/.fnend, .ARM.exidx) frame.  The EHABI translator below
+  // therefore also runs for WinCFI/SEH functions so their prologues get
+  // real EHABI unwind opcodes; the interleaved SEH_* pseudo-instructions
+  // are skipped inside EmitUnwindingInstruction.  On other targets the
+  // historical behavior is kept: functions with a WinCFI frame get no
+  // EHABI directives.
   if (TM.getTargetTriple().isTargetEHABICompatible() &&
-      !functionUsesWinCFI(*MF) && MI->getFlag(MachineInstr::FrameSetup))
+      (!functionUsesWinCFI(*MF) || TM.getTargetTriple().isWindowsCE()) &&
+      MI->getFlag(MachineInstr::FrameSetup))
     EmitUnwindingInstruction(MI);
 
   // Do any auto-generated pseudo lowerings.

@@ -696,3 +696,73 @@ mix EHABI functions and CE SEH functions:
   `__try`/`__except` (`.seh_proc`/`.seh_handler %except`/`.seh_endproc`)
   in the same TU, proving the two mechanisms coexist per-function.
 
+
+## 4i. All-function `.pdata` + dual unwind tables (2026-09-03, this session)
+
+Amends §4d/§4e: the two unwind mechanisms are no longer mutually exclusive
+per function — **every** CE function now carries both, and SEH functions
+are no longer the only `.pdata` producers.
+
+**Why (kernel fact, §2/§4h):** the CE kernel dispatches and unwinds *every*
+exception through the compressed `.pdata` table
+(`RtlLookupFunctionEntry`/`RtlVirtualUnwind`); a frame without a `.pdata`
+entry stops OS unwinding dead (LR fallback for one frame only). eVC++
+emits `.pdata` for every function precisely for that reason. Up to this
+change clang only gave `.pdata` entries to `__try` functions, so a fault
+under any ordinary frame could not be walked by the kernel — the EasyRPG
+crash logger's backtraces truncate (§4h). Symmetrically, an SEH function
+had *no* `.ARM.exidx` entry, so a C++ exception propagating through an SEH
+frame binary-searched into the *previous* function's entry and unwound
+with foreign opcodes.
+
+**Implementation (this session):**
+
+- `ARMWinCFI.h`: new `functionNeedsWinCFIFrame(MF)` — true for every CE
+  function (GHC-conv and naked functions excluded: no prologue, so no
+  frame to mark; they stay EHABI-only as before). Non-CE targets get the
+  old `functionUsesWinCFI` answer, unchanged.
+- `ARMFrameLowering.cpp` (`needsWinCFI` → the predicate above): all CE
+  functions get `hasWinCFI`, hence `.seh_proc`/`.seh_endproc` and a
+  `.pdata` entry. `SEH_PrologEnd` is now emitted unconditionally on CE
+  (an empty prologue records PrologLen 0 — the kernel's documented "no
+  prolog" path). `insertSEH`'s unmapped-instruction `report_fatal_error`
+  became a skip on CE: the kernel re-executes prologue *machine code*, so
+  the SEH opcode stream is decorative there, and ordinary functions'
+  prologues/epilogues contain shapes the `__try`-focused mapper never saw
+  (ARM-mode `bx lr`, constpool-materialized large SP adjusts).
+- `Thumb1FrameLowering.cpp`: same predicate; `SEH_PrologEnd` inserted at
+  both `emitPrologue` exits (Thumb1 maps no per-instruction SEH opcodes —
+  only the marker is needed). DWARF CFI emission is now skipped for
+  WinCFI frames, matching the ARM/Thumb2 path (otherwise `-g` builds
+  would emit `.cfi_*` with no `.cfi_startproc`). This also fixes
+  Thumb1 SEH parents, which previously emitted `.seh_proc` with no
+  `.seh_endprologue` and failed MC object emission.
+- `ARMException.cpp`: WinCFI functions on CE also open the EHABI frame:
+  `.seh_proc` [+ `.seh_handler` for SEH parents] + `.fnstart` ...
+  `.fnend` + `.seh_endproc`. The EHABI tail (`emitEHABIFunctionEnd`) never
+  emits an SEH personality as an EHABI personality (nor `.cantunwind`,
+  nor `.handlerdata`): SEH functions get plain unwind opcodes (compact
+  pr0/pr1), which is all a C++ exception needs to unwind *through* them.
+- `ARMAsmPrinter.cpp`: the EHABI translator (`EmitUnwindingInstruction`)
+  now also runs for WinCFI functions on CE (so SEH prologues get real
+  EHABI opcodes); the interleaved `SEH_*` pseudos are skipped via
+  `isSEHInstruction`.
+- lld needed **no** change for `.pdata`: `Writer::sortCEExceptionTable`
+  already compacts the 16-byte intermediate records and sorts `.pdata` by
+  `pFuncStart`, so more entries just flow through.
+
+**Excluded/documented limits (unchanged by this patch):** GHC-conv and
+`naked` functions get no `.pdata` entry; dynamic `alloca` frames are not
+unwindable by the kernel (unwind.c has no reverse-execution support for
+them); `.ARM.exidx` still ships in link order at this point (EHABI §5.2
+wants ascending order for binary search — libunwind's
+`EHABISectionUpperBound` — which link-order layout preserves today; the
+linker-side sort follows as its own change).
+
+**Tests:** `llvm/test/CodeGen/ARM/wince-pdata-every-function.ll` (ARM,
+Thumb1, Thumb2; leaf/frame/C++/SEH/GHC; `-filetype=obj` runs gate
+`.seh_endprologue` presence), updated
+`clang/test/CodeGen/ARM/wince-{ehabi-tables,seh-ehabi-mixed}.c` (both
+tables per function, `-c` object-level runs) and
+`llvm/test/CodeGen/ARM/wince-seh-parent-frame.ll` (both frames on the
+SEH parent).

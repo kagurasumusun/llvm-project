@@ -15,6 +15,7 @@
 #include "ARMBaseRegisterInfo.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMSubtarget.h"
+#include "ARMWinCFI.h"
 #include "Thumb1InstrInfo.h"
 #include "ThumbRegisterInfo.h"
 #include "Utils/ARMBaseInfo.h"
@@ -152,7 +153,15 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   const Thumb1InstrInfo &TII =
       *static_cast<const Thumb1InstrInfo *>(STI.getInstrInfo());
 
-  if (MF.getTarget().getTargetTriple().isWindowsCE() && MF.hasEHFunclets())
+  // Windows CE: every function carries a WinCFI (.seh_proc) frame on top of
+  // the EHABI one, so the kernel's .pdata-based unwinder can unwind it (see
+  // ARMWinCFI.h functionNeedsWinCFIFrame).  GHC functions have no
+  // prologue/epilogue at all and stay EHABI-only.  Unlike the ARM/Thumb2
+  // path, Thumb1 does not map individual instructions to SEH opcodes: the
+  // CE kernel re-executes the prologue machine code itself, so only the
+  // SEH_PrologEnd marker below is required.
+  bool NeedsWinCFI = functionNeedsWinCFIFrame(MF);
+  if (NeedsWinCFI)
     MF.setHasWinCFI(true);
 
   unsigned ArgRegsSaveSize = AFI->getArgRegsSaveSize();
@@ -185,7 +194,8 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
     emitPrologueEpilogueSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -ArgRegsSaveSize,
                                  ARM::NoRegister, MachineInstr::FrameSetup);
     CFAOffset += ArgRegsSaveSize;
-    CFIBuilder.buildDefCFAOffset(CFAOffset);
+    if (!NeedsWinCFI)
+      CFIBuilder.buildDefCFAOffset(CFAOffset);
   }
 
   if (!AFI->hasStackFrame()) {
@@ -194,8 +204,15 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
                                    -(NumBytes - ArgRegsSaveSize),
                                    ARM::NoRegister, MachineInstr::FrameSetup);
       CFAOffset += NumBytes - ArgRegsSaveSize;
-      CFIBuilder.buildDefCFAOffset(CFAOffset);
+      if (!NeedsWinCFI)
+        CFIBuilder.buildDefCFAOffset(CFAOffset);
     }
+    // Windows CE: the .pdata entry needs the prologue-end marker even for
+    // a frameless function (PrologEnd at the function start means
+    // PrologLen 0 -- the kernel's "no prolog" path).
+    if (NeedsWinCFI)
+      BuildMI(MBB, MBBI, dl, TII.get(ARM::SEH_PrologEnd))
+          .setMIFlag(MachineInstr::FrameSetup);
     return;
   }
 
@@ -333,10 +350,15 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
     }
 
     CFIBuilder.setInsertPoint(AfterPush);
-    if (FramePtrOffsetInBlock)
-      CFIBuilder.buildDefCFA(FramePtr, CFAOffset - FramePtrOffsetInBlock);
-    else
-      CFIBuilder.buildDefCFARegister(FramePtr);
+    // DWARF CFI is skipped for WinCFI frames (matching the ARM/Thumb2
+    // emitPrologue): Windows CE frames are described by the WinCFI/.pdata
+    // and EHABI tables instead.
+    if (!NeedsWinCFI) {
+      if (FramePtrOffsetInBlock)
+        CFIBuilder.buildDefCFA(FramePtr, CFAOffset - FramePtrOffsetInBlock);
+      else
+        CFIBuilder.buildDefCFARegister(FramePtr);
+    }
     if (NumBytes > 508)
       // If offset is > 508 then sp cannot be adjusted in a single instruction,
       // try restoring from fp instead.
@@ -344,7 +366,8 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Emit call frame information for the callee-saved low registers.
-  if (GPRCS1Size > 0) {
+  // (Skipped entirely for WinCFI frames, like on the ARM/Thumb2 path.)
+  if (GPRCS1Size > 0 && !NeedsWinCFI) {
     CFIBuilder.setInsertPoint(std::next(GPRCS1Push));
     if (adjustedGPRCS1Size)
       CFIBuilder.buildDefCFAOffset(CFAOffset);
@@ -373,7 +396,8 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Emit call frame information for the callee-saved high registers.
-  if (GPRCS2Size > 0) {
+  // (Skipped entirely for WinCFI frames, like on the ARM/Thumb2 path.)
+  if (GPRCS2Size > 0 && !NeedsWinCFI) {
     CFIBuilder.setInsertPoint(std::next(GPRCS2Push));
     for (auto &I : CSI) {
       switch (I.getReg()) {
@@ -409,7 +433,8 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
                                  ScratchRegister, MachineInstr::FrameSetup);
     if (!HasFP) {
       CFAOffset += NumBytes;
-      CFIBuilder.buildDefCFAOffset(CFAOffset);
+      if (!NeedsWinCFI)
+        CFIBuilder.buildDefCFAOffset(CFAOffset);
     }
   }
 
@@ -466,6 +491,13 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   // checks for hasVarSizedObjects.
   if (MFI.hasVarSizedObjects())
     AFI->setShouldRestoreSPFromFP(true);
+
+  // Windows CE: MBBI sits just past the last prologue instruction; mark the
+  // prologue end there so CEEmitUnwindInfo can record PrologLen (the kernel
+  // unwinds by re-executing the prologue machine code up to this point).
+  if (NeedsWinCFI)
+    BuildMI(MBB, MBBI, dl, TII.get(ARM::SEH_PrologEnd))
+        .setMIFlag(MachineInstr::FrameSetup);
 
   // In some cases, virtual registers have been introduced, e.g. by uses of
   // emitThumbRegPlusImmInReg.

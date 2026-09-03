@@ -419,18 +419,31 @@ static int getArgumentStackToRestore(MachineFunction &MF,
   return ArgumentPopSize;
 }
 
+// Whether emitPrologue must open a WinCFI (.seh_proc) frame for MF. On
+// Windows CE this is true for every function (see ARMWinCFI.h
+// functionNeedsWinCFIFrame): the kernel unwinds all frames through the CE
+// .pdata table, so each function needs a .pdata entry. On other targets
+// this keeps the historical decision (WinCFI only where uwtable/SEH
+// requires it, e.g. ARMNT).
 static bool needsWinCFI(const MachineFunction &MF) {
-  // On Windows CE, SEH (__try) functions must receive WinCFI prologue
-  // opcodes even when the IR does not carry uwtable. C++ mixed TUs
-  // historically omitted uwtable on the __try parent, which left
-  // hasWinCFI false and ARMException emitting .fnstart instead of
-  // .seh_proc. functionUsesWinCFI already returns true only for SEH
-  // personalities on CE (and for usesWindowsCFI() elsewhere).
-  return functionUsesWinCFI(MF);
+  return functionNeedsWinCFIFrame(MF);
 }
 
 // Given a load or a store instruction, generate an appropriate unwinding SEH
 // code on Windows.
+// Windows CE tolerates prologue/epilogue instructions that have no SEH
+// opcode mapping: the kernel unwinds by re-executing the actual prologue
+// machine code between the .seh_proc/.seh_endprologue labels (see
+// ARMWinCOFFStreamer::CEEmitUnwindInfo), so the SEH opcode stream is
+// decorative there.  With every CE function carrying a WinCFI frame (see
+// ARMWinCFI.h functionNeedsWinCFIFrame), prologues and epilogues also
+// contain shapes the __try-focused mapper below never saw (ARM-mode
+// `bx lr` returns, constpool-materialized large SP adjustments, ...), so an
+// unmapped instruction is left undescribed rather than aborting.
+static bool skipUnmappedSEH(const MachineFunction &MF) {
+  return MF.getTarget().getTargetTriple().isWindowsCE();
+}
+
 static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
                                              const TargetInstrInfo &TII,
                                              unsigned Flags) {
@@ -446,6 +459,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
 
   switch (Opc) {
   default:
+    if (skipUnmappedSEH(MF))
+      return MBBI;
     report_fatal_error("No SEH Opcode for instruction " + TII.getName(Opc));
     break;
   case ARM::t2ADDri:   // add.w r11, sp, #xx
@@ -509,6 +524,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
                 .addImm(1ULL << Reg)
                 .addImm(/*Wide=*/1)
                 .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
     } else {
       report_fatal_error("No matching SEH Opcode for t2STR_PRE");
     }
@@ -523,6 +540,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
                 .addImm(1ULL << Reg)
                 .addImm(/*Wide=*/1)
                 .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
     } else {
       report_fatal_error("No matching SEH Opcode for t2LDR_POST");
     }
@@ -694,6 +713,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
       MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveSP))
                 .addImm(Reg)
                 .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
     } else {
       report_fatal_error("No SEH Opcode for MOVr");
     }
@@ -712,6 +733,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
       MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveSP))
                 .addImm(Reg)
                 .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
     } else {
       report_fatal_error("No SEH Opcode for MOV");
     }
@@ -994,12 +1017,12 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
   int FPCXTSaveSize = 0;
   bool NeedsWinCFI = needsWinCFI(MF);
-  // CE SEH parents carry EH funclets.  Even if the prologue path does not
-  // insert SEH_* opcodes (Thumb vs ARM, empty frame), ARMException keys
-  // .seh_proc off hasWinCFI; set it here so mixed C++ TUs emit WinCFI
-  // frames instead of EHABI .fnstart.
-  if (MF.getTarget().getTargetTriple().isWindowsCE() &&
-      (NeedsWinCFI || MF.hasEHFunclets()))
+  // On Windows CE NeedsWinCFI covers every function (not just SEH parents
+  // with funclets): ARMException keys .seh_proc off hasWinCFI, and the CE
+  // kernel needs a .pdata entry per function to unwind it.  Other targets
+  // keep the historical behavior: hasWinCFI is set later, only in the
+  // paths that actually insert SEH opcodes (matching upstream).
+  if (MF.getTarget().getTargetTriple().isWindowsCE() && NeedsWinCFI)
     MF.setHasWinCFI(true);
   ARMSubtarget::PushPopSplitVariation PushPopSplit =
       STI.getPushPopSplitVariation(MF);
@@ -1037,7 +1060,12 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
     }
     if (!NeedsWinCFI)
       DefCFAOffsetCandidates.emitDefCFAOffsets(MBB, HasFP);
-    if (NeedsWinCFI && MBBI != MBB.begin()) {
+    // On Windows CE the prologue-end marker is mandatory for every
+    // function: with no prologue instructions at all, SEH_PrologEnd sits
+    // at the function start and the kernel takes its "no prolog" path
+    // (PrologLen 0) -- exactly what a frameless function needs.  Elsewhere
+    // keep upstream's requirement of at least one preceding instruction.
+    if (NeedsWinCFI && (STI.isTargetWindowsCE() || MBBI != MBB.begin())) {
       insertSEHRange(MBB, {}, MBBI, TII, MachineInstr::FrameSetup);
       BuildMI(MBB, MBBI, dl, TII.get(ARM::SEH_PrologEnd))
           .setMIFlag(MachineInstr::FrameSetup);
@@ -1377,7 +1405,10 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Emit a SEH opcode indicating the prologue end. The rest of the prologue
   // instructions below don't need to be replayed to unwind the stack.
-  if (NeedsWinCFI && MBBI != MBB.begin()) {
+  // On Windows CE the marker is emitted even with an empty instruction
+  // range (see the frameless path above); elsewhere upstream's
+  // MBBI != MBB.begin() requirement is kept.
+  if (NeedsWinCFI && (STI.isTargetWindowsCE() || MBBI != MBB.begin())) {
     MachineBasicBlock::iterator End = MBBI;
     if (HasFP && PushPopSplit == ARMSubtarget::SplitR11WindowsSEH)
       End = AfterPush;

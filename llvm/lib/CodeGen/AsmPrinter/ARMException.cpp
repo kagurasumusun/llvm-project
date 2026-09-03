@@ -14,6 +14,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCStreamer.h"
@@ -31,10 +32,10 @@ ARMTargetStreamer &ARMException::getTargetStreamer() {
 void ARMException::beginFunction(const MachineFunction *MF) {
   // Windows CE SEH functions (MSVC __try/__except; the prologue carries
   // SEH_* pseudo-instructions inserted by ARMFrameLowering, which also sets
-  // MF.hasWinCFI) build a WinCFI frame (.seh_proc) instead of an EHABI
-  // .fnstart frame. The ARMWinCOFFStreamer encodes the frame into the
-  // compressed CE .pdata format plus an in-text PDATA_EH pair placed by
-  // ARMAsmPrinter. See ARMWinCFI.h / utils/wince/WINEH-ABI-FACTS.md 4d.
+  // MF.hasWinCFI) build a WinCFI frame (.seh_proc). The ARMWinCOFFStreamer
+  // encodes the frame into the compressed CE .pdata format plus an in-text
+  // PDATA_EH pair placed by ARMAsmPrinter. See ARMWinCFI.h /
+  // utils/wince/WINEH-ABI-FACTS.md 4d.
   if (MF->hasWinCFI()) {
     Asm->OutStreamer->emitWinCFIStartProc(Asm->CurrentFnSym);
     // Only the parent function (the one holding the SEH state machine) gets
@@ -54,6 +55,16 @@ void ARMException::beginFunction(const MachineFunction *MF) {
     // No DWARF CFI for WinCFI frames (the prologue carries no CFI
     // instructions either; matches the WinException path on desktop).
     shouldEmitCFI = false;
+    // On Windows CE every function carries BOTH unwind tables: on top of
+    // the WinCFI frame above (.pdata, consumed by the kernel) also open
+    // the ARM EHABI frame (.fnstart/.fnend, consumed by this toolchain's
+    // own unwinder).  Without an .ARM.exidx entry for an SEH function, a
+    // C++ exception propagating through it would hit the *previous*
+    // function's entry in the (binary-searched) table and unwind with the
+    // wrong opcodes.  endFunction closes the EHABI frame before the WinCFI
+    // one.
+    if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
+      getTargetStreamer().emitFnStart();
     return;
   }
 
@@ -83,30 +94,38 @@ void ARMException::markFunctionEnd() {
     Asm->OutStreamer->emitCFIEndProc();
 }
 
-/// endFunction - Gather and emit post-function exception information.
-///
-void ARMException::endFunction(const MachineFunction *MF) {
-  if (MF->hasWinCFI()) {
-    // Close the WinCFI frame; this triggers the ARMWinCOFFStreamer to emit
-    // the compressed CE .pdata entry from the accumulated frame info.
-    Asm->OutStreamer->emitWinCFIEndProc();
-    return;
-  }
-
+/// Emit the ARM EHABI closing directives for MF: the personality /
+/// unwind-opcode handling followed by .fnend.  On Windows CE this also runs
+/// for WinCFI (SEH) functions: their SEH personality (__C_specific_handler)
+/// is NOT an EHABI personality -- the kernel dispatches SEH through .pdata
+/// and PDATA_EH -- so the EHABI entry carries plain unwind opcodes only
+/// (compact pr0/pr1), which is exactly what a C++ exception needs to unwind
+/// through the frame without triggering any handler.
+void ARMException::emitEHABIFunctionEnd(const MachineFunction *MF) {
   ARMTargetStreamer &ATS = getTargetStreamer();
   const Function &F = MF->getFunction();
   const Function *Per = nullptr;
   if (F.hasPersonalityFn())
     Per = dyn_cast<Function>(F.getPersonalityFn()->stripPointerCasts());
+  EHPersonality Personality = classifyEHPersonality(Per);
+  bool IsSEHPersonality = Personality == EHPersonality::MSVC_TableSEH ||
+                          Personality == EHPersonality::MSVC_X86SEH;
   bool forceEmitPersonality =
-    F.hasPersonalityFn() && !isNoOpWithoutInvoke(classifyEHPersonality(Per)) &&
+    !IsSEHPersonality && F.hasPersonalityFn() &&
+    !isNoOpWithoutInvoke(Personality) &&
     F.needsUnwindTableEntry();
   bool shouldEmitPersonality = forceEmitPersonality ||
     !MF->getLandingPads().empty();
-  if (!Asm->MF->getFunction().needsUnwindTableEntry() &&
-      !shouldEmitPersonality)
+  if (IsSEHPersonality) {
+    // SEH function on Windows CE: unwind opcodes only -- never
+    // .cantunwind (the frame must stay unwindable by the EHABI unwinder,
+    // that is the whole point of its exidx entry) and never .handlerdata
+    // (no EHABI personality / LSDA: SEH scope tables live in .text,
+    // emitted by ARMAsmPrinter::emitCEHandlerData).
+  } else if (!Asm->MF->getFunction().needsUnwindTableEntry() &&
+             !shouldEmitPersonality) {
     ATS.emitCantUnwind();
-  else if (shouldEmitPersonality) {
+  } else if (shouldEmitPersonality) {
     // Emit references to personality.
     if (Per) {
       MCSymbol *PerSym = Asm->getSymbol(Per);
@@ -120,8 +139,26 @@ void ARMException::endFunction(const MachineFunction *MF) {
     emitExceptionTable();
   }
 
+  ATS.emitFnEnd();
+}
+
+/// endFunction - Gather and emit post-function exception information.
+///
+void ARMException::endFunction(const MachineFunction *MF) {
+  if (MF->hasWinCFI()) {
+    // Windows CE: close the EHABI frame first (.fnend flushes the unwind
+    // opcodes into .ARM.exidx and switches the streamer back to the
+    // function's text section), then close the WinCFI frame (.seh_endproc),
+    // which triggers the ARMWinCOFFStreamer to emit the compressed CE
+    // .pdata entry from the accumulated frame info.
+    if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
+      emitEHABIFunctionEnd(MF);
+    Asm->OutStreamer->emitWinCFIEndProc();
+    return;
+  }
+
   if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
-    ATS.emitFnEnd();
+    emitEHABIFunctionEnd(MF);
 }
 
 void ARMException::emitTypeInfos(unsigned TTypeEncoding,

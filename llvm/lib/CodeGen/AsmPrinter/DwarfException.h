@@ -73,6 +73,11 @@ class LLVM_LIBRARY_VISIBILITY ARMException : public EHStreamer {
   void emitTypeInfos(unsigned TTypeEncoding, MCSymbol *TTBaseLabel) override;
   ARMTargetStreamer &getTargetStreamer();
 
+  /// Emit the EHABI closing directives for MF (personality/unwind-opcode
+  /// handling and .fnend).  On Windows CE also used for WinCFI (SEH)
+  /// functions, which carry both unwind tables (see beginFunction).
+  void emitEHABIFunctionEnd(const MachineFunction *MF);
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.

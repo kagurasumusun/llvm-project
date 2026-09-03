@@ -25,6 +25,7 @@
 #define LLVM_LIB_TARGET_ARM_ARMWINCFI_H
 
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/IR/CallingConv.h"
 #include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -67,6 +68,36 @@ inline bool functionUsesWinCFI(const MachineFunction &MF) {
   EHPersonality Personality = classifyEHPersonality(F.getPersonalityFn());
   return Personality == EHPersonality::MSVC_TableSEH ||
          Personality == EHPersonality::MSVC_X86SEH;
+}
+
+/// Returns true if emitPrologue must open a WinCFI (.seh_proc) frame for MF,
+/// i.e. whether the function must end up with a CE .pdata entry.
+///
+/// On Windows CE the kernel dispatches and unwinds EVERY exception through
+/// the compressed .pdata table (RtlLookupFunctionEntry / RtlVirtualUnwind in
+/// CORE/DLL/exdsptch.c + ARM/unwind.c): a function without a .pdata entry
+/// cannot be unwound by the OS at all, and unwinding stops at the first
+/// such frame. eVC++ therefore emits a .pdata entry for every function
+/// (with ExceptionFlag set only for __try functions). Match that: every CE
+/// function gets a WinCFI frame, and -- in addition, not instead -- the ARM
+/// EHABI .ARM.exidx entry that the toolchain's own C++ unwinder (libunwind)
+/// needs; ARMException emits both tables for such functions.
+///
+/// Exceptions:
+///  - GHC calling convention: emitPrologue returns before setting
+///    hasWinCFI, so a forced frame would reach .seh_endproc without
+///    .seh_endprologue and fail MC validation. GHC functions have no
+///    prologue/epilogue at all; they stay EHABI-only (as before).
+///  - Naked functions never run emitPrologue (PrologEpilogInserter skips
+///    them entirely), so they never get a WinCFI frame -- same as before.
+///
+/// Everywhere else (ARMNT and non-Windows targets) this returns exactly
+/// what needsWinCFI used to return (functionUsesWinCFI), so no behavior
+/// changes outside Windows CE.
+inline bool functionNeedsWinCFIFrame(const MachineFunction &MF) {
+  if (!MF.getTarget().getTargetTriple().isWindowsCE())
+    return functionUsesWinCFI(MF);
+  return MF.getFunction().getCallingConv() != CallingConv::GHC;
 }
 
 } // end namespace llvm
