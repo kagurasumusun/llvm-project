@@ -6,12 +6,13 @@
 //
 // x86-pc-wince selects the Microsoft C++ ABI (WinCETargetInfo sets
 // TargetCXXABI::Microsoft), so a throw lowers to _CxxThrowException with the
-// MSVC .xdata ThrowInfo / CatchableType tables, and a function with a
-// try/catch gets the __CxxFrameHandler3 personality -- the MSVC-native C++ EH
-// that rides the Win32 fs:[0] SEH chain.  coredll exports __CxxFrameHandler3,
-// _CxxThrowException and the RTTI helpers (__RTDynamicCast / __RTtypeid /
-// __RTCastToVoid), so no SJLJ or DWARF (.eh_frame) unwinder is required and
-// no dl_iterate_phdr (absent on CE) is needed.
+// MSVC .xdata ThrowInfo / CatchableType tables and MSVC-mangled names, and a
+// function with a try/catch gets the __CxxFrameHandler3 personality -- the
+// MSVC-native C++ EH that rides the Win32 fs:[0] SEH chain.  coredll exports
+// __CxxFrameHandler3, _CxxThrowException and the RTTI helpers
+// (__RTDynamicCast / __RTtypeid / __RTCastToVoid), so no SJLJ or DWARF
+// (.eh_frame) unwinder is required and no dl_iterate_phdr (absent on CE) is
+// needed.
 //
 // This is the x86 counterpart of the ARM EHABI path: ARM WinCE uses the
 // Itanium/EHABI ABI (WinCEARMTargetInfo -> GenericARM, libc++abi), while x86
@@ -21,6 +22,11 @@
 struct X {
   ~X();
 };
+
+// An opaque callee that may throw, so the try/catch below is not folded away
+// (a try block whose only statement is an unconditional throw of the caught
+// type is simplified to nounwind even at -O0).
+extern "C" void might_throw();
 
 extern "C" void wince_x86_thrower(const X &x) {
   // CHECK-LABEL: define{{.*}}@wince_x86_thrower(
@@ -32,7 +38,7 @@ extern "C" void wince_x86_catcher() {
   // CHECK-LABEL: define{{.*}}@wince_x86_catcher(
   // CHECK: personality ptr @__CxxFrameHandler3
   try {
-    throw X();
+    might_throw();
   } catch (X) {
   }
 }
