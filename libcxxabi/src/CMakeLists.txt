@@ -9,9 +9,6 @@ set(LIBCXXABI_SOURCES
   cxa_handlers.cpp
   cxa_vector.cpp
   cxa_virtual.cpp
-  # Windows CE Option B C++ frame handler (compiles to nothing on other
-  # targets; guarded by __arm__ && __WINCE__).
-  cxxeh_wince.cpp
   # C++ STL files
   stdlib_exception.cpp
   stdlib_stdexcept.cpp

@@ -100,32 +100,6 @@ inline bool functionNeedsWinCFIFrame(const MachineFunction &MF) {
   return MF.getFunction().getCallingConv() != CallingConv::GHC;
 }
 
-/// Returns true if MF is a Windows CE C++ (Itanium) exception function, i.e.
-/// it carries an Itanium personality (__gxx_personality_v0, or a derived
-/// personality that classifies as EHPersonality::GNU_CXX). Such functions
-/// get, in
-/// addition to the ARM EHABI frame and the .pdata entry, a WinCFI exception
-/// handler (__wince_cxx_frame_handler) so the .pdata entry carries
-/// ExceptionFlag=1 and the CE kernel dispatches a thrown exception through
-/// the PDATA_EH pair to the handler, which runs the Itanium search/cleanup
-/// and resumes the unwind. See <wince_cxx_eh.h> /
-/// utils/wince/WINEH-ABI-FACTS.md.
-///
-/// This is deliberately separate from functionUsesWinCFI(): that predicate is
-/// SEH-only (MSVC_TableSEH/MSVC_X86SEH) and drives the SEH-specific code
-/// paths; this one is Itanium-only and drives the C++ PDATA_EH machinery. A
-/// function is never both (a function has a single personality).
-inline bool functionUsesCXXEHABI(const MachineFunction &MF) {
-  if (!MF.getTarget().getTargetTriple().isWindowsCE())
-    return false;
-  const Function &F = MF.getFunction();
-  if (!F.hasPersonalityFn())
-    return false;
-  // Itanium C++ (the __gxx_personality_v0 family) classifies as GNU_CXX.
-  return classifyEHPersonality(F.getPersonalityFn()) ==
-         EHPersonality::GNU_CXX;
-}
-
 } // end namespace llvm
 
 #endif // LLVM_LIB_TARGET_ARM_ARMWINCFI_H

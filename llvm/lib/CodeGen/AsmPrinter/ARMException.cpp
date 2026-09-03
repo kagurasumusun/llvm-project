@@ -44,30 +44,25 @@ void ARMException::beginFunction(const MachineFunction *MF) {
                               ? dyn_cast<Function>(
                                     F.getPersonalityFn()->stripPointerCasts())
                               : nullptr;
-    EHPersonality Personality = classifyEHPersonality(Per);
     // Only the parent function (the one holding the SEH state machine) gets
     // a handler; funclets are handler bodies and must not claim an exception
     // handler of their own (mirrors WinException::beginFunclet).
+    //
+    // Windows CE C++ (Itanium) exceptions do NOT claim a CE handler. They are
+    // unwound in user space by this toolchain's libunwind through the ARM
+    // EHABI .ARM.exidx/.ARM.extab tables (the EHABI frame opened below) -- the
+    // same model CeGCC/GCC used for arm-wince-pe. A C++ function still gets a
+    // .pdata entry (the WinCFI frame) but with ExceptionFlag=0: the kernel can
+    // reverse-execution-unwind through the frame for a hardware fault or an SEH
+    // __try, yet it never dispatches a C++ throw to a handler. Claiming a
+    // handler here would set ExceptionFlag=1 while no PDATA_EH pair is emitted
+    // (ARMAsmPrinter writes one only for SEH funclet parents), so the kernel
+    // would read the 8 bytes before the function as a live handler pointer.
+    // See utils/wince/WINEH-ABI-FACTS.md.
     if (MF->hasEHFunclets() && Per) {
       Asm->OutStreamer->emitWinEHHandler(Asm->getSymbol(Per),
                                          /*Unwind=*/false,
                                          /*Except=*/true);
-    } else if (F.hasPersonalityFn() &&
-               Personality == EHPersonality::GNU_CXX) {
-      // Windows CE C++ (Itanium) exceptions: the kernel dispatches a thrown
-      // exception through the .pdata ExceptionFlag + the PDATA_EH pair to
-      // __wince_cxx_frame_handler (libcxxabi), which runs the Itanium
-      // search/cleanup on a cursor built from the fault CONTEXT and resumes
-      // the unwind.  Claiming this handler is what makes the .pdata entry
-      // carry ExceptionFlag=1 (see ARMWinCOFFStreamer::CEEmitUnwindInfo);
-      // without it a C++ throw has no frame handler and the process dies.
-      // The EHABI frame below (.personality __gxx_personality_v0) is a
-      // separate mechanism (this toolchain's own unwinder) and is unchanged;
-      // the two coexist, exactly as WINEH-ABI-FACTS.md 4i describes.
-      Asm->OutStreamer->emitWinEHHandler(
-          Asm->OutContext.getOrCreateSymbol("__wince_cxx_frame_handler"),
-          /*Unwind=*/false,
-          /*Except=*/true);
     }
     // No DWARF CFI for WinCFI frames (the prologue carries no CFI
     // instructions either; matches the WinException path on desktop).

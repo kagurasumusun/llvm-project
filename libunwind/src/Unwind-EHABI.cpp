@@ -818,14 +818,6 @@ _Unwind_RaiseException(_Unwind_Exception *exception_object) {
   _LIBUNWIND_TRACE_API("_Unwind_RaiseException(ex_obj=%p)",
                        static_cast<void *>(exception_object));
 
-#if defined(__WINCE__)
-  // Windows CE (Option B): route the throw through the kernel exception
-  // dispatcher (RaiseException) so every frame's PDATA_EH handler is invoked
-  // by coredll, like the MS CRT does for __try/__except.  The user-space
-  // self-unwind below is not used on CE (see Unwind-WinCE.cpp).
-  return wince_unwind_raise_exception(exception_object);
-#endif
-
   unw_context_t uc;
   unw_cursor_t cursor;
   __unw_getcontext(&uc);
