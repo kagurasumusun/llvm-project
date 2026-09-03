@@ -782,3 +782,37 @@ hard error rather than a silently corrupted sort).  `__exidx_start` /
 `__exidx_end` (bound to the section bounds, §4g area) are unaffected by
 the in-place sort.  Lit: `lld/test/COFF/wince-exidx-sort.s` (index order
 disagreeing with `$`-sorted `.text` layout).
+
+## 4k. catch(T) type matching — TType entries are absolute on WinCE
+(2026-09-03, this session)
+
+The C++ catch(T) matching chain is: libunwind reads the .ARM.extab entry
+(absolute personality + unwind opcodes + inline LSDA), libc++abi's
+`__gxx_personality_v0` parses the LSDA (header/call-site/action tables are
+all plain offsets — target-independent), and then resolves the catch's
+TType entry to a `std::type_info*` which is compared with the thrown type
+(`private_typeinfo` `can_catch` / `is_equal`).
+
+**The gap (now fixed):** on ARM EHABI, `cxa_personality.cpp`'s
+`read_target2_value` unconditionally interprets TType entries as TARGET2 —
+an offset to a second word that holds the type_info pointer (Linux
+GOT-indirect semantics of R_ARM_TARGET2).  But this compiler emits TType
+entries as plain absolute 4-byte type_info references: LLVM keeps the
+`DW_EH_PE_absptr` defaults for the ARM-EHABI case
+(`TargetLoweringObjectFileImpl.cpp` breaks out of its per-target encoding
+switch), the LSDA @TType encoding byte says absptr, and COFF has no
+R_ARM_TARGET2 relocation to give the word any other meaning — the
+reference is a plain IMAGE_REL_ARM_ADDR32.  Reading that as TARGET2
+produced a garbage `type_info*` for every catch(T): no catch ever matched
+(and the double-dereference usually faulted first).
+
+**Fix:** `read_target2_value` gained a `__WINCE__` branch returning the
+entry itself as the type_info*.  The compiler side is now pinned by
+`clang/test/CodeGen/ARM/wince-cpp-ttype-encoding.cpp`: the TType entry
+must stay `.long _ZTI...` / IMAGE_REL_ARM_ADDR32.  If the emission side is
+ever changed (pcrel/GOT-style entries), the runtime reader must change
+with it.
+
+Type equality itself (`is_equal` → `std::type_info::operator==`) compares
+addresses; that is sound here because the image is statically linked and
+lld dedups typeinfo COMDATs by symbol name across all objects.

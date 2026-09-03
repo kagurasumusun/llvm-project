@@ -395,7 +395,19 @@ static const void* read_target2_value(const void* ptr)
     // deferred to the linker. For bare-metal they turn into absolute
     // relocations. For linux they turn into GOT-REL relocations."
     // https://gcc.gnu.org/ml/gcc-patches/2009-08/msg00264.html
-#if defined(LIBCXXABI_BAREMETAL)
+#if defined(__WINCE__)
+    // Windows CE: the toolchain emits TType entries as plain absolute
+    // type_info pointers.  The LSDA @TType encoding byte says
+    // DW_EH_PE_absptr (LLVM keeps the absptr defaults for the ARM-EHABI
+    // case, see TargetLoweringObjectFileImpl.cpp), and COFF has no
+    // R_ARM_TARGET2 relocation whose linker-time semantics (GOT-indirect
+    // on Linux, self-relative on bare-metal) the code below assumes.  The
+    // entry therefore *is* the type_info* itself, not an offset to an
+    // indirection; reading it as TARGET2 turns every catch (T) into a
+    // garbage type_info* that never matches (and usually crashes the
+    // process) -- catch(T) type matching was dead on WinCE before this.
+    return reinterpret_cast<const void*>(offset);
+#elif defined(LIBCXXABI_BAREMETAL)
     return reinterpret_cast<const void*>(reinterpret_cast<uintptr_t>(ptr) +
                                          offset);
 #else
