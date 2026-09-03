@@ -296,7 +296,10 @@ void Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("libpthread.a");
   }
   CmdArgs.push_back("libmingw32.a");
-  CmdArgs.push_back("libclang_rt.builtins-arm.a");
+  // compiler-rt builtins are per-architecture (CeGCC parity: arm + i386).
+  CmdArgs.push_back(getTriple().getArch() == llvm::Triple::x86
+                        ? "libclang_rt.builtins-i386.a"
+                        : "libclang_rt.builtins-arm.a");
   CmdArgs.push_back("libceoldname.a");
   CmdArgs.push_back("libmingwex.a");
   // libposix.a / libpthread.a are third-party shims, not the CE CRT.

@@ -649,6 +649,15 @@ public:
     // WinCE target for the full note; -femulated-tls is the triple
     // default.
     TLSSupported = true;
+    // Native Microsoft C++ ABI: CE x86 coredll exports the MSVC EH runtime
+    // (__CxxFrameHandler3, _CxxThrowException, _except_handler3,
+    // _local_unwind2/4, __abnormal_termination) and MSVC-mangled C++ symbols
+    // (the ??0exception@std@@QAE... x86 __cdecl decorations, vs QAA on ARM),
+    // so C++ EH rides the Win32 SEH chain instead of needing an SJLJ/DWARF
+    // unwinder.  ARM WinCE stays on the Itanium/EHABI ABI (WinCEARMTargetInfo
+    // sets GenericARM); the two architectures use their platform-native C++
+    // ABIs and never share objects.  See utils/wince/WINEH-ABI-FACTS.md 4o.
+    TheCXXABI.set(TargetCXXABI::Microsoft);
   }
 
   void getTargetDefines(const LangOptions &Opts,

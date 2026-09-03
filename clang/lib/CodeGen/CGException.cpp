@@ -178,7 +178,13 @@ static const EHPersonality &getObjCPersonality(const TargetInfo &Target,
 static const EHPersonality &getCXXPersonality(const TargetInfo &Target,
                                               const CodeGenOptions &CGOpts) {
   const llvm::Triple &T = Target.getTriple();
-  if (T.isWindowsMSVCEnvironment())
+  // The native MSVC C++ EH personality (__CxxFrameHandler3, riding the Win32
+  // SEH chain) is selected by the Microsoft C++ ABI, not only by an -msvc
+  // triple: Windows CE x86 (i386-pc-wince) uses the Microsoft C++ ABI because
+  // coredll exports the MSVC-native EH runtime (__CxxFrameHandler3,
+  // _CxxThrowException) and MSVC-mangled C++ symbols, even though its triple
+  // environment is not "msvc".  See utils/wince/WINEH-ABI-FACTS.md 4o.
+  if (T.isWindowsMSVCEnvironment() || Target.getCXXABI().isMicrosoft())
     return EHPersonality::MSVC_CxxFrameHandler3;
   if (T.isOSAIX())
     return EHPersonality::XL_CPlusPlus;
@@ -200,7 +206,8 @@ static const EHPersonality &getCXXPersonality(const TargetInfo &Target,
 static const EHPersonality &getObjCXXPersonality(const TargetInfo &Target,
                                                  const CodeGenOptions &CGOpts,
                                                  const LangOptions &L) {
-  if (Target.getTriple().isWindowsMSVCEnvironment())
+  if (Target.getTriple().isWindowsMSVCEnvironment() ||
+      Target.getCXXABI().isMicrosoft())
     return EHPersonality::MSVC_CxxFrameHandler3;
 
   switch (L.ObjCRuntime.getKind()) {

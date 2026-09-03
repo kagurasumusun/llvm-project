@@ -25,8 +25,13 @@
 # --- Projects: only the compiler, the linker; nothing else ----------------
 set(LLVM_ENABLE_PROJECTS "clang;lld" CACHE STRING "")
 
-# --- Backends: ARM only (WinCE devices); no native host backend needed ----
-set(LLVM_TARGETS_TO_BUILD "ARM" CACHE STRING "")
+# --- Backends: ARM + X86 (WinCE devices: armv4i + i386; CeGCC parity) -----
+# CeGCC shipped two mingw32ce targets -- arm-mingw32ce and i386-mingw32ce --
+# so the cross toolchain builds both the ARM and X86 backends.  The X86
+# backend also lets the clang lit suite exercise the native x86-pc-wince EH
+# paths (Microsoft C++ ABI __CxxFrameHandler3 / _CxxThrowException and the
+# _except_handler3 SEH personality).
+set(LLVM_TARGETS_TO_BUILD "ARM;X86" CACHE STRING "")
 
 # --- Runtimes are built as separate cross stages (utils/wince) -------------
 set(LLVM_ENABLE_RUNTIMES "" CACHE STRING "")
