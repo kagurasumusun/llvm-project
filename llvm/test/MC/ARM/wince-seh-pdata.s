@@ -47,6 +47,20 @@ leaf:
 // CHECK: Sections [
 // CHECK:   Name: .pdata
 
+/// The CE6 kernel reads .pdata at runtime (RtlLookupFunctionEntry), so the
+/// section must be mapped initialized data, NOT discardable.  A discardable
+/// .pdata makes lld skip base relocations for it -- both ARM::addBaserels and
+/// createRuntimePseudoRelocs early-return on IMAGE_SCN_MEM_DISCARDABLE -- so its
+/// absolute pFuncStart VAs would be left unrelocated in any image that loads off
+/// its preferred base (the usual runtime case).  See WINEH-ABI-FACTS.md 4m.
+/// This guards the ARMWinCOFFStreamer::CEEmitUnwindInfo characteristics fix.
+/// (CHECK-NOT is scoped from '[' to MEM_READ: MEM_DISCARDABLE 0x02000000 sorts
+/// before MEM_READ 0x40000000, so a regressed discardable bit is always caught.)
+// CHECK:   Characteristics [
+// CHECK-NOT: IMAGE_SCN_MEM_DISCARDABLE
+// CHECK:     IMAGE_SCN_MEM_READ
+// CHECK:   ]
+
 // The single .seh frame produces one 16-byte intermediate .pdata record.
 // CHECK: Relocations [
 // CHECK:   Section {{.*}} .pdata {

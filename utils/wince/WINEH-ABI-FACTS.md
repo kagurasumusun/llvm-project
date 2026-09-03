@@ -925,3 +925,65 @@ of lld's builtin non-discardable `pdataSec` (`data|r`). Then:
 spec, the sibling EHABI sections and lld's builtin `pdataSec` — which restores base
 relocations for relocatable images.
 
+
+## 4n. Native WinCE SEH (`__try`/`__except`/`__finally`) is viable and correctly wired (verified 2026-09-03, this session)
+
+Web research plus a source cross-check confirm clang's WinCE SEH path is sound
+end-to-end and needs no new runtime. This is the path Option A *kept*; only the
+C++ bridge (Option B) was broken and removed (§4l).
+
+**Handler.** `__try/__except/__finally` for `*-pc-wince` selects
+`__C_specific_handler` (clang `CGException.cpp`; the non-x86 `armv7-wince`
+branch — `wince-seh-frame.c` CHECK-NOTs `_except_handler3`). That symbol is a
+real CE6 ARM coredll export: wince-source `CORE/DLL/CRT/corelib1.def` lines
+108-116 export `_except_handler3`/`_except_handler4_common`/`_local_unwind2`/
+`_local_unwind4`/`__abnormal_termination` **only under `#if _X86_`**, and the
+`#else` (ARM) branch exports `CRT(__C_specific_handler)`. w32api carries it in
+`coredll*.def`. So the import resolves against coredll; no mingwrt/libunwind SEH
+library is required.
+
+**Scope-table format matches the documented MSVC `SCOPE_TABLE`.** Web research
+(MSVC `chandler.c`, `SCOPE_TABLE_AMD64` dumps, the x64 SEH literature) gives the
+MSVC scope table as `{Count, {BeginAddress, EndAddress, HandlerAddress,
+JumpTarget}[]}`, where `HandlerAddress` is the filter funclet **or the constant
+1** for a catch-all (`__except(EXCEPTION_EXECUTE_HANDLER)`), or the `__finally`
+termination handler with `JumpTarget = 0`. LLVM's
+`WinException::emitCSpecificHandlerTable(MF, /*IsCE=*/true)`
+(WinException.cpp:555-638) emits exactly this: the `ce_handlerdata` label at the
+Count word, 16-byte entries, `HandlerAddress` = filter/1/finally-funclet and
+`JumpTarget` = except-body/0 (per `emitSEHActionsForRange`, 640-684). The
+PDATA_EH `pHandlerData` points at the Count word — the analog of x64
+`UNWIND_INFO.ExceptionData`, from which the handler derives the scope table. CE's
+`__C_specific_handler` is thus the 32-bit sibling of the x64 handler over the
+same record model.
+
+**Absolute addressing is forced-correct, not an assumption.** CE's
+`DISPATCHER_CONTEXT` (w32api `excpt.h`, nkarm.h-verified) is `{ControlPc,
+FunctionEntry, EstablisherFrame, ContextRecord}` — it has **no `ImageBase`
+field**. A handler therefore cannot convert RVA→VA, so the scope table must carry
+absolute VAs; `create32bitRef` emits absolute ADDR32 on 32-bit targets
+(WinException.cpp:668-670: "the Windows CE scope-table format has no
+image-relative form"). This is consistent with CE's absolute-addressed `.pdata`
+model (§2, §4g) and with the `.pdata`-must-be-relocated finding (§4m).
+
+**`__finally` needs no user-visible unwind helper.** Under the funclet model,
+clang calls the `__finally` funclet directly on normal exits (outline
+`__finally`); on an exception the unwind runs inside coredll's closed
+`__C_specific_handler` (which uses the kernel-internal `RtlUnwind`, per
+exdsptch.c §4g) to reach the handler body, terminating the guarded region along
+the way. No `_local_unwind2/4`, `RtlUnwind`, or `__abnormal_termination` symbol
+is referenced on ARM — matching their absence from the ARM coredll exports (they
+are the x86-only `#if _X86_` set).
+
+**Filter intrinsics resolve as compiler builtins.** `_exception_code` /
+`_exception_info` / `_abnormal_termination` (and the `GetExceptionCode` /
+`GetExceptionInformation` / `AbnormalTermination` macros) are clang
+`MSLangBuiltin`s (Builtins.td:2590-2609, arch-independent) implemented in
+`CGException.cpp` — not library symbols. `excpt.h` declares them as prototypes
+the compiler honors under `-fms-extensions`.
+
+**Residual (device-only).** coredll's `__C_specific_handler` is closed-source; its
+exact filter-disposition decoding and unwind cannot be read. Everything it
+consumes (the PDATA_EH pair, the scope-table record model, absolute addressing)
+matches the documented MSVC ABI and the verified CE kernel dispatch (§4g), so
+on-device behavior is expected correct, but it is not directly inspectable.

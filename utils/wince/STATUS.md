@@ -1,5 +1,35 @@
 # WinCE toolchain status (2026-09-03)
 
+## 2026-09-03 — Option-B vestige removed; `.pdata` regression test; native SEH verified
+
+Follow-ups closing out the EH work (details: WINEH-ABI-FACTS.md §4n):
+
+* **Option-B vestige removed.** `mingwrt` `crt3.c` no longer includes
+  `<wince_cxx_eh.h>`, and its top-level VEH no longer skips `WINCE_CXX_EH_NUMBER`:
+  under Option A, C++ exceptions unwind in user space via libunwind/EHABI and never
+  reach the kernel dispatcher or the VEH, so the skip was dead code. The VEH /
+  `__except` crash logger itself is kept (it now logs only hardware faults and
+  explicit RaiseException/SEH events). w32api's `include/wince_cxx_eh.h` (the
+  Option-B `WINCE_CXX_EH_NUMBER`/`WINCE_CXX_EH_MAGIC`/`FuncInfoB`/handler-name
+  header) is deleted — nothing referenced it after the crt3.c change.
+* **`.pdata` non-discardable regression test.** `llvm/test/MC/ARM/wince-seh-pdata.s`
+  now CHECKs the `.pdata` section characteristics (`IMAGE_SCN_MEM_READ` present,
+  `IMAGE_SCN_MEM_DISCARDABLE` absent) so the §4m ARMWinCOFFStreamer fix cannot
+  silently regress.
+* **Native WinCE SEH verified viable + correctly implemented** (§4n).
+  `__try/__except/__finally` resolves `__C_specific_handler` from CE6 ARM coredll
+  (corelib1.def `#else` branch); clang's CE scope table matches the documented MSVC
+  `SCOPE_TABLE` ABI (`{Count,{Begin,End,HandlerAddress,JumpTarget}[]}`,
+  HandlerAddress = filter | 1 | finally-funclet, JumpTarget = body | 0); absolute
+  addressing is forced-correct because CE's `DISPATCHER_CONTEXT` has no `ImageBase`;
+  `__finally` needs no user-visible unwind helper; the filter intrinsics are clang
+  `MSLangBuiltin`s. Only coredll's closed handler internals remain device-only. No
+  code change was needed — SEH was always the sound path; Option B (C++) was the
+  broken one.
+
+Branches: `llvm-wince`, mingwrt `master`, w32api `wip`; cellvm-build pins bumped to match.
+
+
 ## 2026-09-03 — C++ EH switched to Option A (EHABI self-unwind); `.pdata` discardable bug fixed
 
 The WinCE C++ exception model was decided and implemented (details:
