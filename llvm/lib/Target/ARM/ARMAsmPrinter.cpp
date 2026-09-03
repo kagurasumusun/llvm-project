@@ -89,6 +89,9 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
   if (MF && TM.getTargetTriple().isWindowsCE() && functionUsesWinCFI(*MF) &&
       MF->hasEHFunclets())
     emitCEHandlerData(*MF);
+  else if (MF && TM.getTargetTriple().isWindowsCE() &&
+           functionUsesWinCFI(*MF) && functionUsesCXXEHABI(*MF))
+    emitCXXHandlerData(*MF);
 
   // Emit symbol for CMSE non-secure entry point
   if (AFI->isCmseNSEntryFunction()) {
@@ -132,6 +135,37 @@ void ARMAsmPrinter::emitCEHandlerData(const MachineFunction &MF) {
   OutStreamer->emitValue(
       MCSymbolRefExpr::create(getSymbol(Per), OutContext), 4);
   OutStreamer->emitValue(MCSymbolRefExpr::create(HandlerData, OutContext), 4);
+}
+
+// Emit the Windows CE C++ (Itanium) PDATA_EH machinery. Mirrors
+// emitCEHandlerData but for C++ functions (functionUsesCXXEHABI): instead of
+// a SEH scope table the pHandlerData is a per-function FuncInfoB (see
+// <wince_cxx_eh.h>), and the handler is __wince_cxx_frame_handler (the
+// libcxxabi C++ frame handler) rather than the SEH personality. The FuncInfoB
+// is placed in .text right before the pair (the kernel reads it as read-only
+// data); the pair occupies the 8 bytes immediately before the function.
+void ARMAsmPrinter::emitCXXHandlerData(const MachineFunction &MF) {
+  MCContext &Ctx = OutContext;
+
+  // FuncInfoB: { u32 magic; u32 version; u32 flags; u32 extab_va; }
+  MCSymbol *FuncInfoB =
+      Ctx.createTempSymbol("ce_cxx_funcinfo", /*AlwaysAddSuffix=*/true);
+  OutStreamer->emitLabel(FuncInfoB);
+  OutStreamer->emitInt32(0x424e4946u); // WINCE_FUNCINFOB_MAGIC ("FINB")
+  OutStreamer->emitInt32(1u);          // WINCE_FUNCINFOB_VERSION
+  // flags: HAS_LANDING_PAD if the function has >=1 catch (landing pad).
+  OutStreamer->emitInt32(MF.getLandingPads().empty() ? 0u : 0x1u);
+  // extab_va is reserved (0): the handler resolves this frame's EHT/LSDA from
+  // the in-frame code address it is handed (pDC->ControlPc / FunctionEntry)
+  // via the .ARM.exidx binary search, so the field is not consumed.
+  OutStreamer->emitInt32(0u);
+
+  // PDATA_EH: { PEXCEPTION_ROUTINE pHandler; PVOID pHandlerData; }
+  OutStreamer->emitValue(
+      MCSymbolRefExpr::create(
+          OutContext.getOrCreateSymbol("__wince_cxx_frame_handler"), OutContext),
+      4);
+  OutStreamer->emitValue(MCSymbolRefExpr::create(FuncInfoB, OutContext), 4);
 }
 
 void ARMAsmPrinter::emitXXStructor(const DataLayout &DL, const Constant *CV) {

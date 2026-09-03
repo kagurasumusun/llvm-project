@@ -38,19 +38,35 @@ void ARMException::beginFunction(const MachineFunction *MF) {
   // utils/wince/WINEH-ABI-FACTS.md 4d.
   if (MF->hasWinCFI()) {
     Asm->OutStreamer->emitWinCFIStartProc(Asm->CurrentFnSym);
+    const Function &F = MF->getFunction();
+    const Function *Per = F.hasPersonalityFn()
+                              ? dyn_cast<Function>(
+                                    F.getPersonalityFn()->stripPointerCasts())
+                              : nullptr;
+    EHPersonality Personality = classifyEHPersonality(Per);
     // Only the parent function (the one holding the SEH state machine) gets
     // a handler; funclets are handler bodies and must not claim an exception
     // handler of their own (mirrors WinException::beginFunclet).
-    if (MF->hasEHFunclets()) {
-      const Function &F = MF->getFunction();
-      if (F.hasPersonalityFn()) {
-        const Function *Per =
-            dyn_cast<Function>(F.getPersonalityFn()->stripPointerCasts());
-        if (Per)
-          Asm->OutStreamer->emitWinEHHandler(Asm->getSymbol(Per),
-                                             /*Unwind=*/false,
-                                             /*Except=*/true);
-      }
+    if (MF->hasEHFunclets() && Per) {
+      Asm->OutStreamer->emitWinEHHandler(Asm->getSymbol(Per),
+                                         /*Unwind=*/false,
+                                         /*Except=*/true);
+    } else if (F.hasPersonalityFn() &&
+               Personality == EHPersonality::GNU_CXX) {
+      // Windows CE C++ (Itanium) exceptions: the kernel dispatches a thrown
+      // exception through the .pdata ExceptionFlag + the PDATA_EH pair to
+      // __wince_cxx_frame_handler (libcxxabi), which runs the Itanium
+      // search/cleanup on a cursor built from the fault CONTEXT and resumes
+      // the unwind.  Claiming this handler is what makes the .pdata entry
+      // carry ExceptionFlag=1 (see ARMWinCOFFStreamer::CEEmitUnwindInfo);
+      // without it a C++ throw has no frame handler and the process dies.
+      // The EHABI frame below (.personality __gxx_personality_v0) is a
+      // separate mechanism (this toolchain's own unwinder) and is unchanged;
+      // the two coexist, exactly as WINEH-ABI-FACTS.md 4i describes.
+      Asm->OutStreamer->emitWinEHHandler(
+          Asm->OutContext.getOrCreateSymbol("__wince_cxx_frame_handler"),
+          /*Unwind=*/false,
+          /*Except=*/true);
     }
     // No DWARF CFI for WinCFI frames (the prologue carries no CFI
     // instructions either; matches the WinException path on desktop).

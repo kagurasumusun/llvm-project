@@ -107,6 +107,15 @@ public:
   /// instruction, where the CE kernel reads it. Parent SEH functions only
   /// (funclets are handler bodies and carry no pair).
   void emitCEHandlerData(const MachineFunction &MF);
+  /// Emit the Windows CE C++ (Itanium) PDATA_EH machinery: a per-function
+  /// FuncInfoB (16-byte table: magic/version/flags/extab_va, see
+  /// <wince_cxx_eh.h>) placed in .text immediately before the PDATA_EH pair
+  /// {__wince_cxx_frame_handler, &FuncInfoB}, which occupies the 8 bytes
+  /// right before the function's first instruction. The CE kernel reads the
+  /// pair when the .pdata ExceptionFlag is set and hands the FuncInfoB to
+  /// the handler as pDC->FunctionEntry->HandlerData. Parent C++ functions
+  /// only. See utils/wince/WINEH-ABI-FACTS.md.
+  void emitCXXHandlerData(const MachineFunction &MF);
   void emitStartOfAsmFile(Module &M) override;
   void emitEndOfAsmFile(Module &M) override;
   void emitXXStructor(const DataLayout &DL, const Constant *CV) override;
