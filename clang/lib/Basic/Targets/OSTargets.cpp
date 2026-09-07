@@ -275,29 +275,17 @@ static void addVisualCDefines(const LangOptions &Opts, MacroBuilder &Builder) {
   Builder.defineMacro("_MSVC_EXECUTION_CHARACTER_SET", "65001");
 }
 
-void addWindowsDefines(const llvm::Triple &Triple, const LangOptions &Opts,
-                       MacroBuilder &Builder) {
-  Builder.defineMacro("_WIN32");
-  if (Triple.isArch64Bit())
-    Builder.defineMacro("_WIN64");
-  if (Triple.isWindowsGNUEnvironment())
-    addMinGWDefines(Triple, Opts, Builder);
-  else if (Triple.isKnownWindowsMSVCEnvironment() ||
-           (Triple.isWindowsItaniumEnvironment() && Opts.MSVCCompat))
-    addVisualCDefines(Opts, Builder);
-}
-
-void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder) {
-  unsigned _WIN32_WCE = 0x0600;
+static void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder) {
+  unsigned WinCEVersion = 0x0600;
   llvm::VersionTuple OSVer = Triple.getOSVersion();
   if (OSVer.getMajor()) {
-    unsigned RR = OSVer.getMinor() ? OSVer.getMinor().value() : 0;
-    if (RR < 10)
-      RR *= 10;
-    _WIN32_WCE = OSVer.getMajor() * 0x100 + (RR / 10) * 0x10 + (RR % 10);
+    unsigned Revision = OSVer.getMinor().value_or(0);
+    if (Revision < 10)
+      Revision *= 10;
+    WinCEVersion = OSVer.getMajor() * 0x100 + (Revision / 10) * 0x10 + (Revision % 10);
   }
-  Builder.defineMacro("_WIN32_WCE", Twine(_WIN32_WCE));
-  Builder.defineMacro("UNDER_CE", Twine(_WIN32_WCE));
+  Builder.defineMacro("_WIN32_WCE", Twine(WinCEVersion));
+  Builder.defineMacro("UNDER_CE", Twine(WinCEVersion));
   Builder.defineMacro("WINCE");
   Builder.defineMacro("__WINCE__");
   Builder.defineMacro("__MINGW32CE__");
@@ -309,6 +297,20 @@ void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder) {
   Builder.defineMacro("_UNICODE");
   Builder.defineMacro("UNICODE");
 }
+void addWindowsDefines(const llvm::Triple &Triple, const LangOptions &Opts,
+                       MacroBuilder &Builder) {
+  Builder.defineMacro("_WIN32");
+  if (Triple.isArch64Bit())
+    Builder.defineMacro("_WIN64");
+  if (Triple.isWindowsCE())
+    addWinCEDefines(Triple, Builder);
+  else if (Triple.isWindowsGNUEnvironment())
+    addMinGWDefines(Triple, Opts, Builder);
+  else if (Triple.isKnownWindowsMSVCEnvironment() ||
+           (Triple.isWindowsItaniumEnvironment() && Opts.MSVCCompat))
+    addVisualCDefines(Opts, Builder);
+}
+
 
 } // namespace targets
 } // namespace clang

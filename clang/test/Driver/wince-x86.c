@@ -5,7 +5,8 @@
 // TRIPLE: i386-pc-wince
 
 // RUN: %clang -target i386-mingw32ce -print-target-triple 2>&1 \
-// RUN:   | FileCheck %s --check-prefix=TRIPLE
+// RUN:   | FileCheck %s --check-prefix=LEGACY
+// LEGACY: i386-unknown-wince
 
 // RUN: %clang -target i386-pc-wince -E -dM %s -o %t
 // RUN: FileCheck %s --check-prefix=DEF-WCEVER --input-file %t

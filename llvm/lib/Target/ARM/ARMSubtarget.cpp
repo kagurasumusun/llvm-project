@@ -219,8 +219,7 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
         // ARMv7k does not use SjLj exception handling.
         CPUString = "cortex-a7";
     } else if (isTargetWindowsCE()) {
-      StringRef Def = ARM::getARMCPUForArch(TargetTriple);
-      CPUString = Def.empty() ? "arm926ej-s" : std::string(Def);
+      CPUString = std::string(ARM::getARMCPUForArch(TargetTriple));
     }
   }
 

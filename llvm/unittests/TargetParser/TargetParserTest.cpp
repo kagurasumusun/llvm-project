@@ -2368,4 +2368,19 @@ TEST(TargetParserTest, checkFindSinglePrecisionFPU) {
   }
 }
 
+TEST(TargetParserTest, ARMWinCEDefaultCPU) {
+  for (StringRef Arch : {"arm", "thumb", "armv5t", "armv5te", "armv5tej",
+                        "thumbv5te"}) {
+    Triple T((Arch + "-unknown-wince").str());
+    SCOPED_TRACE(T.str());
+    EXPECT_EQ("arm926ej-s", ARM::getARMCPUForArch(T));
+  }
+  for (StringRef Arch : {"armv4t", "armv6", "armv7", "thumbv7"}) {
+    Triple CE((Arch + "-unknown-wince").str());
+    Triple Other((Arch + "-unknown-none").str());
+    SCOPED_TRACE(CE.str());
+    EXPECT_EQ(ARM::getARMCPUForArch(Other), ARM::getARMCPUForArch(CE));
+  }
+}
+
 } // namespace

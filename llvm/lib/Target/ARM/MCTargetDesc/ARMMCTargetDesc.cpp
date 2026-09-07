@@ -199,13 +199,8 @@ uint64_t ARM_MC::evaluateBranchTarget(const MCInstrDesc &InstDesc,
 
 MCSubtargetInfo *ARM_MC::createARMMCSubtargetInfo(const Triple &TT,
                                                   StringRef CPU, StringRef FS) {
-  std::string CPUBuf;
-  if (CPU.empty() && TT.isWindowsCE()) {
-    CPUBuf = std::string(ARM::getARMCPUForArch(TT));
-    if (CPUBuf.empty())
-      CPUBuf = "arm926ej-s";
-    CPU = CPUBuf;
-  }
+  if (CPU.empty() && TT.isWindowsCE())
+    CPU = ARM::getARMCPUForArch(TT);
   std::string ArchFS = ARM_MC::ParseARMTriple(TT, CPU);
   if (!FS.empty()) {
     if (!ArchFS.empty())

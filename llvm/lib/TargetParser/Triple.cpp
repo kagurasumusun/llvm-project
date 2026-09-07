@@ -1214,7 +1214,7 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
     IsCygwin = Components[2].starts_with("cygwin") ||
                Components[2].starts_with("msys");
     IsMinGW32 = Components[2].starts_with("mingw") &&
-                parseOS(Components[2]) != Triple::WinCE;
+                OS != Triple::WinCE;
   }
   EnvironmentType Environment = UnknownEnvironment;
   if (Components.size() > 3)
@@ -1259,7 +1259,7 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
       case 2:
         OS = parseOS(Comp);
         IsCygwin = Comp.starts_with("cygwin") || Comp.starts_with("msys");
-        IsMinGW32 = Comp.starts_with("mingw") && parseOS(Comp) != Triple::WinCE;
+        IsMinGW32 = Comp.starts_with("mingw") && OS != Triple::WinCE;
         Valid = OS != UnknownOS || IsCygwin || IsMinGW32;
         break;
       case 3:
@@ -1342,6 +1342,7 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
   // Special case logic goes here.  At this point Arch, Vendor and OS have the
   // correct values for the computed components.
   std::string NormalizedEnvironment;
+  std::string NormalizedOS;
   if (Environment == Triple::Android &&
       Components[3].starts_with("androideabi")) {
     StringRef AndroidVersion = Components[3].drop_front(strlen("androideabi"));
@@ -1377,15 +1378,12 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
   } else if (OS == Triple::WinCE) {
     if (Components.size() < 3)
       Components.resize(3);
-    std::string OSText = std::string(Components[2]);
-    if (StringRef(OSText).starts_with("windowsce"))
-      OSText = Twine("wince", StringRef(OSText).drop_front(strlen("windowsce")))
-                   .str();
-    else if (!StringRef(OSText).starts_with("wince"))
-      OSText = "wince";
-    Components[2] = OSText;
-    if (Components[1] == "unknown")
-      Components[1] = "pc";
+    StringRef Version = Components[2];
+    if (!Version.consume_front("windowsce") &&
+        !Version.consume_front("mingw32ce"))
+      Version.consume_front(getOSTypeName(OS));
+    NormalizedOS = (Twine(getOSTypeName(OS)) + Version).str();
+    Components[2] = NormalizedOS;
   }
   if (IsMinGW32 || IsCygwin ||
       (OS == Triple::Win32 && Environment != UnknownEnvironment)) {
@@ -1491,7 +1489,10 @@ VersionTuple Triple::getOSVersion() const {
   StringRef OSTypeName = getOSTypeName(getOS());
   if (OSName.starts_with(OSTypeName))
     OSName = OSName.substr(OSTypeName.size());
-  else if (getOS() == MacOSX)
+  else if (getOS() == WinCE) {
+    if (!OSName.consume_front("windowsce"))
+      OSName.consume_front("mingw32ce");
+  } else if (getOS() == MacOSX)
     OSName.consume_front("macos");
   else if (OSName.starts_with("visionos"))
     OSName.consume_front("visionos");
@@ -2349,7 +2350,7 @@ ExceptionHandling Triple::getDefaultExceptionHandling() const {
     if (isWindowsCE() && (isARM() || isThumb()))
       return ExceptionHandling::ARM;
     if (getArch() == Triple::x86 &&
-        (isOSCygMing() || isWindowsItaniumEnvironment()))
+        (isOSCygMing() || isWindowsItaniumEnvironment() || isWindowsCE()))
       return ExceptionHandling::DwarfCFI;
     return ExceptionHandling::WinEH;
   }

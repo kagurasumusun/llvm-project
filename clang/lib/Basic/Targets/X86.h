@@ -634,9 +634,9 @@ public:
   }
 };
 
-class LLVM_LIBRARY_VISIBILITY WinCETargetInfo : public WindowsX86_32TargetInfo {
+class LLVM_LIBRARY_VISIBILITY WinCEX86_32TargetInfo : public WindowsX86_32TargetInfo {
 public:
-  WinCETargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
+  WinCEX86_32TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : WindowsX86_32TargetInfo(Triple, Opts) {
     TLSSupported = true;
   }
@@ -644,17 +644,13 @@ public:
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override {
     WindowsX86_32TargetInfo::getTargetDefines(Opts, Builder);
-    addWinCEDefines(getTriple(), Builder);
     Builder.defineMacro("_X86_", "1");
-    Builder.defineMacro("__stdcall", "__attribute__((__cdecl__))");
-    Builder.defineMacro("__fastcall", "__attribute__((__fastcall__))");
-    Builder.defineMacro("__thiscall", "__attribute__((__thiscall__))");
-    Builder.defineMacro("__cdecl", "__attribute__((__cdecl__))");
-    if (Opts.GNUMode) {
-      Builder.defineMacro("_stdcall", "__attribute__((__cdecl__))");
-      Builder.defineMacro("_fastcall", "__attribute__((__fastcall__))");
-      Builder.defineMacro("_thiscall", "__attribute__((__thiscall__))");
-      Builder.defineMacro("_cdecl", "__attribute__((__cdecl__))");
+    for (StringRef CC : {"stdcall", "fastcall", "thiscall", "cdecl"}) {
+      StringRef Attribute = CC == "stdcall" ? "cdecl" : CC;
+      std::string Value = (Twine("__attribute__((__") + Attribute + "__))").str();
+      Builder.defineMacro(Twine("__") + CC, Value);
+      if (Opts.GNUMode)
+        Builder.defineMacro(Twine("_") + CC, Value);
     }
   }
 
@@ -668,15 +664,8 @@ public:
     case CC_X86Pascal:
     case CC_X86RegCall:
       return CCCR_Ignore;
-    case CC_C:
-    case CC_DeviceKernel:
-    case CC_PreserveMost:
-    case CC_PreserveAll:
-    case CC_Swift:
-    case CC_SwiftAsync:
-      return CCCR_OK;
     default:
-      return CCCR_Warning;
+      return WindowsX86_32TargetInfo::checkCallingConvention(CC);
     }
   }
 };

@@ -8,7 +8,8 @@
 
 
 // RUN: %clang -target arm-mingw32ce -print-target-triple 2>&1 \
-// RUN:   | FileCheck %s --check-prefix=TRIPLE
+// RUN:   | FileCheck %s --check-prefix=LEGACY
+// LEGACY: arm-unknown-wince
 
 
 

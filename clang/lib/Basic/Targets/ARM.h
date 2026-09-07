@@ -296,9 +296,6 @@ public:
 
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
-
-  void getVisualStudioDefines(const LangOptions &Opts,
-                              MacroBuilder &Builder) const;
 };
 
 

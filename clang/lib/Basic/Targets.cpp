@@ -599,7 +599,7 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
     case llvm::Triple::Hurd:
       return std::make_unique<HurdTargetInfo<X86_32TargetInfo>>(Triple, Opts);
     case llvm::Triple::WinCE:
-      return std::make_unique<WinCETargetInfo>(Triple, Opts);
+      return std::make_unique<WinCEX86_32TargetInfo>(Triple, Opts);
     default:
       return std::make_unique<X86_32TargetInfo>(Triple, Opts);
     }

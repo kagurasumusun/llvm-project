@@ -37,7 +37,7 @@ public:
 
   llvm::ExceptionHandling
   GetExceptionModel(const llvm::opt::ArgList &Args) const override {
-    return llvm::ExceptionHandling::ARM;
+    return getTriple().getDefaultExceptionHandling();
   }
 
   UnwindTableLevel

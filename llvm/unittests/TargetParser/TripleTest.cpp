@@ -3368,4 +3368,50 @@ TEST(DataLayoutTest, UEFI) {
   EXPECT_THAT(TT.computeDataLayout(), testing::HasSubstr("-m:w-"));
 }
 
+TEST(TripleTest, WinCENormalization) {
+  struct {
+    const char *Input;
+    const char *Expected;
+  } Cases[] = {
+      {"arm-wince", "arm-unknown-wince"},
+      {"thumb-wince", "thumb-unknown-wince"},
+      {"arm-unknown-wince", "arm-unknown-wince"},
+      {"arm-pc-wince", "arm-pc-wince"},
+      {"arm-mingw32ce", "arm-unknown-wince"},
+      {"i386-mingw32ce", "i386-unknown-wince"},
+      {"arm-pc-mingw32ce5.2", "arm-pc-wince5.2"},
+      {"arm-unknown-windowsce6.0", "arm-unknown-wince6.0"},
+      {"arm-custom-windowsce6.0-gnu", "arm-custom-wince6.0-gnu"},
+      {"arm-unknown-windowsce6.0.19041.123456",
+       "arm-unknown-wince6.0.19041.123456"},
+      {"arm-pc-wince6.0-gnu-coff", "arm-pc-wince6.0-gnu-coff"},
+  };
+  for (const auto &C : Cases) {
+    SCOPED_TRACE(C.Input);
+    std::string Normalized = Triple::normalize(C.Input);
+    EXPECT_EQ(C.Expected, Normalized);
+    EXPECT_EQ(Normalized, Triple::normalize(Normalized));
+    EXPECT_EQ(Triple::WinCE, Triple(Normalized).getOS());
+    EXPECT_TRUE(Triple(Normalized).isOSBinFormatCOFF());
+  }
+  EXPECT_EQ("arm-unknown-wince-unknown",
+            Triple::normalize("arm-wince", Triple::CanonicalForm::FOUR_IDENT));
+  EXPECT_EQ("i686-w64-windows-gnu", Triple::normalize("i686-w64-mingw32"));
+}
+
+TEST(TripleTest, WinCEVersionAliases) {
+  for (StringRef OS : {"wince", "windowsce", "mingw32ce"}) {
+    Triple T((Twine("arm-unknown-") + OS + "5.2").str());
+    SCOPED_TRACE(T.str());
+    EXPECT_EQ(Triple::WinCE, T.getOS());
+    EXPECT_EQ(VersionTuple(5, 2), T.getOSVersion());
+  }
+  EXPECT_EQ(ExceptionHandling::ARM,
+            Triple("arm-unknown-wince").getDefaultExceptionHandling());
+  EXPECT_EQ(ExceptionHandling::ARM,
+            Triple("thumb-unknown-wince").getDefaultExceptionHandling());
+  EXPECT_EQ(ExceptionHandling::DwarfCFI,
+            Triple("i386-unknown-wince").getDefaultExceptionHandling());
+}
+
 } // end anonymous namespace

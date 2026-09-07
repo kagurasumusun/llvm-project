@@ -1499,30 +1499,17 @@ WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
   UseMicrosoftManglingForC = false;
   TLSSupported = true;
   if (Opts.CPU.empty() || Opts.CPU == "generic")
-    setCPU("arm926ej-s");
+    setCPU(llvm::ARM::getARMCPUForArch(Triple).str());
 }
 
 void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,
-                                          MacroBuilder &Builder) const {
+                                         MacroBuilder &Builder) const {
   WindowsARMTargetInfo::getTargetDefines(Opts, Builder);
-  addWinCEDefines(getTriple(), Builder);
   Builder.defineMacro("_ARM_");
   Builder.defineMacro("ARM");
   Builder.defineMacro("_M_ARM", Twine(getArchVersion()));
-  if (Opts.MSVCCompat)
-    getVisualStudioDefines(Opts, Builder);
-}
-
-void WinCEARMTargetInfo::getVisualStudioDefines(const LangOptions &Opts,
-                                                MacroBuilder &Builder) const {
-  addWinCEDefines(getTriple(), Builder);
-  assert((getTriple().getArch() == llvm::Triple::arm ||
-          getTriple().getArch() == llvm::Triple::thumb) &&
-         "invalid architecture for Windows CE target info");
-  if (getTriple().getArch() == llvm::Triple::thumb)
+  if (Opts.MSVCCompat && getTriple().getArch() == llvm::Triple::thumb)
     Builder.defineMacro("_M_ARMT", "_M_ARM");
-  Builder.defineMacro("_M_ARM", Twine(getArchVersion()));
-  Builder.defineMacro("_M_IX86_FP", "0");
 }
 
 MinGWARMTargetInfo::MinGWARMTargetInfo(const llvm::Triple &Triple,
