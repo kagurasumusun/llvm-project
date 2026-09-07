@@ -30,9 +30,10 @@ inline bool functionUsesWinCFI(const MachineFunction &MF) {
 }
 
 inline bool functionNeedsWinCFIFrame(const MachineFunction &MF) {
+  const Function &F = MF.getFunction();
   if (!MF.getTarget().getTargetTriple().isWindowsCE())
-    return functionUsesWinCFI(MF);
-  return MF.getFunction().getCallingConv() != CallingConv::GHC;
+    return functionUsesWinCFI(MF) && F.needsUnwindTableEntry();
+  return F.getCallingConv() != CallingConv::GHC;
 }
 
 }
