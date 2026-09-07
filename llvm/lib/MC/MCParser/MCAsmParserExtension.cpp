@@ -11,6 +11,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCParser/AsmLexer.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSymbol.h"
 
 using namespace llvm;
 

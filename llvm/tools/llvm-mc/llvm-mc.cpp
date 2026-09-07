@@ -24,6 +24,8 @@
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCParser/AsmLexer.h"
+#include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
@@ -43,6 +45,7 @@
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/WithColor.h"
 #include "llvm/TargetParser/Host.h"
+#include <ctime>
 #include <memory>
 
 using namespace llvm;
@@ -209,6 +212,11 @@ static cl::opt<bool> LexMasmHexFloats(
     cl::desc("Enable MASM-style hex float initializers (3F800000r)"),
     cl::cat(MCCategory));
 
+static cl::opt<bool> MasmArmasmDialect(
+    "masm-armasm",
+    cl::desc("Parse the ARM armasm dialect (Windows CE armasm sources)"),
+    cl::cat(MCCategory));
+
 static cl::opt<bool> LexMotorolaIntegers(
     "motorola-integers",
     cl::desc("Enable binary and hex Motorola integers (%110 and $ABC)"),
@@ -352,8 +360,13 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
                          SourceMgr &SrcMgr, MCContext &Ctx, MCStreamer &Str,
                          MCAsmInfo &MAI, MCSubtargetInfo &STI,
                          MCInstrInfo &MCII, MCTargetOptions const &MCOptions) {
+  std::unique_ptr<MCAsmParserExtension> ArmasmExt;
+
+  struct tm TimeParts = {};
   std::unique_ptr<MCAsmParser> Parser(
-      createMCAsmParser(SrcMgr, Ctx, Str, MAI));
+      MasmArmasmDialect
+          ? createMCMasmParser(SrcMgr, Ctx, Str, MAI, TimeParts, 0)
+          : createMCAsmParser(SrcMgr, Ctx, Str, MAI));
   std::unique_ptr<MCTargetAsmParser> TAP(
       TheTarget->createMCAsmParser(STI, *Parser, MCII, MCOptions));
 
@@ -371,6 +384,11 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
   Parser->getLexer().setLexMasmIntegers(LexMasmIntegers);
   Parser->getLexer().setLexMasmHexFloats(LexMasmHexFloats);
   Parser->getLexer().setLexMotorolaIntegers(LexMotorolaIntegers);
+
+  if (MasmArmasmDialect) {
+    ArmasmExt.reset(createARMCOFFMasmParser());
+    ArmasmExt->Initialize(*Parser);
+  }
 
   int Res = Parser->Run(NoInitialTextSection);
 

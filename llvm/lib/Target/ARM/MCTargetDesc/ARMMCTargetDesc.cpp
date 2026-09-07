@@ -347,12 +347,12 @@ static MCAsmInfo *createARMMCAsmInfo(const MCRegisterInfo &MRI,
   if (TheTriple.isOSDarwin() || TheTriple.isOSBinFormatMachO())
     MAI = new ARMMCAsmInfoDarwin(TheTriple);
   else if (TheTriple.isWindowsCE()) {
-    MAI = new ARMCOFFMCAsmInfoGNU();
+    MAI = new ARMCOFFMCAsmInfoGNU(            true);
     MAI->setExceptionsType(ExceptionHandling::ARM);
   } else if (TheTriple.isWindowsMSVCEnvironment())
     MAI = new ARMCOFFMCAsmInfoMicrosoft();
   else if (TheTriple.isOSWindows())
-    MAI = new ARMCOFFMCAsmInfoGNU();
+    MAI = new ARMCOFFMCAsmInfoGNU(            false);
   else
     MAI = new ARMELFMCAsmInfo(TheTriple);
 

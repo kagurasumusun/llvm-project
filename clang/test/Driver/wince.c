@@ -250,3 +250,17 @@ int x;
 // RUN:   | FileCheck %s --check-prefix=CLLINK
 // CLLINK: lld-link
 // CLLINK: /subsystem:windowsce
+
+
+
+
+
+// RUN: %clang -target arm-pc-wince -x assembler -masm=armasm %s -c -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=ASMARM
+// ASMARM: "-cc1as"
+// ASMARM: "-masm=armasm"
+
+// RUN: %clang -target arm-pc-wince -x assembler %s -c -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=ASMGNU
+// ASMGNU: "-cc1as"
+// ASMGNU-NOT: "-masm=armasm"

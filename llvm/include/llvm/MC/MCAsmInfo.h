@@ -134,6 +134,8 @@ protected:
   /// "#"
   StringRef CommentString;
 
+  bool AllowBareLabels = false;
+
   /// This indicates whether to allow additional "comment strings" to be lexed
   /// as a comment. Setting this attribute to true, will ensure that C-style
   /// line comments (// ..), C-style block comments (/* .. */), and "#" are
@@ -715,6 +717,7 @@ public:
 
 
   bool shouldUseLogicalShr() const { return UseLogicalShr; }
+  bool allowBareLabels() const { return AllowBareLabels; }
 
   bool shouldUseMotorolaIntegers() const { return UseMotorolaIntegers; }
 

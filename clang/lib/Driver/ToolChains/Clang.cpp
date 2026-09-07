@@ -8642,6 +8642,14 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
 
   getToolChain().addClangCC1ASTargetOptions(Args, CmdArgs);
 
+  if (Arg *A = Args.getLastArg(options::OPT_masm_EQ)) {
+    StringRef V = A->getValue();
+    if (V == "armasm") {
+      CmdArgs.push_back("-masm=armasm");
+      A->claim();
+    }
+  }
+
   // Set the output mode, we currently only expect to be used as a real
   // assembler.
   CmdArgs.push_back("-filetype");

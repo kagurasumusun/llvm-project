@@ -514,6 +514,57 @@ AsmToken AsmLexer::LexDigit() {
     return intToken(Result, Value);
   }
 
+  if (LexArmasmIntegers) {
+    const char *RadixStart = CurPtr - 1;
+    const char *P = CurPtr;
+    while (isdigit(*P))
+      ++P;
+    if (*P == '_' && P > RadixStart) {
+      unsigned Radix = 0;
+      for (const char *R = RadixStart; R != P; ++R)
+        Radix = Radix * 10 + (unsigned)(*R - '0');
+      if (Radix >= 2 && Radix <= 16) {
+        const char *NumStart = P + 1;
+        const char *Q = NumStart;
+        while (isHexDigit(*Q))
+          ++Q;
+        APInt Value(128, 0);
+        if (Q > NumStart &&
+            !StringRef(NumStart, Q - NumStart).getAsInteger(Radix, Value)) {
+          CurPtr = Q;
+          return intToken(StringRef(TokStart, CurPtr - TokStart), Value);
+        }
+        return ReturnError(TokStart,
+                           "invalid " + radixName(Radix) + " number");
+      }
+    }
+  }
+
+  if (LexArmasmIntegers && CurPtr[-1] == '&') {
+    const char *NumStart = CurPtr;
+    while (isHexDigit(CurPtr[0]))
+      ++CurPtr;
+
+    APInt Result(128, 0);
+    if (CurPtr == NumStart ||
+        StringRef(NumStart, CurPtr - NumStart).getAsInteger(16, Result))
+      return ReturnError(TokStart, "invalid hexadecimal number");
+
+    return intToken(StringRef(TokStart, CurPtr - TokStart), Result);
+  }
+
+  if (LexArmasmIntegers && CurPtr[-1] == '%') {
+    const char *NumStart = CurPtr;
+    while (*CurPtr == '0' || *CurPtr == '1')
+      ++CurPtr;
+
+    APInt Result(128, 0);
+    if (StringRef(NumStart, CurPtr - NumStart).getAsInteger(2, Result))
+      return ReturnError(TokStart, "invalid binary number");
+
+    return intToken(StringRef(TokStart, CurPtr - TokStart), Result);
+  }
+
   // Motorola hex integers: $[0-9a-fA-F]+
   if (LexMotorolaIntegers && CurPtr[-1] == '$') {
     const char *NumStart = CurPtr;
@@ -796,6 +847,9 @@ bool AsmLexer::isAtStartOfComment(const char *Ptr) {
   if (MAI.isHLASM() && !IsAtStartOfStatement)
     return false;
 
+  if (AllowSemicolonComments && Ptr[0] == ';')
+    return true;
+
   StringRef CommentString = MAI.getCommentString();
 
   if (CommentString.size() == 1)
@@ -963,6 +1017,8 @@ AsmToken AsmLexer::LexToken() {
       ++CurPtr;
       return AsmToken(AsmToken::AmpAmp, StringRef(TokStart, 2));
     }
+    if (LexArmasmIntegers && isHexDigit(*CurPtr))
+      return LexDigit();
     return AsmToken(AsmToken::Amp, StringRef(TokStart, 1));
   case '!':
     if (*CurPtr == '=') {
@@ -971,9 +1027,9 @@ AsmToken AsmLexer::LexToken() {
     }
     return AsmToken(AsmToken::Exclaim, StringRef(TokStart, 1));
   case '%':
-    if (LexMotorolaIntegers && (*CurPtr == '0' || *CurPtr == '1')) {
+    if ((LexMotorolaIntegers || LexArmasmIntegers) &&
+        (*CurPtr == '0' || *CurPtr == '1'))
       return LexDigit();
-    }
     return AsmToken(AsmToken::Percent, StringRef(TokStart, 1));
   case '/':
     IsAtStartOfStatement = OldIsAtStartOfStatement;

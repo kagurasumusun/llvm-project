@@ -31,6 +31,7 @@
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
+#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
@@ -56,6 +57,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
+#include <ctime>
 #include <memory>
 #include <optional>
 #include <system_error>
@@ -131,6 +133,7 @@ struct AssemblerInvocation {
   /// @{
 
   unsigned OutputAsmVariant;
+  unsigned MasmDialect;
   LLVM_PREFERRED_TYPE(bool)
   unsigned ShowEncoding : 1;
   LLVM_PREFERRED_TYPE(bool)
@@ -207,6 +210,7 @@ public:
     OutputPath = "-";
     OutputType = FT_Asm;
     OutputAsmVariant = 0;
+    MasmDialect = 0;
     ShowInst = 0;
     ShowEncoding = 0;
     RelaxAll = 0;
@@ -356,6 +360,11 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   // Transliterate Options
   Opts.OutputAsmVariant =
       getLastArgIntValue(Args, OPT_output_asm_variant, 0, Diags);
+  {
+    StringRef Masm = Args.getLastArgValue(OPT_masm_EQ);
+    Opts.MasmDialect =
+        StringSwitch<unsigned>(Masm).Case("armasm", 2).Default(0);
+  }
   Opts.ShowEncoding = Args.hasArg(OPT_show_encoding);
   Opts.ShowInst = Args.hasArg(OPT_show_inst);
 
@@ -614,8 +623,20 @@ static bool ExecuteAssemblerImpl(AssemblerInvocation &Opts,
 
   bool Failed = false;
 
+  struct tm TimeParts = {};
   std::unique_ptr<MCAsmParser> Parser(
-      createMCAsmParser(SrcMgr, Ctx, *Str, *MAI));
+      Opts.MasmDialect ==            2
+          ? createMCMasmParser(SrcMgr, Ctx, *Str, *MAI, TimeParts, 0)
+          : createMCAsmParser(SrcMgr, Ctx, *Str, *MAI));
+
+  if (Opts.MasmDialect ==            2) {
+    Triple AsmTriple(Opts.Triple);
+    if (AsmTriple.getArch() == Triple::arm ||
+        AsmTriple.getArch() == Triple::thumb) {
+      if (MCAsmParserExtension *Ext = createARMCOFFMasmParser())
+        Ext->Initialize(*Parser);
+    }
+  }
 
   // FIXME: init MCTargetOptions from sanitizer flags here.
   std::unique_ptr<MCTargetAsmParser> TAP(

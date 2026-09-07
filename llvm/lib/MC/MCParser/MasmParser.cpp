@@ -2298,6 +2298,14 @@ bool MasmParser::parseStatement(ParseStatementInfo &Info,
   if (checkForValidSection())
     return true;
 
+  if (MAI.allowBareLabels() && ID.is(AsmToken::Identifier) &&
+      getTok().is(AsmToken::EndOfStatement) &&
+      getTargetParser().isLabel(ID)) {
+    Lex();
+    Out.emitLabel(getContext().parseSymbol(IDVal), IDLoc);
+    return false;
+  }
+
   // Canonicalize the opcode to lower case.
   std::string OpcodeStr = IDVal.lower();
   ParseInstructionInfo IInfo(Info.AsmRewrites);

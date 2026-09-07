@@ -134,9 +134,10 @@ ARMCOFFMCAsmInfoMicrosoft::ARMCOFFMCAsmInfoMicrosoft() {
 
 void ARMCOFFMCAsmInfoGNU::anchor() { }
 
-ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU() {
+ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU(bool IsWinCE) {
   AlignmentIsInBytes = false;
   HasSingleParameterDotFile = true;
+  AllowBareLabels = IsWinCE;
 
   CommentString = "@";
   AllowDollarAtStartOfIdentifier = false;

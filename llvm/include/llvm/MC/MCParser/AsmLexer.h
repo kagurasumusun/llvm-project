@@ -71,6 +71,8 @@ class AsmLexer {
   unsigned DefaultRadix = 10;
   bool LexHLASMIntegers = false;
   bool LexHLASMStrings = false;
+  bool LexArmasmIntegers = false;
+  bool AllowSemicolonComments = false;
   AsmCommentConsumer *CommentConsumer = nullptr;
 
   LLVM_ABI AsmToken LexToken();
@@ -190,6 +192,10 @@ public:
   /// setting this option to true, will disable lexing for character and string
   /// literals.
   void setLexHLASMStrings(bool V) { LexHLASMStrings = V; }
+
+  void setLexArmasmIntegers(bool V) { LexArmasmIntegers = V; }
+
+  void setSemicolonComments(bool V) { AllowSemicolonComments = V; }
 
   /// Set buffer to be lexed.
   /// `Buf` must be NULL-terminated. NULL terminator must reside at `Buf.end()`.

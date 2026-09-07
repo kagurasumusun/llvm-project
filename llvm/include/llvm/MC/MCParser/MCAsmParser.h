@@ -347,6 +347,8 @@ LLVM_ABI MCAsmParser *createMCMasmParser(SourceMgr &, MCContext &, MCStreamer &,
                                          const MCAsmInfo &, struct tm,
                                          unsigned CB = 0);
 
+LLVM_ABI MCAsmParserExtension *createARMCOFFMasmParser();
+
 } // end namespace llvm
 
 #endif // LLVM_MC_MCPARSER_MCASMPARSER_H
