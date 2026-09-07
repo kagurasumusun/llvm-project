@@ -7024,6 +7024,10 @@ private:
   std::unique_ptr<PragmaHandler> MSFunction;
   std::unique_ptr<PragmaHandler> MSOptimize;
   std::unique_ptr<PragmaHandler> MSFenvAccess;
+  std::unique_ptr<PragmaHandler> MSSetLocale;
+  std::unique_ptr<PragmaHandler> MSCheckStack;
+  std::unique_ptr<PragmaHandler> MSConform;
+  std::unique_ptr<PragmaHandler> MSAutoInline;
   std::unique_ptr<PragmaHandler> MSAllocText;
   std::unique_ptr<PragmaHandler> CUDAForceHostDeviceHandler;
   std::unique_ptr<PragmaHandler> OptimizeHandler;
@@ -7091,6 +7095,14 @@ private:
   bool HandlePragmaMSAllocText(StringRef PragmaName,
                                SourceLocation PragmaLocation);
 
+  bool HandlePragmaMSAutoInline(StringRef PragmaName,
+                                SourceLocation PragmaLocation);
+  bool HandlePragmaMSCheckStack(StringRef PragmaName,
+                                SourceLocation PragmaLocation);
+  bool HandlePragmaMSSetLocale(StringRef PragmaName,
+                               SourceLocation PragmaLocation);
+  bool HandlePragmaMSConform(StringRef PragmaName,
+                             SourceLocation PragmaLocation);
   // #pragma optimize("gsty", on|off)
   bool HandlePragmaMSOptimize(StringRef PragmaName,
                               SourceLocation PragmaLocation);

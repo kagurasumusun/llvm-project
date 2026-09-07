@@ -1264,6 +1264,45 @@ void Sema::ActOnPragmaMSOptimize(SourceLocation Loc, bool IsOn) {
   MSPragmaOptimizeIsOn = IsOn;
 }
 
+void Sema::ActOnPragmaMSAutoInline(SourceLocation Loc, bool IsOn) {
+  if (!CurContext->getRedeclContext()->isFileContext()) {
+    Diag(Loc, diag::err_pragma_expected_file_scope) << "auto_inline";
+    return;
+  }
+
+  MSPragmaAutoInlineOffLoc = IsOn ? SourceLocation() : Loc;
+}
+
+void Sema::ActOnPragmaMSCheckStack(SourceLocation Loc, bool IsOn) {
+  if (!CurContext->getRedeclContext()->isFileContext()) {
+    Diag(Loc, diag::err_pragma_expected_file_scope) << "check_stack";
+    return;
+  }
+
+  MSPragmaCheckStackOffLoc = IsOn ? SourceLocation() : Loc;
+}
+
+void Sema::AddRangeBasedMSAutoInline(FunctionDecl *FD) {
+  if (!MSPragmaAutoInlineOffLoc.isValid())
+    return;
+
+  if (FD->hasAttr<AlwaysInlineAttr>())
+    return;
+
+  if (!FD->hasAttr<NoInlineAttr>())
+    FD->addAttr(NoInlineAttr::CreateImplicit(Context,
+                                             MSPragmaAutoInlineOffLoc));
+}
+
+void Sema::AddRangeBasedMSCheckStack(FunctionDecl *FD) {
+  if (!MSPragmaCheckStackOffLoc.isValid())
+    return;
+
+  if (!FD->hasAttr<NoStackProtectorAttr>())
+    FD->addAttr(NoStackProtectorAttr::CreateImplicit(Context,
+                                               MSPragmaCheckStackOffLoc));
+}
+
 void Sema::ActOnPragmaMSFunction(
     SourceLocation Loc, const llvm::SmallVectorImpl<StringRef> &NoBuiltins) {
   if (!CurContext->getRedeclContext()->isFileContext()) {

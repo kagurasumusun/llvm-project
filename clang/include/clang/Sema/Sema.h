@@ -2128,6 +2128,10 @@ public:
   /// (i.e. `ModifyFnAttributeMSPragmaOptimze()` does nothing)
   bool MSPragmaOptimizeIsOn = true;
 
+  SourceLocation MSPragmaAutoInlineOffLoc;
+
+  SourceLocation MSPragmaCheckStackOffLoc;
+
   /// Set of no-builtin functions listed by \#pragma function.
   llvm::SmallSetVector<StringRef, 4> MSFunctionNoBuiltins;
 
@@ -2333,6 +2337,14 @@ public:
   /// in scope, consider changing the function's attributes based on the
   /// optimization list passed to the pragma.
   void ModifyFnAttributesMSPragmaOptimize(FunctionDecl *FD);
+
+  void ActOnPragmaMSAutoInline(SourceLocation Loc, bool IsOn);
+
+  void ActOnPragmaMSCheckStack(SourceLocation Loc, bool IsOn);
+
+  void AddRangeBasedMSAutoInline(FunctionDecl *FD);
+
+  void AddRangeBasedMSCheckStack(FunctionDecl *FD);
 
   /// Only called on function definitions; if there is a pragma in scope
   /// with the effect of a range-based no_builtin, consider marking the function

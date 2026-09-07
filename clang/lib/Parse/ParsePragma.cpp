@@ -515,6 +515,14 @@ void Parser::initializePragmaHandlers() {
     PP.AddPragmaHandler(MSIntrinsic.get());
     MSFenvAccess = std::make_unique<PragmaMSFenvAccessHandler>();
     PP.AddPragmaHandler(MSFenvAccess.get());
+    MSSetLocale = std::make_unique<PragmaMSPragma>("setlocale");
+    PP.AddPragmaHandler(MSSetLocale.get());
+    MSCheckStack = std::make_unique<PragmaMSPragma>("check_stack");
+    PP.AddPragmaHandler(MSCheckStack.get());
+    MSConform = std::make_unique<PragmaMSPragma>("conform");
+    PP.AddPragmaHandler(MSConform.get());
+    MSAutoInline = std::make_unique<PragmaMSPragma>("auto_inline");
+    PP.AddPragmaHandler(MSAutoInline.get());
   }
 
   if (getLangOpts().CUDA) {
@@ -1041,7 +1049,11 @@ void Parser::HandlePragmaMSPragma() {
           .Case("function", &Parser::HandlePragmaMSFunction)
           .Case("alloc_text", &Parser::HandlePragmaMSAllocText)
           .Case("optimize", &Parser::HandlePragmaMSOptimize)
-          .Case("intrinsic", &Parser::HandlePragmaMSIntrinsic);
+          .Case("intrinsic", &Parser::HandlePragmaMSIntrinsic)
+          .Case("auto_inline", &Parser::HandlePragmaMSAutoInline)
+          .Case("check_stack", &Parser::HandlePragmaMSCheckStack)
+          .Case("setlocale", &Parser::HandlePragmaMSSetLocale)
+          .Case("conform", &Parser::HandlePragmaMSConform);
 
   if (!(this->*Handler)(PragmaName, PragmaLocation)) {
     // Pragma handling failed, and has been diagnosed.  Slurp up the tokens
@@ -3850,6 +3862,161 @@ bool Parser::HandlePragmaMSOptimize(StringRef PragmaName,
     return false;
 
   Actions.ActOnPragmaMSOptimize(FirstTok.getLocation(), IsOn);
+  return true;
+}
+
+bool Parser::HandlePragmaMSAutoInline(StringRef PragmaName,
+                                      SourceLocation PragmaLocation) {
+  Token FirstTok = Tok;
+  bool IsOn = true;
+  if (Tok.is(tok::l_paren)) {
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::r_paren)) {
+      IdentifierInfo *II = Tok.getIdentifierInfo();
+      if (!II || (!II->isStr("on") && !II->isStr("off"))) {
+        PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+            << PP.getSpelling(Tok) << PragmaName <<              true
+            << "'on' or 'off'";
+        return false;
+      }
+      IsOn = II->isStr("on");
+      PP.Lex(Tok);
+      if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                           PragmaName))
+        return false;
+    } else {
+      PP.Lex(Tok);
+    }
+  }
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  Actions.ActOnPragmaMSAutoInline(FirstTok.getLocation(), IsOn);
+  return true;
+}
+
+bool Parser::HandlePragmaMSCheckStack(StringRef PragmaName,
+                                      SourceLocation PragmaLocation) {
+  Token FirstTok = Tok;
+  bool IsOn = true;
+  if (Tok.is(tok::l_paren)) {
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::r_paren)) {
+      IdentifierInfo *II = Tok.getIdentifierInfo();
+      if (!II || (!II->isStr("on") && !II->isStr("off"))) {
+        PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+            << PP.getSpelling(Tok) << PragmaName <<              true
+            << "'on' or 'off'";
+        return false;
+      }
+      IsOn = II->isStr("on");
+      PP.Lex(Tok);
+      if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                           PragmaName))
+        return false;
+    } else {
+      PP.Lex(Tok);
+    }
+  }
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  Actions.ActOnPragmaMSCheckStack(FirstTok.getLocation(), IsOn);
+  return true;
+}
+
+bool Parser::HandlePragmaMSSetLocale(StringRef PragmaName,
+                                     SourceLocation PragmaLocation) {
+  if (ExpectAndConsume(tok::l_paren, diag::warn_pragma_expected_lparen,
+                       PragmaName))
+    return false;
+
+  if (Tok.isNot(tok::string_literal)) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_expected_string) << PragmaName;
+    return false;
+  }
+  ExprResult StringResult = ParseStringLiteralExpression();
+  if (StringResult.isInvalid())
+    return false;
+  StringLiteral *Locale = cast<StringLiteral>(StringResult.get());
+  if (Locale->getCharByteWidth() != 1) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_expected_non_wide_string)
+        << PragmaName;
+    return false;
+  }
+
+  if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                       PragmaName))
+    return false;
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  PP.Diag(PragmaLocation, diag::warn_pragma_setlocale_charset)
+      << Locale->getString();
+  return true;
+}
+
+bool Parser::HandlePragmaMSConform(StringRef PragmaName,
+                                   SourceLocation PragmaLocation) {
+  if (ExpectAndConsume(tok::l_paren, diag::warn_pragma_expected_lparen,
+                       PragmaName))
+    return false;
+
+  IdentifierInfo *NameII = Tok.getIdentifierInfo();
+  if (!NameII || !NameII->isStr("name")) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+        << PP.getSpelling(Tok) << PragmaName <<              true << "'name'";
+    return false;
+  }
+  PP.Lex(Tok);
+
+  if (ExpectAndConsume(tok::comma, diag::warn_pragma_expected_comma,
+                       PragmaName))
+    return false;
+
+  IdentifierInfo *OnOff = Tok.getIdentifierInfo();
+  if (!OnOff || (!OnOff->isStr("on") && !OnOff->isStr("off"))) {
+    PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+        << PP.getSpelling(Tok) << PragmaName <<              true
+        << "'on' or 'off'";
+    return false;
+  }
+  PP.Lex(Tok);
+
+  if (Tok.is(tok::comma)) {
+    PP.Lex(Tok);
+    IdentifierInfo *PushPop = Tok.getIdentifierInfo();
+    if (!PushPop || (!PushPop->isStr("push") && !PushPop->isStr("pop"))) {
+      PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+          << PP.getSpelling(Tok) << PragmaName <<              true
+          << "'push' or 'pop'";
+      return false;
+    }
+    PP.Lex(Tok);
+    if (Tok.is(tok::comma)) {
+      PP.Lex(Tok);
+      if (Tok.isNot(tok::identifier)) {
+        PP.Diag(PragmaLocation, diag::warn_pragma_invalid_argument)
+            << PP.getSpelling(Tok) << PragmaName <<              true
+            << "an identifier";
+        return false;
+      }
+      PP.Lex(Tok);
+    }
+  }
+
+  if (ExpectAndConsume(tok::r_paren, diag::warn_pragma_expected_rparen,
+                       PragmaName))
+    return false;
+  if (ExpectAndConsume(tok::eof, diag::warn_pragma_extra_tokens_at_eol,
+                       PragmaName))
+    return false;
+
+  PP.Diag(PragmaLocation, diag::warn_pragma_conform_for_scope)
+      << (OnOff->isStr("on") ? StringRef("on") : StringRef("off"));
   return true;
 }
 
