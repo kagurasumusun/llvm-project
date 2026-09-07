@@ -13,10 +13,12 @@
 
 #include "ARMAsmPrinter.h"
 #include "ARM.h"
+#include "ARMBaseInstrInfo.h"
 #include "ARMConstantPoolValue.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMTargetMachine.h"
 #include "ARMTargetObjectFile.h"
+#include "ARMWinCFI.h"
 #include "MCTargetDesc/ARMInstPrinter.h"
 #include "MCTargetDesc/ARMMCAsmInfo.h"
 #include "TargetInfo/ARMTargetInfo.h"
@@ -77,6 +79,10 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
     TS.emitCode32();
   }
 
+  if (MF && TM.getTargetTriple().isWindowsCE() && functionUsesWinCFI(*MF) &&
+      MF->hasEHFunclets())
+    emitCEHandlerData(*MF);
+
   // Emit symbol for CMSE non-secure entry point
   if (AFI->isCmseNSEntryFunction()) {
     MCSymbol *S =
@@ -86,6 +92,29 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
     OutStreamer->emitLabel(S);
   }
   AsmPrinter::emitFunctionEntryLabel();
+}
+
+namespace llvm {
+MCSymbol *emitCESpecificHandlerTable(AsmPrinter &Asm,
+                                     const MachineFunction &MF);
+}
+
+void ARMAsmPrinter::emitCEHandlerData(const MachineFunction &MF) {
+  if (!MF.getWinEHFuncInfo())
+    return;
+  const Function &F = MF.getFunction();
+  const Function *Per = F.hasPersonalityFn()
+                            ? dyn_cast<Function>(
+                                  F.getPersonalityFn()->stripPointerCasts())
+                            : nullptr;
+  if (!Per)
+    return;
+
+  MCSymbol *HandlerData = emitCESpecificHandlerTable(*this, MF);
+
+  OutStreamer->emitValue(
+      MCSymbolRefExpr::create(getSymbol(Per), OutContext), 4);
+  OutStreamer->emitValue(MCSymbolRefExpr::create(HandlerData, OutContext), 4);
 }
 
 void ARMAsmPrinter::emitXXStructor(const DataLayout &DL, const Constant *CV) {
@@ -1223,6 +1252,9 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
   assert(MI->getFlag(MachineInstr::FrameSetup) &&
       "Only instruction which are involved into frame setup code are allowed");
 
+  if (isSEHInstruction(*MI))
+    return;
+
   MCTargetStreamer &TS = *OutStreamer->getTargetStreamer();
   ARMTargetStreamer &ATS = static_cast<ARMTargetStreamer &>(TS);
   const MachineFunction &MF = *MI->getParent()->getParent();
@@ -1949,6 +1981,7 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
 
   // Emit unwinding stuff for frame-related instructions
   if (TM.getTargetTriple().isTargetEHABICompatible() &&
+      (!functionUsesWinCFI(*MF) || TM.getTargetTriple().isWindowsCE()) &&
       MI->getFlag(MachineInstr::FrameSetup))
     EmitUnwindingInstruction(MI);
 

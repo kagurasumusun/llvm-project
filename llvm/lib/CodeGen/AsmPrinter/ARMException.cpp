@@ -14,8 +14,10 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/IR/EHPersonalities.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCStreamer.h"
 using namespace llvm;
 
@@ -29,6 +31,24 @@ ARMTargetStreamer &ARMException::getTargetStreamer() {
 }
 
 void ARMException::beginFunction(const MachineFunction *MF) {
+  if (MF->hasWinCFI()) {
+    Asm->OutStreamer->emitWinCFIStartProc(Asm->CurrentFnSym);
+    const Function &F = MF->getFunction();
+    const Function *Per = F.hasPersonalityFn()
+                              ? dyn_cast<Function>(
+                                    F.getPersonalityFn()->stripPointerCasts())
+                              : nullptr;
+    if (MF->hasEHFunclets() && Per) {
+      Asm->OutStreamer->emitWinEHHandler(Asm->getSymbol(Per),
+                                                    false,
+                                                    true);
+    }
+    shouldEmitCFI = false;
+    if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
+      getTargetStreamer().emitFnStart();
+    return;
+  }
+
   if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
     getTargetStreamer().emitFnStart();
   // See if we need call frame info.
@@ -49,27 +69,34 @@ void ARMException::beginFunction(const MachineFunction *MF) {
 }
 
 void ARMException::markFunctionEnd() {
+  if (Asm->MF && Asm->MF->hasWinCFI())
+    return;
   if (shouldEmitCFI)
     Asm->OutStreamer->emitCFIEndProc();
 }
 
 /// endFunction - Gather and emit post-function exception information.
 ///
-void ARMException::endFunction(const MachineFunction *MF) {
+void ARMException::emitEHABIFunctionEnd(const MachineFunction *MF) {
   ARMTargetStreamer &ATS = getTargetStreamer();
   const Function &F = MF->getFunction();
   const Function *Per = nullptr;
   if (F.hasPersonalityFn())
     Per = dyn_cast<Function>(F.getPersonalityFn()->stripPointerCasts());
+  EHPersonality Personality = classifyEHPersonality(Per);
+  bool IsSEHPersonality = Personality == EHPersonality::MSVC_TableSEH ||
+                          Personality == EHPersonality::MSVC_X86SEH;
   bool forceEmitPersonality =
-    F.hasPersonalityFn() && !isNoOpWithoutInvoke(classifyEHPersonality(Per)) &&
+    !IsSEHPersonality && F.hasPersonalityFn() &&
+    !isNoOpWithoutInvoke(Personality) &&
     F.needsUnwindTableEntry();
   bool shouldEmitPersonality = forceEmitPersonality ||
     !MF->getLandingPads().empty();
-  if (!Asm->MF->getFunction().needsUnwindTableEntry() &&
-      !shouldEmitPersonality)
+  if (IsSEHPersonality) {
+  } else if (!Asm->MF->getFunction().needsUnwindTableEntry() &&
+             !shouldEmitPersonality) {
     ATS.emitCantUnwind();
-  else if (shouldEmitPersonality) {
+  } else if (shouldEmitPersonality) {
     // Emit references to personality.
     if (Per) {
       MCSymbol *PerSym = Asm->getSymbol(Per);
@@ -83,8 +110,19 @@ void ARMException::endFunction(const MachineFunction *MF) {
     emitExceptionTable();
   }
 
+  ATS.emitFnEnd();
+}
+
+void ARMException::endFunction(const MachineFunction *MF) {
+  if (MF->hasWinCFI()) {
+    if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
+      emitEHABIFunctionEnd(MF);
+    Asm->OutStreamer->emitWinCFIEndProc();
+    return;
+  }
+
   if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
-    ATS.emitFnEnd();
+    emitEHABIFunctionEnd(MF);
 }
 
 void ARMException::emitTypeInfos(unsigned TTypeEncoding,

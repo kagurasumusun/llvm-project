@@ -713,7 +713,7 @@ void MCStreamer::emitCFIValOffset(int64_t Register, int64_t Offset, SMLoc Loc) {
 
 WinEH::FrameInfo *MCStreamer::EnsureValidWinFrameInfo(SMLoc Loc) {
   const MCAsmInfo *MAI = Context.getAsmInfo();
-  if (!MAI->usesWindowsCFI()) {
+  if (!MAI->usesWindowsCFI() && !Context.getTargetTriple().isWindowsCE()) {
     getContext().reportError(
         Loc, ".seh_* directives are not supported on this target");
     return nullptr;
@@ -728,7 +728,7 @@ WinEH::FrameInfo *MCStreamer::EnsureValidWinFrameInfo(SMLoc Loc) {
 
 void MCStreamer::emitWinCFIStartProc(const MCSymbol *Symbol, SMLoc Loc) {
   const MCAsmInfo *MAI = Context.getAsmInfo();
-  if (!MAI->usesWindowsCFI())
+  if (!MAI->usesWindowsCFI() && !Context.getTargetTriple().isWindowsCE())
     return getContext().reportError(
         Loc, ".seh_* directives are not supported on this target");
   if (CurrentWinFrameInfo && !CurrentWinFrameInfo->End)

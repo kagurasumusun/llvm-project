@@ -73,6 +73,8 @@ class LLVM_LIBRARY_VISIBILITY ARMException : public EHStreamer {
   void emitTypeInfos(unsigned TTypeEncoding, MCSymbol *TTBaseLabel) override;
   ARMTargetStreamer &getTargetStreamer();
 
+  void emitEHABIFunctionEnd(const MachineFunction *MF);
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.

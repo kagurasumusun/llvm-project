@@ -55,6 +55,7 @@ struct FrameInfo {
   bool HandlesExceptions = false;
   bool EmitAttempted = false;
   bool Fragment = false;
+  bool CEEmitted = false;
   constexpr static uint8_t DefaultVersion = 1;
   uint8_t Version = DefaultVersion;
 

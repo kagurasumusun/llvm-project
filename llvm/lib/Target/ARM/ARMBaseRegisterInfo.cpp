@@ -833,6 +833,13 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   int Offset = TFI->ResolveFrameIndexReference(MF, FrameIndex, FrameReg, SPAdj);
 
+  if (MI.getOpcode() == TargetOpcode::LOCAL_ESCAPE &&
+      MF.getTarget().getTargetTriple().isWindowsCE()) {
+    MI.getOperand(FIOperandNum)
+        .ChangeToImmediate(MF.getFrameInfo().getObjectOffset(FrameIndex));
+    return false;
+  }
+
   // PEI::scavengeFrameVirtualRegs() cannot accurately track SPAdj because the
   // call frame setup/destroy instructions have already been eliminated.  That
   // means the stack pointer cannot be used to access the emergency spill slot

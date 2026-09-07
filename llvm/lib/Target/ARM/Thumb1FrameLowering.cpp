@@ -15,6 +15,7 @@
 #include "ARMBaseRegisterInfo.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMSubtarget.h"
+#include "ARMWinCFI.h"
 #include "Thumb1InstrInfo.h"
 #include "ThumbRegisterInfo.h"
 #include "Utils/ARMBaseInfo.h"
@@ -152,6 +153,10 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   const Thumb1InstrInfo &TII =
       *static_cast<const Thumb1InstrInfo *>(STI.getInstrInfo());
 
+  bool NeedsWinCFI = functionNeedsWinCFIFrame(MF);
+  if (NeedsWinCFI)
+    MF.setHasWinCFI(true);
+
   unsigned ArgRegsSaveSize = AFI->getArgRegsSaveSize();
   unsigned NumBytes = MFI.getStackSize();
   assert(NumBytes >= ArgRegsSaveSize &&
@@ -182,7 +187,8 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
     emitPrologueEpilogueSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -ArgRegsSaveSize,
                                  ARM::NoRegister, MachineInstr::FrameSetup);
     CFAOffset += ArgRegsSaveSize;
-    CFIBuilder.buildDefCFAOffset(CFAOffset);
+    if (!NeedsWinCFI)
+      CFIBuilder.buildDefCFAOffset(CFAOffset);
   }
 
   if (!AFI->hasStackFrame()) {
@@ -191,8 +197,12 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
                                    -(NumBytes - ArgRegsSaveSize),
                                    ARM::NoRegister, MachineInstr::FrameSetup);
       CFAOffset += NumBytes - ArgRegsSaveSize;
-      CFIBuilder.buildDefCFAOffset(CFAOffset);
+      if (!NeedsWinCFI)
+        CFIBuilder.buildDefCFAOffset(CFAOffset);
     }
+    if (NeedsWinCFI)
+      BuildMI(MBB, MBBI, dl, TII.get(ARM::SEH_PrologEnd))
+          .setMIFlag(MachineInstr::FrameSetup);
     return;
   }
 
@@ -330,10 +340,12 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
     }
 
     CFIBuilder.setInsertPoint(AfterPush);
-    if (FramePtrOffsetInBlock)
-      CFIBuilder.buildDefCFA(FramePtr, CFAOffset - FramePtrOffsetInBlock);
-    else
-      CFIBuilder.buildDefCFARegister(FramePtr);
+    if (!NeedsWinCFI) {
+      if (FramePtrOffsetInBlock)
+        CFIBuilder.buildDefCFA(FramePtr, CFAOffset - FramePtrOffsetInBlock);
+      else
+        CFIBuilder.buildDefCFARegister(FramePtr);
+    }
     if (NumBytes > 508)
       // If offset is > 508 then sp cannot be adjusted in a single instruction,
       // try restoring from fp instead.
@@ -341,7 +353,7 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Emit call frame information for the callee-saved low registers.
-  if (GPRCS1Size > 0) {
+  if (GPRCS1Size > 0 && !NeedsWinCFI) {
     CFIBuilder.setInsertPoint(std::next(GPRCS1Push));
     if (adjustedGPRCS1Size)
       CFIBuilder.buildDefCFAOffset(CFAOffset);
@@ -370,7 +382,7 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   }
 
   // Emit call frame information for the callee-saved high registers.
-  if (GPRCS2Size > 0) {
+  if (GPRCS2Size > 0 && !NeedsWinCFI) {
     CFIBuilder.setInsertPoint(std::next(GPRCS2Push));
     for (auto &I : CSI) {
       switch (I.getReg()) {
@@ -406,7 +418,8 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
                                  ScratchRegister, MachineInstr::FrameSetup);
     if (!HasFP) {
       CFAOffset += NumBytes;
-      CFIBuilder.buildDefCFAOffset(CFAOffset);
+      if (!NeedsWinCFI)
+        CFIBuilder.buildDefCFAOffset(CFAOffset);
     }
   }
 
@@ -463,6 +476,10 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   // checks for hasVarSizedObjects.
   if (MFI.hasVarSizedObjects())
     AFI->setShouldRestoreSPFromFP(true);
+
+  if (NeedsWinCFI)
+    BuildMI(MBB, MBBI, dl, TII.get(ARM::SEH_PrologEnd))
+        .setMIFlag(MachineInstr::FrameSetup);
 
   // In some cases, virtual registers have been introduced, e.g. by uses of
   // emitThumbRegPlusImmInReg.

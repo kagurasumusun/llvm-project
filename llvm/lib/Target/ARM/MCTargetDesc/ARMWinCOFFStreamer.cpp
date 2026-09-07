@@ -19,6 +19,7 @@
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCWin64EH.h"
 #include "llvm/MC/MCWinCOFFStreamer.h"
+#include "llvm/Support/ARMWinEH.h"
 #include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
@@ -40,6 +41,13 @@ public:
   void emitWindowsUnwindTables(WinEH::FrameInfo *Frame) override;
 
   void finishImpl() override;
+
+
+  bool isCEEH() const {
+    return getContext().getTargetTriple().isWindowsCE();
+  }
+
+  void CEEmitUnwindInfo(WinEH::FrameInfo *Frame);
 
 
   bool isEHABI() const {
@@ -277,8 +285,68 @@ void ARMWinCOFFStreamer::EHABIemitUnwindRaw(
   UnwindOpAsm.EmitRaw(Ops);
 }
 
+
+void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
+  if (!Frame || Frame->CEEmitted)
+    return;
+  if (Frame->empty()) {
+    Frame->EmitAttempted = true;
+    return;
+  }
+  Frame->CEEmitted = true;
+
+  MCContext &Ctx = getContext();
+
+  const bool HasHandler = Frame->HandlesExceptions && Frame->ExceptionHandler;
+  const bool IsThumb = Frame->Function &&
+                       getAssembler().isThumbFunc(Frame->Function);
+
+  const MCSymbol *FuncEnd = Frame->FuncletOrFuncEnd ? Frame->FuncletOrFuncEnd
+                                                    : Frame->End;
+  if (!FuncEnd || !Frame->PrologEnd) {
+    StringRef FnName = Frame->Function ? Frame->Function->getName()
+                                       : StringRef("<unknown>");
+    getContext().reportError(
+        SMLoc(), "CE unwind info for '" + Twine(FnName) +
+                     "' requires .seh_endprologue and .seh_endproc");
+    return;
+  }
+
+  MCSectionCOFF *PData = Ctx.getCOFFSection(
+      ".pdata", COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+                    COFF::IMAGE_SCN_MEM_READ);
+  switchSection(PData);
+  emitValueToAlignment(Align(4));
+
+  const MCExpr *BeginExpr = MCSymbolRefExpr::create(Frame->Begin, Ctx);
+  if (IsThumb)
+    BeginExpr =
+        MCBinaryExpr::createAdd(BeginExpr, MCConstantExpr::create(1, Ctx), Ctx);
+  emitValue(BeginExpr, 4);
+
+  bool Truncated = false;
+  const uint32_t Static = ARM::WinEH::CE::encodeFlags(
+                    0,             0,                    !IsThumb,
+                     HasHandler, Truncated);
+  assert(!Truncated && "zero lengths cannot overflow their bitfields");
+  emitIntValue(Static, 4);
+  emitValue(MCSymbolRefExpr::create(
+                FuncEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN, Ctx),
+            4);
+  emitValue(MCSymbolRefExpr::create(
+                Frame->PrologEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_PROLOG,
+                Ctx),
+            4);
+
+  switchSection(Frame->TextSection);
+}
+
 void ARMWinCOFFStreamer::emitWinEHHandlerData(SMLoc Loc) {
   MCStreamer::emitWinEHHandlerData(Loc);
+
+  if (isCEEH()) {
+    return;
+  }
 
   // We have to emit the unwind info now, because this directive
   // actually switches to the .xdata section!
@@ -287,12 +355,20 @@ void ARMWinCOFFStreamer::emitWinEHHandlerData(SMLoc Loc) {
 }
 
 void ARMWinCOFFStreamer::emitWindowsUnwindTables(WinEH::FrameInfo *Frame) {
+  if (isCEEH())
+    CEEmitUnwindInfo(Frame);
+  else
   EHStreamer.EmitUnwindInfo(*this, Frame, /* HandlerData = */ false);
 }
 
 void ARMWinCOFFStreamer::emitWindowsUnwindTables() {
   if (!getNumWinFrameInfos())
     return;
+  if (isCEEH()) {
+    for (const auto &CFI : getWinFrameInfos())
+      CEEmitUnwindInfo(CFI.get());
+    return;
+  }
   EHStreamer.Emit(*this);
 }
 

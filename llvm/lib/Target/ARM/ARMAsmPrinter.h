@@ -101,6 +101,7 @@ public:
   }
   void emitFunctionBodyEnd() override;
   void emitFunctionEntryLabel() override;
+  void emitCEHandlerData(const MachineFunction &MF);
   void emitStartOfAsmFile(Module &M) override;
   void emitEndOfAsmFile(Module &M) override;
   void emitXXStructor(const DataLayout &DL, const Constant *CV) override;

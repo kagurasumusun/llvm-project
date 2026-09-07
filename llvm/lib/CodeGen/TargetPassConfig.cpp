@@ -932,6 +932,10 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     [[fallthrough]];
   case ExceptionHandling::DwarfCFI:
   case ExceptionHandling::ARM:
+    if (TM->getTargetTriple().isWindowsCE())
+      addPass(createWinEHPass());
+    addPass(createDwarfEHPass(getOptLevel()));
+    break;
   case ExceptionHandling::AIX:
   case ExceptionHandling::ZOS:
     addPass(createDwarfEHPass(getOptLevel()));

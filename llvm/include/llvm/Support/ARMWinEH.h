@@ -515,6 +515,88 @@ inline size_t HeaderWords(const ExceptionDataRecord &XR) {
     return (XR.Data[0] & 0xffc00000) ? 1 : 2;
   return (XR.Data[0] & 0xff800000) ? 1 : 2;
 }
+
+
+namespace CE {
+
+
+constexpr unsigned PrologLenWidth = 8;
+constexpr unsigned FuncLenWidth = 22;
+constexpr unsigned ThirtyTwoBitWidth = 1;
+constexpr unsigned ExceptionFlagWidth = 1;
+
+constexpr unsigned PrologLenShift = 0;
+constexpr unsigned FuncLenShift = PrologLenShift + PrologLenWidth;
+constexpr unsigned ThirtyTwoBitShift = FuncLenShift + FuncLenWidth;
+constexpr unsigned ExceptionFlagShift = ThirtyTwoBitShift + ThirtyTwoBitWidth;
+
+constexpr uint32_t PrologLenMask = (1u << PrologLenWidth) - 1;
+constexpr uint32_t FuncLenMask = (1u << FuncLenWidth) - 1;
+constexpr uint32_t ThirtyTwoBitFlag = 1u << ThirtyTwoBitShift;
+constexpr uint32_t ExceptionFlagMask = 1u << ExceptionFlagShift;
+
+constexpr uint32_t ArmInstructionSize = 4;
+constexpr uint32_t ThumbInstructionSize = 2;
+
+constexpr unsigned ImageRecordSize = 8;
+
+struct RuntimeFunction {
+  support::ulittle32_t FuncStart;
+  support::ulittle32_t Flags;
+
+  uint32_t PrologLen() const {
+    return (uint32_t(Flags) >> PrologLenShift) & PrologLenMask;
+  }
+
+  uint32_t FuncLen() const {
+    return (uint32_t(Flags) >> FuncLenShift) & FuncLenMask;
+  }
+
+  bool ThirtyTwoBit() const { return Flags & ThirtyTwoBitFlag; }
+
+  bool ExceptionFlag() const { return Flags & ExceptionFlagMask; }
+};
+
+static_assert(sizeof(RuntimeFunction) == ImageRecordSize,
+              "the CE .pdata record must be exactly 8 bytes");
+
+inline constexpr uint32_t instructionSize(uint32_t Flags) {
+  return (Flags & ThirtyTwoBitFlag) ? ArmInstructionSize
+                                    : ThumbInstructionSize;
+}
+
+inline constexpr uint32_t byteSpanToInstructions(uint32_t SpanBytes,
+                                                 uint32_t Flags) {
+  const uint32_t Size = instructionSize(Flags);
+  return (SpanBytes + Size - 1) / Size;
+}
+
+inline constexpr uint32_t encodeFlags(uint32_t PrologLen, uint32_t FuncLen,
+                            bool IsThirtyTwoBit, bool HasHandler,
+                            bool &Truncated) {
+  Truncated = (PrologLen > PrologLenMask) || (FuncLen > FuncLenMask);
+  return ((PrologLen & PrologLenMask) << PrologLenShift) |
+         ((FuncLen & FuncLenMask) << FuncLenShift) |
+         (IsThirtyTwoBit ? ThirtyTwoBitFlag : 0u) |
+         (HasHandler ? ExceptionFlagMask : 0u);
+}
+
+inline constexpr uint32_t replaceLength(uint32_t Flags, uint32_t Value,
+                                        bool IsFuncLen) {
+  const uint32_t Shift = IsFuncLen ? FuncLenShift : PrologLenShift;
+  const uint32_t Mask = IsFuncLen ? FuncLenMask : PrologLenMask;
+  return (Flags & ~(Mask << Shift)) | ((Value & Mask) << Shift);
+}
+
+namespace ObjectRecord {
+constexpr unsigned Stride = 16;
+constexpr unsigned FuncStartOffset = 0;
+constexpr unsigned FlagsOffset = 4;
+constexpr unsigned FuncLenSlotOffset = 8;
+constexpr unsigned PrologLenSlotOffset = 12;
+}
+
+}
 }
 }
 }

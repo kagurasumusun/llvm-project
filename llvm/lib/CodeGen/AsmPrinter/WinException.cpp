@@ -552,7 +552,8 @@ InvokeStateChangeIterator &InvokeStateChangeIterator::scan() {
 ///       imagerel32 LabelLPad;        // Zero means __finally.
 ///     } Entries[NumEntries];
 ///   };
-void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
+MCSymbol *WinException::emitCSpecificHandlerTable(const MachineFunction *MF,
+                                                  bool IsCE) {
   auto &OS = *Asm->OutStreamer;
   MCContext &Ctx = Asm->OutContext;
   const WinEHFuncInfo &FuncInfo = *MF->getWinEHFuncInfo();
@@ -571,7 +572,8 @@ void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
     MCSymbol *ParentFrameOffset =
         Ctx.getOrCreateParentFrameOffsetSymbol(FLinkageName);
     const MCExpr *MCOffset =
-        MCConstantExpr::create(FuncInfo.SEHSetFrameOffset, Ctx);
+        IsCE ? MCConstantExpr::create(MF->getFrameInfo().getStackSize(), Ctx)
+             : MCConstantExpr::create(FuncInfo.SEHSetFrameOffset, Ctx);
     Asm->OutStreamer->emitAssignment(ParentFrameOffset, MCOffset);
   }
 
@@ -584,6 +586,14 @@ void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
   const MCExpr *LabelDiff = getOffset(TableEnd, TableBegin);
   const MCExpr *EntrySize = MCConstantExpr::create(16, Ctx);
   const MCExpr *EntryCount = MCBinaryExpr::createDiv(LabelDiff, EntrySize, Ctx);
+
+  MCSymbol *HandlerData = nullptr;
+  if (IsCE) {
+    HandlerData =
+        Ctx.createTempSymbol("ce_handlerdata", true);
+    OS.emitLabel(HandlerData);
+  }
+
   AddComment("Number of call sites");
   OS.emitValue(EntryCount, 4);
 
@@ -616,6 +626,8 @@ void WinException::emitCSpecificHandlerTable(const MachineFunction *MF) {
   }
 
   OS.emitLabel(TableEnd);
+
+  return HandlerData;
 }
 
 void WinException::emitSEHActionsForRange(const WinEHFuncInfo &FuncInfo,
@@ -647,9 +659,9 @@ void WinException::emitSEHActionsForRange(const WinEHFuncInfo &FuncInfo,
     }
 
     AddComment("LabelStart");
-    OS.emitValue(getLabel(BeginLabel), 4);
+    OS.emitValue(create32bitRef(BeginLabel), 4);
     AddComment("LabelEnd");
-    OS.emitValue(getLabel(EndLabel), 4);
+    OS.emitValue(create32bitRef(EndLabel), 4);
     AddComment(UME.IsFinally ? "FinallyFunclet" : UME.Filter ? "FilterFunction"
                                                              : "CatchAll");
     OS.emitValue(FilterOrFinally, 4);
@@ -1332,4 +1344,10 @@ void WinException::emitCLRExceptionTable(const MachineFunction *MF) {
     assert(Entry.HandlerType != ClrHandlerType::Filter && "NYI: filters");
     OS.emitInt32(Entry.TypeToken);
   }
+}
+
+
+MCSymbol *llvm::emitCESpecificHandlerTable(AsmPrinter &Asm,
+                                           const MachineFunction &MF) {
+  return WinException(&Asm).emitCEHandlerTable(&MF);
 }

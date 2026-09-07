@@ -62,6 +62,7 @@ public:
   void Emit(MCStreamer &Streamer) const override;
   void EmitUnwindInfo(MCStreamer &Streamer, WinEH::FrameInfo *FI,
                       bool HandlerData) const override;
+
 };
 
 class ARM64UnwindEmitter : public WinEH::UnwindEmitter {

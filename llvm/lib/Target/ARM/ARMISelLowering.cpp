@@ -75,6 +75,8 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -1184,6 +1186,9 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
   setOperationAction(ISD::EH_SJLJ_SETJMP, MVT::i32, Custom);
   setOperationAction(ISD::EH_SJLJ_LONGJMP, MVT::Other, Custom);
   setOperationAction(ISD::EH_SJLJ_SETUP_DISPATCH, MVT::Other, Custom);
+  setOperationAction(ISD::LOCAL_RECOVER, MVT::i32, Custom);
+  if (Subtarget->isTargetWindows())
+    setOperationAction(ISD::CLEANUPRET, MVT::Other, Custom);
 
   setOperationAction(ISD::SETCC,     MVT::i32, Expand);
   setOperationAction(ISD::SETCC,     MVT::f32, Expand);
@@ -3834,6 +3839,28 @@ ARMTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG,
   SDLoc dl(Op);
   switch (IntNo) {
   default: return SDValue();    // Don't custom lower most intrinsics.
+  case Intrinsic::eh_recoverfp: {
+    SDValue FnOp = Op.getOperand(1);
+    GlobalAddressSDNode *GSD = dyn_cast<GlobalAddressSDNode>(FnOp);
+    if (!GSD || !isa<Function>(GSD->getGlobal()))
+      report_fatal_error(
+          "llvm.eh.recoverfp must take a function as the first argument");
+    return Op.getOperand(2);
+  }
+  case Intrinsic::localaddress: {
+    MachineFunction &MF = DAG.getMachineFunction();
+    StringRef FLinkageName =
+        GlobalValue::dropLLVMManglingEscape(MF.getFunction().getName());
+    MCSymbol *OffsetSym = MF.getContext().getOrCreateParentFrameOffsetSymbol(
+        FLinkageName);
+    EVT PtrVT = Op.getValueType();
+    SDValue SP =
+        DAG.getCopyFromReg(DAG.getEntryNode(), dl, ARM::SP, PtrVT);
+    SDValue FrameSize = DAG.getNode(
+        ISD::LOCAL_RECOVER, dl, PtrVT,
+        DAG.getMCSymbol(OffsetSym, PtrVT));
+    return DAG.getNode(ISD::ADD, dl, PtrVT, SP, FrameSize);
+  }
   case Intrinsic::thread_pointer: {
     EVT PtrVT = getPointerTy(DAG.getDataLayout());
     return DAG.getNode(ARMISD::THREAD_POINTER, dl, PtrVT);
@@ -5850,6 +5877,21 @@ SDValue ARMTargetLowering::LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const{
   // Return LR, which contains the return address. Mark it an implicit live-in.
   Register Reg = MF.addLiveIn(ARM::LR, getRegClassFor(MVT::i32));
   return DAG.getCopyFromReg(DAG.getEntryNode(), dl, Reg, VT);
+}
+
+SDValue ARMTargetLowering::LowerCLEANUPRET(SDValue Op,
+                                           SelectionDAG &DAG) const {
+  return DAG.getNode(ARMISD::RET_GLUE, SDLoc(Op), MVT::Other, Op.getOperand(0));
+}
+
+SDValue ARMTargetLowering::LowerLOCAL_RECOVER(SDValue Op,
+                                              SelectionDAG &DAG) const {
+  auto *SymNode = cast<MCSymbolSDNode>(Op.getOperand(0));
+  MCSymbol *Sym = SymNode->getMCSymbol();
+  SDLoc dl(Op);
+  SDValue ES =
+      DAG.getTargetExternalSymbol(Sym->getName().data(), Op.getValueType());
+  return DAG.getNode(ARMISD::Wrapper, dl, Op.getValueType(), ES);
 }
 
 SDValue ARMTargetLowering::LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
@@ -10338,6 +10380,8 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::FCOPYSIGN:     return LowerFCOPYSIGN(Op, DAG);
   case ISD::RETURNADDR:    return LowerRETURNADDR(Op, DAG);
   case ISD::FRAMEADDR:     return LowerFRAMEADDR(Op, DAG);
+  case ISD::LOCAL_RECOVER: return LowerLOCAL_RECOVER(Op, DAG);
+  case ISD::CLEANUPRET:    return LowerCLEANUPRET(Op, DAG);
   case ISD::EH_SJLJ_SETJMP: return LowerEH_SJLJ_SETJMP(Op, DAG);
   case ISD::EH_SJLJ_LONGJMP: return LowerEH_SJLJ_LONGJMP(Op, DAG);
   case ISD::EH_SJLJ_SETUP_DISPATCH: return LowerEH_SJLJ_SETUP_DISPATCH(Op, DAG);

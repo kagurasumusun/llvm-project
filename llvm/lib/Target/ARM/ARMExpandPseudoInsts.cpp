@@ -1078,7 +1078,33 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
     assert((!STI->isTargetWindows() || STI->isTargetWindowsCE()) &&
            "Windows on ARM requires ARMv7+");
 
-    assert (MO.isImm() && "MOVi32imm w/ non-immediate source operand!");
+    if (!MO.isImm()) {
+      MachineConstantPool *MCP = MBB.getParent()->getConstantPool();
+      MachineConstantPoolValue *CPV;
+      if (MO.isGlobal())
+        CPV = ARMConstantPoolConstant::Create(MO.getGlobal(),
+                                              ARMCP::no_modifier);
+      else {
+        assert(MO.isSymbol() &&
+               "MOVi32imm on pre-v6T2 with non-immediate, non-symbol");
+        CPV = ARMConstantPoolSymbol::Create(
+            MBB.getParent()->getFunction().getContext(), MO.getSymbolName(),
+            0, 0);
+      }
+      MachineInstrBuilder MIB =
+          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(ARM::LDRi12), DstReg)
+              .addConstantPoolIndex(MCP->getConstantPoolIndex(CPV, Align(4)))
+              .addImm(0)
+              .addImm(Pred)
+              .addReg(PredReg);
+      if (isCC)
+        MIB.add(makeImplicit(MI.getOperand(1)));
+      MIB.copyImplicitOps(MI);
+      MIB.cloneMemRefs(MI);
+      MI.eraseFromParent();
+      return;
+    }
+
     unsigned ImmVal = (unsigned)MO.getImm();
     unsigned SOImmValV1 = 0, SOImmValV2 = 0;
 
@@ -2246,11 +2272,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     case ARM::TCRETURNdi:
     case ARM::TCRETURNri:
     case ARM::TCRETURNrinotr12: {
-      MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-      if (MBBI->getOpcode() == ARM::SEH_EpilogEnd)
-        MBBI--;
-      if (MBBI->getOpcode() == ARM::SEH_Nop_Ret)
-        MBBI--;
+      MachineBasicBlock::iterator MBBI = MI.getIterator();
       assert(MBBI->isReturn() &&
              "Can only insert epilog into returning blocks");
       unsigned RetOpcode = MBBI->getOpcode();
@@ -2259,11 +2281,6 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
           MBB.getParent()->getSubtarget().getInstrInfo());
 
       // Tail call return: adjust the stack pointer and jump to callee.
-      MBBI = MBB.getLastNonDebugInstr();
-      if (MBBI->getOpcode() == ARM::SEH_EpilogEnd)
-        MBBI--;
-      if (MBBI->getOpcode() == ARM::SEH_Nop_Ret)
-        MBBI--;
       MachineOperand &JumpTarget = MBBI->getOperand(0);
 
       // Jump to label or value in register.
@@ -2690,7 +2707,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       bool DstIsDead = MI.getOperand(0).isDead();
       const MachineOperand &MO1 = MI.getOperand(1);
       auto Flags = MO1.getTargetFlags();
-      const GlobalValue *GV = MO1.getGlobal();
+      const GlobalValue *GV = MO1.isGlobal() ? MO1.getGlobal() : nullptr;
       bool IsARM = Opcode != ARM::tLDRLIT_ga_pcrel &&
                    Opcode != ARM::tLDRLIT_ga_abs &&
                    Opcode != ARM::t2LDRLIT_ga_pcrel;
@@ -2709,7 +2726,7 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       unsigned ARMPCLabelIndex = 0;
       MachineConstantPoolValue *CPV;
 
-      if (IsPIC) {
+      if (IsPIC && GV) {
         unsigned PCAdj = IsARM ? 8 : 4;
         auto Modifier = (Flags & ARMII::MO_GOT)
                             ? ARMCP::GOT_PREL
@@ -2718,8 +2735,15 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
         CPV = ARMConstantPoolConstant::Create(
             GV, ARMPCLabelIndex, ARMCP::CPValue, PCAdj, Modifier,
             /*AddCurrentAddr*/ Modifier == ARMCP::GOT_PREL);
-      } else
+      } else if (GV) {
         CPV = ARMConstantPoolConstant::Create(GV, ARMCP::no_modifier);
+      } else {
+        assert(MO1.isSymbol() &&
+               "LDRLIT_ga operand must be a GlobalValue or ExternalSymbol");
+        CPV = ARMConstantPoolSymbol::Create(
+            MBB.getParent()->getFunction().getContext(),
+            MO1.getSymbolName(), 0, 0);
+      }
 
       MachineInstrBuilder MIB =
           BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(LDRLITOpc), DstReg)

@@ -1639,6 +1639,9 @@ def : Pat<(ARMWrapperPIC tglobaltlsaddr:$addr),
 def : Pat<(ARMWrapper tglobaltlsaddr:$addr),
           (tLDRLIT_ga_abs tglobaltlsaddr:$addr)>,
       Requires<[IsThumb, DontUseMovt]>;
+def : Pat<(ARMWrapper texternalsym:$dst),
+          (tLDRLIT_ga_abs texternalsym:$dst)>,
+      Requires<[IsThumb, DontUseMovt]>;
 
 
 // JumpTable

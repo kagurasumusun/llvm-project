@@ -113,6 +113,7 @@
 #include "ARMConstantPoolValue.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMSubtarget.h"
+#include "ARMWinCFI.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "Utils/ARMBaseInfo.h"
@@ -340,6 +341,9 @@ bool ARMFrameLowering::hasFPImpl(const MachineFunction &MF) const {
   if (keepFramePointer(MF))
     return true;
 
+  if (MF.getTarget().getTargetTriple().isWindowsCE())
+    return true;
+
   // ABI-required frame pointer.
   if (MF.getTarget().Options.DisableFramePointerElim(MF))
     return true;
@@ -419,9 +423,11 @@ static int getArgumentStackToRestore(MachineFunction &MF,
 }
 
 static bool needsWinCFI(const MachineFunction &MF) {
-  const Function &F = MF.getFunction();
-  return MF.getTarget().getMCAsmInfo()->usesWindowsCFI() &&
-         F.needsUnwindTableEntry();
+  return functionNeedsWinCFIFrame(MF);
+}
+
+static bool skipUnmappedSEH(const MachineFunction &MF) {
+  return MF.getTarget().getTargetTriple().isWindowsCE();
 }
 
 // Given a load or a store instruction, generate an appropriate unwinding SEH
@@ -441,6 +447,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
 
   switch (Opc) {
   default:
+    if (skipUnmappedSEH(MF))
+      return MBBI;
     report_fatal_error("No SEH Opcode for instruction " + TII.getName(Opc));
     break;
   case ARM::t2ADDri:   // add.w r11, sp, #xx
@@ -504,6 +512,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
                 .addImm(1ULL << Reg)
                 .addImm(/*Wide=*/1)
                 .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
     } else {
       report_fatal_error("No matching SEH Opcode for t2STR_PRE");
     }
@@ -518,10 +528,57 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
                 .addImm(1ULL << Reg)
                 .addImm(/*Wide=*/1)
                 .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
     } else {
       report_fatal_error("No matching SEH Opcode for t2LDR_POST");
     }
     break;
+
+  case ARM::STMDB_UPD: {
+    unsigned Mask = 0;
+    bool Wide = false;
+    for (unsigned i = 4, NumOps = MBBI->getNumOperands(); i != NumOps; ++i) {
+      const MachineOperand &MO = MBBI->getOperand(i);
+      if (!MO.isReg() || MO.isImplicit())
+        continue;
+      unsigned Reg = RegInfo->getSEHRegNum(MO.getReg());
+      if (Reg == 15)
+        Reg = 14;
+      if (Reg >= 8 && Reg <= 13)
+        Wide = true;
+      Mask |= 1 << Reg;
+    }
+    MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveRegs))
+              .addImm(Mask)
+              .addImm(Wide ? 1 : 0)
+              .setMIFlags(Flags);
+    break;
+  }
+
+  case ARM::LDMIA_UPD:
+  case ARM::LDMIA_RET: {
+    unsigned Mask = 0;
+    bool Wide = false;
+    for (unsigned i = 4, NumOps = MBBI->getNumOperands(); i != NumOps; ++i) {
+      const MachineOperand &MO = MBBI->getOperand(i);
+      if (!MO.isReg() || MO.isImplicit())
+        continue;
+      unsigned Reg = RegInfo->getSEHRegNum(MO.getReg());
+      if (Reg == 15)
+        Reg = 14;
+      if (Reg >= 8 && Reg <= 13)
+        Wide = true;
+      Mask |= 1 << Reg;
+    }
+    unsigned SEHOpc =
+        (Opc == ARM::LDMIA_RET) ? ARM::SEH_SaveRegs_Ret : ARM::SEH_SaveRegs;
+    MIB = BuildMI(MF, DL, TII.get(SEHOpc))
+              .addImm(Mask)
+              .addImm(Wide ? 1 : 0)
+              .setMIFlags(Flags);
+    break;
+  }
 
   case ARM::t2LDMIA_RET:
   case ARM::t2LDMIA_UPD:
@@ -587,6 +644,20 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
               .setMIFlags(Flags);
     break;
   }
+  case ARM::SUBri:
+  case ARM::ADDri:
+    if (MBBI->getOperand(0).getReg() == ARM::SP) {
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_StackAlloc))
+                .addImm(MBBI->getOperand(2).getImm())
+                .addImm(1)
+                .setMIFlags(Flags);
+    } else {
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_Nop))
+                .addImm(1)
+                .setMIFlags(Flags);
+    }
+    break;
+
   case ARM::tSUBspi:
   case ARM::tADDspi:
     MIB = BuildMI(MF, DL, TII.get(ARM::SEH_StackAlloc))
@@ -604,6 +675,26 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
               .setMIFlags(Flags);
     break;
 
+  case ARM::MOVr:
+    if (MBBI->getOperand(1).getReg() == ARM::SP &&
+        (Flags & MachineInstr::FrameSetup)) {
+      unsigned Reg = RegInfo->getSEHRegNum(MBBI->getOperand(0).getReg());
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveSP))
+                .addImm(Reg)
+                .setMIFlags(Flags);
+    } else if (MBBI->getOperand(0).getReg() == ARM::SP &&
+               (Flags & MachineInstr::FrameDestroy)) {
+      unsigned Reg = RegInfo->getSEHRegNum(MBBI->getOperand(1).getReg());
+      MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveSP))
+                .addImm(Reg)
+                .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
+    } else {
+      report_fatal_error("No SEH Opcode for MOVr");
+    }
+    break;
+
   case ARM::tMOVr:
     if (MBBI->getOperand(1).getReg() == ARM::SP &&
         (Flags & MachineInstr::FrameSetup)) {
@@ -617,6 +708,8 @@ static MachineBasicBlock::iterator insertSEH(MachineBasicBlock::iterator MBBI,
       MIB = BuildMI(MF, DL, TII.get(ARM::SEH_SaveSP))
                 .addImm(Reg)
                 .setMIFlags(Flags);
+    } else if (skipUnmappedSEH(MF)) {
+      return MBBI;
     } else {
       report_fatal_error("No SEH Opcode for MOV");
     }
@@ -899,6 +992,8 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
   int FPCXTSaveSize = 0;
   bool NeedsWinCFI = needsWinCFI(MF);
+  if (MF.getTarget().getTargetTriple().isWindowsCE() && NeedsWinCFI)
+    MF.setHasWinCFI(true);
   ARMSubtarget::PushPopSplitVariation PushPopSplit =
       STI.getPushPopSplitVariation(MF);
 
@@ -935,7 +1030,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
     }
     if (!NeedsWinCFI)
       DefCFAOffsetCandidates.emitDefCFAOffsets(MBB, HasFP);
-    if (NeedsWinCFI && MBBI != MBB.begin()) {
+    if (NeedsWinCFI && (STI.isTargetWindowsCE() || MBBI != MBB.begin())) {
       insertSEHRange(MBB, {}, MBBI, TII, MachineInstr::FrameSetup);
       BuildMI(MBB, MBBI, dl, TII.get(ARM::SEH_PrologEnd))
           .setMIFlag(MachineInstr::FrameSetup);
@@ -1275,7 +1370,7 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
 
   // Emit a SEH opcode indicating the prologue end. The rest of the prologue
   // instructions below don't need to be replayed to unwind the stack.
-  if (NeedsWinCFI && MBBI != MBB.begin()) {
+  if (NeedsWinCFI && (STI.isTargetWindowsCE() || MBBI != MBB.begin())) {
     MachineBasicBlock::iterator End = MBBI;
     if (HasFP && PushPopSplit == ARMSubtarget::SplitR11WindowsSEH)
       End = AfterPush;
@@ -2474,6 +2569,9 @@ checkNumAlignedDPRCS2Regs(MachineFunction &MF, BitVector &SavedRegs) {
 }
 
 bool ARMFrameLowering::enableShrinkWrapping(const MachineFunction &MF) const {
+  if (MF.getTarget().getTargetTriple().isWindowsCE())
+    return false;
+
   // For CMSE entry functions, we want to save the FPCXT_NS immediately
   // upon function entry (resp. restore it immmediately before return)
   if (STI.hasV8_1MMainlineOps() &&

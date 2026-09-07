@@ -196,6 +196,8 @@ public:
   // a cleaner approach.
   enum VariantKind : uint16_t {
     VK_COFF_IMGREL32 = 3, // symbol@imgrel (image-relative)
+    VK_COFF_CE_PDATA_FUNCLEN,
+    VK_COFF_CE_PDATA_PROLOG,
 
     FirstTargetSpecifier,
   };

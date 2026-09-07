@@ -395,6 +395,8 @@ enum RelocationTypesARM : unsigned {
   IMAGE_REL_ARM_BRANCH24T = 0x0014,
   IMAGE_REL_ARM_BLX23T = 0x0015,
   IMAGE_REL_ARM_PAIR = 0x0016,
+  IMAGE_REL_ARM_CE_PDATA_FUNCLEN = 0x0017,
+  IMAGE_REL_ARM_CE_PDATA_PROLOG = 0x0018,
 };
 
 enum RelocationTypesARM64 : unsigned {
