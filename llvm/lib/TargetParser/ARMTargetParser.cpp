@@ -629,6 +629,21 @@ StringRef ARM::getARMCPUForArch(const llvm::Triple &Triple, StringRef MArch) {
   if (MArch.empty())
     return StringRef();
 
+  if (Triple.getOS() == Triple::WinCE) {
+    switch (ARM::parseArch(MArch)) {
+    case ARM::ArchKind::INVALID:
+      if (MArch == "arm" || MArch.empty())
+        return "arm926ej-s";
+      break;
+    case ARM::ArchKind::ARMV5T:
+    case ARM::ArchKind::ARMV5TE:
+    case ARM::ArchKind::ARMV5TEJ:
+      return "arm926ej-s";
+    default:
+      break;
+    }
+  }
+
   StringRef CPU = llvm::ARM::getDefaultCPU(MArch);
   if (!CPU.empty() && CPU != "invalid")
     return CPU;
@@ -638,6 +653,8 @@ StringRef ARM::getARMCPUForArch(const llvm::Triple &Triple, StringRef MArch) {
   switch (Triple.getOS()) {
   case llvm::Triple::Haiku:
     return "arm1176jzf-s";
+  case llvm::Triple::WinCE:
+    return "arm926ej-s";
   case llvm::Triple::NetBSD:
     switch (Triple.getEnvironment()) {
     case llvm::Triple::EABI:

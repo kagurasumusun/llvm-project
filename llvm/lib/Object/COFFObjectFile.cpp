@@ -1124,6 +1124,8 @@ StringRef COFFObjectFile::getFileFormatName() const {
     return "COFF-i386";
   case COFF::IMAGE_FILE_MACHINE_AMD64:
     return "COFF-x86-64";
+  case COFF::IMAGE_FILE_MACHINE_ARM:
+    return "COFF-ARM";
   case COFF::IMAGE_FILE_MACHINE_ARMNT:
     return "COFF-ARM";
   case COFF::IMAGE_FILE_MACHINE_ARM64:
@@ -1403,6 +1405,7 @@ StringRef COFFObjectFile::getRelocationTypeName(uint16_t Type) const {
       return "Unknown";
     }
     break;
+  case Triple::arm:
   case Triple::thumb:
     switch (Type) {
     LLVM_COFF_SWITCH_RELOC_TYPE_NAME(IMAGE_REL_ARM_ABSOLUTE);

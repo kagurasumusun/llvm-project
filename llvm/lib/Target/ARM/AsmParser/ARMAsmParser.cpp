@@ -11542,6 +11542,8 @@ bool ARMAsmParser::ParseDirective(AsmToken DirectiveID) {
     parseDirectiveUnreq(DirectiveID.getLoc());
   else if (IDVal == ".fnend")
     parseDirectiveFnEnd(DirectiveID.getLoc());
+  else if (IDVal == ".fnstart")
+    parseDirectiveFnStart(DirectiveID.getLoc());
   else if (IDVal == ".cantunwind")
     parseDirectiveCantUnwind(DirectiveID.getLoc());
   else if (IDVal == ".personality")
@@ -11587,8 +11589,6 @@ bool ARMAsmParser::ParseDirective(AsmToken DirectiveID) {
       parseDirectiveEabiAttr(DirectiveID.getLoc());
     else if (IDVal == ".fpu")
       parseDirectiveFPU(DirectiveID.getLoc());
-    else if (IDVal == ".fnstart")
-      parseDirectiveFnStart(DirectiveID.getLoc());
     else if (IDVal == ".object_arch")
       parseDirectiveObjectArch(DirectiveID.getLoc());
     else if (IDVal == ".tlsdescseq")

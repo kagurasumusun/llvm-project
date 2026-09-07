@@ -419,6 +419,10 @@ void WinCOFFWriter::defineSymbol(const MCSymbolCOFF &MCSym) {
 
   if (Local) {
     Local->Data.Value = getSymbolValue(MCSym, *Asm);
+    if (OWriter.TargetObjectWriter->getMachine() ==
+            COFF::IMAGE_FILE_MACHINE_ARM &&
+        !MCSym.isCommon() && Asm->isThumbFunc(&MCSym))
+      Local->Data.Value |= 1;
 
     auto &SymbolCOFF = static_cast<const MCSymbolCOFF &>(MCSym);
     Local->Data.Type = SymbolCOFF.getType();

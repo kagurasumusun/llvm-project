@@ -223,6 +223,7 @@ public:
     Solaris,
     UEFI,
     Win32,
+    WinCE,
     ZOS,
     Haiku,
     RTEMS,
@@ -697,7 +698,11 @@ public:
 
   /// Tests whether the OS is Windows.
   bool isOSWindows() const {
-    return getOS() == Triple::Win32;
+    return getOS() == Triple::Win32 || getOS() == Triple::WinCE;
+  }
+
+  bool isWindowsCE() const {
+    return getOS() == Triple::WinCE;
   }
 
   /// Checks if the environment is MSVC.
@@ -708,7 +713,8 @@ public:
   /// Checks if the environment could be MSVC.
   bool isWindowsMSVCEnvironment() const {
     return isKnownWindowsMSVCEnvironment() ||
-           (isOSWindows() && getEnvironment() == Triple::UnknownEnvironment);
+           (isOSWindows() && !isWindowsCE() &&
+            getEnvironment() == Triple::UnknownEnvironment);
   }
 
   // Checks if we're using the Windows Arm64EC ABI.
@@ -952,6 +958,8 @@ public:
   /// Tests whether the target supports the EHABI exception
   /// handling standard.
   bool isTargetEHABICompatible() const {
+    if ((isARM() || isThumb()) && isWindowsCE())
+      return true;
     return (isARM() || isThumb()) &&
            (getEnvironment() == Triple::EABI ||
             getEnvironment() == Triple::GNUEABI ||
@@ -1209,7 +1217,7 @@ public:
   /// Note: Android API level 29 (10) introduced ELF TLS.
   bool hasDefaultEmulatedTLS() const {
     return (isAndroid() && isAndroidVersionLT(29)) || isOSOpenBSD() ||
-           isWindowsCygwinEnvironment() || isOHOSFamily();
+           isWindowsCygwinEnvironment() || isOHOSFamily() || isWindowsCE();
   }
 
   /// True if the target uses TLSDESC by default.

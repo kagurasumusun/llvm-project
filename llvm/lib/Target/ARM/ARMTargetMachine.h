@@ -83,7 +83,8 @@ public:
            TargetTriple.getEnvironment() == Triple::EABIHF ||
            (TargetTriple.isOSBinFormatMachO() &&
             TargetTriple.getSubArch() == Triple::ARMSubArch_v7em) ||
-           TargetTriple.isOSWindows() || TargetABI == ARM::ARM_ABI_AAPCS16;
+           (TargetTriple.isOSWindows() && !TargetTriple.isWindowsCE()) ||
+           TargetABI == ARM::ARM_ABI_AAPCS16;
   }
 
   bool targetSchedulesPostRAScheduling() const override { return true; };

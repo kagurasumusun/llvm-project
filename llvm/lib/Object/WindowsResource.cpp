@@ -980,6 +980,7 @@ void WindowsResourceCOFFWriter::writeFirstSectionRelocations() {
     Reloc->VirtualAddress = RelocationAddresses[i];
     Reloc->SymbolTableIndex = NextSymbolIndex++;
     switch (getMachineArchType(MachineType)) {
+    case Triple::arm:
     case Triple::thumb:
       Reloc->Type = COFF::IMAGE_REL_ARM_ADDR32NB;
       break;

@@ -334,6 +334,7 @@ StringRef Triple::getOSTypeName(OSType Kind) {
     return "wasip3";
   case WatchOS: return "watchos";
   case Win32: return "windows";
+  case WinCE: return "wince";
   case ZOS: return "zos";
   case ShaderModel: return "shadermodel";
   case LiteOS: return "liteos";
@@ -723,6 +724,9 @@ static Triple::OSType parseOS(StringRef OSName) {
       .StartsWith("solaris", Triple::Solaris)
       .StartsWith("uefi", Triple::UEFI)
       .StartsWith("win32", Triple::Win32)
+      .StartsWith("windowsce", Triple::WinCE)
+      .StartsWith("wince", Triple::WinCE)
+      .StartsWith("mingw32ce", Triple::WinCE)
       .StartsWith("windows", Triple::Win32)
       .StartsWith("zos", Triple::ZOS)
       .StartsWith("haiku", Triple::Haiku)
@@ -978,6 +982,7 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   case Triple::x86_64:
     switch (T.getOS()) {
     case Triple::Win32:
+    case Triple::WinCE:
     case Triple::UEFI:
       return Triple::COFF;
     default:
@@ -1208,7 +1213,8 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
     OS = parseOS(Components[2]);
     IsCygwin = Components[2].starts_with("cygwin") ||
                Components[2].starts_with("msys");
-    IsMinGW32 = Components[2].starts_with("mingw");
+    IsMinGW32 = Components[2].starts_with("mingw") &&
+                parseOS(Components[2]) != Triple::WinCE;
   }
   EnvironmentType Environment = UnknownEnvironment;
   if (Components.size() > 3)
@@ -1253,7 +1259,7 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
       case 2:
         OS = parseOS(Comp);
         IsCygwin = Comp.starts_with("cygwin") || Comp.starts_with("msys");
-        IsMinGW32 = Comp.starts_with("mingw");
+        IsMinGW32 = Comp.starts_with("mingw") && parseOS(Comp) != Triple::WinCE;
         Valid = OS != UnknownOS || IsCygwin || IsMinGW32;
         break;
       case 3:
@@ -1368,6 +1374,18 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
     Components.resize(4);
     Components[2] = "windows";
     Components[3] = "cygnus";
+  } else if (OS == Triple::WinCE) {
+    if (Components.size() < 3)
+      Components.resize(3);
+    std::string OSText = std::string(Components[2]);
+    if (StringRef(OSText).starts_with("windowsce"))
+      OSText = Twine("wince", StringRef(OSText).drop_front(strlen("windowsce")))
+                   .str();
+    else if (!StringRef(OSText).starts_with("wince"))
+      OSText = "wince";
+    Components[2] = OSText;
+    if (Components[1] == "unknown")
+      Components[1] = "pc";
   }
   if (IsMinGW32 || IsCygwin ||
       (OS == Triple::Win32 && Environment != UnknownEnvironment)) {
@@ -2328,6 +2346,8 @@ bool Triple::isValidVersionForOS(OSType OSKind, const VersionTuple &Version) {
 
 ExceptionHandling Triple::getDefaultExceptionHandling() const {
   if (isOSBinFormatCOFF()) {
+    if (isWindowsCE() && (isARM() || isThumb()))
+      return ExceptionHandling::ARM;
     if (getArch() == Triple::x86 &&
         (isOSCygMing() || isWindowsItaniumEnvironment()))
       return ExceptionHandling::DwarfCFI;

@@ -1032,7 +1032,8 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
     setOperationAction(ISD::UDIV,  MVT::i32, LibCall);
   }
 
-  if (TT.isOSWindows() && !Subtarget->hasDivideInThumbMode()) {
+  if (TT.isOSWindows() && !TT.isWindowsCE() &&
+      !Subtarget->hasDivideInThumbMode()) {
     setOperationAction(ISD::SDIV, MVT::i32, Custom);
     setOperationAction(ISD::UDIV, MVT::i32, Custom);
 
@@ -1075,7 +1076,7 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM_,
   setOperationAction(ISD::STACKSAVE,          MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE,       MVT::Other, Expand);
 
-  if (TT.isOSWindows())
+  if (TT.isOSWindows() && !TT.isWindowsCE())
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Custom);
   else
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
@@ -3629,6 +3630,8 @@ SDValue ARMTargetLowering::LowerGlobalAddress(SDValue Op,
   switch (Subtarget->getTargetTriple().getObjectFormat()) {
   default: llvm_unreachable("unknown object format");
   case Triple::COFF:
+    if (Subtarget->isTargetWindowsCE())
+      return LowerGlobalAddressELF(Op, DAG);
     return LowerGlobalAddressWindows(Op, DAG);
   case Triple::ELF:
     return LowerGlobalAddressELF(Op, DAG);
@@ -10373,11 +10376,13 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     return LowerRESET_FPMODE(Op, DAG);
   case ISD::MUL:           return LowerMUL(Op, DAG);
   case ISD::SDIV:
-    if (Subtarget->isTargetWindows() && !Op.getValueType().isVector())
+    if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE() &&
+        !Op.getValueType().isVector())
       return LowerDIV_Windows(Op, DAG, /* Signed */ true);
     return LowerSDIV(Op, DAG, Subtarget);
   case ISD::UDIV:
-    if (Subtarget->isTargetWindows() && !Op.getValueType().isVector())
+    if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE() &&
+        !Op.getValueType().isVector())
       return LowerDIV_Windows(Op, DAG, /* Signed */ false);
     return LowerUDIV(Op, DAG, Subtarget);
   case ISD::UADDO_CARRY:
@@ -10525,7 +10530,8 @@ void ARMTargetLowering::ReplaceNodeResults(SDNode *N,
     return;
   case ISD::UDIV:
   case ISD::SDIV:
-    assert(Subtarget->isTargetWindows() && "can only expand DIV on Windows");
+    assert(Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE() &&
+           "can only expand DIV on Windows NT");
     return ExpandDIV_Windows(SDValue(N, 0), DAG, N->getOpcode() == ISD::SDIV,
                              Results);
   case ISD::ATOMIC_CMP_SWAP:
@@ -20437,7 +20443,7 @@ SDValue ARMTargetLowering::LowerDivRem(SDValue Op, SelectionDAG &DAG) const {
 
   Type *RetTy = StructType::get(Ty, Ty);
 
-  if (Subtarget->isTargetWindows())
+  if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE())
     InChain = WinDBZCheckDenominator(DAG, Op.getNode(), InChain);
 
   TargetLowering::CallLoweringInfo CLI(DAG);
@@ -20493,7 +20499,7 @@ SDValue ARMTargetLowering::LowerREM(SDNode *N, SelectionDAG &DAG) const {
   SDValue Callee =
       DAG.getExternalSymbol(LCImpl, getPointerTy(DAG.getDataLayout()));
 
-  if (Subtarget->isTargetWindows())
+  if (Subtarget->isTargetWindows() && !Subtarget->isTargetWindowsCE())
     InChain = WinDBZCheckDenominator(DAG, N, InChain);
 
   // Lower call

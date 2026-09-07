@@ -211,6 +211,8 @@ file_magic llvm::identify_magic(StringRef Magic) {
     [[fallthrough]];
 
   case 0x4c: // 80386 Windows
+  case 0xc0:
+  case 0xc2:
   case 0xc4: // ARMNT Windows
     if (Magic[1] == 0x01)
       return file_magic::coff_object;
