@@ -793,13 +793,15 @@ void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
   // FIXME: It's more complicated than this and we don't really support
   // interworking.
   // Windows on ARM does not "support" interworking
-  if (5 <= ArchVersion && ArchVersion <= 8 && !getTriple().isOSWindows())
+  if (5 <= ArchVersion && ArchVersion <= 8 &&
+      (!getTriple().isOSWindows() || getTriple().isWindowsCE()))
     Builder.defineMacro("__THUMB_INTERWORK__");
 
   if (ABI == "aapcs" || ABI == "aapcs-linux" || ABI == "aapcs-vfp") {
     // Embedded targets on Darwin follow AAPCS, but not EABI.
     // Windows on ARM follows AAPCS VFP, but does not conform to EABI.
-    if (!getTriple().isOSBinFormatMachO() && !getTriple().isOSWindows())
+    if (!getTriple().isOSBinFormatMachO() &&
+        (!getTriple().isOSWindows() || getTriple().isWindowsCE()))
       Builder.defineMacro("__ARM_EABI__");
     Builder.defineMacro("__ARM_PCS", "1");
   }
@@ -1488,6 +1490,39 @@ void MicrosoftARMleTargetInfo::getTargetDefines(const LangOptions &Opts,
                                                 MacroBuilder &Builder) const {
   WindowsARMTargetInfo::getTargetDefines(Opts, Builder);
   WindowsARMTargetInfo::getVisualStudioDefines(Opts, Builder);
+}
+
+WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
+                                       const TargetOptions &Opts)
+    : WindowsARMTargetInfo(Triple, Opts) {
+  TheCXXABI.set(TargetCXXABI::GenericARM);
+  UseMicrosoftManglingForC = false;
+  TLSSupported = true;
+  if (Opts.CPU.empty() || Opts.CPU == "generic")
+    setCPU("arm926ej-s");
+}
+
+void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,
+                                          MacroBuilder &Builder) const {
+  WindowsARMTargetInfo::getTargetDefines(Opts, Builder);
+  addWinCEDefines(getTriple(), Builder);
+  Builder.defineMacro("_ARM_");
+  Builder.defineMacro("ARM");
+  Builder.defineMacro("_M_ARM", Twine(getArchVersion()));
+  if (Opts.MSVCCompat)
+    getVisualStudioDefines(Opts, Builder);
+}
+
+void WinCEARMTargetInfo::getVisualStudioDefines(const LangOptions &Opts,
+                                                MacroBuilder &Builder) const {
+  addWinCEDefines(getTriple(), Builder);
+  assert((getTriple().getArch() == llvm::Triple::arm ||
+          getTriple().getArch() == llvm::Triple::thumb) &&
+         "invalid architecture for Windows CE target info");
+  if (getTriple().getArch() == llvm::Triple::thumb)
+    Builder.defineMacro("_M_ARMT", "_M_ARM");
+  Builder.defineMacro("_M_ARM", Twine(getArchVersion()));
+  Builder.defineMacro("_M_IX86_FP", "0");
 }
 
 MinGWARMTargetInfo::MinGWARMTargetInfo(const llvm::Triple &Triple,

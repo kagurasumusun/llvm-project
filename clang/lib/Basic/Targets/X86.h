@@ -634,6 +634,54 @@ public:
   }
 };
 
+class LLVM_LIBRARY_VISIBILITY WinCETargetInfo : public WindowsX86_32TargetInfo {
+public:
+  WinCETargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
+      : WindowsX86_32TargetInfo(Triple, Opts) {
+    TLSSupported = true;
+  }
+
+  void getTargetDefines(const LangOptions &Opts,
+                        MacroBuilder &Builder) const override {
+    WindowsX86_32TargetInfo::getTargetDefines(Opts, Builder);
+    addWinCEDefines(getTriple(), Builder);
+    Builder.defineMacro("_X86_", "1");
+    Builder.defineMacro("__stdcall", "__attribute__((__cdecl__))");
+    Builder.defineMacro("__fastcall", "__attribute__((__fastcall__))");
+    Builder.defineMacro("__thiscall", "__attribute__((__thiscall__))");
+    Builder.defineMacro("__cdecl", "__attribute__((__cdecl__))");
+    if (Opts.GNUMode) {
+      Builder.defineMacro("_stdcall", "__attribute__((__cdecl__))");
+      Builder.defineMacro("_fastcall", "__attribute__((__fastcall__))");
+      Builder.defineMacro("_thiscall", "__attribute__((__thiscall__))");
+      Builder.defineMacro("_cdecl", "__attribute__((__cdecl__))");
+    }
+  }
+
+  TargetInfo::CallingConvCheckResult
+  checkCallingConvention(CallingConv CC) const override {
+    switch (CC) {
+    case CC_X86StdCall:
+    case CC_X86ThisCall:
+    case CC_X86FastCall:
+    case CC_X86VectorCall:
+    case CC_X86Pascal:
+    case CC_X86RegCall:
+      return CCCR_Ignore;
+    case CC_C:
+    case CC_DeviceKernel:
+    case CC_PreserveMost:
+    case CC_PreserveAll:
+    case CC_Swift:
+    case CC_SwiftAsync:
+      return CCCR_OK;
+    default:
+      return CCCR_Warning;
+    }
+  }
+};
+
+
 // x86-32 Cygwin target
 class LLVM_LIBRARY_VISIBILITY CygwinX86_32TargetInfo : public X86_32TargetInfo {
 public:

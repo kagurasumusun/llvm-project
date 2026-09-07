@@ -139,6 +139,9 @@ class LLVM_LIBRARY_VISIBILITY ARMTargetInfo : public TargetInfo {
   StringRef getCPUAttr() const;
   StringRef getCPUProfile() const;
 
+protected:
+  unsigned getArchVersion() const { return ArchVersion; }
+
 public:
   ARMTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts);
 
@@ -286,6 +289,18 @@ public:
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
 };
+
+class LLVM_LIBRARY_VISIBILITY WinCEARMTargetInfo : public WindowsARMTargetInfo {
+public:
+  WinCEARMTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts);
+
+  void getTargetDefines(const LangOptions &Opts,
+                        MacroBuilder &Builder) const override;
+
+  void getVisualStudioDefines(const LangOptions &Opts,
+                              MacroBuilder &Builder) const;
+};
+
 
 // ARM Cygwin target
 class LLVM_LIBRARY_VISIBILITY CygwinARMTargetInfo : public ARMleTargetInfo {

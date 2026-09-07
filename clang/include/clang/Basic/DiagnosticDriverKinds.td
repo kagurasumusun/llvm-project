@@ -22,6 +22,13 @@ def err_drv_unsupported_option_argument : Error<
   "unsupported argument '%1' to option '%0'">;
 def err_drv_unsupported_option_argument_for_target : Error<
   "unsupported argument '%1' to option '%0' for target '%2'">;
+def err_drv_unsupported_wince_version : Error<
+  "unsupported Windows CE version %0; the supported generations are "
+  "CE 4.x, 5.x and 6.0">;
+def err_drv_unsupported_wince_arch : Error<
+  "unsupported architecture '%0' for Windows CE target '%1'; this toolchain "
+  "ships WinCE import libraries for ARM and x86 only, and LLVM has no SuperH "
+  "backend for the SH3/SH4 CE generations">;
 def err_drv_unknown_stdin_type : Error<
   "-E or -x required when input is from standard input">;
 def err_drv_unknown_stdin_type_clang_cl : Error<
@@ -515,6 +522,11 @@ def warn_drv_overriding_deployment_version
 def warn_drv_overriding_complex_range : Warning<
   "'%1' sets complex range to \"%3\" overriding the setting of \"%2\" that was implied by '%0'">,
   InGroup<DiagGroup<"overriding-complex-range">>;
+def warn_drv_wince_sysroot_missing : Warning<
+  "'%0' (Windows CE sysroot) does not exist; compiling is possible but "
+  "linking will fail - assemble it with %1 in the llvm-project source "
+  "tree (or pass --sysroot=)">,
+  InGroup<DiagGroup<"wince-sysroot-missing">>;
 def warn_drv_treating_input_as_cxx : Warning<
   "treating '%0' input as '%1' when in C++ mode, this behavior is deprecated">,
   InGroup<Deprecated>;

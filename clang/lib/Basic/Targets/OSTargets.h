@@ -869,6 +869,8 @@ public:
 void addWindowsDefines(const llvm::Triple &Triple, const LangOptions &Opts,
                        MacroBuilder &Builder);
 
+void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder);
+
 // Windows target
 template <typename Target>
 class LLVM_LIBRARY_VISIBILITY WindowsTargetInfo : public OSTargetInfo<Target> {

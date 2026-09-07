@@ -293,7 +293,7 @@ void arm::setArchNameInTriple(const Driver &D, const ArgList &Args,
                       // Thumb2 is the default for Fuchsia.
                       Triple.isOSFuchsia() ||
                       // FIXME: this is invalid for WindowsCE
-                      Triple.isOSWindows();
+                      (Triple.isOSWindows() && !Triple.isWindowsCE());
 
   // Check if ARM ISA was explicitly selected (using -mno-thumb or -marm) for
   // M-Class CPUs/architecture variants, which is not supported.
@@ -342,7 +342,8 @@ void arm::setArchNameInTriple(const Driver &D, const ArgList &Args,
   // Assembly files should start in ARM mode, unless arch is M-profile, or
   // -mthumb has been passed explicitly to the assembler. Windows is always
   // thumb.
-  if (IsThumb || IsMProfile || Triple.isOSWindows()) {
+  if (IsThumb || IsMProfile ||
+      (Triple.isOSWindows() && !Triple.isWindowsCE())) {
     if (IsBigEndian)
       ArchName = "thumbeb";
     else
@@ -421,6 +422,9 @@ arm::FloatABI arm::getDefaultFloatABI(const llvm::Triple &Triple) {
 
   case llvm::Triple::WatchOS:
     return FloatABI::Hard;
+
+  case llvm::Triple::WinCE:
+    return FloatABI::Soft;
 
   // FIXME: this is invalid for WindowsCE
   case llvm::Triple::Win32:

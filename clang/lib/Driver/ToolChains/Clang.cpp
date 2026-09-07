@@ -5055,8 +5055,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString(NormalizedTriple));
   }
 
-  if (Triple.isOSWindows() && (Triple.getArch() == llvm::Triple::arm ||
-                               Triple.getArch() == llvm::Triple::thumb)) {
+  if (Triple.isOSWindows() && !Triple.isWindowsCE() &&
+      (Triple.getArch() == llvm::Triple::arm ||
+       Triple.getArch() == llvm::Triple::thumb)) {
     unsigned Offset = Triple.getArch() == llvm::Triple::arm ? 4 : 6;
     unsigned Version = 0;
     bool Failure =

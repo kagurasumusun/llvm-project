@@ -5190,6 +5190,11 @@ def mfpu_EQ : Joined<["-"], "mfpu=">, Group<m_Group>;
 def mhwdiv_EQ : Joined<["-"], "mhwdiv=">, Group<m_Group>;
 def mhwmult_EQ : Joined<["-"], "mhwmult=">, Group<m_Group>;
 } // let Flags = [TargetSpecific]
+def mpoke_function_name : Flag<["-"], "mpoke-function-name">, Group<m_Group>,
+  HelpText<"GCC ARM: embed function names before prologues (accepted, not implemented)">;
+def mno_poke_function_name : Flag<["-"], "mno-poke-function-name">, Group<m_Group>;
+def mwin32 : Flag<["-"], "mwin32">, Group<m_Group>,
+  HelpText<"GCC/MinGW MS-runtime flavor (no-op on this target)">;
 def mglobal_merge : Flag<["-"], "mglobal-merge">, Group<m_Group>,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Enable merging of globals">;
