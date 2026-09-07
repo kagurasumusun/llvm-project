@@ -25,7 +25,6 @@
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCParser/AsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
-#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
@@ -360,12 +359,16 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
                          SourceMgr &SrcMgr, MCContext &Ctx, MCStreamer &Str,
                          MCAsmInfo &MAI, MCSubtargetInfo &STI,
                          MCInstrInfo &MCII, MCTargetOptions const &MCOptions) {
-  std::unique_ptr<MCAsmParserExtension> ArmasmExt;
-
-  struct tm TimeParts = {};
+  const Triple &Target = Ctx.getTargetTriple();
+  if (MasmArmasmDialect &&
+      (!Target.isOSBinFormatCOFF() ||
+       (Target.getArch() != Triple::arm && Target.getArch() != Triple::thumb))) {
+    errs() << ProgName << ": error: armasm syntax requires an ARM COFF target\n";
+    return 1;
+  }
   std::unique_ptr<MCAsmParser> Parser(
       MasmArmasmDialect
-          ? createMCMasmParser(SrcMgr, Ctx, Str, MAI, TimeParts, 0)
+          ? createMCMasmParser(SrcMgr, Ctx, Str, MAI, std::tm{})
           : createMCAsmParser(SrcMgr, Ctx, Str, MAI));
   std::unique_ptr<MCTargetAsmParser> TAP(
       TheTarget->createMCAsmParser(STI, *Parser, MCII, MCOptions));
@@ -384,11 +387,6 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
   Parser->getLexer().setLexMasmIntegers(LexMasmIntegers);
   Parser->getLexer().setLexMasmHexFloats(LexMasmHexFloats);
   Parser->getLexer().setLexMotorolaIntegers(LexMotorolaIntegers);
-
-  if (MasmArmasmDialect) {
-    ArmasmExt.reset(createARMCOFFMasmParser());
-    ArmasmExt->Initialize(*Parser);
-  }
 
   int Res = Parser->Run(NoInitialTextSection);
 

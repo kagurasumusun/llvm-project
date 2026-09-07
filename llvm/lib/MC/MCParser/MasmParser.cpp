@@ -375,6 +375,7 @@ private:
   SourceMgr::DiagHandlerTy SavedDiagHandler;
   void *SavedDiagContext;
   std::unique_ptr<MCAsmParserExtension> PlatformParser;
+  std::unique_ptr<MCAsmParserExtension> TargetDirectiveParser;
 
   /// This is the current buffer index we're lexing from as managed by the
   /// SourceMgr object.
@@ -992,6 +993,11 @@ MasmParser::MasmParser(SourceMgr &SM, MCContext &Ctx, MCStreamer &Out,
 
   initializeDirectiveKindMap();
   PlatformParser->Initialize(*this);
+  const Triple &Target = Ctx.getTargetTriple();
+  if (Target.getArch() == Triple::arm || Target.getArch() == Triple::thumb) {
+    TargetDirectiveParser.reset(createARMCOFFMasmParser());
+    TargetDirectiveParser->Initialize(*this);
+  }
   initializeBuiltinSymbolMaps();
 
   NumOfMacroInstantiations = 0;

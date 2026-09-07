@@ -1,0 +1,4 @@
+# REQUIRES: arm-registered-target, x86-registered-target
+# RUN: not llvm-mc -triple x86_64-pc-windows -masm-armasm -filetype=obj %s -o %t.obj 2>&1 | FileCheck %s
+# RUN: not llvm-mc -triple arm-unknown-linux-gnueabi -masm-armasm -filetype=obj %s -o %t.obj 2>&1 | FileCheck %s
+# CHECK: error: armasm syntax requires an ARM COFF target
