@@ -39,6 +39,8 @@
 // No _LIBCPP_ELAST needed on Apple
 #elif defined(__MVS__)
 #  define _LIBCPP_ELAST 1160
+#elif defined(_WIN32_WCE)
+#  define _LIBCPP_ELAST 115
 #elif defined(_LIBCPP_MSVCRT_LIKE)
 #  define _LIBCPP_ELAST (_sys_nerr - 1)
 #elif defined(_AIX)

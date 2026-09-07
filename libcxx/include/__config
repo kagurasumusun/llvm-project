@@ -80,7 +80,7 @@
 #    include <features.h> // for __NATIVE_ASCII_F
 #  endif
 
-#  if defined(_WIN32)
+#  if defined(_WIN32) && !defined(_WIN32_WCE)
 #    define _LIBCPP_WIN32API
 #    define _LIBCPP_SHORT_WCHAR 1
 // Both MinGW and native MSVC provide a "MSVC"-like environment
@@ -96,6 +96,10 @@
 #      define _LIBCPP_HAS_BITSCAN64 0
 #    endif
 #    define _LIBCPP_HAS_OPEN_WITH_WCHAR 1
+#  elif defined(_WIN32_WCE)
+#    define _LIBCPP_SHORT_WCHAR 1
+#    define _LIBCPP_HAS_OPEN_WITH_WCHAR 1
+#    define _LIBCPP_HAS_BITSCAN64 0
 #  else
 #    define _LIBCPP_HAS_OPEN_WITH_WCHAR 0
 #    define _LIBCPP_HAS_BITSCAN64 0
@@ -144,6 +148,8 @@
 #    define _LIBCPP_USING_GETENTROPY
 #  elif defined(__Fuchsia__)
 #    define _LIBCPP_USING_FUCHSIA_CPRNG
+#  elif defined(_WIN32_WCE)
+#    define _LIBCPP_USING_CE_RANDOM
 #  elif defined(_LIBCPP_WIN32API)
 #    define _LIBCPP_USING_WIN32_RANDOM
 #  else
@@ -706,7 +712,7 @@ typedef __char32_t char32_t;
 #  endif
 
 #  if defined(__BIONIC__) || defined(__NuttX__) || defined(__Fuchsia__) || defined(__wasi__) ||                        \
-      _LIBCPP_HAS_MUSL_LIBC || defined(__OpenBSD__) || defined(__LLVM_LIBC__)
+      _LIBCPP_HAS_MUSL_LIBC || defined(__OpenBSD__) || defined(__LLVM_LIBC__) || defined(_WIN32_WCE)
 #    define _LIBCPP_PROVIDES_DEFAULT_RUNE_TABLE
 #  endif
 

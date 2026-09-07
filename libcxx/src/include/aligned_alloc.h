@@ -16,6 +16,11 @@
 #  pragma GCC system_header
 #endif
 
+#if defined(__MINGW32__) && !defined(_LIBCPP_MSVCRT_LIKE)
+extern "C" void* __mingw_aligned_malloc(std::size_t, std::size_t);
+extern "C" void __mingw_aligned_free(void*);
+#endif
+
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 #if _LIBCPP_HAS_LIBRARY_ALIGNED_ALLOCATION
@@ -27,7 +32,10 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 //
 // Returns the allocated memory, or `nullptr` on failure.
 inline _LIBCPP_HIDE_FROM_ABI void* __libcpp_aligned_alloc(std::size_t __alignment, std::size_t __size) {
-#  if defined(_LIBCPP_MSVCRT_LIKE)
+#  if defined(__MINGW32__) && !defined(_LIBCPP_MSVCRT_LIKE)
+  return ::__mingw_aligned_malloc(__size, __alignment);
+
+#  elif defined(_LIBCPP_MSVCRT_LIKE)
   return ::_aligned_malloc(__size, __alignment);
 
 // Android only provides aligned_alloc when targeting API 28 or higher.
@@ -51,7 +59,9 @@ inline _LIBCPP_HIDE_FROM_ABI void* __libcpp_aligned_alloc(std::size_t __alignmen
 }
 
 inline _LIBCPP_HIDE_FROM_ABI void __libcpp_aligned_free(void* __ptr) {
-#  if defined(_LIBCPP_MSVCRT_LIKE)
+#  if defined(__MINGW32__) && !defined(_LIBCPP_MSVCRT_LIKE)
+  ::__mingw_aligned_free(__ptr);
+#  elif defined(_LIBCPP_MSVCRT_LIKE)
   ::_aligned_free(__ptr);
 #  else
   ::free(__ptr);

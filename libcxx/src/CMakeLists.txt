@@ -95,7 +95,11 @@ if (LIBCXX_ENABLE_LOCALIZATION)
     )
 endif()
 
-if(WIN32)
+if(LIBCXX_TARGETS_WINCE)
+  list(APPEND LIBCXX_SOURCES
+    support/wince/locale_wince.cpp
+    )
+elseif(WIN32)
   list(APPEND LIBCXX_SOURCES
     support/win32/compiler_rt_shims.cpp
     support/win32/locale_win32.cpp

@@ -42,10 +42,12 @@
 #  define _LIBCPP_HAS_CLOCK_GETTIME
 #endif
 
-#if defined(_LIBCPP_WIN32API)
+#if defined(_LIBCPP_WIN32API) || defined(_WIN32_WCE)
 #  define WIN32_LEAN_AND_MEAN
 #  define VC_EXTRA_LEAN
 #  include <windows.h>
+#endif
+#if defined(_LIBCPP_WIN32API) && !defined(_WIN32_WCE)
 #  if _WIN32_WINNT >= _WIN32_WINNT_WIN8
 #    include <winapifamily.h>
 #  endif
@@ -71,7 +73,24 @@ namespace chrono {
 // system_clock
 //
 
-#if defined(_LIBCPP_WIN32API)
+#if defined(_WIN32_WCE)
+
+static system_clock::time_point __libcpp_system_clock_now() {
+  using filetime_duration =
+      std::chrono::duration<__int64, std::ratio_multiply<std::ratio<100, 1>, nanoseconds::period>>;
+
+  static constexpr const seconds nt_to_unix_epoch{11644473600};
+
+  SYSTEMTIME st;
+  FILETIME ft;
+  GetSystemTime(&st);
+  SystemTimeToFileTime(&st, &ft);
+
+  filetime_duration d{(static_cast<__int64>(ft.dwHighDateTime) << 32) | static_cast<__int64>(ft.dwLowDateTime)};
+  return system_clock::time_point(duration_cast<system_clock::duration>(d - nt_to_unix_epoch));
+}
+
+#elif defined(_LIBCPP_WIN32API)
 
 #  if _WIN32_WINNT < _WIN32_WINNT_WIN8
 
@@ -184,7 +203,7 @@ static steady_clock::time_point __libcpp_steady_clock_now() {
   return steady_clock::time_point(seconds(tp.tv_sec) + nanoseconds(tp.tv_nsec));
 }
 
-#  elif defined(_LIBCPP_WIN32API)
+#  elif defined(_LIBCPP_WIN32API) || defined(_WIN32_WCE)
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms644905(v=vs.85).aspx says:
 //    If the function fails, the return value is zero. <snip>

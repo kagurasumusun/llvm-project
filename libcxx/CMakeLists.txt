@@ -307,6 +307,10 @@ option(LIBCXX_HAS_EXTERNAL_THREAD_API
   "Build libc++ with an externalized threading API.
    This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON." OFF)
 
+if(CMAKE_C_COMPILER_TARGET MATCHES "(-|^)wince" OR CMAKE_CXX_COMPILER_TARGET MATCHES "(-|^)wince")
+  set(LIBCXX_TARGETS_WINCE ON)
+endif()
+
 if (LIBCXX_ENABLE_THREADS)
   set(LIBCXX_PSTL_BACKEND "std_thread" CACHE STRING "Which PSTL backend to use")
 else()
