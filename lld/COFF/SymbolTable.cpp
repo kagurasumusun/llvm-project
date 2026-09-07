@@ -509,6 +509,13 @@ void SymbolTable::resolveRemainingUndefines(std::vector<Undefined *> &aliases) {
     if (name.contains("_PchSym_"))
       continue;
 
+    if (ctx.config.wince &&
+        (name == "__text_start__" || name == "__text_end__" ||
+         name == "__exidx_start" || name == "__exidx_end")) {
+      undef->deferUndefined = true;
+      continue;
+    }
+
     if (ctx.config.autoImport && handleMinGWAutomaticImport(sym, name))
       continue;
 

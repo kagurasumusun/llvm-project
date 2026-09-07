@@ -549,6 +549,12 @@ static const uint8_t importThunkARM[] = {
     0xdc, 0xf8, 0x00, 0xf0, // ldr.w pc, [ip]
 };
 
+static const uint8_t importThunkARMCE[] = {
+    0x00, 0xc0, 0x9f, 0xe5,
+    0x00, 0xf0, 0x9c, 0xe5,
+    0x00, 0x00, 0x00, 0x00,
+};
+
 static const uint8_t importThunkARM64[] = {
     0x10, 0x00, 0x00, 0x90, // adrp x16, #0
     0x10, 0x02, 0x40, 0xf9, // ldr  x16, [x16]
@@ -608,6 +614,20 @@ public:
   void getBaserels(std::vector<Baserel> *res) override;
   void writeTo(uint8_t *buf) const override;
   MachineTypes getMachine() const override { return ARMNT; }
+};
+
+class ImportThunkChunkARMCE : public ImportThunkChunk {
+public:
+  explicit ImportThunkChunkARMCE(COFFLinkerContext &ctx, Defined *s)
+      : ImportThunkChunk(ctx, s) {
+    setAlignment(4);
+  }
+  size_t getSize() const override { return sizeof(importThunkARMCE); }
+  void getBaserels(std::vector<Baserel> *res) override;
+  void writeTo(uint8_t *buf) const override;
+  MachineTypes getMachine() const override {
+    return llvm::COFF::IMAGE_FILE_MACHINE_ARM;
+  }
 };
 
 class ImportThunkChunkARM64 : public ImportThunkChunk {
@@ -677,6 +697,44 @@ public:
 
 private:
   MachineTypes machine;
+};
+
+class RangeExtensionThunkARMCE : public NonSectionCodeChunk {
+public:
+  explicit RangeExtensionThunkARMCE(COFFLinkerContext &ctx, Defined *t)
+      : target(t), ctx(ctx) {
+    setAlignment(4);
+  }
+  size_t getSize() const override { return 12; }
+  void writeTo(uint8_t *buf) const override;
+  void getBaserels(std::vector<Baserel> *res) override;
+  MachineTypes getMachine() const override {
+    return llvm::COFF::IMAGE_FILE_MACHINE_ARM;
+  }
+
+  Defined *target;
+
+private:
+  COFFLinkerContext &ctx;
+};
+
+class RangeExtensionThunkARMCEThumb : public NonSectionCodeChunk {
+public:
+  explicit RangeExtensionThunkARMCEThumb(COFFLinkerContext &ctx, Defined *t)
+      : target(t), ctx(ctx) {
+    setAlignment(4);
+  }
+  size_t getSize() const override { return 16; }
+  void writeTo(uint8_t *buf) const override;
+  void getBaserels(std::vector<Baserel> *res) override;
+  MachineTypes getMachine() const override {
+    return llvm::COFF::IMAGE_FILE_MACHINE_ARM;
+  }
+
+  Defined *target;
+
+private:
+  COFFLinkerContext &ctx;
 };
 
 // A chunk used to guarantee the same address for a function in both views of

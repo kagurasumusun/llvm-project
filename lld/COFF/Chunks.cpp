@@ -195,6 +195,41 @@ void applyMOV32T(uint8_t *off, uint32_t v) {
   applyMOV(off + 4, v >> 16); // set MOVT operand
 }
 
+static void applyMOVA(uint8_t *off, uint32_t v) {
+  uint32_t instr = read32le(off);
+  write32le(off, (instr & 0xFFF0F000u) | ((v & 0xF000u) << 4) | (v & 0xFFFu));
+}
+
+static void applyMOV32A(uint8_t *off, uint32_t v) {
+  applyMOVA(off, v & 0xFFFF);
+  applyMOVA(off + 4, v >> 16);
+}
+
+static void applyBranch24A(uint8_t *off, int32_t v) {
+  uint32_t instr = read32le(off);
+  bool isBlx = (instr & 0xFE000000u) == 0xFA000000u;
+  if (isBlx && (v & 1) == 0) {
+    if (!isInt<26>(v))
+      error("relocation out of range");
+    write32le(off, 0xEB000000u | ((v >> 2) & 0x00FFFFFFu));
+    return;
+  }
+  if (isBlx) {
+    if (!isInt<26>(v & ~3))
+      error("relocation out of range");
+    uint32_t h = (v >> 1) & 1;
+    write32le(off, (instr & 0xFE000000u) | (h << 24) |
+                       (((v & ~3) >> 2) & 0x00FFFFFFu));
+    return;
+  }
+  if (v & 1)
+    error("ARM BL references a Thumb symbol; use BLX (ARMv5T+) or an "
+          "interworking veneer");
+  if (!isInt<26>(v))
+    error("relocation out of range");
+  write32le(off, (instr & 0xFF000000u) | ((v >> 2) & 0x00FFFFFFu));
+}
+
 static void applyBranch20T(uint8_t *off, int32_t v) {
   if (!isInt<21>(v))
     error("relocation out of range");
@@ -221,7 +256,8 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
                                uint64_t imageBase) const {
   // Pointer to thumb code must have the LSB set.
   uint64_t sx = s;
-  if (os && (os->header.Characteristics & IMAGE_SCN_MEM_EXECUTE))
+  if (file->symtab.ctx.config.machine == COFF::IMAGE_FILE_MACHINE_ARMNT &&
+      os && (os->header.Characteristics & IMAGE_SCN_MEM_EXECUTE))
     sx |= 1;
   switch (type) {
   case IMAGE_REL_ARM_ADDR32:
@@ -231,9 +267,13 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
   case IMAGE_REL_ARM_MOV32T:
     applyMOV32T(off, sx + imageBase);
     break;
+  case IMAGE_REL_ARM_MOV32A:
+    applyMOV32A(off, sx + imageBase);
+    break;
   case IMAGE_REL_ARM_BRANCH20T: applyBranch20T(off, sx - p - 4); break;
   case IMAGE_REL_ARM_BRANCH24T: applyBranch24T(off, sx - p - 4); break;
   case IMAGE_REL_ARM_BLX23T:    applyBranch24T(off, sx - p - 4); break;
+  case IMAGE_REL_ARM_BRANCH24:  applyBranch24A(off, sx - p - 8); break;
   case IMAGE_REL_ARM_SECTION:
     applySecIdx(off, os, file->symtab.ctx.outputSections.size());
     break;
@@ -460,6 +500,7 @@ void SectionChunk::applyRelocation(uint8_t *off,
   case Triple::x86:
     applyRelX86(off, rel.Type, os, s, p, imageBase);
     break;
+  case Triple::arm:
   case Triple::thumb:
     applyRelARM(off, rel.Type, os, s, p, imageBase);
     break;
@@ -542,6 +583,7 @@ static uint8_t getBaserelType(const coff_relocation &rel,
     if (rel.Type == IMAGE_REL_I386_DIR32)
       return IMAGE_REL_BASED_HIGHLOW;
     return IMAGE_REL_BASED_ABSOLUTE;
+  case Triple::arm:
   case Triple::thumb:
     if (rel.Type == IMAGE_REL_ARM_ADDR32)
       return IMAGE_REL_BASED_HIGHLOW;
@@ -646,6 +688,7 @@ static int getRuntimePseudoRelocSize(uint16_t type, Triple::ArchType arch) {
     default:
       return 0;
     }
+  case Triple::arm:
   case Triple::thumb:
     switch (type) {
     case IMAGE_REL_ARM_ADDR32:
@@ -835,6 +878,15 @@ void ImportThunkChunkARM::writeTo(uint8_t *buf) const {
   applyMOV32T(buf, impSymbol->getRVA() + ctx.config.imageBase);
 }
 
+void ImportThunkChunkARMCE::getBaserels(std::vector<Baserel> *res) {
+  res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
+}
+
+void ImportThunkChunkARMCE::writeTo(uint8_t *buf) const {
+  memcpy(buf, importThunkARMCE, sizeof(importThunkARMCE));
+  write32le(buf + 8, impSymbol->getRVA() + ctx.config.imageBase);
+}
+
 void ImportThunkChunkARM64::writeTo(uint8_t *buf) const {
   int64_t off = impSymbol->getRVA() & 0xfff;
   memcpy(buf, importThunkARM64, sizeof(importThunkARM64));
@@ -871,6 +923,38 @@ const uint8_t arm64Thunk[] = {
 };
 
 size_t RangeExtensionThunkARM64::getSize() const { return sizeof(arm64Thunk); }
+
+const uint8_t rangeExtThunkARMCE[] = {
+    0x00, 0xc0, 0x9f, 0xe5,
+    0x1c, 0xff, 0x2f, 0xe1,
+};
+
+void RangeExtensionThunkARMCE::writeTo(uint8_t *buf) const {
+  memcpy(buf, rangeExtThunkARMCE, sizeof(rangeExtThunkARMCE));
+  write32le(buf + 8, uint32_t(target->getRVA() + ctx.config.imageBase));
+}
+
+void RangeExtensionThunkARMCE::getBaserels(std::vector<Baserel> *res) {
+  res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
+}
+
+
+const uint8_t rangeExtThunkARMCEThumb[] = {
+    0x78, 0x47,
+    0xc0, 0x46,
+    0x00, 0xc0, 0x9f, 0xe5,
+    0x1c, 0xff, 0x2f, 0xe1,
+};
+
+void RangeExtensionThunkARMCEThumb::writeTo(uint8_t *buf) const {
+  memcpy(buf, rangeExtThunkARMCEThumb, sizeof(rangeExtThunkARMCEThumb));
+  uint32_t dest = uint32_t(target->getRVA() + ctx.config.imageBase);
+  write32le(buf + 12, dest);
+}
+
+void RangeExtensionThunkARMCEThumb::getBaserels(std::vector<Baserel> *res) {
+  res->emplace_back(getRVA() + 12, IMAGE_REL_BASED_HIGHLOW);
+}
 
 void RangeExtensionThunkARM64::writeTo(uint8_t *buf) const {
   memcpy(buf, arm64Thunk, sizeof(arm64Thunk));

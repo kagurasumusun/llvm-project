@@ -225,7 +225,7 @@ private:
   void assignAddresses();
   bool isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
                  MachineTypes machine);
-  std::pair<Defined *, bool> getThunk(DenseMap<uint64_t, Defined *> &lastThunks,
+  std::pair<Defined *, bool> getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks,
                                       Defined *target, uint64_t p,
                                       uint16_t type, int margin,
                                       MachineTypes machine);
@@ -243,6 +243,8 @@ private:
   void createECChunks();
   void insertCtorDtorSymbols();
   void insertBssDataStartEndSymbols();
+  void insertEXIdxBoundsSymbols();
+  void insertTextStartEndSymbols();
   void markSymbolsWithRelocations(ObjFile *file, SymbolRVASet &usedSymbols);
   void createGuardCFTables();
   void markSymbolsForRVATable(ObjFile *file,
@@ -422,7 +424,14 @@ void OutputSection::splitECChunks() {
 // of type relType at address P.
 bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
                        MachineTypes machine) {
-  if (machine == ARMNT) {
+  if (machine == ARMNT || machine == IMAGE_FILE_MACHINE_ARM) {
+    if (relType == IMAGE_REL_ARM_BRANCH24) {
+      if (machine == IMAGE_FILE_MACHINE_ARM) {
+        int64_t diff = AbsoluteDifference(s, p + 8) + margin;
+        return isInt<26>(diff & ~3);
+      }
+      return true;
+    }
     int64_t diff = AbsoluteDifference(s, p + 4) + margin;
     switch (relType) {
     case IMAGE_REL_ARM_BRANCH20T:
@@ -453,21 +462,33 @@ bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
 // Return the last thunk for the given target if it is in range,
 // or create a new one.
 std::pair<Defined *, bool>
-Writer::getThunk(DenseMap<uint64_t, Defined *> &lastThunks, Defined *target,
+Writer::getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks, Defined *target,
                  uint64_t p, uint16_t type, int margin, MachineTypes machine) {
-  Defined *&lastThunk = lastThunks[target->getRVA()];
+  const uint8_t kind =
+      (machine == IMAGE_FILE_MACHINE_ARM &&
+       (type == IMAGE_REL_ARM_BRANCH24T || type == IMAGE_REL_ARM_BRANCH20T))
+          ? 1
+          : 0;
+  Defined *&lastThunk = lastThunks[{target->getRVA(), kind}];
   if (lastThunk && isInRange(type, lastThunk->getRVA(), p, margin, machine))
     return {lastThunk, false};
   Chunk *c;
-  switch (getMachineArchType(machine)) {
-  case Triple::thumb:
-    c = make<RangeExtensionThunkARM>(ctx, target);
-    break;
-  case Triple::aarch64:
-    c = make<RangeExtensionThunkARM64>(machine, target);
-    break;
-  default:
-    llvm_unreachable("Unexpected architecture");
+  if (machine == IMAGE_FILE_MACHINE_ARM) {
+    if (kind)
+      c = make<RangeExtensionThunkARMCEThumb>(ctx, target);
+    else
+      c = make<RangeExtensionThunkARMCE>(ctx, target);
+  } else {
+    switch (getMachineArchType(machine)) {
+    case Triple::thumb:
+      c = make<RangeExtensionThunkARM>(ctx, target);
+      break;
+    case Triple::aarch64:
+      c = make<RangeExtensionThunkARM64>(machine, target);
+      break;
+    default:
+      llvm_unreachable("Unexpected architecture");
+    }
   }
   Defined *d = make<DefinedSynthetic>("range_extension_thunk", c);
   lastThunk = d;
@@ -487,7 +508,7 @@ Writer::getThunk(DenseMap<uint64_t, Defined *> &lastThunks, Defined *target,
 // the previously created thunks) and retry with a wider margin.
 bool Writer::createThunks(OutputSection *os, int margin) {
   bool addressesChanged = false;
-  DenseMap<uint64_t, Defined *> lastThunks;
+  DenseMap<std::pair<uint64_t, uint8_t>, Defined *> lastThunks;
   DenseMap<std::pair<ObjFile *, Defined *>, uint32_t> thunkSymtabIndices;
   size_t thunksSize = 0;
   // Recheck Chunks.size() each iteration, since we can insert more
@@ -662,7 +683,9 @@ bool Writer::verifyRanges(const std::vector<Chunk *> chunks) {
 // Assign addresses and add thunks if necessary.
 void Writer::finalizeAddresses() {
   assignAddresses();
-  if (ctx.config.machine != ARMNT && !isAnyArm64(ctx.config.machine))
+  if (ctx.config.machine != ARMNT &&
+      ctx.config.machine != IMAGE_FILE_MACHINE_ARM &&
+      !isAnyArm64(ctx.config.machine))
     return;
 
   size_t origNumChunks = 0;
@@ -842,6 +865,9 @@ void Writer::run() {
 
 static StringRef getOutputSectionName(StringRef name) {
   StringRef s = name.split('$').first;
+
+  if (s.starts_with(".ARM."))
+    return s;
 
   // Treat a later period as a separator for MinGW, for sections like
   // ".ctors.01234".
@@ -1308,6 +1334,10 @@ void Writer::createMiscChunks() {
   if (config->mingw) {
     insertCtorDtorSymbols();
     insertBssDataStartEndSymbols();
+  } else if (config->wince) {
+    insertCtorDtorSymbols();
+    insertTextStartEndSymbols();
+    insertEXIdxBoundsSymbols();
   }
 }
 
@@ -1584,7 +1614,8 @@ void Writer::createSymbolAndStringTable() {
   for (OutputSection *sec : ctx.outputSections) {
     if (sec->name.size() <= COFF::NameSize)
       continue;
-    if ((sec->header.Characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0)
+    if ((sec->header.Characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0 &&
+        sec->name != ".ARM.exidx" && sec->name != ".ARM.extab")
       continue;
     if (ctx.config.warnLongSectionNames) {
       Warn(ctx)
@@ -2451,6 +2482,19 @@ void Writer::createRuntimePseudoRelocs() {
 // There's a symbol pointing to the start sentinel pointer, __CTOR_LIST__
 // and __DTOR_LIST__ respectively.
 void Writer::insertCtorDtorSymbols() {
+  if (ctx.config.wince) {
+    auto bySectionName = [](const Chunk *a, const Chunk *b, bool Reverse) {
+      return Reverse ? a->getSectionName() > b->getSectionName()
+                     : a->getSectionName() < b->getSectionName();
+    };
+    llvm::stable_sort(ctorsSec->chunks, [&](const Chunk *a, const Chunk *b) {
+      return bySectionName(a, b,             true);
+    });
+    llvm::stable_sort(dtorsSec->chunks, [&](const Chunk *a, const Chunk *b) {
+      return bySectionName(a, b,             false);
+    });
+  }
+
   ctx.forEachSymtab([&](SymbolTable &symtab) {
     AbsolutePointerChunk *ctorListHead = make<AbsolutePointerChunk>(symtab, -1);
     AbsolutePointerChunk *ctorListEnd = make<AbsolutePointerChunk>(symtab, 0);
@@ -2473,6 +2517,43 @@ void Writer::insertCtorDtorSymbols() {
     ctorsSec->splitECChunks();
     dtorsSec->splitECChunks();
   }
+}
+
+void Writer::insertTextStartEndSymbols() {
+  auto bind = [&](StringRef name, Chunk *chunk, uint64_t extra = 0) {
+    Symbol *s = ctx.symtab.find(name);
+    if (!s)
+      return;
+    if (!isa<Undefined>(s) && !isa<DefinedAbsolute>(s))
+      return;
+    if (!chunk)
+      Fatal(ctx) << "undefined symbol: " << name
+                 << " (referenced, but image has no .text to bind)";
+    replaceSymbol<DefinedSynthetic>(s, s->getName(), chunk, extra);
+  };
+  OutputSection *sec = textSec ? textSec : findSection(".text");
+  Chunk *first = (sec && !sec->chunks.empty()) ? sec->chunks.front() : nullptr;
+  Chunk *last = (sec && !sec->chunks.empty()) ? sec->chunks.back() : nullptr;
+  bind("__text_start__", first);
+  bind("__text_end__", last, last ? last->getSize() : 0);
+}
+
+void Writer::insertEXIdxBoundsSymbols() {
+  Symbol *startSym = ctx.symtab.find("__exidx_start");
+  Symbol *endSym = ctx.symtab.find("__exidx_end");
+  if (!startSym && !endSym)
+    return;
+  OutputSection *exidxSec = findSection(".ARM.exidx");
+  if (!exidxSec || exidxSec->chunks.empty())
+    Fatal(ctx) << "undefined symbol: __exidx_start/__exidx_end referenced, "
+                 "but the image has no .ARM.exidx section to bind to";
+  Chunk *last = exidxSec->chunks.back();
+  if (startSym && isa<Undefined>(startSym))
+    replaceSymbol<DefinedSynthetic>(startSym, startSym->getName(),
+                                    exidxSec->chunks.front());
+  if (endSym && isa<Undefined>(endSym))
+    replaceSymbol<DefinedSynthetic>(endSym, endSym->getName(), last,
+                                    last->getSize());
 }
 
 // MinGW (really, Cygwin) specific.
