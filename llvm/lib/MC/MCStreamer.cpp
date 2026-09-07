@@ -864,16 +864,19 @@ static MCSection *getWinCFISection(MCContext &Context, unsigned *NextWinCFIID,
   return Context.getAssociativeCOFFSection(MainCFISecCOFF, KeySym, UniqueID);
 }
 
+MCSection *MCStreamer::getAssociatedUnwindSection(const MCSection *TextSec,
+                                                  MCSection *UnwindSec) {
+  return getWinCFISection(getContext(), &NextWinCFIID, UnwindSec, TextSec);
+}
+
 MCSection *MCStreamer::getAssociatedPDataSection(const MCSection *TextSec) {
-  return getWinCFISection(getContext(), &NextWinCFIID,
-                          getContext().getObjectFileInfo()->getPDataSection(),
-                          TextSec);
+  return getAssociatedUnwindSection(
+      TextSec, getContext().getObjectFileInfo()->getPDataSection());
 }
 
 MCSection *MCStreamer::getAssociatedXDataSection(const MCSection *TextSec) {
-  return getWinCFISection(getContext(), &NextWinCFIID,
-                          getContext().getObjectFileInfo()->getXDataSection(),
-                          TextSec);
+  return getAssociatedUnwindSection(
+      TextSec, getContext().getObjectFileInfo()->getXDataSection());
 }
 
 void MCStreamer::emitSyntaxDirective() {}

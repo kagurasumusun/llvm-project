@@ -1047,6 +1047,9 @@ public:
   virtual void emitCGProfileEntry(const MCSymbolRefExpr *From,
                                   const MCSymbolRefExpr *To, uint64_t Count);
 
+  MCSection *getAssociatedUnwindSection(const MCSection *TextSec,
+                                        MCSection *UnwindSec);
+
   /// Get the .pdata section used for the given section. Typically the given
   /// section is either the main .text section or some other COMDAT .text
   /// section, but it may be any section containing code.

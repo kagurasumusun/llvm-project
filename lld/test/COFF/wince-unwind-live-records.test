@@ -1,0 +1,53 @@
+# REQUIRES: arm-registered-target
+# RUN: split-file %s %t
+# RUN: llvm-mc -triple arm-unknown-wince -filetype=obj %t/winner.s -o %t/winner.obj
+# RUN: llvm-mc -triple arm-unknown-wince -filetype=obj %t/mixed.s -o %t/mixed.obj
+# RUN: llvm-readobj --symbols %t/mixed.obj | FileCheck %s --check-prefix=OBJ
+# RUN: lld-link -wince /entry:entry /subsystem:windowsce /base:0x10000 /fixed /out:%t.exe %t/winner.obj %t/mixed.obj
+# RUN: llvm-readobj --sections %t.exe | FileCheck %s --check-prefix=IMAGE
+# RUN: llvm-readobj --file-headers %t.exe | FileCheck %s --check-prefix=DIR
+
+# OBJ-COUNT-2: Selection: Associative (0x5)
+# OBJ-NOT: Selection: Associative (0x5)
+# IMAGE: Name: .ARM.exidx
+# IMAGE: VirtualSize: 0x10
+# DIR: ExceptionTableSize: 0x10
+
+#--- winner.s
+        .syntax unified
+        .arm
+        .section .text$same,"xr",discard,same
+        .globl same
+same:
+        .fnstart
+        .cantunwind
+        .seh_proc same
+        .seh_endprologue
+        bx lr
+        .fnend
+        .seh_endproc
+
+#--- mixed.s
+        .syntax unified
+        .arm
+        .text
+        .globl entry
+entry:
+        .fnstart
+        .cantunwind
+        .seh_proc entry
+        .seh_endprologue
+        b same
+        .fnend
+        .seh_endproc
+
+        .section .text$same,"xr",discard,same
+        .globl same
+same:
+        .fnstart
+        .cantunwind
+        .seh_proc same
+        .seh_endprologue
+        bx lr
+        .fnend
+        .seh_endproc

@@ -138,6 +138,7 @@ ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU(bool IsWinCE) {
   AlignmentIsInBytes = false;
   HasSingleParameterDotFile = true;
   AllowBareLabels = IsWinCE;
+  HasCOFFAssociativeComdats = IsWinCE;
 
   CommentString = "@";
   AllowDollarAtStartOfIdentifier = false;
