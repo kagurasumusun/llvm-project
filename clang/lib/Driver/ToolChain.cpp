@@ -687,7 +687,7 @@ static StringRef getArchNameForCompilerRTLib(const ToolChain &TC,
   if (TC.isBareMetal())
     return Triple.getArchName();
 
-  if (TC.getArch() == llvm::Triple::arm || TC.getArch() == llvm::Triple::armeb)
+  if (Triple.isARM() || Triple.isThumb())
     return (arm::getARMFloatABI(TC, Args) == arm::FloatABI::Hard && !IsWindows)
                ? "armhf"
                : "arm";
@@ -1126,6 +1126,11 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
       }
     }
     getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
+    return GetProgramPath(getDefaultLinker());
+  }
+  if (UseLinker == "lld" && StringRef(getDefaultLinker()) == "lld-link") {
+    if (LinkerIsLLD)
+      *LinkerIsLLD = true;
     return GetProgramPath(getDefaultLinker());
   }
   // If we're passed -fuse-ld= with no argument, or with the argument ld,

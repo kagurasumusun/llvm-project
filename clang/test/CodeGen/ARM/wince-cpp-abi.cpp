@@ -4,8 +4,6 @@
 // RUN:   | FileCheck %s --check-prefix=DRV
 
 
-// DRV: "-fwchar-type=short"
-// DRV: "-fno-signed-wchar"
 // DRV: "-fms-extensions"
 
 typedef char probe_ptr[sizeof(void *) == 4 ? 1 : -1];

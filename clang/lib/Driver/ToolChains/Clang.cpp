@@ -4910,6 +4910,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       (IsCuda || IsHIP) ? TC.getAuxTriple() : nullptr;
   bool IsWindowsMSVC = RawTriple.isWindowsMSVCEnvironment();
   bool IsUEFI = RawTriple.isUEFI();
+  bool IsWindowsCE = RawTriple.isWindowsCE();
   bool IsIAMCU = RawTriple.isOSIAMCU();
 
   // Adjust IsWindowsXYZ for CUDA/HIP/SYCL compilations.  Even when compiling in
@@ -7157,18 +7158,19 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // -fms-extensions=0 is default.
   if (Args.hasFlag(options::OPT_fms_extensions, options::OPT_fno_ms_extensions,
-                   IsWindowsMSVC || IsUEFI))
+                   IsWindowsMSVC || IsWindowsCE || IsUEFI))
     CmdArgs.push_back("-fms-extensions");
 
   // -fms-compatibility=0 is default.
   bool IsMSVCCompat = Args.hasFlag(
       options::OPT_fms_compatibility, options::OPT_fno_ms_compatibility,
-      (IsWindowsMSVC && Args.hasFlag(options::OPT_fms_extensions,
-                                     options::OPT_fno_ms_extensions, true)));
+      IsWindowsCE ||
+          (IsWindowsMSVC && Args.hasFlag(options::OPT_fms_extensions,
+                                        options::OPT_fno_ms_extensions, true)));
   if (IsMSVCCompat) {
     CmdArgs.push_back("-fms-compatibility");
     if (!types::isCXX(Input.getType()) &&
-        Args.hasArg(options::OPT_fms_define_stdc))
+        (IsWindowsCE || Args.hasArg(options::OPT_fms_define_stdc)))
       CmdArgs.push_back("-fms-define-stdc");
   }
 
@@ -7190,6 +7192,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       D.Diag(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
     }
+  } else if (IsWindowsCE) {
+    GNUCVer = VersionTuple(14, 2);
   } else if (!IsMSVCCompat) {
     // Imitate GCC 4.2.1 by default if -fms-compatibility is not in effect.
     GNUCVer = VersionTuple(4, 2, 1);
@@ -7200,6 +7204,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   VersionTuple MSVT = TC.computeMSVCVersion(&D, Args);
+  if (MSVT.empty() && IsWindowsCE &&
+      !Args.hasArg(options::OPT_fmsc_version,
+                   options::OPT_fms_compatibility_version))
+    MSVT = VersionTuple(19, 0);
   if (!MSVT.empty())
     CmdArgs.push_back(
         Args.MakeArgString("-fms-compatibility-version=" + MSVT.getAsString()));
@@ -7280,8 +7288,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fgnu_keywords,
                   options::OPT_fno_gnu_keywords);
 
-  Args.addOptInFlag(CmdArgs, options::OPT_fgnu89_inline,
-                    options::OPT_fno_gnu89_inline);
+  if (Args.hasFlag(options::OPT_fgnu89_inline, options::OPT_fno_gnu89_inline,
+                   IsWindowsCE && !types::isCXX(Input.getType())))
+    CmdArgs.push_back("-fgnu89-inline");
 
   const Arg *InlineArg = Args.getLastArg(options::OPT_finline_functions,
                                          options::OPT_finline_hint_functions,
@@ -7322,7 +7331,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // able to disable this by default at some point.
   if (Args.hasFlag(options::OPT_fdelayed_template_parsing,
                    options::OPT_fno_delayed_template_parsing,
-                   IsWindowsMSVC && !HaveCxx20)) {
+                   (IsWindowsMSVC || (IsWindowsCE && D.IsCLMode())) &&
+                       !HaveCxx20)) {
     if (HaveCxx20)
       D.Diag(clang::diag::warn_drv_delayed_template_parsing_after_cxx20);
 
@@ -7466,7 +7476,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-Qn");
 
   // -fno-common is the default, set -fcommon only when that flag is set.
-  Args.addOptInFlag(CmdArgs, options::OPT_fcommon, options::OPT_fno_common);
+  if (Args.hasFlag(options::OPT_fcommon, options::OPT_fno_common,
+                   IsWindowsCE && !types::isCXX(Input.getType())))
+    CmdArgs.push_back("-fcommon");
 
   // -fsigned-bitfields is default, and clang doesn't yet support
   // -funsigned-bitfields.

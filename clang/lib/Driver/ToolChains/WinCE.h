@@ -1,15 +1,14 @@
 #ifndef LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_WINCE_H
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_WINCE_H
 
-#include "Gnu.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 
 namespace clang {
 namespace driver {
 namespace tools {
-
 namespace wince {
+
 class LLVM_LIBRARY_VISIBILITY Linker final : public Tool {
 public:
   Linker(const ToolChain &TC) : Tool("WinCE::Linker", "linker", TC) {}
@@ -22,12 +21,13 @@ public:
                     const llvm::opt::ArgList &TCArgs,
                     const char *LinkingOutput) const override;
 };
+
 }
 }
 
 namespace toolchains {
 
-class LLVM_LIBRARY_VISIBILITY WinCE : public Generic_GCC {
+class LLVM_LIBRARY_VISIBILITY WinCE : public ToolChain {
 public:
   WinCE(const Driver &D, const llvm::Triple &Triple,
         const llvm::opt::ArgList &Args);
@@ -51,30 +51,35 @@ public:
   }
   bool isPICDefaultForced() const override { return false; }
 
-  CXXStdlibType GetCXXStdlibType(const llvm::opt::ArgList &Args) const override;
+  const char *getDefaultLinker() const override { return "lld-link"; }
+  RuntimeLibType GetDefaultRuntimeLibType() const override {
+    return RLT_CompilerRT;
+  }
+  CXXStdlibType GetDefaultCXXStdlibType() const override { return CST_Libcxx; }
 
-  void
-  AddClangSystemIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                            llvm::opt::ArgStringList &CC1Args) const override;
-  void
-  addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
-                        llvm::opt::ArgStringList &CC1Args,
-                        Action::OffloadKind DeviceOffloadKind) const override;
+  std::string computeSysRoot() const override;
+  std::string getCompilerRTPath() const override;
+
+  void AddClangSystemIncludeArgs(
+      const llvm::opt::ArgList &DriverArgs,
+      llvm::opt::ArgStringList &CC1Args) const override;
+  void addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
+                             llvm::opt::ArgStringList &CC1Args,
+                             Action::OffloadKind DeviceOffloadKind) const override;
   void AddClangCXXStdlibIncludeArgs(
       const llvm::opt::ArgList &DriverArgs,
       llvm::opt::ArgStringList &CC1Args) const override;
   void AddCXXStdlibLibArgs(const llvm::opt::ArgList &Args,
-                           llvm::opt::ArgStringList &CmdArgs) const override;
+                          llvm::opt::ArgStringList &CmdArgs) const override;
 
   unsigned GetDefaultDwarfVersion() const override { return 4; }
 
-  StringRef getSysRootPath() const { return SysRootPath; }
-
 protected:
+  Tool *buildAssembler() const override;
   Tool *buildLinker() const override;
 
 private:
-  std::string SysRootPath;
+  std::string SysRoot;
 };
 
 }

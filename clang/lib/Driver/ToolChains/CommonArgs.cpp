@@ -2393,7 +2393,7 @@ static void AddUnwindLibrary(const ToolChain &TC, const Driver &D,
   bool AsNeeded = LGT == LibGccType::UnspecifiedLibGcc &&
                   (UNW == ToolChain::UNW_CompilerRT || !D.CCCIsCXX()) &&
                   !TC.getTriple().isAndroid() &&
-                  !TC.getTriple().isOSCygMing() && !TC.getTriple().isOSAIX();
+                  !TC.getTriple().isOSBinFormatCOFF() && !TC.getTriple().isOSAIX();
   if (AsNeeded)
     addAsNeededOption(TC, Args, CmdArgs, true);
 
@@ -2416,7 +2416,7 @@ static void AddUnwindLibrary(const ToolChain &TC, const Driver &D,
     } else if (LGT == LibGccType::StaticLibGcc) {
       CmdArgs.push_back("-l:libunwind.a");
     } else if (LGT == LibGccType::SharedLibGcc) {
-      if (TC.getTriple().isOSCygMing())
+      if (TC.getTriple().isOSBinFormatCOFF())
         CmdArgs.push_back("-l:libunwind.dll.a");
       else
         CmdArgs.push_back("-l:libunwind.so");

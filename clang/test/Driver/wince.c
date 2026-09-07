@@ -21,7 +21,7 @@
 // MSFLAGS: "-fms-extensions"
 // MSFLAGS: "-fms-compatibility"
 // MSFLAGS-NOT: "-fdelayed-template-parsing"
-// MSFLAGS: "-fms-compatibility-version=1900"
+// MSFLAGS: "-fms-compatibility-version=19.0"
 // MSFLAGS: "-fgnu89-inline"
 // MSFLAGS: "-fcommon"
 
@@ -233,7 +233,7 @@
 // PTHREAD: libpthread.a
 
 
-// RUN: %clang -target arm-pc-wince -x c++ %s -o /dev/null -### 2>&1 \
+// RUN: %clang --driver-mode=g++ -target arm-pc-wince -x c++ %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CXX
 // CXX: libc++.a
 // CXX: libc++abi.a
