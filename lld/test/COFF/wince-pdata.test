@@ -1,0 +1,18 @@
+REQUIRES: arm-registered-target
+
+
+
+RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.second.o %S/Inputs/wince-pdata-second.s
+RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.first.o %S/Inputs/wince-pdata-first.s
+RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:second /base:0x10000 /fixed %t.second.o %t.first.o
+
+
+
+RUN: llvm-readobj --headers %t.exe | FileCheck %s --check-prefix=HDR
+HDR:      ExceptionTableRVA: 0x2000
+HDR-NEXT: ExceptionTableSize: 0x10
+
+
+RUN: llvm-objdump -s --section=.pdata %t.exe | FileCheck %s --check-prefix=PDATA
+PDATA:      Contents of section .pdata:
+PDATA-NEXT: 12000 0d100100 01040080 1d100100 01030080

@@ -1,0 +1,40 @@
+# REQUIRES: arm-registered-target
+# RUN: split-file %s %t
+# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t1.obj %t/1.s
+# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t2.obj %t/2.s
+# RUN: lld-link -wince -debug /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t1.obj %t2.obj
+# RUN: llvm-pdbutil dump -summary %t.pdb | FileCheck %s --check-prefix=SUMMARY
+# RUN: llvm-pdbutil dump -modules %t.pdb | FileCheck %s --check-prefix=MODULES
+# RUN: llvm-pdbutil dump -publics %t.pdb | FileCheck %s --check-prefix=PUBS
+
+
+# SUMMARY: Summary
+# SUMMARY: Has Debug Info: true
+# MODULES: Modules
+# MODULES-DAG: Obj: {{`.*1.obj`}}:
+# MODULES-DAG: Obj: {{`.*2.obj`}}:
+# PUBS: Public Symbols
+# PUBS-DAG: S_PUB32 {{.*}} `entry`
+# PUBS-DAG: S_PUB32 {{.*}} `helper`
+
+#--- 1.s
+	.syntax unified
+	.arm
+	.text
+	.globl	entry
+entry:
+	.fnstart
+	.cantunwind
+	bx	lr
+	.fnend
+
+#--- 2.s
+	.syntax unified
+	.arm
+	.text
+	.globl	helper
+helper:
+	.fnstart
+	.cantunwind
+	bx	lr
+	.fnend

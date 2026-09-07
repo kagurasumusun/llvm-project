@@ -1,0 +1,29 @@
+
+// REQUIRES: arm-registered-target
+
+// RUN: llvm-mc -filetype=obj -triple=arm-pc-wince %s -o %t.obj
+// RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 \
+// RUN:   /entry:thumb_entry /export:thumb_entry /export:arm_entry %t.obj
+// RUN: llvm-readobj --headers --coff-exports %t.exe | FileCheck %s
+
+// CHECK: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
+// CHECK: AddressOfEntryPoint: 0x1001
+// CHECK: Ordinal: 1
+// CHECK: Name: arm_entry
+// CHECK: RVA: 0x1004
+// CHECK: Ordinal: 2
+// CHECK: Name: thumb_entry
+// CHECK: RVA: 0x1001
+
+	.text
+	.globl thumb_entry
+.thumb_func
+thumb_entry:
+	movs	r0, #0
+	bx	lr
+
+	.globl arm_entry
+.arm
+arm_entry:
+	mov	r0, #0
+	bx	lr

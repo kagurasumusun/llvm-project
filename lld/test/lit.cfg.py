@@ -105,6 +105,9 @@ llvm_config.feature_config(
     ]
 )
 
+if "arm" in config.available_features:
+    config.available_features.add("arm-registered-target")
+
 # Set a fake constant version so that we get consistent output.
 config.environment["LLD_VERSION"] = "LLD 1.0"
 
