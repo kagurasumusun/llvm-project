@@ -1,0 +1,405 @@
+# Windows CE LLVM/Clang/LLD cross toolchain — CI
+#
+# Push to LLVM-WinCE, or manually dispatch the workflow.
+# This workflow is the compiler-side gate:
+#   Stage 1: host LLVM/Clang/LLD + WinCE lit tests + install sanity
+#
+# The full toolchain pipeline (sysroot, runtimes, packaging,
+# TECLIB/glpi-wince-agent, MaxSignal/Player) lives in the
+# kagurasumusun/cellvm-build repository, which consumes this repository
+# (branch LLVM-WinCE) as a submodule.
+#
+# Caching keeps the hot loop fast: ccache and the Ninja build directory are
+# restored by key and resumed incrementally, so a small fix after a prior run
+# only recompiles what changed.
+#
+# IMPORTANT:
+# GitHub Actions' public actions/cache interface cannot directly restore an
+# arbitrary cache belonging to a sibling branch. restore-keys does not change
+# the cache branch scope.
+#
+# Therefore:
+#   - current-branch/default-branch caches are restored normally;
+#   - llvm-wince caches cannot be downloaded through the public cache REST API;
+#   - the llvm-wince -> LLVM-WinCE cache bridge must use a separate supported
+#     storage mechanism if those old caches must be migrated.
+
+name: wince-llvm-toolchain
+
+on:
+  push:
+    branches: [LLVM-WinCE]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wince-llvm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TARGET: arm-pc-wince
+
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_MAXSIZE: 2G
+  CCACHE_COMPRESS: "1"
+  CCACHE_COMPRESSLEVEL: "6"
+  CCACHE_NOHASHDIR: "true"
+
+  # Historical cache branch.
+  #
+  # Kept as metadata for the cache bridge described above.
+  SOURCE_CACHE_BRANCH: llvm-wince
+
+jobs:
+  build:
+    name: WinCE toolchain
+    runs-on: ubuntu-24.04
+
+    steps:
+      # -----------------------------------------------------------------
+      # Checkout
+      # -----------------------------------------------------------------
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # -----------------------------------------------------------------
+      # Dependencies
+      # -----------------------------------------------------------------
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build \
+            cmake \
+            python3 \
+            python3-psutil \
+            zlib1g-dev \
+            gcc \
+            g++ \
+            make \
+            lld \
+            ccache \
+            zstd \
+            mold \
+            unzip \
+            pkg-config \
+            autoconf \
+            automake \
+            libtool
+
+          if ! command -v ld.mold >/dev/null 2>&1; then
+            sudo ln -sf "$(command -v mold)" /usr/local/bin/ld.mold
+          fi
+
+          echo "=== Tool versions ==="
+          echo "mold: $(mold --version)"
+          echo "ccache: $(ccache --version | head -1)"
+          echo "ninja: $(ninja --version)"
+          echo "cmake: $(cmake --version | head -1)"
+          echo "nproc=$(nproc)"
+          echo "mem=$(free -h | awk '/Mem/{print $2}')"
+
+      # -----------------------------------------------------------------
+      # Cache namespace
+      # -----------------------------------------------------------------
+
+      - name: Calculate cache keys
+        id: cache-keys
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CACHE_HASH="$(
+            sha256sum clang/cmake/caches/WinCE.cmake |
+            awk '{print $1}'
+          )"
+
+          echo "cache_hash=${CACHE_HASH}" >> "$GITHUB_OUTPUT"
+
+          echo "ccache_key=wince-ccache-${CACHE_HASH}" >> "$GITHUB_OUTPUT"
+          echo "ninja_key=wince-ninja-${CACHE_HASH}" >> "$GITHUB_OUTPUT"
+
+          echo "WinCE cache hash: ${CACHE_HASH}"
+          echo "Source cache branch: ${SOURCE_CACHE_BRANCH}"
+
+      # -----------------------------------------------------------------
+      # ccache
+      #
+      # Normal GitHub Actions cache restore.
+      #
+      # Cache scope is controlled by GitHub Actions. A restore-key cannot
+      # force lookup of an arbitrary sibling branch.
+      # -----------------------------------------------------------------
+
+      - name: Restore ccache
+        id: ccache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+
+          key: ccache-${{ runner.os }}-${{ steps.cache-keys.outputs.cache_hash }}-${{ github.sha }}
+
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ steps.cache-keys.outputs.cache_hash }}-
+            ccache-${{ runner.os }}-
+
+      # -----------------------------------------------------------------
+      # Ninja build directory
+      # -----------------------------------------------------------------
+
+      - name: Restore Ninja build dir
+        id: ninja-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/build
+
+          key: ninja-${{ runner.os }}-${{ steps.cache-keys.outputs.cache_hash }}-${{ github.sha }}
+
+          restore-keys: |
+            ninja-${{ runner.os }}-${{ steps.cache-keys.outputs.cache_hash }}-
+            ninja-${{ runner.os }}-
+
+      # -----------------------------------------------------------------
+      # Stage 1: configure
+      # -----------------------------------------------------------------
+
+      - name: "Stage 1: configure (WinCE cache)"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$CCACHE_DIR"
+
+          ccache -z
+
+          cmake \
+            -G Ninja \
+            -S llvm \
+            -B build \
+            -C clang/cmake/caches/WinCE.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/install/wince-llvm" \
+            -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON
+
+          echo "=== ccache stats before build ==="
+          ccache -s
+
+      # -----------------------------------------------------------------
+      # Stage 1: build
+      # -----------------------------------------------------------------
+
+      - name: "Stage 1: build clang + lld + tools"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cmake \
+            --build build \
+            --target \
+              clang \
+              lld \
+              llc \
+              llvm-ar \
+              llvm-ranlib \
+              llvm-dlltool \
+              llvm-nm \
+              llvm-mc \
+              llvm-readobj \
+              llvm-objdump \
+              llvm-objcopy \
+              llvm-rc \
+              llvm-config \
+              llvm-pdbutil \
+              FileCheck \
+              split-file \
+              not \
+              count
+
+          BIN=build/bin
+
+          [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
+          [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
+
+          test -x "$BIN/llvm-lit"
+
+          echo "=== ccache stats after build ==="
+          ccache -s
+
+      # -----------------------------------------------------------------
+      # Save caches
+      # -----------------------------------------------------------------
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+
+          key: ccache-${{ runner.os }}-${{ steps.cache-keys.outputs.cache_hash }}-${{ github.sha }}
+
+      - name: Save Ninja build dir
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/build
+
+          key: ninja-${{ runner.os }}-${{ steps.cache-keys.outputs.cache_hash }}-${{ github.sha }}
+
+      # -----------------------------------------------------------------
+      # Stage 1: WinCE lit tests
+      # -----------------------------------------------------------------
+
+      - name: "Stage 1: WinCE lit tests"
+        shell: bash
+        run: |
+          set +e
+
+          ./build/bin/llvm-lit \
+            -sv \
+            --timeout 900 \
+            clang/test/Driver/wince.c \
+            clang/test/CodeGen/wince-seh.c \
+            clang/test/CodeGen/ARM/wince-ehabi-tables.c \
+            clang/test/CodeGen/ARM/wince-global-ctors.c \
+            clang/test/CodeGen/ARM/wince-literal-pool.c \
+            clang/test/CodeGen/ARM/wince-seh-ehabi-mixed.c \
+            clang/test/CodeGen/ARM/wince-seh-scope-table.c \
+            clang/test/CodeGen/ARM/wince-codeview.c \
+            clang/test/CodeGen/ARM/wince-cpp-abi.cpp \
+            clang/test/Parser/ms-pragmas-full.c \
+            clang/test/Parser/ms-extern.c \
+            clang/test/Sema/ms-extern.c \
+            lld/test/COFF/wince-arm-relocs.s \
+            lld/test/COFF/wince-ctors.s \
+            lld/test/COFF/wince-exidx-bounds.s \
+            lld/test/COFF/wince-exidx-comdat.s \
+            lld/test/COFF/wince-image.s \
+            lld/test/COFF/wince-pdata.test \
+            lld/test/COFF/wince-pdb.test \
+            lld/test/COFF/wince-range-thunk.s \
+            lld/test/COFF/wince-range-thunk-thumb.s \
+            lld/test/COFF/wince-thumb-bit.s \
+            lld/test/COFF/wince-thunk.s \
+            llvm/test/MC/ARM/wince-coff-relocs.s \
+            llvm/test/MC/ARM/wince-exidx.s \
+            llvm/test/MC/ARM/wince-seh-pdata.s \
+            llvm/test/MC/ARM/wince-armasm.s \
+            llvm/test/MC/ARM/wince-armasm-labels.s \
+            llvm/test/MC/ARM/wince-armasm-data.s \
+            llvm/test/MC/ARM/wince-armasm-cond.s \
+            llvm/test/CodeGen/ARM/wince-seh-parent-frame.ll \
+            llvm/test/CodeGen/ARM/wince-soft-float.ll
+
+          RC=$?
+
+          set -e
+
+          if [ "$RC" -ne 0 ]; then
+            echo "===== WinCE lit gate FAILED (rc=$RC) ====="
+            exit "$RC"
+          fi
+
+      # -----------------------------------------------------------------
+      # Install
+      # -----------------------------------------------------------------
+
+      - name: "Install (isolated prefix)"
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cmake \
+            --build build \
+            --target \
+              install-clang \
+              install-clang-resource-headers \
+              install-lld
+
+          BIN="$PWD/install/wince-llvm/bin"
+
+          mkdir -p "$BIN"
+
+          for t in \
+            clang \
+            clang++ \
+            clang-cl \
+            lld \
+            ld.lld \
+            lld-link \
+            llvm-ar \
+            llvm-ranlib \
+            llvm-dlltool \
+            llvm-lib \
+            llvm-nm \
+            llvm-mc \
+            llvm-readobj \
+            llvm-objdump \
+            llvm-objcopy \
+            llvm-strip \
+            llvm-rc \
+            llvm-windres \
+            llvm-config
+          do
+            if [ -e "build/bin/$t" ] || [ -L "build/bin/$t" ]; then
+              cp -a "build/bin/$t" "$BIN/"
+            fi
+          done
+
+          [ -e "$BIN/clang++" ] || ln -sf clang "$BIN/clang++"
+          [ -e "$BIN/clang-cl" ] || ln -sf clang "$BIN/clang-cl"
+          [ -e "$BIN/lld-link" ] || ln -sf lld "$BIN/lld-link"
+
+      # -----------------------------------------------------------------
+      # Artifact
+      # -----------------------------------------------------------------
+
+      - name: "Upload WinCE LLVM toolchain artifact"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wince-llvm-${{ github.sha }}
+          path: ${{ github.workspace }}/install/wince-llvm
+          if-no-files-found: warn
+          retention-days: 30
+
+      # -----------------------------------------------------------------
+      # Job summary
+      # -----------------------------------------------------------------
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## WinCE compiler gate (Stage 1 + WinCE lit)"
+            echo
+            echo "- commit: \`${{ github.sha }}\`"
+            echo "- target: \`$TARGET\`"
+            echo "- cache source branch: \`${SOURCE_CACHE_BRANCH}\`"
+            echo
+            echo "### Cache"
+            echo
+            echo "- ccache restore: \`${{ steps.ccache-restore.outputs.cache-hit || 'false' }}\`"
+            echo "- Ninja restore: \`${{ steps.ninja-restore.outputs.cache-hit || 'false' }}\`"
+            echo
+            echo "The public actions/cache interface does not support restoring"
+            echo "an arbitrary sibling branch cache directly."
+            echo
+            echo "### Artifact"
+            echo
+            echo "- \`wince-llvm-${{ github.sha }}\`"
+            echo
+            echo "Full toolchain build (sysroot, runtimes, packaging,"
+            echo "TECLIB/glpi-wince-agent, MaxSignal/Player) runs in the"
+            echo "kagurasumusun/cellvm-build repository."
+          } >> "$GITHUB_STEP_SUMMARY"
