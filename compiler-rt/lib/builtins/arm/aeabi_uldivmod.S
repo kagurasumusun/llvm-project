@@ -15,7 +15,7 @@
 //   return {quot, rem};
 // }
 
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) && !defined(_WIN32_WCE)
 #define __aeabi_uldivmod __rt_udiv64
 #endif
 
@@ -31,7 +31,7 @@ DEFINE_COMPILERRT_FUNCTION(__aeabi_uldivmod)
         sub	sp, sp, #16
         add	r6, sp, #8
         str	r6, [sp]
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) && !defined(_WIN32_WCE)
         movs    r6, r0
         movs    r0, r2
         movs    r2, r6

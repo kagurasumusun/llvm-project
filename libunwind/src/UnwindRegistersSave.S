@@ -944,6 +944,7 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 #endif
   JMP(lr)
 
+#if defined(__ARM_FP)
 @
 @ static void libunwind::Registers_arm::saveVFPWithFSTMD(unw_fpreg_t* values)
 @
@@ -992,6 +993,17 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm9saveVFPv3EPv)
   @ So, generate the instructions using the corresponding coprocessor mnemonic.
   vstmia r0, {d16-d31}
   JMP(lr)
+#else
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMDEPv)
+  JMP(lr)
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMXEPv)
+  JMP(lr)
+  .p2align 2
+DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm9saveVFPv3EPv)
+  JMP(lr)
+#endif
 
 #if defined(_LIBUNWIND_ARM_WMMX)
 

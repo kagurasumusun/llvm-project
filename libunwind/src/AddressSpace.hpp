@@ -102,7 +102,8 @@ extern char __eh_frame_hdr_start;
 extern char __eh_frame_hdr_end;
 #endif
 
-#elif defined(_LIBUNWIND_ARM_EHABI) && defined(_LIBUNWIND_IS_BAREMETAL)
+#elif defined(_LIBUNWIND_ARM_EHABI) &&                                          \
+    (defined(_LIBUNWIND_IS_BAREMETAL) || defined(__WINCE__))
 
 // When statically linked on bare-metal, the symbols for the EH table are looked
 // up without going through the dynamic loader.
@@ -550,6 +551,9 @@ inline bool LocalAddressSpace::findUnwindSections(
     return true;
 #elif defined(_LIBUNWIND_ARM_EHABI) && defined(_LIBUNWIND_IS_BAREMETAL)
   // Bare metal is statically linked, so no need to ask the dynamic loader
+  info.arm_section =        (uintptr_t)(&__exidx_start);
+  info.arm_section_length = (size_t)(&__exidx_end - &__exidx_start);
+#elif defined(_LIBUNWIND_ARM_EHABI) && defined(__WINCE__)
   info.arm_section =        (uintptr_t)(&__exidx_start);
   info.arm_section_length = (size_t)(&__exidx_end - &__exidx_start);
   _LIBUNWIND_TRACE_UNWINDING("findUnwindSections: section %p length %p",

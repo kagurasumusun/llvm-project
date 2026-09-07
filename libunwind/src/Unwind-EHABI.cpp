@@ -817,6 +817,7 @@ _LIBUNWIND_EXPORT _Unwind_Reason_Code
 _Unwind_RaiseException(_Unwind_Exception *exception_object) {
   _LIBUNWIND_TRACE_API("_Unwind_RaiseException(ex_obj=%p)",
                        static_cast<void *>(exception_object));
+
   unw_context_t uc;
   unw_cursor_t cursor;
   __unw_getcontext(&uc);

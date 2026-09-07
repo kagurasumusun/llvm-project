@@ -605,7 +605,16 @@ set(arm_min_SOURCES
   ${arm_EABI_SOURCES}
 )
 
-if(MINGW)
+if(COMPILER_RT_DEFAULT_TARGET_TRIPLE MATCHES "-wince" OR CMAKE_C_COMPILER_TARGET MATCHES "-wince")
+  set(arm_SOURCES
+    ${arm_or_thumb2_base_SOURCES}
+    ${arm_EABI_SOURCES}
+  )
+  set(thumb1_SOURCES
+    ${thumb1_base_SOURCES}
+    ${arm_EABI_SOURCES}
+  )
+elseif(MINGW)
   set(arm_SOURCES
     arm/aeabi_idivmod.S
     arm/aeabi_ldivmod.S

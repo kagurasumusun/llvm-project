@@ -14,6 +14,11 @@
 #define _LIBCXXABI_ARM_EHABI
 #endif
 
+#if defined(__arm__) && defined(__WINCE__) &&                                  \
+    !defined(__USING_SJLJ_EXCEPTIONS__)
+#define _LIBCXXABI_ARM_EHABI
+#endif
+
 #if defined(__clang__)
 #  define _LIBCXXABI_COMPILER_CLANG
 #  ifndef __apple_build_version__

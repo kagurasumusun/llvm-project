@@ -395,7 +395,9 @@ static const void* read_target2_value(const void* ptr)
     // deferred to the linker. For bare-metal they turn into absolute
     // relocations. For linux they turn into GOT-REL relocations."
     // https://gcc.gnu.org/ml/gcc-patches/2009-08/msg00264.html
-#if defined(LIBCXXABI_BAREMETAL)
+#if defined(__WINCE__)
+    return reinterpret_cast<const void*>(offset);
+#elif defined(LIBCXXABI_BAREMETAL)
     return reinterpret_cast<const void*>(reinterpret_cast<uintptr_t>(ptr) +
                                          offset);
 #else

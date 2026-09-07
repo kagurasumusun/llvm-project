@@ -15,7 +15,7 @@
 //   return {quot, rem};
 // }
 
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) && !defined(_WIN32_WCE)
 #define __aeabi_uidivmod __rt_udiv
 #endif
 
@@ -46,7 +46,7 @@ LOCAL_LABEL(case_denom_larger):
 #endif
         sub     sp, sp, #4
         mov     r2, sp
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) && !defined(_WIN32_WCE)
         mov     r3, r0
         mov     r0, r1
         mov     r1, r3

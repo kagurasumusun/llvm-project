@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <unwind.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__WINCE__)
   #include <windows.h>
   #include <ntverp.h>
 #endif
@@ -1553,7 +1553,11 @@ struct EHABISectionIterator {
   typename A::pint_t functionAddress() const {
     typename A::pint_t indexAddr = _sects->arm_section + arrayoffsetof(
         EHABIIndexEntry, _i, functionOffset);
+#if defined(__WINCE__)
+    return _addressSpace->get32(indexAddr);
+#else
     return indexAddr + signExtendPrel31(_addressSpace->get32(indexAddr));
+#endif
   }
 
   typename A::pint_t dataAddress() {
@@ -1635,7 +1639,11 @@ bool UnwindCursor<A, R>::getInfoFromEHABISection(
     exceptionTableData = indexData;
     isSingleWordEHT = true;
   } else {
+#if defined(__WINCE__)
+    exceptionTableAddr = indexData;
+#else
     exceptionTableAddr = indexDataAddr + signExtendPrel31(indexData);
+#endif
     exceptionTableData = _addressSpace.get32(exceptionTableAddr);
     isSingleWordEHT = false;
   }
@@ -1686,8 +1694,12 @@ bool UnwindCursor<A, R>::getInfoFromEHABISection(
       }
     }
   } else {
+#if defined(__WINCE__)
+    pint_t personalityAddr = exceptionTableData;
+#else
     pint_t personalityAddr =
         exceptionTableAddr + signExtendPrel31(exceptionTableData);
+#endif
     personalityRoutine = personalityAddr;
 
     // ARM EHABI # 6.2, # 9.2

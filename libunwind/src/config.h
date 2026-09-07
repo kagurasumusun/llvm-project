@@ -34,6 +34,7 @@
 #elif defined(_WIN32)
   #ifdef __SEH__
     #define _LIBUNWIND_SUPPORT_SEH_UNWIND 1
+  #elif defined(_LIBUNWIND_ARM_EHABI)
   #else
     #define _LIBUNWIND_SUPPORT_DWARF_UNWIND 1
   #endif
