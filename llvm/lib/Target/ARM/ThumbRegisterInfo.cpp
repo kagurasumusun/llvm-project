@@ -543,7 +543,8 @@ bool ThumbRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
   const ARMSubtarget &STI = MF.getSubtarget<ARMSubtarget>();
-  if (!STI.isThumb1Only())
+  if (!STI.isThumb1Only() ||
+      (MI.getOpcode() == TargetOpcode::LOCAL_ESCAPE && STI.isTargetWindowsCE()))
     return ARMBaseRegisterInfo::eliminateFrameIndex(II, SPAdj, FIOperandNum,
                                                     RS);
 

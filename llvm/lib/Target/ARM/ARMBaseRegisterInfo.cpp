@@ -822,23 +822,23 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const ARMBaseInstrInfo &TII =
-      *static_cast<const ARMBaseInstrInfo *>(MF.getSubtarget().getInstrInfo());
-  const ARMFrameLowering *TFI = getFrameLowering(MF);
-  ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
-  assert(!AFI->isThumb1OnlyFunction() &&
-         "This eliminateFrameIndex does not support Thumb1!");
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
-  Register FrameReg;
-
-  int Offset = TFI->ResolveFrameIndexReference(MF, FrameIndex, FrameReg, SPAdj);
-
   if (MI.getOpcode() == TargetOpcode::LOCAL_ESCAPE &&
       MF.getTarget().getTargetTriple().isWindowsCE()) {
     MI.getOperand(FIOperandNum)
         .ChangeToImmediate(MF.getFrameInfo().getObjectOffset(FrameIndex));
     return false;
   }
+
+  const ARMBaseInstrInfo &TII =
+      *static_cast<const ARMBaseInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const ARMFrameLowering *TFI = getFrameLowering(MF);
+  ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
+  assert(!AFI->isThumb1OnlyFunction() &&
+         "This eliminateFrameIndex does not support Thumb1!");
+  Register FrameReg;
+
+  int Offset = TFI->ResolveFrameIndexReference(MF, FrameIndex, FrameReg, SPAdj);
 
   // PEI::scavengeFrameVirtualRegs() cannot accurately track SPAdj because the
   // call frame setup/destroy instructions have already been eliminated.  That
