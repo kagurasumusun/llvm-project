@@ -17,6 +17,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/Object/COFF.h"
+#include "llvm/Support/ARMWinEH.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/raw_ostream.h"
@@ -279,6 +280,30 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
     break;
   case IMAGE_REL_ARM_SECREL:    applySecRel(this, off, os, s); break;
   case IMAGE_REL_ARM_REL32:     add32(off, sx - p - 4); break;
+  case IMAGE_REL_ARM_CE_PDATA_FUNCLEN:
+  case IMAGE_REL_ARM_CE_PDATA_PROLOG: {
+    namespace CE = llvm::ARM::WinEH::CE;
+    const bool IsFuncLen = type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN;
+
+    uint8_t *recStart =
+        off - (IsFuncLen ? CE::ObjectRecord::FuncLenSlotOffset
+                         : CE::ObjectRecord::PrologLenSlotOffset);
+    uint8_t *flagsWord = recStart + CE::ObjectRecord::FlagsOffset;
+    uint32_t word1 = read32le(flagsWord);
+    const uint32_t beginVA = read32le(recStart);
+    const uint32_t endVA = (uint32_t)s + read32le(off) + (uint32_t)imageBase;
+    const uint32_t spanBytes = endVA > beginVA ? endVA - beginVA : 0u;
+
+    const uint32_t instSpan = CE::byteSpanToInstructions(spanBytes, word1);
+    const uint32_t fieldMax = IsFuncLen ? CE::FuncLenMask : CE::PrologLenMask;
+    if (instSpan > fieldMax)
+      error(StringRef(IsFuncLen ? "CE .pdata FuncLen does not fit its "
+                                  "22-bit field"
+                                : "CE .pdata PrologLen does not fit its "
+                                  "8-bit field"));
+    write32le(flagsWord, CE::replaceLength(word1, instSpan, IsFuncLen));
+    break;
+  }
   default:
     error("unsupported relocation type 0x" + Twine::utohexstr(type) + " in " +
           toString(file));
@@ -589,6 +614,9 @@ static uint8_t getBaserelType(const coff_relocation &rel,
       return IMAGE_REL_BASED_HIGHLOW;
     if (rel.Type == IMAGE_REL_ARM_MOV32T)
       return IMAGE_REL_BASED_ARM_MOV32T;
+    if (rel.Type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN ||
+        rel.Type == IMAGE_REL_ARM_CE_PDATA_PROLOG)
+      return IMAGE_REL_BASED_ABSOLUTE;
     return IMAGE_REL_BASED_ABSOLUTE;
   case Triple::aarch64:
     if (rel.Type == IMAGE_REL_ARM64_ADDR64)

@@ -25,6 +25,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/MC/StringTableBuilder.h"
+#include "llvm/Support/ARMWinEH.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/FileOutputBuffer.h"
 #include "llvm/Support/FormatAdapters.h"
@@ -262,6 +263,8 @@ private:
   void writePEChecksum();
   void sortSections();
   template <typename T> void sortExceptionTable(ChunkRange &exceptionTable);
+  void sortCEExceptionTable(ChunkRange &exceptionTable);
+  void sortARMExIdxTable();
   void sortExceptionTables();
   void sortCRTSectionChunks(std::vector<Chunk *> &chunks);
   void addSyntheticIdata();
@@ -791,12 +794,51 @@ void Writer::writePEChecksum() {
   peHeader->CheckSum = sum;
 }
 
+static void cullCEUnwindTablesForDiscardedFunctions(COFFLinkerContext &ctx) {
+  for (ObjFile *file : ctx.objFileInstances) {
+    for (Chunk *c : file->getChunks()) {
+      auto *sc = dyn_cast<SectionChunk>(c);
+      if (!sc || !sc->live)
+        continue;
+      StringRef name = sc->getSectionName();
+      if (name != ".ARM.exidx" && name != ".ARM.extab" && name != ".pdata")
+        continue;
+      for (Symbol *sym : sc->symbols()) {
+        auto *d = dyn_cast_or_null<Defined>(sym);
+        bool dead;
+        if (!d) {
+          dead = true;
+        } else if (isa<DefinedAbsolute>(d) || isa<DefinedSynthetic>(d)) {
+          dead = false;
+        } else {
+          Chunk *tc = d->getChunk();
+          if (!tc)
+            dead = true;
+          else if (auto *tsc = dyn_cast<SectionChunk>(tc))
+            dead = !tsc->live;
+          else if (auto *ttc = dyn_cast<ImportThunkChunk>(tc))
+            dead = !ttc->live;
+          else
+            dead = false;
+        }
+        if (dead) {
+          Log(ctx) << "removing " << name << " entry for discarded section"
+                   << (sym ? ": " + std::string(sym->getName()) : " (symbol discarded early)");
+          sc->live = false;
+          break;
+        }
+      }
+    }
+  }
+}
+
 // The main function of the writer.
 void Writer::run() {
   {
     llvm::TimeTraceScope timeScope("Write PE");
     ScopedTimer t1(ctx.codeLayoutTimer);
 
+    cullCEUnwindTablesForDiscardedFunctions(ctx);
     calculateStubDependentSizes();
     if (ctx.config.machine == ARM64X)
       ctx.dynamicRelocs = make<DynamicRelocsChunk>();
@@ -2007,9 +2049,12 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
   if (exceptionTable.first) {
     dir[EXCEPTION_TABLE].RelativeVirtualAddress =
         exceptionTable.first->getRVA();
-    dir[EXCEPTION_TABLE].Size = exceptionTable.last->getRVA() +
-                                exceptionTable.last->getSize() -
-                                exceptionTable.first->getRVA();
+    uint64_t spanSize = exceptionTable.last->getRVA() +
+                        exceptionTable.last->getSize() -
+                        exceptionTable.first->getRVA();
+    if (ctx.config.wince)
+      spanSize = (spanSize / 16) * 8;
+    dir[EXCEPTION_TABLE].Size = spanSize;
   }
   size_t relocSize = relocSec->getVirtualSize();
   if (ctx.dynamicRelocs)
@@ -2795,6 +2840,82 @@ void Writer::sortExceptionTable(ChunkRange &exceptionTable) {
                [](const T &a, const T &b) { return a.begin < b.begin; });
 }
 
+void Writer::sortCEExceptionTable(ChunkRange &exceptionTable) {
+  if (!exceptionTable.first)
+    return;
+
+  namespace CE = llvm::ARM::WinEH::CE;
+
+  auto bufAddr = [&](Chunk *c) {
+    OutputSection *os = ctx.getOutputSection(c);
+    return buffer->getBufferStart() + os->getFileOff() + c->getRVA() -
+           os->getRVA();
+  };
+  uint8_t *begin = bufAddr(exceptionTable.first);
+  uint8_t *end = bufAddr(exceptionTable.last) + exceptionTable.last->getSize();
+  const size_t total = end - begin;
+  if (total % CE::ObjectRecord::Stride != 0) {
+    Fatal(ctx) << "unexpected CE .pdata size: " << total
+               << " is not a multiple of " << CE::ObjectRecord::Stride;
+  }
+  const size_t count = total / CE::ObjectRecord::Stride;
+
+  MutableArrayRef<uint32_t> words(reinterpret_cast<uint32_t *>(begin),
+                                  total / sizeof(uint32_t));
+  constexpr size_t StrideWords = CE::ObjectRecord::Stride / sizeof(uint32_t);
+  constexpr size_t KeepWords = CE::ImageRecordSize / sizeof(uint32_t);
+  for (size_t i = 1; i < count; ++i)
+    for (size_t w = 0; w < KeepWords; ++w)
+      words[i * KeepWords + w] = words[i * StrideWords + w];
+
+  for (size_t i = count * KeepWords; i < words.size(); ++i)
+    words[i] = 0;
+
+  MutableArrayRef<CE::RuntimeFunction> entries(
+      reinterpret_cast<CE::RuntimeFunction *>(begin), count);
+  const uint64_t imageBase = ctx.config.imageBase;
+  parallelSort(entries, [imageBase](const CE::RuntimeFunction &a,
+                                    const CE::RuntimeFunction &b) {
+    return (uint32_t)(a.FuncStart - imageBase) <
+           (uint32_t)(b.FuncStart - imageBase);
+  });
+}
+
+void Writer::sortARMExIdxTable() {
+  OutputSection *sec = findSection(".ARM.exidx");
+  if (!sec || sec->chunks.empty())
+    return;
+
+  auto bufAddr = [&](Chunk *c) {
+    OutputSection *os = ctx.getOutputSection(c);
+    return buffer->getBufferStart() + os->getFileOff() + c->getRVA() -
+           os->getRVA();
+  };
+
+  for (Chunk *c : sec->chunks)
+    if (c->getSize() % 8 != 0)
+      Fatal(ctx) << "unexpected .ARM.exidx section size: " << c->getSize()
+                 << " is not a multiple of 8";
+  for (size_t i = 1; i < sec->chunks.size(); ++i)
+    if (sec->chunks[i - 1]->getRVA() + sec->chunks[i - 1]->getSize() !=
+        sec->chunks[i]->getRVA())
+      Fatal(ctx) << ".ARM.exidx contains padding between input sections; "
+                    "cannot sort the index table";
+
+  uint8_t *begin = bufAddr(sec->chunks.front());
+  uint8_t *end = bufAddr(sec->chunks.back()) + sec->chunks.back()->getSize();
+  const size_t count = (end - begin) / 8;
+
+  struct ExIdxEntry {
+    ulittle32_t fnStart, data;
+  };
+  MutableArrayRef<ExIdxEntry> entries(
+      reinterpret_cast<ExIdxEntry *>(begin), count);
+  parallelSort(entries, [](const ExIdxEntry &a, const ExIdxEntry &b) {
+    return a.fnStart < b.fnStart;
+  });
+}
+
 // Sort .pdata section contents according to PE/COFF spec 5.5.
 void Writer::sortExceptionTables() {
   llvm::TimeTraceScope timeScope("Sort exception table");
@@ -2805,6 +2926,12 @@ void Writer::sortExceptionTables() {
   struct EntryArm {
     ulittle32_t begin, unwind;
   };
+
+  if (ctx.config.wince) {
+    sortCEExceptionTable(pdata);
+    sortARMExIdxTable();
+    return;
+  }
 
   switch (ctx.config.machine) {
   case AMD64:
