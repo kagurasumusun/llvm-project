@@ -12797,7 +12797,8 @@ static bool isDefaultStdCall(FunctionDecl *FD, Sema &S) {
 
   // Default calling convention for WinMain, wWinMain and DllMain
   // is __stdcall on 32 bit Windows
-  if (T.isOSWindows() && T.getArch() == llvm::Triple::x86)
+  if ((T.isOSWindows() || T.isOSWindowsCE()) &&
+      T.getArch() == llvm::Triple::x86)
     return true;
 
   return false;

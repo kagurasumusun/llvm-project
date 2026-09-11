@@ -117,7 +117,9 @@ extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void LLVMInitializeARMTarget() {
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
   if (TT.isOSBinFormatMachO())
     return std::make_unique<TargetLoweringObjectFileMachO>();
-  if (TT.isOSWindows())
+  // A CE image is a COFF object file with the same section handling, so the
+  // object format rather than the desktop OS decides this.
+  if (TT.isOSWindows() || TT.isOSWindowsCE())
     return std::make_unique<TargetLoweringObjectFileCOFF>();
   return std::make_unique<ARMElfTargetObjectFile>();
 }
@@ -173,7 +175,8 @@ ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T, const Triple &TT,
          TargetTriple.getEnvironment() == Triple::MuslEABI ||
          TargetTriple.getEnvironment() == Triple::MuslEABIHF ||
          TargetTriple.getEnvironment() == Triple::OpenHOS) &&
-        !(TargetTriple.isOSWindows() || TargetTriple.isOSDarwin()))
+        !(TargetTriple.isOSWindows() || TargetTriple.isOSWindowsCE() ||
+          TargetTriple.isOSDarwin()))
       this->Options.EABIVersion = EABI::GNU;
     else
       this->Options.EABIVersion = EABI::EABI5;

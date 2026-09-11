@@ -1,7 +1,7 @@
 
 // REQUIRES: arm-registered-target
 
-// RUN: llvm-mc -filetype=obj -triple=arm-pc-wince %s -o %t.obj
+// RUN: llvm-mc -filetype=obj -triple=arm-pc-wince -mcpu=arm926ej-s %s -o %t.obj
 // RUN: lld-link /out:%t.exe /subsystem:windowsce /base:0x10000 \
 // RUN:   /entry:thumb_entry /export:thumb_entry /export:arm_entry %t.obj
 // RUN: llvm-readobj --headers --coff-exports %t.exe | FileCheck %s

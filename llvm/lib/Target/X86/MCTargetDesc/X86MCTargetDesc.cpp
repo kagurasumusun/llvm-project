@@ -434,8 +434,6 @@ static MCAsmInfo *createX86MCAsmInfo(const MCRegisterInfo &MRI,
   } else if (TheTriple.isOSBinFormatELF()) {
     // Force the use of an ELF container.
     MAI = new X86ELFMCAsmInfo(TheTriple);
-  } else if (TheTriple.isWindowsCE()) {
-    MAI = new X86MCAsmInfoGNUCOFF(TheTriple);
   } else if (TheTriple.isWindowsMSVCEnvironment() ||
              TheTriple.isWindowsCoreCLREnvironment() || TheTriple.isUEFI()) {
     if (Options.getAssemblyLanguage().equals_insensitive("masm"))
@@ -443,7 +441,10 @@ static MCAsmInfo *createX86MCAsmInfo(const MCRegisterInfo &MRI,
     else
       MAI = new X86MCAsmInfoMicrosoft(TheTriple);
   } else if (TheTriple.isOSCygMing() ||
-             TheTriple.isWindowsItaniumEnvironment()) {
+             TheTriple.isWindowsItaniumEnvironment() ||
+             TheTriple.isOSWindowsCE()) {
+    // Windows CE uses a GNU-flavoured COFF toolchain on x86 as well, so it
+    // belongs with the other ones here rather than in a branch of its own.
     MAI = new X86MCAsmInfoGNUCOFF(TheTriple);
   } else {
     // The default is ELF.

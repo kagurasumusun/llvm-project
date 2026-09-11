@@ -932,7 +932,10 @@ void TargetPassConfig::addPassesToHandleExceptions() {
     [[fallthrough]];
   case ExceptionHandling::DwarfCFI:
   case ExceptionHandling::ARM:
-    if (TM->getTargetTriple().isWindowsCE())
+    // The ARM encoding is used by two different COFF/ELF worlds: only the COFF
+    // one (Windows CE on ARM) also wants the WinEH records that feed its
+    // .pdata, so the object format decides rather than the OS name.
+    if (TM->getTargetTriple().isOSBinFormatCOFF())
       addPass(createWinEHPass());
     addPass(createDwarfEHPass(getOptLevel()));
     break;

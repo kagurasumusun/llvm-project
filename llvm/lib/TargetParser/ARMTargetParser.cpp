@@ -548,8 +548,10 @@ StringRef ARM::computeDefaultTargetABI(const Triple &TT) {
     if (TT.isWatchABI())
       return "aapcs16";
     return "apcs-gnu";
-  } else if (TT.isOSWindows())
-    // FIXME: this is invalid for WindowsCE.
+  } else if (TT.isOSWindows() || TT.isOSWindowsCE())
+    // Both Windows forms take the architecture's standard C ABI; what sets
+    // Windows CE apart from the desktop ones is the floating-point convention,
+    // which the float ABI decides rather than the ABI name.
     return "aapcs";
 
   // Select the default based on the platform.
@@ -609,7 +611,12 @@ StringRef ARM::getARMCPUForArch(const llvm::Triple &Triple, StringRef MArch) {
       return "cortex-a8";
     break;
   case llvm::Triple::Win32:
-    // FIXME: this is invalid for WindowsCE
+    // This is the desktop Windows-on-ARM flavour, whose triples default to
+    // Cortex-A9 up to ARMv7.  Windows CE has an OS type of its own and takes no
+    // CPU from the platform at all: only the architecture written into the
+    // triple selects one, so a CE build stays free to name v4T, v5T or v7 and
+    // gets the CPU LLVM derives from that architecture, as every other target
+    // does.
     if (llvm::ARM::parseArchVersion(MArch) <= 7)
       return "cortex-a9";
     break;
@@ -630,13 +637,6 @@ StringRef ARM::getARMCPUForArch(const llvm::Triple &Triple, StringRef MArch) {
     return StringRef();
 
   StringRef CPU = llvm::ARM::getDefaultCPU(MArch);
-  if (Triple.isWindowsCE()) {
-    ARM::ArchKind Kind = ARM::parseArch(MArch);
-    if (MArch == "arm" || CPU.empty() || CPU == "invalid" ||
-        Kind == ARM::ArchKind::ARMV5T || Kind == ARM::ArchKind::ARMV5TE ||
-        Kind == ARM::ArchKind::ARMV5TEJ)
-      return "arm926ej-s";
-  }
   if (!CPU.empty() && CPU != "invalid")
     return CPU;
 

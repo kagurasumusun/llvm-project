@@ -223,7 +223,7 @@ public:
     Solaris,
     UEFI,
     Win32,
-    WinCE,
+    WindowsCE,
     ZOS,
     Haiku,
     RTEMS,
@@ -696,13 +696,42 @@ public:
     return getOS() == Triple::UEFI;
   }
 
-  /// Tests whether the OS is Windows.
+  /// Tests whether the OS is Windows, which is the desktop OS that a triple
+  /// names "win32".  Windows CE is an OS of its own with its own runtime and is
+  /// not covered here, nor is UEFI; where what matters is the low-level
+  /// conventions these three share, use isOSWindowsFamily(), and for the object
+  /// format alone use isOSBinFormatCOFF().
   bool isOSWindows() const {
-    return getOS() == Triple::Win32 || getOS() == Triple::WinCE;
+    return getOS() == Triple::Win32;
   }
 
-  bool isWindowsCE() const {
-    return getOS() == Triple::WinCE;
+  /// Tests whether the OS is Windows CE.  Named after the OS component, like
+  /// the other isOS*() predicates; the isWindows*() family describes
+  /// environments of desktop Windows (see isWindowsMSVCEnvironment()).
+  ///
+  /// A triple names this OS with "windowsce" in its OS component, which is
+  /// also what getOSTypeName() returns and what a normalized triple carries.
+  /// "wince" and "mingw32ce" are accepted in the same component, because that
+  /// is how the CE tool chains in use spell it, and a version may follow any
+  /// of the three (armv5tej-pc-wince6.0).  The name is looked for in the OS
+  /// component and nowhere else, as for every other OS, so the GNU-style
+  /// "arm-wince-pe", which carries it in the vendor field, names no known OS.
+  bool isOSWindowsCE() const {
+    return getOS() == Triple::WindowsCE;
+  }
+
+  /// Tests whether the OS is in the Windows family: the desktop Windows, UEFI
+  /// and Windows CE.  The three agree about the low-level conventions of a PE
+  /// or COFF image -- the object format, an import library per DLL, and the
+  /// __imp_ naming of an imported symbol -- so a back end or an object writer
+  /// that is really asking about those uses this predicate.  It says nothing
+  /// about which runtime is present, which is what separates the three;
+  /// anything matching a runtime or an ABI names the OS it supports instead,
+  /// with isOSWindows(), isUEFI(), isOSWindowsCE() or the
+  /// isWindows*Environment() predicates.
+  bool isOSWindowsFamily() const {
+    return getOS() == Triple::Win32 || getOS() == Triple::UEFI ||
+           getOS() == Triple::WindowsCE;
   }
 
   /// Checks if the environment is MSVC.
@@ -710,11 +739,12 @@ public:
     return isOSWindows() && getEnvironment() == Triple::MSVC;
   }
 
-  /// Checks if the environment could be MSVC.
+  /// Checks if the environment could be MSVC.  An unspecified environment on
+  /// the desktop Windows is MSVC; Windows CE carries its own toolchain
+  /// environment and isOSWindows() leaves it out, so it never reaches here.
   bool isWindowsMSVCEnvironment() const {
     return isKnownWindowsMSVCEnvironment() ||
-           (isOSWindows() && !isWindowsCE() &&
-            getEnvironment() == Triple::UnknownEnvironment);
+           (isOSWindows() && getEnvironment() == Triple::UnknownEnvironment);
   }
 
   // Checks if we're using the Windows Arm64EC ABI.
@@ -958,7 +988,7 @@ public:
   /// Tests whether the target supports the EHABI exception
   /// handling standard.
   bool isTargetEHABICompatible() const {
-    if ((isARM() || isThumb()) && isWindowsCE())
+    if ((isARM() || isThumb()) && isOSWindowsCE())
       return true;
     return (isARM() || isThumb()) &&
            (getEnvironment() == Triple::EABI ||
@@ -984,7 +1014,7 @@ public:
   bool isTargetAEABI() const {
     return (getEnvironment() == Triple::EABI ||
             getEnvironment() == Triple::EABIHF) &&
-           !isOSDarwin() && !isOSWindows();
+           !isOSDarwin() && !isOSWindows() && !isOSWindowsCE();
   }
 
   bool isTargetGNUAEABI() const {
@@ -992,14 +1022,14 @@ public:
             getEnvironment() == Triple::GNUEABIT64 ||
             getEnvironment() == Triple::GNUEABIHF ||
             getEnvironment() == Triple::GNUEABIHFT64) &&
-           !isOSDarwin() && !isOSWindows();
+           !isOSDarwin() && !isOSWindows() && !isOSWindowsCE();
   }
 
   bool isTargetMuslAEABI() const {
     return (getEnvironment() == Triple::MuslEABI ||
             getEnvironment() == Triple::MuslEABIHF ||
             getEnvironment() == Triple::OpenHOS) &&
-           !isOSDarwin() && !isOSWindows();
+           !isOSDarwin() && !isOSWindows() && !isOSWindowsCE();
   }
 
   /// Tests whether the target is T32.
@@ -1217,7 +1247,7 @@ public:
   /// Note: Android API level 29 (10) introduced ELF TLS.
   bool hasDefaultEmulatedTLS() const {
     return (isAndroid() && isAndroidVersionLT(29)) || isOSOpenBSD() ||
-           isWindowsCygwinEnvironment() || isOHOSFamily() || isWindowsCE();
+           isWindowsCygwinEnvironment() || isOHOSFamily() || isOSWindowsCE();
   }
 
   /// True if the target uses TLSDESC by default.
@@ -1230,8 +1260,12 @@ public:
     return isOSBinFormatXCOFF() || isWasm();
   }
 
-  /// Tests if the environment supports dllimport/export annotations.
-  bool hasDLLImportExport() const { return isOSWindows() || isPS(); }
+  /// Tests if the environment supports dllimport/export annotations.  Windows
+  /// CE is included although it shares no runtime with the desktop: its images
+  /// import from DLLs the same way, which is what the annotations describe.
+  bool hasDLLImportExport() const {
+    return isOSWindows() || isOSWindowsCE() || isPS();
+  }
 
   /// @}
   /// @name Mutators

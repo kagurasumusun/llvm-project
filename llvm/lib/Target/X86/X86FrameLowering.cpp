@@ -653,7 +653,7 @@ void X86FrameLowering::emitStackProbe(
 }
 
 bool X86FrameLowering::stackProbeFunctionModifiesSP() const {
-  return STI.isOSWindows() && !STI.isTargetWin64();
+  return STI.isTargetWindowsFamily() && !STI.isTargetWin64();
 }
 
 void X86FrameLowering::inlineStackProbe(MachineFunction &MF,
@@ -1230,7 +1230,7 @@ void X86FrameLowering::emitStackProbeCall(
       .addReg(X86::EFLAGS, RegState::Define | RegState::Implicit);
 
   MachineInstr *ModInst = CI;
-  if (STI.isTargetWin64() || !STI.isOSWindows()) {
+  if (STI.isTargetWin64() || !STI.isTargetWindowsFamily()) {
     // MSVC x32's _chkstk and cygwin/mingw's _alloca adjust %esp themselves.
     // MSVC x64's __chkstk and cygwin/mingw's ___chkstk_ms do not adjust %rsp
     // themselves. They also does not clobber %rax so we can reuse it when
@@ -1247,7 +1247,7 @@ void X86FrameLowering::emitStackProbeCall(
   // allocation (i.e., DYN_ALLOC_*), substitute it for the instruction that
   // modifies SP.
   if (InstrNum) {
-    if (STI.isTargetWin64() || !STI.isOSWindows()) {
+    if (STI.isTargetWin64() || !STI.isTargetWindowsFamily()) {
       // Label destination operand of the subtract.
       MF.makeDebugValueSubstitution(*InstrNum,
                                     {ModInst->getDebugInstrNum(), 0});
@@ -2434,6 +2434,7 @@ void X86FrameLowering::emitEpilogue(MachineFunction &MF,
 
   bool NeedsDwarfCFI = (!MF.getTarget().getTargetTriple().isOSDarwin() &&
                         !MF.getTarget().getTargetTriple().isOSWindows() &&
+                        !MF.getTarget().getTargetTriple().isOSWindowsCE() &&
                         !MF.getTarget().getTargetTriple().isUEFI()) &&
                        MF.needsFrameMoves();
 
@@ -3016,7 +3017,7 @@ bool X86FrameLowering::spillCalleeSavedRegisters(
 
   // Don't save CSRs in 32-bit EH funclets. The caller saves EBX, EBP, ESI, EDI
   // for us, and there are no XMM CSRs on Win32.
-  if (MBB.isEHFuncletEntry() && STI.is32Bit() && STI.isOSWindows())
+  if (MBB.isEHFuncletEntry() && STI.is32Bit() && STI.isTargetWindowsFamily())
     return true;
 
   // Push GPRs. It increases frame size.
@@ -3136,7 +3137,8 @@ bool X86FrameLowering::restoreCalleeSavedRegisters(
   if (CSI.empty())
     return false;
 
-  if (MI != MBB.end() && isFuncletReturnInstr(*MI) && STI.isOSWindows()) {
+  if (MI != MBB.end() && isFuncletReturnInstr(*MI) &&
+      STI.isTargetWindowsFamily()) {
     // Don't restore CSRs in 32-bit EH funclets. Matches
     // spillCalleeSavedRegisters.
     if (STI.is32Bit())

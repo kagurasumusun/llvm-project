@@ -128,7 +128,10 @@ static bool useFramePointerForTargetByDefault(const llvm::opt::ArgList &Args,
     }
   }
 
-  if (Triple.isOSWindows()) {
+  // Windows CE is listed with the desktop OS: what is asked below is which
+  // unwinding information the image carries, and a CE image is walked the same
+  // way, with .pdata and a frame pointer kept for it.
+  if (Triple.isOSWindows() || Triple.isOSWindowsCE()) {
     switch (Triple.getArch()) {
     case llvm::Triple::x86:
       return !clang::driver::tools::areOptimizationsEnabled(Args);
@@ -2031,7 +2034,10 @@ tools::ParsePICArgs(const ToolChain &ToolChain, const ArgList &Args) {
                                     options::OPT_fpic, options::OPT_fno_pic,
                                     options::OPT_fPIE, options::OPT_fno_PIE,
                                     options::OPT_fpie, options::OPT_fno_pie);
-  if (Triple.isOSWindows() && !Triple.isOSCygMing() && LastPICArg &&
+  // A COFF image carries no position independent form for either OS, so the
+  // refusal reads the same for a CE target as for the desktop one.
+  if ((Triple.isOSWindows() || Triple.isOSWindowsCE()) &&
+      !Triple.isOSCygMing() && LastPICArg &&
       LastPICArg == Args.getLastArg(options::OPT_fPIC, options::OPT_fpic,
                                     options::OPT_fPIE, options::OPT_fpie)) {
     ToolChain.getDriver().Diag(diag::err_drv_unsupported_opt_for_target)
@@ -2389,11 +2395,18 @@ static void AddUnwindLibrary(const ToolChain &TC, const Driver &D,
       TC.getTriple().isWindowsMSVCEnvironment() || UNW == ToolChain::UNW_None)
     return;
 
+  // Both the Cygwin/Mingw runtimes and Windows CE resolve libunwind to the
+  // import library libunwind.dll.a, and neither can use --as-needed for it:
+  // the unwinder has to be pulled in even when no undefined symbol refers to
+  // it by name.  Desktop MSVC environments do not reach this at all.
+  const bool IsWindowsLike =
+      TC.getTriple().isOSCygMing() || TC.getTriple().isOSWindowsCE();
+
   LibGccType LGT = getLibGccType(TC, D, Args);
   bool AsNeeded = LGT == LibGccType::UnspecifiedLibGcc &&
                   (UNW == ToolChain::UNW_CompilerRT || !D.CCCIsCXX()) &&
                   !TC.getTriple().isAndroid() &&
-                  !TC.getTriple().isOSBinFormatCOFF() && !TC.getTriple().isOSAIX();
+                  !IsWindowsLike && !TC.getTriple().isOSAIX();
   if (AsNeeded)
     addAsNeededOption(TC, Args, CmdArgs, true);
 
@@ -2416,7 +2429,7 @@ static void AddUnwindLibrary(const ToolChain &TC, const Driver &D,
     } else if (LGT == LibGccType::StaticLibGcc) {
       CmdArgs.push_back("-l:libunwind.a");
     } else if (LGT == LibGccType::SharedLibGcc) {
-      if (TC.getTriple().isOSBinFormatCOFF())
+      if (IsWindowsLike)
         CmdArgs.push_back("-l:libunwind.dll.a");
       else
         CmdArgs.push_back("-l:libunwind.so");

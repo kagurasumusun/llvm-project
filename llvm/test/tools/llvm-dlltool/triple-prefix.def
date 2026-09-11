@@ -7,6 +7,7 @@
 ; RUN: ln -s llvm-dlltool %t/x86_64-w64-mingw32-llvm-dlltool-10
 ; RUN: ln -s llvm-dlltool %t/armv7-w64-mingw32-dlltool
 ; RUN: ln -s llvm-dlltool %t/aarch64-w64-mingw32-DLLTOOL.exe
+; RUN: ln -s llvm-dlltool %t/arm-pc-wince-dlltool
 
 ; RUN: %t/i686-w64-mingw32-llvm-dlltool-10.0.exe -d %s -l %t.a
 ; RUN: llvm-readobj %t.a | FileCheck --check-prefix=I386 %s
@@ -16,6 +17,11 @@
 ; RUN: llvm-readobj %t.a | FileCheck --check-prefix=ARM %s
 ; RUN: %t/aarch64-w64-mingw32-DLLTOOL.exe -d %s -l %t.a
 ; RUN: llvm-readobj %t.a | FileCheck --check-prefix=ARM64 %s
+; The tool's own name is one way a CE target reaches the plain ARM machine type,
+; which no dlltool machine name can ask for.
+; RUN: %t/arm-pc-wince-dlltool -d %s -l %t.a
+; RUN: llvm-readobj %t.a | FileCheck --check-prefix=WINCE %s
+; RUN: llvm-readobj -h %t.a | FileCheck --check-prefix=WINCE-MACHINE %s
 
 LIBRARY test.dll
 EXPORTS
@@ -25,3 +31,5 @@ TestFunction
 ; X86_64: Format: COFF-x86-64
 ; ARM: Format: COFF-ARM{{$}}
 ; ARM64: Format: COFF-ARM64
+; WINCE: Format: COFF-ARM{{$}}
+; WINCE-MACHINE: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)

@@ -1,0 +1,1 @@
+Empty stand-in for a sysroot whose libraries sit in lib/ and whose coredll import library carries the Microsoft-style name coredll.lib. The files are 0 bytes: the driver only looks for them, and no test links anything from here.

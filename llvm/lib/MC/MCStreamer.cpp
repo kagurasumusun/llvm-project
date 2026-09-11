@@ -711,9 +711,20 @@ void MCStreamer::emitCFIValOffset(int64_t Register, int64_t Offset, SMLoc Loc) {
   CurFrame->Instructions.push_back(std::move(Instruction));
 }
 
-WinEH::FrameInfo *MCStreamer::EnsureValidWinFrameInfo(SMLoc Loc) {
+// The .pdata records of Windows CE's ARM variant are carried through the WinEH
+// frame info machinery, while the MAI of that target advertises the ARM
+// exception encoding instead of the Windows one.  Whether the machinery is
+// available is therefore a question about the object format and the assembler
+// info, not about which operating system is being built for.
+static bool supportsWinEHFrameInfo(const MCContext &Context) {
   const MCAsmInfo *MAI = Context.getAsmInfo();
-  if (!MAI->usesWindowsCFI() && !Context.getTargetTriple().isWindowsCE()) {
+  return MAI->usesWindowsCFI() ||
+         (Context.getTargetTriple().isOSBinFormatCOFF() &&
+          MAI->getExceptionHandlingType() == ExceptionHandling::ARM);
+}
+
+WinEH::FrameInfo *MCStreamer::EnsureValidWinFrameInfo(SMLoc Loc) {
+  if (!supportsWinEHFrameInfo(Context)) {
     getContext().reportError(
         Loc, ".seh_* directives are not supported on this target");
     return nullptr;
@@ -727,8 +738,7 @@ WinEH::FrameInfo *MCStreamer::EnsureValidWinFrameInfo(SMLoc Loc) {
 }
 
 void MCStreamer::emitWinCFIStartProc(const MCSymbol *Symbol, SMLoc Loc) {
-  const MCAsmInfo *MAI = Context.getAsmInfo();
-  if (!MAI->usesWindowsCFI() && !Context.getTargetTriple().isWindowsCE())
+  if (!supportsWinEHFrameInfo(Context))
     return getContext().reportError(
         Loc, ".seh_* directives are not supported on this target");
   if (CurrentWinFrameInfo && !CurrentWinFrameInfo->End)

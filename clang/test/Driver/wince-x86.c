@@ -1,4 +1,4 @@
-/// REQUIRES: x86-registered-target
+// REQUIRES: x86-registered-target
 
 // RUN: %clang -target i386-pc-wince -print-target-triple 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=TRIPLE
@@ -6,7 +6,7 @@
 
 // RUN: %clang -target i386-mingw32ce -print-target-triple 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LEGACY
-// LEGACY: i386-unknown-wince
+// LEGACY: i386-unknown-mingw32ce
 
 // RUN: %clang -target i386-pc-wince -E -dM %s -o %t
 // RUN: FileCheck %s --check-prefix=DEF-WCEVER --input-file %t

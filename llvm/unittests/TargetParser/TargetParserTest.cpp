@@ -2368,19 +2368,32 @@ TEST(TargetParserTest, checkFindSinglePrecisionFPU) {
   }
 }
 
+// Windows CE ran on more than one kind of core and never named one of its own,
+// so which CPU to compile for cannot depend on the OS: a default pinned to it
+// would replace the core the architecture asks for wherever one is asked for,
+// and would leave no way of asking for another.  The answer for a CE triple is
+// therefore the one the generic rules already give, on every spelling of the
+// architecture and not just on the ones that name a version.
 TEST(TargetParserTest, ARMWinCEDefaultCPU) {
-  for (StringRef Arch : {"arm", "thumb", "armv5t", "armv5te", "armv5tej",
-                        "thumbv5te"}) {
-    Triple T((Arch + "-unknown-wince").str());
-    SCOPED_TRACE(T.str());
-    EXPECT_EQ("arm926ej-s", ARM::getARMCPUForArch(T));
-  }
-  for (StringRef Arch : {"armv4t", "armv6", "armv7", "thumbv7"}) {
+  for (StringRef Arch : {"arm", "thumb", "armv4t", "armv5t", "armv5te",
+                         "armv5tej", "thumbv5te", "armv6", "armv7", "thumbv7",
+                         "armv8.1m.main"}) {
     Triple CE((Arch + "-unknown-wince").str());
     Triple Other((Arch + "-unknown-none").str());
     SCOPED_TRACE(CE.str());
     EXPECT_EQ(ARM::getARMCPUForArch(Other), ARM::getARMCPUForArch(CE));
   }
+
+  // What those rules answer is the architecture's own default.  A bare "arm"
+  // takes the core the "minimum CPU required by the OS and environment" rule
+  // hands to every triple that names no version, and the CE generations were
+  // built to run on nothing older than it.  Naming the architecture gets the
+  // core that belongs to it: v5TEJ, whose generic default is the CPU this used
+  // to invent for every CE triple whatever its architecture said.
+  EXPECT_EQ("arm7tdmi", ARM::getARMCPUForArch(Triple("arm-unknown-wince")));
+  EXPECT_EQ("arm7tdmi", ARM::getARMCPUForArch(Triple("thumb-unknown-wince")));
+  EXPECT_EQ("arm926ej-s",
+            ARM::getARMCPUForArch(Triple("armv5tej-unknown-wince")));
 }
 
 } // namespace

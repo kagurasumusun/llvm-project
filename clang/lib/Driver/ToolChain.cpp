@@ -765,6 +765,11 @@ std::string ToolChain::buildCompilerRTBasename(const llvm::opt::ArgList &Args,
   case ToolChain::FT_Shared:
     if (TT.isOSWindows())
       Suffix = TT.isOSCygMing() ? ".dll.a" : ".lib";
+    else if (TT.isOSWindowsCE())
+      // The runtime packages for this target name their libraries the GNU way,
+      // as the library paths above already assume, and a shared one is an
+      // import library for a DLL next to it.
+      Suffix = ".dll.a";
     else if (TT.isOSAIX())
       Suffix = ".a";
     else
@@ -1126,11 +1131,6 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
       }
     }
     getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
-    return GetProgramPath(getDefaultLinker());
-  }
-  if (UseLinker == "lld" && StringRef(getDefaultLinker()) == "lld-link") {
-    if (LinkerIsLLD)
-      *LinkerIsLLD = true;
     return GetProgramPath(getDefaultLinker());
   }
   // If we're passed -fuse-ld= with no argument, or with the argument ld,

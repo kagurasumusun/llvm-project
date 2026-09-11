@@ -1217,7 +1217,8 @@ static unsigned int checkCastFunctionType(Sema &Self, const ExprResult &SrcExpr,
   // On Windows, GetProcAddress() returns a FARPROC, which is a typedef for a
   // function pointer type (with no prototype, in C). We don't want to diagnose
   // this case so we don't diagnose idiomatic code on Windows.
-  if (Self.getASTContext().getTargetInfo().getTriple().isOSWindows() &&
+  if ((Self.getASTContext().getTargetInfo().getTriple().isOSWindows() ||
+       Self.getASTContext().getTargetInfo().getTriple().isOSWindowsCE()) &&
       IsFarProc(SrcFTy))
     return 0;
 

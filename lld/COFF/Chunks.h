@@ -549,7 +549,7 @@ static const uint8_t importThunkARM[] = {
     0xdc, 0xf8, 0x00, 0xf0, // ldr.w pc, [ip]
 };
 
-static const uint8_t importThunkARMCE[] = {
+static const uint8_t importThunkARMWinCE[] = {
     0x00, 0xc0, 0x9f, 0xe5,
     0x00, 0xf0, 0x9c, 0xe5,
     0x00, 0x00, 0x00, 0x00,
@@ -616,13 +616,13 @@ public:
   MachineTypes getMachine() const override { return ARMNT; }
 };
 
-class ImportThunkChunkARMCE : public ImportThunkChunk {
+class ImportThunkChunkARMWinCE : public ImportThunkChunk {
 public:
-  explicit ImportThunkChunkARMCE(COFFLinkerContext &ctx, Defined *s)
+  explicit ImportThunkChunkARMWinCE(COFFLinkerContext &ctx, Defined *s)
       : ImportThunkChunk(ctx, s) {
     setAlignment(4);
   }
-  size_t getSize() const override { return sizeof(importThunkARMCE); }
+  size_t getSize() const override { return sizeof(importThunkARMWinCE); }
   void getBaserels(std::vector<Baserel> *res) override;
   void writeTo(uint8_t *buf) const override;
   MachineTypes getMachine() const override {
@@ -699,9 +699,9 @@ private:
   MachineTypes machine;
 };
 
-class RangeExtensionThunkARMCE : public NonSectionCodeChunk {
+class RangeExtensionThunkARMWinCE : public NonSectionCodeChunk {
 public:
-  explicit RangeExtensionThunkARMCE(COFFLinkerContext &ctx, Defined *t)
+  explicit RangeExtensionThunkARMWinCE(COFFLinkerContext &ctx, Defined *t)
       : target(t), ctx(ctx) {
     setAlignment(4);
   }
@@ -718,9 +718,9 @@ private:
   COFFLinkerContext &ctx;
 };
 
-class RangeExtensionThunkARMCEThumb : public NonSectionCodeChunk {
+class RangeExtensionThunkARMWinCEThumb : public NonSectionCodeChunk {
 public:
-  explicit RangeExtensionThunkARMCEThumb(COFFLinkerContext &ctx, Defined *t)
+  explicit RangeExtensionThunkARMWinCEThumb(COFFLinkerContext &ctx, Defined *t)
       : target(t), ctx(ctx) {
     setAlignment(4);
   }

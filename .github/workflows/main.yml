@@ -28,7 +28,6 @@ name: wince-llvm-toolchain
 
 on:
   push:
-    branches: [LLVM-WinCE]
   workflow_dispatch:
 
 permissions:

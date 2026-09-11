@@ -6136,7 +6136,9 @@ InputInfoList Driver::BuildJobsForActionNoCache(
 
 const char *Driver::getDefaultImageName() const {
   llvm::Triple Target(llvm::Triple::normalize(TargetTriple));
-  return Target.isOSWindows() ? "a.exe" : "a.out";
+  // A Windows CE image is a PE file like a desktop one, and the tool chains
+  // that produce it name the default output a.exe as well.
+  return Target.isOSWindows() || Target.isOSWindowsCE() ? "a.exe" : "a.out";
 }
 
 /// Create output filename based on ArgValue, which could either be a
@@ -6911,7 +6913,7 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
     case llvm::Triple::UEFI:
       TC = std::make_unique<toolchains::UEFI>(*this, Target, Args);
       break;
-    case llvm::Triple::WinCE:
+    case llvm::Triple::WindowsCE:
       TC = std::make_unique<toolchains::WinCE>(*this, Target, Args);
       break;
     case llvm::Triple::Win32:

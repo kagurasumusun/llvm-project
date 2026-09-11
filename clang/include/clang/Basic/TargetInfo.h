@@ -1655,14 +1655,19 @@ public:
   /// Whether target supports variable-length arrays.
   bool isVLASupported() const { return VLASupported; }
 
-  /// Whether the target supports SEH __try.
+  /// Whether the target supports SEH __try.  Each Windows form answers for
+  /// itself: the desktop releases carry it on x86 and AArch64, Windows CE on the
+  /// architectures it was made for, which are not the same list and share only
+  /// the mechanism.
   bool isSEHTrySupported() const {
+    if (getTriple().isOSWindowsCE())
+      return getTriple().isX86() ||
+             getTriple().getArch() == llvm::Triple::arm ||
+             getTriple().getArch() == llvm::Triple::thumb;
+
     return getTriple().isOSWindows() &&
            (getTriple().isX86() ||
-            getTriple().getArch() == llvm::Triple::aarch64 ||
-            (getTriple().isWindowsCE() &&
-             (getTriple().getArch() == llvm::Triple::arm ||
-              getTriple().getArch() == llvm::Triple::thumb)));
+            getTriple().getArch() == llvm::Triple::aarch64);
   }
 
   /// Return true if {|} are normal characters in the asm string.

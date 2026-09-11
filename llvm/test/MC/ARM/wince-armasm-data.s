@@ -1,4 +1,4 @@
-@ RUN: llvm-mc -triple arm-pc-wince -masm-armasm -filetype=obj -o %t.o %s
+@ RUN: llvm-mc -triple arm-pc-wince -mcpu=arm926ej-s -masm-armasm -filetype=obj -o %t.o %s
 @ RUN: llvm-objdump -s --section=.data %t.o | FileCheck %s
 @ RUN: llvm-readobj --symbols %t.o | FileCheck %s --check-prefix=SYM
 

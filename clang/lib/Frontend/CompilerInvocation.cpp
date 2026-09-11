@@ -592,11 +592,27 @@ static bool FixupInvocation(CompilerInvocation &Invocation,
   CodeGenOpts.CodeModel = TargetOpts.CodeModel;
   CodeGenOpts.LargeDataThreshold = TargetOpts.LargeDataThreshold;
 
-  if (CodeGenOpts.getExceptionHandling() !=
-          CodeGenOptions::ExceptionHandlingKind::None &&
-      T.isWindowsMSVCEnvironment())
+  // The C++ unwinding format is decided by the target, not picked here.  The desktop
+  // MSVC ABI has its own runtime for its own tables, and on Windows CE the images of
+  // the ARM and Thumb architectures carry only the .ARM.exidx tables that
+  // Triple::getDefaultExceptionHandling() selects and libc++abi's EHABI
+  // __gxx_personality_v0 walks.  SEH and DWARF CFI would describe the same frames in a
+  // format nothing on this target reads, so refuse them here rather than leaving the
+  // libraries to undo the choice, which would mean overriding the compiler's own
+  // __SEH__ and __ARM_DWARF_EH__ macros per translation unit.  SjLj stays legal: it
+  // needs no tables, and CE has its own Thumb1 spellings of the longjmp intrinsics.
+  // The architecture pair is the one getDefaultExceptionHandling() uses, so that a
+  // thumbv7-pc-wince triple is refused exactly where that rule applies to it.
+  CodeGenOptions::ExceptionHandlingKind EHModel = CodeGenOpts.getExceptionHandling();
+  bool InvalidEHModel =
+      EHModel != CodeGenOptions::ExceptionHandlingKind::None &&
+      (T.isWindowsMSVCEnvironment() ||
+       (T.isOSWindowsCE() && (T.isARM() || T.isThumb()) &&
+        (EHModel == CodeGenOptions::ExceptionHandlingKind::WinEH ||
+         EHModel == CodeGenOptions::ExceptionHandlingKind::DwarfCFI)));
+  if (InvalidEHModel)
     Diags.Report(diag::err_fe_invalid_exception_model)
-        << static_cast<unsigned>(CodeGenOpts.getExceptionHandling()) << T.str();
+        << static_cast<unsigned>(EHModel) << T.str();
 
   if (LangOpts.AppleKext && !LangOpts.CPlusPlus)
     Diags.Report(diag::warn_c_kext);

@@ -86,7 +86,7 @@ MCContext::MCContext(const Triple &TheTriple, const MCAsmInfo *mai,
     Env = IsMachO;
     break;
   case Triple::COFF:
-    if (!TheTriple.isOSWindows() && !TheTriple.isUEFI()) {
+    if (!TheTriple.isOSWindowsFamily()) {
       reportFatalUsageError(
           "cannot initialize MC for non-Windows COFF object files");
     }

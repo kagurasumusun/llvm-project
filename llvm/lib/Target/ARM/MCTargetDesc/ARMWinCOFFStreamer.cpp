@@ -43,12 +43,8 @@ public:
 
   void finishImpl() override;
 
-
-  void CEEmitUnwindInfo(WinEH::FrameInfo *Frame);
-
-
-  bool isWindowsCE() const {
-    return getContext().getTargetTriple().isWindowsCE();
+  bool isOSWindowsCE() const {
+    return getContext().getTargetTriple().isOSWindowsCE();
   }
 
   void EHABIReset();
@@ -56,20 +52,25 @@ public:
   void FlushPendingOffset();
   void FlushUnwindOpcodes(bool NoHandlerData);
 
-  void EHABIemitFnStart();
-  void EHABIemitFnEnd();
-  void EHABIemitCantUnwind();
-  void EHABIemitPersonality(const MCSymbol *Per);
-  void EHABIemitPersonalityIndex(unsigned Index);
-  void EHABIemitHandlerData();
-  void EHABIemitSetFP(MCRegister NewFPReg, MCRegister NewSPReg,
+  void emitEHABIFnStart();
+  void emitEHABIFnEnd();
+  void emitEHABICantUnwind();
+  void emitEHABIPersonality(const MCSymbol *Per);
+  void emitEHABIPersonalityIndex(unsigned Index);
+  void emitEHABIHandlerData();
+  void emitEHABISetFP(MCRegister NewFPReg, MCRegister NewSPReg,
                       int64_t Offset);
-  void EHABIemitMovSP(MCRegister Reg, int64_t Offset);
-  void EHABIemitPad(int64_t Offset);
-  void EHABIemitRegSave(const SmallVectorImpl<MCRegister> &RegList,
+  void emitEHABIMovSP(MCRegister Reg, int64_t Offset);
+  void emitEHABIPad(int64_t Offset);
+  void emitEHABIRegSave(const SmallVectorImpl<MCRegister> &RegList,
                         bool IsVector);
-  void EHABIemitUnwindRaw(int64_t Offset,
+  void emitEHABIUnwindRaw(int64_t Offset,
                           const SmallVectorImpl<uint8_t> &Ops);
+
+  /// Write this frame's .pdata record for Windows CE, whose ARM encoding keeps
+  /// the function and prologue lengths as separate relocations instead of the
+  /// Windows unwind codes.
+  void emitWinCEUnwindInfo(WinEH::FrameInfo *Frame);
 
   MCSymbol *EHFnStart = nullptr;
   MCSymbol *EHExTab = nullptr;
@@ -111,13 +112,13 @@ void ARMWinCOFFStreamer::switchToEHABISection(StringRef Name,
   emitValueToAlignment(Align(4));
 }
 
-void ARMWinCOFFStreamer::EHABIemitFnStart() {
+void ARMWinCOFFStreamer::emitEHABIFnStart() {
   assert(!EHFnStart && ".fnstart must not nest");
   EHFnStart = getContext().createTempSymbol();
   emitLabel(EHFnStart);
 }
 
-void ARMWinCOFFStreamer::EHABIemitFnEnd() {
+void ARMWinCOFFStreamer::emitEHABIFnEnd() {
   assert(EHFnStart && ".fnstart must precede .fnend");
 
   if (!EHExTab && !EHCantUnwind)
@@ -148,21 +149,21 @@ void ARMWinCOFFStreamer::EHABIemitFnEnd() {
   EHABIReset();
 }
 
-void ARMWinCOFFStreamer::EHABIemitCantUnwind() { EHCantUnwind = true; }
+void ARMWinCOFFStreamer::emitEHABICantUnwind() { EHCantUnwind = true; }
 
-void ARMWinCOFFStreamer::EHABIemitPersonality(const MCSymbol *Per) {
+void ARMWinCOFFStreamer::emitEHABIPersonality(const MCSymbol *Per) {
   EHPersonality = Per;
   UnwindOpAsm.setPersonality(Per);
 }
 
-void ARMWinCOFFStreamer::EHABIemitPersonalityIndex(unsigned Index) {
+void ARMWinCOFFStreamer::emitEHABIPersonalityIndex(unsigned Index) {
   assert(Index < ARM::EHABI::NUM_PERSONALITY_INDEX && "invalid index");
   EHPersonalityIndex = Index;
 }
 
-void ARMWinCOFFStreamer::EHABIemitHandlerData() { FlushUnwindOpcodes(false); }
+void ARMWinCOFFStreamer::emitEHABIHandlerData() { FlushUnwindOpcodes(false); }
 
-void ARMWinCOFFStreamer::EHABIemitSetFP(MCRegister NewFPReg,
+void ARMWinCOFFStreamer::emitEHABISetFP(MCRegister NewFPReg,
                                         MCRegister NewSPReg,
                                         int64_t Offset) {
   assert((NewSPReg == ARM::SP) && "the operand of .setfp must be sp");
@@ -172,7 +173,7 @@ void ARMWinCOFFStreamer::EHABIemitSetFP(MCRegister NewFPReg,
     EHFPOffset = EHSPOffset + Offset;
 }
 
-void ARMWinCOFFStreamer::EHABIemitMovSP(MCRegister Reg, int64_t Offset) {
+void ARMWinCOFFStreamer::emitEHABIMovSP(MCRegister Reg, int64_t Offset) {
   assert((Reg != ARM::SP && Reg != ARM::PC) &&
          "the operand of .movsp cannot be either sp or pc");
   assert(EHFPReg == ARM::SP && "current FP must be SP");
@@ -186,7 +187,7 @@ void ARMWinCOFFStreamer::EHABIemitMovSP(MCRegister Reg, int64_t Offset) {
   UnwindOpAsm.EmitSetSP(MRI->getEncodingValue(EHFPReg));
 }
 
-void ARMWinCOFFStreamer::EHABIemitPad(int64_t Offset) {
+void ARMWinCOFFStreamer::emitEHABIPad(int64_t Offset) {
   EHSPOffset -= Offset;
   EHPendingOffset -= Offset;
 }
@@ -225,7 +226,8 @@ void ARMWinCOFFStreamer::FlushUnwindOpcodes(bool NoHandlerData) {
     emitValue(PersonalityRef, 4);
   }
 
-  assert((Opcodes.size() % 4) == 0 && "unwind opcode size must be multiple of 4");
+  assert((Opcodes.size() % 4) == 0 &&
+         "unwind opcode size must be multiple of 4");
   for (unsigned I = 0; I != Opcodes.size(); I += 4) {
     emitInt32(support::endian::read32le(Opcodes.data() + I));
   }
@@ -234,7 +236,7 @@ void ARMWinCOFFStreamer::FlushUnwindOpcodes(bool NoHandlerData) {
     emitInt32(0);
 }
 
-void ARMWinCOFFStreamer::EHABIemitRegSave(
+void ARMWinCOFFStreamer::emitEHABIRegSave(
     const SmallVectorImpl<MCRegister> &RegList, bool IsVector) {
   uint32_t Mask = 0;
   unsigned Count = 0;
@@ -262,22 +264,17 @@ void ARMWinCOFFStreamer::EHABIemitRegSave(
   }
 }
 
-void ARMWinCOFFStreamer::EHABIemitUnwindRaw(
+void ARMWinCOFFStreamer::emitEHABIUnwindRaw(
     int64_t Offset, const SmallVectorImpl<uint8_t> &Ops) {
   FlushPendingOffset();
   EHSPOffset = EHSPOffset - Offset;
   UnwindOpAsm.EmitRaw(Ops);
 }
 
-
-void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
-  if (!Frame || Frame->CEEmitted)
+void ARMWinCOFFStreamer::emitWinCEUnwindInfo(WinEH::FrameInfo *Frame) {
+  if (!Frame || Frame->ARMWinCEPdataEmitted)
     return;
-  if (Frame->empty()) {
-    Frame->EmitAttempted = true;
-    return;
-  }
-  Frame->CEEmitted = true;
+  Frame->ARMWinCEPdataEmitted = true;
 
   MCContext &Ctx = getContext();
 
@@ -287,14 +284,20 @@ void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
 
   const MCSymbol *FuncEnd = Frame->FuncletOrFuncEnd ? Frame->FuncletOrFuncEnd
                                                     : Frame->End;
-  if (!FuncEnd || !Frame->PrologEnd) {
+  if (!FuncEnd) {
     StringRef FnName = Frame->Function ? Frame->Function->getName()
                                        : StringRef("<unknown>");
-    getContext().reportError(
-        SMLoc(), "CE unwind info for '" + Twine(FnName) +
-                     "' requires .seh_endprologue and .seh_endproc");
+    getContext().reportError(SMLoc(),
+                             "CE unwind info for '" + Twine(FnName) +
+                                 "' requires .seh_endproc");
     return;
   }
+  // Unlike the Windows unwind info, a CE record carries no unwind codes, only
+  // the lengths of the function and of its prologue, so a function that needs
+  // no codes still has to be described.  Without .seh_endprologue there was
+  // nothing to set the stack frame up with, which is a prologue of length zero.
+  const MCSymbol *PrologEnd =
+      Frame->PrologEnd ? Frame->PrologEnd : Frame->Begin;
 
   switchSection(getAssociatedPDataSection(Frame->TextSection));
   emitValueToAlignment(Align(4));
@@ -306,16 +309,15 @@ void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
   emitValue(BeginExpr, 4);
 
   bool Truncated = false;
-  const uint32_t Static = ARM::WinEH::CE::encodeFlags(
-                    0,             0,                    !IsThumb,
-                     HasHandler, Truncated);
+  const uint32_t Static =
+      ARM::WinEH::WinCE::encodeFlags(0, 0, !IsThumb, HasHandler, Truncated);
   assert(!Truncated && "zero lengths cannot overflow their bitfields");
   emitIntValue(Static, 4);
   emitValue(MCSymbolRefExpr::create(
-                FuncEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_FUNCLEN, Ctx),
+                FuncEnd, MCSymbolRefExpr::VK_COFF_ARM_WINCE_PDATA_FUNCLEN, Ctx),
             4);
   emitValue(MCSymbolRefExpr::create(
-                Frame->PrologEnd, MCSymbolRefExpr::VK_COFF_CE_PDATA_PROLOG,
+                PrologEnd, MCSymbolRefExpr::VK_COFF_ARM_WINCE_PDATA_PROLOG,
                 Ctx),
             4);
 
@@ -325,7 +327,7 @@ void ARMWinCOFFStreamer::CEEmitUnwindInfo(WinEH::FrameInfo *Frame) {
 void ARMWinCOFFStreamer::emitWinEHHandlerData(SMLoc Loc) {
   MCStreamer::emitWinEHHandlerData(Loc);
 
-  if (isWindowsCE()) {
+  if (isOSWindowsCE()) {
     return;
   }
 
@@ -336,18 +338,17 @@ void ARMWinCOFFStreamer::emitWinEHHandlerData(SMLoc Loc) {
 }
 
 void ARMWinCOFFStreamer::emitWindowsUnwindTables(WinEH::FrameInfo *Frame) {
-  if (isWindowsCE())
-    CEEmitUnwindInfo(Frame);
-  else
-  EHStreamer.EmitUnwindInfo(*this, Frame, /* HandlerData = */ false);
+  if (isOSWindowsCE())
+    return emitWinCEUnwindInfo(Frame);
+  EHStreamer.EmitUnwindInfo(*this, Frame, /*HandlerData=*/false);
 }
 
 void ARMWinCOFFStreamer::emitWindowsUnwindTables() {
   if (!getNumWinFrameInfos())
     return;
-  if (isWindowsCE()) {
+  if (isOSWindowsCE()) {
     for (const auto &CFI : getWinFrameInfos())
-      CEEmitUnwindInfo(CFI.get());
+      emitWinCEUnwindInfo(CFI.get());
     return;
   }
   EHStreamer.Emit(*this);
@@ -416,71 +417,71 @@ private:
 
 void ARMTargetWinCOFFStreamer::emitFnStart() {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitFnStart();
+  if (S.isOSWindowsCE())
+    S.emitEHABIFnStart();
 }
 
 void ARMTargetWinCOFFStreamer::emitFnEnd() {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitFnEnd();
+  if (S.isOSWindowsCE())
+    S.emitEHABIFnEnd();
 }
 
 void ARMTargetWinCOFFStreamer::emitCantUnwind() {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitCantUnwind();
+  if (S.isOSWindowsCE())
+    S.emitEHABICantUnwind();
 }
 
 void ARMTargetWinCOFFStreamer::emitPersonality(const MCSymbol *Personality) {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitPersonality(Personality);
+  if (S.isOSWindowsCE())
+    S.emitEHABIPersonality(Personality);
 }
 
 void ARMTargetWinCOFFStreamer::emitPersonalityIndex(unsigned Index) {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitPersonalityIndex(Index);
+  if (S.isOSWindowsCE())
+    S.emitEHABIPersonalityIndex(Index);
 }
 
 void ARMTargetWinCOFFStreamer::emitHandlerData() {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitHandlerData();
+  if (S.isOSWindowsCE())
+    S.emitEHABIHandlerData();
 }
 
 void ARMTargetWinCOFFStreamer::emitSetFP(MCRegister FpReg, MCRegister SpReg,
                                          int64_t Offset) {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitSetFP(FpReg, SpReg, Offset);
+  if (S.isOSWindowsCE())
+    S.emitEHABISetFP(FpReg, SpReg, Offset);
 }
 
 void ARMTargetWinCOFFStreamer::emitMovSP(MCRegister Reg, int64_t Offset) {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitMovSP(Reg, Offset);
+  if (S.isOSWindowsCE())
+    S.emitEHABIMovSP(Reg, Offset);
 }
 
 void ARMTargetWinCOFFStreamer::emitPad(int64_t Offset) {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitPad(Offset);
+  if (S.isOSWindowsCE())
+    S.emitEHABIPad(Offset);
 }
 
 void ARMTargetWinCOFFStreamer::emitRegSave(
     const SmallVectorImpl<MCRegister> &RegList, bool isVector) {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitRegSave(RegList, isVector);
+  if (S.isOSWindowsCE())
+    S.emitEHABIRegSave(RegList, isVector);
 }
 
 void ARMTargetWinCOFFStreamer::emitUnwindRaw(
     int64_t Offset, const SmallVectorImpl<uint8_t> &Opcodes) {
   ARMWinCOFFStreamer &S = getStreamer();
-  if (S.isWindowsCE())
-    S.EHABIemitUnwindRaw(Offset, Opcodes);
+  if (S.isOSWindowsCE())
+    S.emitEHABIUnwindRaw(Offset, Opcodes);
 }
 
 void ARMTargetWinCOFFStreamer::emitThumbFunc(MCSymbol *Symbol) {

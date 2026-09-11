@@ -360,10 +360,14 @@ static int AssembleInput(const char *ProgName, const Target *TheTarget,
                          MCAsmInfo &MAI, MCSubtargetInfo &STI,
                          MCInstrInfo &MCII, MCTargetOptions const &MCOptions) {
   const Triple &Target = Ctx.getTargetTriple();
+  // The dialect is only meaningful for the sources lld's CE support consumes,
+  // which are ARM COFF; reject it elsewhere instead of accepting a source that
+  // cannot be assembled.
   if (MasmArmasmDialect &&
-      (!Target.isOSBinFormatCOFF() ||
-       (Target.getArch() != Triple::arm && Target.getArch() != Triple::thumb))) {
-    errs() << ProgName << ": error: armasm syntax requires an ARM COFF target\n";
+      !(Target.isOSWindowsCE() && Target.isARM() &&
+        Target.isOSBinFormatCOFF())) {
+    WithColor::error(errs(), ProgName)
+        << "-masm-armasm requires a Windows CE ARM COFF target\n";
     return 1;
   }
   std::unique_ptr<MCAsmParser> Parser(

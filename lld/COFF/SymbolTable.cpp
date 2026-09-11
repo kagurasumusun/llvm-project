@@ -509,9 +509,18 @@ void SymbolTable::resolveRemainingUndefines(std::vector<Undefined *> &aliases) {
     if (name.contains("_PchSym_"))
       continue;
 
-    if (ctx.config.wince &&
-        (name == "__text_start__" || name == "__text_end__" ||
-         name == "__exidx_start" || name == "__exidx_end")) {
+    // The CE crt3.o walks the image through the bounds of .text, and the ARM
+    // variant of it also through .ARM.exidx.  Both are bound to chunks only
+    // once the sections are laid out (see Writer::insertTextStartEndSymbols
+    // and Writer::insertARMWinCEExIdxBoundsSymbols), so they must not be
+    // reported as unresolved here.
+    if (ctx.config.isWindowsCE() &&
+        (name == "__text_start__" || name == "__text_end__")) {
+      undef->deferUndefined = true;
+      continue;
+    }
+    if (ctx.config.isARMOnWindowsCE() &&
+        (name == "__exidx_start" || name == "__exidx_end")) {
       undef->deferUndefined = true;
       continue;
     }

@@ -244,7 +244,7 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
       default: // Assume MSVC for unknown environments
         return std::make_unique<MicrosoftARMleTargetInfo>(Triple, Opts);
       }
-    case llvm::Triple::WinCE:
+    case llvm::Triple::WindowsCE:
       return std::make_unique<WinCEARMTargetInfo>(Triple, Opts);
     default:
       return std::make_unique<ARMleTargetInfo>(Triple, Opts);
@@ -598,7 +598,7 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
       return std::make_unique<MCUX86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::Hurd:
       return std::make_unique<HurdTargetInfo<X86_32TargetInfo>>(Triple, Opts);
-    case llvm::Triple::WinCE:
+    case llvm::Triple::WindowsCE:
       return std::make_unique<WinCEX86_32TargetInfo>(Triple, Opts);
     default:
       return std::make_unique<X86_32TargetInfo>(Triple, Opts);

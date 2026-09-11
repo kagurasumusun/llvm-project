@@ -368,6 +368,50 @@ Lanai Support
 ^^^^^^^^^^^^^^
 - The option ``-mcmodel={small,medium,large}`` is supported again.
 
+Windows CE Support
+^^^^^^^^^^^^^^^^^^
+- The OS component of the triple names the target: ``windowsce`` is the canonical
+  spelling, ``wince`` and ``mingw32ce`` are accepted aliases, and the CE release
+  version may be written after the name (``armv5tej-pc-wince5.2``).  As for every
+  other OS the name is looked for in that component only, so the GNU-style
+  ``arm-wince-pe``, which carries it in the vendor field, names no known OS, while
+  ``arm-wince-mingw32ce`` does select this target.
+- No CPU is implied by the OS: ``-mcpu=`` and the architecture in the triple say
+  what is compiled for, and a bare ``arm-pc-wince`` gets LLVM's default for an
+  unspecified ARM architecture instead of a CE-specific core.  The soft-float ARM C
+  ABI, by contrast, stays a property of the platform, because it is what the CE
+  runtime this driver links against is built for.
+- ``-mconsole`` and ``-mwindows`` choose the C runtime startup routine the image
+  enters, and ``/subsystem:windowsce`` carries the version taken from the triple.
+  Linking is done by ``lld-link``, so ``-fuse-ld=`` has to name it; ``--ld-path=``
+  still takes a program path as it stands.
+- Windows CE is an OS of its own rather than a flavour of the desktop one, so
+  nothing that belongs to the desktop runtime is taken for it: an option whose
+  support comes from a runtime a CE device does not have, ``-fsanitize=address``
+  among them, is refused for the target as it is on any other target without it.
+  What CE shares with a desktop Windows image is named for that sharing instead
+  -- the ``__imp_`` naming of an imported symbol, ``__stdcall`` and the
+  ``a.exe`` default image name are the conventions of the object format, which
+  is why they keep working.  ``TARGET_OS_*`` macros name one OS each, so
+  ``-fdefine-target-os-macros`` now reports ``TARGET_OS_WINCE`` for a CE target
+  and ``TARGET_OS_WIN32``/``TARGET_OS_WINDOWS`` as zero, as it already does for
+  UEFI.
+- Which C++ unwinding tables an image carries is a property of the target on CE, so the
+  model is not open for choosing there: ``-fseh-exceptions`` and ``-fdwarf-exceptions``
+  are refused for an ARM or Thumb CE target, as they are for the desktop MSVC one, while
+  the CE default (the EHABI tables, named from the triple) and ``-fsjlj-exceptions``,
+  which needs no tables at all, keep working.
+- The C++ runtime side is prepared for CE but incomplete.  ``libc++`` recognizes a CE
+  target by the OS name in the triple -- ``windowsce``, ``wince`` and ``mingw32ce``, with
+  or without a CE version after them -- and builds the CE locale backend in place of the
+  Win32 one; ``libc++abi`` and ``libunwind`` need no such configuration, since they key
+  off the ``__WINCE__`` macro the compiler predefines, which is all they have to know:
+  that a CE image's tables are inside the COFF image rather than found through a
+  loader, and that the desktop headers are not there.  There is no threading backend for CE, so
+  configuring ``libc++`` for it now fails until ``LIBCXX_ENABLE_THREADS=OFF`` is given
+  rather than failing in every translation unit afterwards, and no C library in this
+  tree targets CE, so a CE C++ runtime is built against the C library the SDK provides.
+
 Deprecated Compiler Flags
 -------------------------
 

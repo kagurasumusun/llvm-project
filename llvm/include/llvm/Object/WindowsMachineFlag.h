@@ -24,12 +24,17 @@ namespace COFF {
 enum MachineTypes : unsigned;
 }
 
-// Returns a user-readable string for ARMNT, ARM64, AMD64, I386.
-// Other MachineTypes values must not be passed in.
+// Returns a user-readable string for ARMNT, ARM64, ARM64EC, ARM64X, AMD64 and
+// I386, and also for the plain ARM machine type, which a Windows CE image
+// carries and no /machine: flag of its own selects.  Other MachineTypes values
+// must not be passed in.
 LLVM_ABI StringRef machineToStr(COFF::MachineTypes MT);
 
-// Maps /machine: arguments to a MachineTypes value.
-// Only returns ARMNT, ARM64, AMD64, I386, or IMAGE_FILE_MACHINE_UNKNOWN.
+// Maps /machine: arguments to a MachineTypes value.  The names understood are
+// the ones lib.exe takes plus what MinGW drivers pass for them; no name is
+// invented for a machine type that only follows from the OS, such as the plain
+// ARM one a Windows CE image carries.  That one is taken from the input files,
+// or from a target triple where a tool goes by a target at all.
 LLVM_ABI COFF::MachineTypes getMachineType(StringRef S);
 
 template <typename T> Triple::ArchType getMachineArchType(T machine) {

@@ -77,7 +77,7 @@ class ARMCOFFMCAsmInfoGNU : public MCAsmInfoGNUCOFF {
   void anchor() override;
 
 public:
-  explicit ARMCOFFMCAsmInfoGNU(bool IsWinCE);
+  explicit ARMCOFFMCAsmInfoGNU(const Triple &TT);
   void printSpecifierExpr(raw_ostream &OS,
                           const MCSpecifierExpr &Expr) const override {
     ARM::printSpecifierExpr(*this, OS, Expr);

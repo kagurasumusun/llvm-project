@@ -21,14 +21,21 @@ def isOSOpenBSD : RuntimeLibcallPredicate<"TT.isOSOpenBSD()">;
 def isNotOSOpenBSD : RuntimeLibcallPredicate<"!TT.isOSOpenBSD()">;
 def isOSWindows : RuntimeLibcallPredicate<"TT.isOSWindows()">;
 def isNotOSWindows : RuntimeLibcallPredicate<"!TT.isOSWindows()">;
-def isOSWindowsNotCE
-    : RuntimeLibcallPredicate<[{TT.isOSWindows() && !TT.isWindowsCE()}]>;
+// The two Windows forms whose libcalls agree: the desktop OSes and Windows CE,
+// which draws its runtime's names from the same C library family.  A rule that
+// used to ask isOSWindows() while that covered both keeps the pair as a named
+// predicate, so that the agreement is stated instead of inherited from a
+// predicate for one OS.
+def isOSWindowsOrWindowsCE
+    : RuntimeLibcallPredicate<[{TT.isOSWindows() || TT.isOSWindowsCE()}]>;
 def isNotOSLinux : RuntimeLibcallPredicate<[{!TT.isOSLinux()}]>;
 def isNotOSMSVCRT : RuntimeLibcallPredicate<"!TT.isOSMSVCRT()">;
 def isPS : RuntimeLibcallPredicate<"TT.isPS()">;
 def isMacOSX : RuntimeLibcallPredicate<[{TT.isMacOSX()}]>;
+// Windows CE stays inside this, as it was while isOSWindows() covered it.
 def isNotOSWindowsOrIsCygwinMinGW
-  : RuntimeLibcallPredicate<"!TT.isOSWindows() || TT.isOSCygMing()">;
+  : RuntimeLibcallPredicate<[{!TT.isOSWindows() && !TT.isOSWindowsCE() ||
+                               TT.isOSCygMing()}]>;
 def isWindowsMSVCEnvironment : RuntimeLibcallPredicate<
   [{TT.isWindowsMSVCEnvironment()}]>;
 
@@ -2160,7 +2167,7 @@ def AArch64SystemLibrary : SystemRuntimeLibrary<
        DefaultLibmExp10,
        DefaultStackProtector,
        SecurityCheckCookieIfWinMSVC,
-       LibcallImpls<(add __chkstk), isOSWindows>,
+       LibcallImpls<(add __chkstk), isOSWindowsOrWindowsCE>,
        SMEABI_LibCalls_PreserveMost_From_X0,
        SMEABI_LibCalls_PreserveMost_From_X1,
        SMEABI_LibCalls_PreserveMost_From_X2)
@@ -2499,13 +2506,13 @@ def GNUEABIHalfConvertCalls :
 
 def WindowARMDivRemCalls : LibcallImpls<
   (add __rt_sdiv, __rt_sdiv64, __rt_udiv, __rt_udiv64),
-  isOSWindowsNotCE> {
+  isOSWindows> {
   let CallingConv = ARM_AAPCS;
 }
 
 def WindowARMFPIntCasts : LibcallImpls<
   (add WindowsFPIntCastLibcalls),
-  isOSWindowsNotCE> {
+  isOSWindows> {
   let CallingConv = ARM_AAPCS_VFP;
 }
 
@@ -2626,7 +2633,7 @@ def ARMSystemLibrary
            WindowARMDivRemCalls,
            WindowARMFPIntCasts,
            SecurityCheckCookieIfWinMSVC,
-           LibcallImpls<(add __chkstk), isOSWindows>,
+           LibcallImpls<(add __chkstk), isOSWindowsOrWindowsCE>,
            AEABIDivRemCalls,
            DarwinSinCosStret, DarwinExp10, DarwinMemsetPattern,
            LibmHasSinCosF32, LibmHasSinCosF64, LibmHasSinCosF128,
@@ -2642,7 +2649,7 @@ def ARMSystemLibrary
            LibcallImpls<(add AEABIOverrides),
              RuntimeLibcallPredicate<[{
                (!hasAEABILibcalls(TT) || !isAAPCS_ABI(TT, ABIName)) &&
-               !TT.isOSWindows()
+               !TT.isOSWindows() && !TT.isOSWindowsCE()
             }]>>,
            // Use divmod compiler-rt calls for iOS 5.0 and later.
            LibcallImpls<(add __divmodsi4, __udivmodsi4),
@@ -3310,7 +3317,8 @@ def isCygwinMinGW32 : RuntimeLibcallPredicate<
 
 def isWin32NotCygMing : RuntimeLibcallPredicate<
   [{TT.getArch() == Triple::x86 &&
-     (TT.isOSWindows() || TT.isUEFI()) && !TT.isOSCygMing()}]>;
+     (TT.isOSWindows() || TT.isOSWindowsCE() || TT.isUEFI()) &&
+     !TT.isOSCygMing()}]>;
 def isWin64NotCygMing : RuntimeLibcallPredicate<
   [{TT.getArch() == Triple::x86_64 &&
     (TT.isOSWindows() || TT.isUEFI()) && !TT.isOSCygMing()}]>;
@@ -3320,8 +3328,10 @@ def isWin64NotCygMing : RuntimeLibcallPredicate<
 def darwinHas__bzero : RuntimeLibcallPredicate<"TT.isMacOSX() && !TT.isMacOSXVersionLT(10, 6)">;
 
 // FIXME: This is has ldexpl/frexpl plus use f128 for long double.
+// Windows CE stays inside this, as it was while isOSWindows() covered it.
 def hasExpFrexplLdexplF128
-  : RuntimeLibcallPredicate<[{(!TT.isOSWindows() || TT.isOSCygMing()) && !TT.isGNUEnvironment()}]>;
+  : RuntimeLibcallPredicate<[{(!TT.isOSWindows() && !TT.isOSWindowsCE() ||
+                                TT.isOSCygMing()) && !TT.isGNUEnvironment()}]>;
 
 // Use the f128 variants of math functions on x86
 defvar X86_F128_Libcalls = LibcallImpls<(add LibmF128Libcalls, LibmF128FiniteLibcalls), isGNUEnvironment>;

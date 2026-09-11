@@ -1,0 +1,1 @@
+Placeholder, so that the directory this sysroot layout is built out of exists in a checkout. The driver only looks at the directory, and no test compiles or links anything from here.

@@ -201,7 +201,7 @@ void ARMSubtarget::initLibcallLoweringInfo(LibcallLoweringInfo &Info) const {
 
 bool ARMSubtarget::isXRaySupported() const {
   // We don't currently suppport Thumb, but Windows requires Thumb.
-  return hasV6Ops() && hasARMOps() && !isTargetWindows();
+  return hasV6Ops() && hasARMOps() && !isTargetWindowsFamily();
 }
 
 void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
@@ -218,8 +218,6 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
         // Default to the Cortex-a7 CPU when targeting armv7k/thumbv7k.
         // ARMv7k does not use SjLj exception handling.
         CPUString = "cortex-a7";
-    } else if (isTargetWindowsCE()) {
-      CPUString = std::string(ARM::getARMCPUForArch(TargetTriple));
     }
   }
 
@@ -253,8 +251,11 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);
 
-  // FIXME: this is invalid for WindowsCE
-  if (isTargetWindows() && !isTargetWindowsCE())
+  // ARM mode is turned off for the desktop Windows-on-ARM flavours, which are
+  // Thumb-2 only; Windows CE predates that restriction and its images are ARM
+  // mode, so the exception is made here rather than by treating every Windows
+  // ARM target alike.
+  if (isTargetWindows())
     NoARM = true;
 
   if (TM.isAAPCS_ABI())
@@ -464,7 +465,7 @@ bool ARMSubtarget::useMovt() const {
   // immediates as it is inherently position independent, and may be out of
   // range otherwise.
   return !NoMovt && hasV8MBaselineOps() &&
-         (isTargetWindows() || !OptMinSize || genExecuteOnly());
+         (isTargetWindowsFamily() || !OptMinSize || genExecuteOnly());
 }
 
 bool ARMSubtarget::useFastISel() const {

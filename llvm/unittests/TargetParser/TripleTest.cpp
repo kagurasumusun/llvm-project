@@ -3377,21 +3377,28 @@ TEST(TripleTest, WinCENormalization) {
       {"thumb-wince", "thumb-unknown-wince"},
       {"arm-unknown-wince", "arm-unknown-wince"},
       {"arm-pc-wince", "arm-pc-wince"},
-      {"arm-mingw32ce", "arm-unknown-wince"},
-      {"i386-mingw32ce", "i386-unknown-wince"},
-      {"arm-pc-mingw32ce5.2", "arm-pc-wince5.2"},
-      {"arm-unknown-windowsce6.0", "arm-unknown-wince6.0"},
-      {"arm-custom-windowsce6.0-gnu", "arm-custom-wince6.0-gnu"},
+      // The alias spellings parse to WindowsCE but are left in place:
+      // normalize() fills in missing components and replaces an OS name only
+      // where the replacement also has to name a different environment, as the
+      // i686-w64-mingw32 case at the end of this test does.  "mingw32ce" in
+      // particular must not be treated as a mingw flavour, which would move the
+      // OS text to "windows" and append a "-gnu" environment.
+      {"arm-mingw32ce", "arm-unknown-mingw32ce"},
+      {"i386-mingw32ce", "i386-unknown-mingw32ce"},
+      {"arm-pc-mingw32ce5.2", "arm-pc-mingw32ce5.2"},
+      {"arm-unknown-windowsce6.0", "arm-unknown-windowsce6.0"},
+      {"arm-custom-windowsce6.0-gnu", "arm-custom-windowsce6.0-gnu"},
       {"arm-unknown-windowsce6.0.19041.123456",
-       "arm-unknown-wince6.0.19041.123456"},
+       "arm-unknown-windowsce6.0.19041.123456"},
       {"arm-pc-wince6.0-gnu-coff", "arm-pc-wince6.0-gnu-coff"},
+      {"arm-unknown-mingw32ce", "arm-unknown-mingw32ce"},
   };
   for (const auto &C : Cases) {
     SCOPED_TRACE(C.Input);
     std::string Normalized = Triple::normalize(C.Input);
     EXPECT_EQ(C.Expected, Normalized);
     EXPECT_EQ(Normalized, Triple::normalize(Normalized));
-    EXPECT_EQ(Triple::WinCE, Triple(Normalized).getOS());
+    EXPECT_EQ(Triple::WindowsCE, Triple(Normalized).getOS());
     EXPECT_TRUE(Triple(Normalized).isOSBinFormatCOFF());
   }
   EXPECT_EQ("arm-unknown-wince-unknown",
@@ -3399,11 +3406,66 @@ TEST(TripleTest, WinCENormalization) {
   EXPECT_EQ("i686-w64-windows-gnu", Triple::normalize("i686-w64-mingw32"));
 }
 
+// What a Windows CE triple is made of, as the OS-name layer specifies it: the
+// name sits in the OS component, a version may follow it there, and nothing
+// else in the triple decides which OS is meant.
+TEST(TripleTest, WinCEOSComponent) {
+  struct {
+    const char *Input;
+    VersionTuple Version;
+  } Cases[] = {
+      // The canonical name and the two aliases parse to the same OS, and a
+      // version is read after any of them, including the four-part build
+      // numbers a CE release is identified by.
+      {"arm-unknown-wince", VersionTuple()},
+      {"arm-pc-wince4.2", VersionTuple(4, 2)},
+      {"arm-unknown-windowsce", VersionTuple()},
+      {"armv5tej-pc-windowsce6.0", VersionTuple(6, 0)},
+      {"i386-unknown-windowsce6.0.19041.123456",
+       VersionTuple(6, 0, 19041, 123456)},
+      // The vendor field is free to say something else, including "wince" again
+      // as the GNU spelling of these targets does; the OS component still
+      // decides, and CE is an OS of its own rather than a mingw flavour.
+      {"arm-wince-mingw32ce", VersionTuple()},
+      {"mipsel-pc-mingw32ce5.2", VersionTuple(5, 2)},
+  };
+  for (const auto &C : Cases) {
+    SCOPED_TRACE(C.Input);
+    Triple TT(C.Input);
+    EXPECT_EQ(Triple::WindowsCE, TT.getOS());
+    EXPECT_EQ(C.Version, TT.getOSVersion());
+    EXPECT_TRUE(TT.isOSWindowsCE());
+    // CE is not the desktop OS and takes nothing from it, but it is a member of
+    // the family whose PE/COFF conventions the object writers key on, and its
+    // images import from DLLs the way the desktop ones do.
+    EXPECT_FALSE(TT.isOSWindows());
+    EXPECT_TRUE(TT.isOSWindowsFamily());
+    EXPECT_TRUE(TT.hasDLLImportExport());
+    EXPECT_FALSE(TT.isWindowsMSVCEnvironment());
+    EXPECT_EQ(Triple::COFF, TT.getObjectFormat());
+  }
+
+  // CE is one OS over every CPU it ran on, so the architecture names nothing
+  // here, and the canonical spelling is what the OS type carries and what a
+  // triple built from the parts gets.
+  EXPECT_EQ("windowsce", Triple::getOSTypeName(Triple::WindowsCE));
+  EXPECT_EQ("armv7-pc-windowsce", Triple("armv7", "pc", "windowsce").str());
+
+  // The name is not looked for in the vendor component, as no other OS is
+  // found that way either.  "arm-wince-pe", which puts the CE name there and
+  // leaves "pe" in the OS component, therefore names no OS this class knows,
+  // and no Windows flavour, rather than reaching this target by a second route.
+  Triple GCCStyle("arm-wince-pe");
+  EXPECT_EQ(Triple::UnknownOS, GCCStyle.getOS());
+  EXPECT_FALSE(GCCStyle.isOSWindowsCE());
+  EXPECT_FALSE(GCCStyle.isOSWindows());
+}
+
 TEST(TripleTest, WinCEVersionAliases) {
   for (StringRef OS : {"wince", "windowsce", "mingw32ce"}) {
     Triple T((Twine("arm-unknown-") + OS + "5.2").str());
     SCOPED_TRACE(T.str());
-    EXPECT_EQ(Triple::WinCE, T.getOS());
+    EXPECT_EQ(Triple::WindowsCE, T.getOS());
     EXPECT_EQ(VersionTuple(5, 2), T.getOSVersion());
   }
   EXPECT_EQ(ExceptionHandling::ARM,

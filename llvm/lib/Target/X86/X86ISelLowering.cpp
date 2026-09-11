@@ -2657,7 +2657,7 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
 
   // On MSVC, both 32-bit and 64-bit, ldexpf(f32) is not defined.  MinGW has
   // it, but it's just a wrapper around ldexp.
-  if (Subtarget.isOSWindows()) {
+  if (Subtarget.isTargetWindowsFamily()) {
     for (ISD::NodeType Op : {ISD::FLDEXP, ISD::STRICT_FLDEXP, ISD::FFREXP})
       if (isOperationExpand(Op, MVT::f32))
         setOperationAction(Op, MVT::f32, Promote);
@@ -3737,7 +3737,7 @@ TargetLowering::ShiftLegalizationStrategy
 X86TargetLowering::preferredShiftLegalizationStrategy(
     SelectionDAG &DAG, SDNode *N, unsigned ExpansionFactor) const {
   if (DAG.getMachineFunction().getFunction().hasMinSize() &&
-      !Subtarget.isOSWindows())
+      !Subtarget.isTargetWindowsFamily())
     return ShiftLegalizationStrategy::LowerToLibcall;
   return TargetLowering::preferredShiftLegalizationStrategy(DAG, N,
                                                             ExpansionFactor);
@@ -19952,7 +19952,7 @@ X86TargetLowering::LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const {
     return DAG.getCopyFromReg(Chain, DL, Reg, PtrVT, Chain.getValue(1));
   }
 
-  if (Subtarget.isOSWindows()) {
+  if (Subtarget.isTargetWindowsFamily()) {
     // Just use the implicit TLS architecture
     // Need to generate something similar to:
     //   mov     rdx, qword [gs:abs 58H]; Load pointer to ThreadLocalStorage
@@ -21014,7 +21014,7 @@ SDValue X86TargetLowering::LowerUINT_TO_FP(SDValue Op,
   if (IsStrict) {
     unsigned Opc = ISD::STRICT_FADD;
     // Windows needs the precision control changed to 80bits around this add.
-    if (Subtarget.isOSWindows() && DstVT == MVT::f32)
+    if (Subtarget.isTargetWindowsFamily() && DstVT == MVT::f32)
       Opc = X86ISD::STRICT_FP80_ADD;
 
     SDValue Add =
@@ -21028,7 +21028,7 @@ SDValue X86TargetLowering::LowerUINT_TO_FP(SDValue Op,
   }
   unsigned Opc = ISD::FADD;
   // Windows needs the precision control changed to 80bits around this add.
-  if (Subtarget.isOSWindows() && DstVT == MVT::f32)
+  if (Subtarget.isTargetWindowsFamily() && DstVT == MVT::f32)
     Opc = X86ISD::FP80_ADD;
 
   SDValue Add = DAG.getNode(Opc, dl, MVT::f80, Fild, Fudge);
@@ -26127,7 +26127,8 @@ X86TargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
   MachineFunction &MF = DAG.getMachineFunction();
   bool SplitStack = MF.shouldSplitStack();
   bool EmitStackProbeCall = hasStackProbeSymbol(MF);
-  bool Lower = (Subtarget.isOSWindows() && !Subtarget.isTargetMachO()) ||
+  bool Lower =
+      (Subtarget.isTargetWindowsFamily() && !Subtarget.isTargetMachO()) ||
                SplitStack || EmitStackProbeCall;
   SDLoc dl(Op);
 
@@ -63100,7 +63101,7 @@ bool X86TargetLowering::hasStackProbeSymbol(const MachineFunction &MF) const {
 bool X86TargetLowering::hasInlineStackProbe(const MachineFunction &MF) const {
 
   // No inline stack probe for Windows, they have their own mechanism.
-  if (Subtarget.isOSWindows() || Subtarget.isUEFI() ||
+  if (Subtarget.isTargetWindowsFamily() || Subtarget.isUEFI() ||
       MF.getFunction().hasFnAttribute("no-stack-arg-probe"))
     return false;
 
@@ -63126,7 +63127,7 @@ X86TargetLowering::getStackProbeSymbolName(const MachineFunction &MF) const {
 
   // Generally, if we aren't on Windows, the platform ABI does not include
   // support for stack probes, so don't emit them.
-  if ((!Subtarget.isOSWindows() && !Subtarget.isUEFI()) ||
+  if ((!Subtarget.isTargetWindowsFamily() && !Subtarget.isUEFI()) ||
       Subtarget.isTargetMachO() ||
       MF.getFunction().hasFnAttribute("no-stack-arg-probe"))
     return "";

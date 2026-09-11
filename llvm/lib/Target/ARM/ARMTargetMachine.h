@@ -83,7 +83,7 @@ public:
            TargetTriple.getEnvironment() == Triple::EABIHF ||
            (TargetTriple.isOSBinFormatMachO() &&
             TargetTriple.getSubArch() == Triple::ARMSubArch_v7em) ||
-           (TargetTriple.isOSWindows() && !TargetTriple.isWindowsCE()) ||
+           TargetTriple.isOSWindows() ||
            TargetABI == ARM::ARM_ABI_AAPCS16;
   }
 

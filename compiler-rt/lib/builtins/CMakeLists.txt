@@ -605,7 +605,17 @@ set(arm_min_SOURCES
   ${arm_EABI_SOURCES}
 )
 
-if(COMPILER_RT_DEFAULT_TARGET_TRIPLE MATCHES "-wince" OR CMAKE_C_COMPILER_TARGET MATCHES "-wince")
+# The CE configuration has to be recognized under every name parseOS() in
+# llvm/lib/TargetParser/Triple.cpp maps to WindowsCE -- "windowsce" canonical, plus the
+# "wince" and "mingw32ce" aliases, each of which may carry the CE release version after
+# it -- and not only under one fixed spelling; matching "-wince" alone would let
+# "armv7-pc-windowsce" fall through to the desktop branches below.  Unlike MINGW the CE
+# selection stays with the base routines and the AEABI helpers: it provides neither the
+# stack probe (arm/chkstk.S) nor the sync primitives, which a CE tool chain resolves
+# against its own support library rather than against compiler-rt.
+set(COMPILER_RT_WINCE_TRIPLE_PATTERN "(^|[-.])wince|(^|[-.])windowsce|(^|[-.])mingw32ce")
+if(COMPILER_RT_DEFAULT_TARGET_TRIPLE MATCHES "${COMPILER_RT_WINCE_TRIPLE_PATTERN}" OR
+   CMAKE_C_COMPILER_TARGET MATCHES "${COMPILER_RT_WINCE_TRIPLE_PATTERN}")
   set(arm_SOURCES
     ${arm_or_thumb2_base_SOURCES}
     ${arm_EABI_SOURCES}

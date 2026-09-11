@@ -1473,7 +1473,8 @@ MCAsmBackend *llvm::createX86_32AsmBackend(const Target &T,
   if (TheTriple.isOSBinFormatMachO())
     return new DarwinX86AsmBackend(T, MRI, STI);
 
-  if (TheTriple.isOSWindows() && TheTriple.isOSBinFormatCOFF())
+  if ((TheTriple.isOSWindows() || TheTriple.isOSWindowsCE()) &&
+      TheTriple.isOSBinFormatCOFF())
     return new WindowsX86AsmBackend(T, false, STI);
 
   uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());

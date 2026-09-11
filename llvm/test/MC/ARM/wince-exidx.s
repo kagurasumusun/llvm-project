@@ -1,4 +1,4 @@
-@ RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o - %s | llvm-readobj -S -r - | FileCheck %s
+@ RUN: llvm-mc -triple arm-pc-wince -mcpu=arm926ej-s -filetype=obj -o - %s | llvm-readobj -S -r - | FileCheck %s
 
 
 	.syntax unified

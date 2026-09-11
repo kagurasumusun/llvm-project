@@ -134,11 +134,14 @@ ARMCOFFMCAsmInfoMicrosoft::ARMCOFFMCAsmInfoMicrosoft() {
 
 void ARMCOFFMCAsmInfoGNU::anchor() { }
 
-ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU(bool IsWinCE) {
+ARMCOFFMCAsmInfoGNU::ARMCOFFMCAsmInfoGNU(const Triple &TT) {
   AlignmentIsInBytes = false;
   HasSingleParameterDotFile = true;
-  AllowBareLabels = IsWinCE;
-  HasCOFFAssociativeComdats = IsWinCE;
+  // The CE assembler and linker accept bare labels and emit associative
+  // COMDATs, both of which the armasm-derived sources this target consumes
+  // rely on.
+  AllowBareLabels = TT.isOSWindowsCE();
+  HasCOFFAssociativeComdats = TT.isOSWindowsCE();
 
   CommentString = "@";
   AllowDollarAtStartOfIdentifier = false;

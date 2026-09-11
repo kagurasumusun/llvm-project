@@ -16,7 +16,7 @@ inline bool functionUsesWinCFI(const MachineFunction &MF) {
   if (MAI->usesWindowsCFI())
     return true;
 
-  if (!MF.getTarget().getTargetTriple().isWindowsCE())
+  if (!MF.getTarget().getTargetTriple().isOSWindowsCE())
     return false;
   if (MAI->getExceptionHandlingType() != ExceptionHandling::ARM)
     return false;
@@ -31,7 +31,7 @@ inline bool functionUsesWinCFI(const MachineFunction &MF) {
 
 inline bool functionNeedsWinCFIFrame(const MachineFunction &MF) {
   const Function &F = MF.getFunction();
-  if (!MF.getTarget().getTargetTriple().isWindowsCE())
+  if (!MF.getTarget().getTargetTriple().isOSWindowsCE())
     return functionUsesWinCFI(MF) && F.needsUnwindTableEntry();
   return F.getCallingConv() != CallingConv::GHC;
 }

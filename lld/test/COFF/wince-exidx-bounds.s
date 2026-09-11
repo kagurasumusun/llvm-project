@@ -1,6 +1,6 @@
 # REQUIRES: arm-registered-target
-# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t.obj %s
-# RUN: lld-link -wince /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t.obj
+# RUN: llvm-mc -triple arm-pc-wince -mcpu=arm926ej-s -filetype=obj -o %t.obj %s
+# RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t.obj
 # RUN: llvm-readobj --symbols --sections %t.exe | FileCheck %s
 
 

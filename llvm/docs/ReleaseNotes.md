@@ -81,6 +81,36 @@ Changes to LLVM infrastructure
 ------------------------------
 * On AIX, fixed the OS version in target triples on PASE.
 * On AIX, automatically raise soft memory limits to hard limits on tool startup ([#167928](https://github.com/llvm/llvm-project/pull/167928)).
+* Windows CE is named by the OS component of a triple as `windowsce`, with
+  `wince` and `mingw32ce` accepted as aliases, so `armv4t-pc-wince6.0` and
+  `arm-unknown-mingw32ce` select the OS the way any other triple names its OS.
+  The OS type is renamed from `WinCE` to `WindowsCE` and its predicate from
+  `Triple::isWindowsCE()` to `Triple::isOSWindowsCE()`, which is how the other
+  OS predicates are named; `getOSTypeName()` reports `windowsce`, while a triple
+  written with one of the aliases keeps that spelling through `normalize()`, as
+  no environment has to be named along with it.
+* `Triple::isOSWindows()` names the desktop Windows alone, as it does upstream,
+  and the conventions the desktop Windows, UEFI and Windows CE share as PE or
+  COFF images are named by `Triple::isOSWindowsFamily()`.  Consumers of the
+  predicate that used to cover CE as well were moved to the property each one
+  asks about: `isOSBinFormatCOFF()` for the object format, `isOSWindowsCE()` for
+  a CE image's own platform, and `hasDLLImportExport()`, which names Windows CE
+  too now that the desktop OS no longer stands in for the family.
+* The machine type name `armce` is gone from `llvm::getMachineType()` and
+  `llvm::machineToStr()`.  The 32-bit Windows-on-ARM machine is `armnt`, the
+  spelling `lib.exe` accepts, and `arm` is still accepted for it because MinGW
+  drivers pass that; the plain ARM machine type has no name of its own in
+  `lib.exe`'s set, so it is taken from the input files.  `llvm::machineToStr()`
+  prints those two names apart, so that a diagnostic about an ARM object and an
+  ARMNT library no longer says the same word for both.
+* `llvm-dlltool -m` takes the machine names GNU dlltool takes and, because a
+  machine name says nothing about an operating system, a target triple as
+  well: `-m arm-pc-wince` selects the plain ARM machine type that a Windows CE
+  image carries, and `arm-pc-wince-dlltool` names a tool that defaults to it.
+  No machine name of its own is invented for CE, since a CE image is not
+  confined to one architecture; `getMachine()`, which the tool's own name is
+  already run through, is what maps a triple to the machine type its OS calls
+  for.
 
 Changes to building LLVM
 ------------------------

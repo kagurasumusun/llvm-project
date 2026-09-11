@@ -280,28 +280,29 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
     break;
   case IMAGE_REL_ARM_SECREL:    applySecRel(this, off, os, s); break;
   case IMAGE_REL_ARM_REL32:     add32(off, sx - p - 4); break;
-  case IMAGE_REL_ARM_CE_PDATA_FUNCLEN:
-  case IMAGE_REL_ARM_CE_PDATA_PROLOG: {
-    namespace CE = llvm::ARM::WinEH::CE;
-    const bool IsFuncLen = type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN;
+  case IMAGE_REL_ARM_WINCE_PDATA_FUNCLEN:
+  case IMAGE_REL_ARM_WINCE_PDATA_PROLOG: {
+    namespace WinCE = llvm::ARM::WinEH::WinCE;
+    const bool IsFuncLen = type == IMAGE_REL_ARM_WINCE_PDATA_FUNCLEN;
 
     uint8_t *recStart =
-        off - (IsFuncLen ? CE::ObjectRecord::FuncLenSlotOffset
-                         : CE::ObjectRecord::PrologLenSlotOffset);
-    uint8_t *flagsWord = recStart + CE::ObjectRecord::FlagsOffset;
+        off - (IsFuncLen ? WinCE::PdataRecord::FuncLenSlotOffset
+                         : WinCE::PdataRecord::PrologLenSlotOffset);
+    uint8_t *flagsWord = recStart + WinCE::PdataRecord::FlagsOffset;
     uint32_t word1 = read32le(flagsWord);
     const uint32_t beginVA = read32le(recStart);
     const uint32_t endVA = (uint32_t)s + read32le(off) + (uint32_t)imageBase;
     const uint32_t spanBytes = endVA > beginVA ? endVA - beginVA : 0u;
 
-    const uint32_t instSpan = CE::byteSpanToInstructions(spanBytes, word1);
-    const uint32_t fieldMax = IsFuncLen ? CE::FuncLenMask : CE::PrologLenMask;
+    const uint32_t instSpan = WinCE::byteSpanToInstructions(spanBytes, word1);
+    const uint32_t fieldMax =
+        IsFuncLen ? WinCE::FuncLenMask : WinCE::PrologLenMask;
     if (instSpan > fieldMax)
       error(StringRef(IsFuncLen ? "CE .pdata FuncLen does not fit its "
                                   "22-bit field"
                                 : "CE .pdata PrologLen does not fit its "
                                   "8-bit field"));
-    write32le(flagsWord, CE::replaceLength(word1, instSpan, IsFuncLen));
+    write32le(flagsWord, WinCE::replaceLength(word1, instSpan, IsFuncLen));
     break;
   }
   default:
@@ -614,8 +615,8 @@ static uint8_t getBaserelType(const coff_relocation &rel,
       return IMAGE_REL_BASED_HIGHLOW;
     if (rel.Type == IMAGE_REL_ARM_MOV32T)
       return IMAGE_REL_BASED_ARM_MOV32T;
-    if (rel.Type == IMAGE_REL_ARM_CE_PDATA_FUNCLEN ||
-        rel.Type == IMAGE_REL_ARM_CE_PDATA_PROLOG)
+    if (rel.Type == IMAGE_REL_ARM_WINCE_PDATA_FUNCLEN ||
+        rel.Type == IMAGE_REL_ARM_WINCE_PDATA_PROLOG)
       return IMAGE_REL_BASED_ABSOLUTE;
     return IMAGE_REL_BASED_ABSOLUTE;
   case Triple::aarch64:
@@ -906,12 +907,12 @@ void ImportThunkChunkARM::writeTo(uint8_t *buf) const {
   applyMOV32T(buf, impSymbol->getRVA() + ctx.config.imageBase);
 }
 
-void ImportThunkChunkARMCE::getBaserels(std::vector<Baserel> *res) {
+void ImportThunkChunkARMWinCE::getBaserels(std::vector<Baserel> *res) {
   res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
 }
 
-void ImportThunkChunkARMCE::writeTo(uint8_t *buf) const {
-  memcpy(buf, importThunkARMCE, sizeof(importThunkARMCE));
+void ImportThunkChunkARMWinCE::writeTo(uint8_t *buf) const {
+  memcpy(buf, importThunkARMWinCE, sizeof(importThunkARMWinCE));
   write32le(buf + 8, impSymbol->getRVA() + ctx.config.imageBase);
 }
 
@@ -952,35 +953,35 @@ const uint8_t arm64Thunk[] = {
 
 size_t RangeExtensionThunkARM64::getSize() const { return sizeof(arm64Thunk); }
 
-const uint8_t rangeExtThunkARMCE[] = {
+const uint8_t rangeExtThunkARMWinCE[] = {
     0x00, 0xc0, 0x9f, 0xe5,
     0x1c, 0xff, 0x2f, 0xe1,
 };
 
-void RangeExtensionThunkARMCE::writeTo(uint8_t *buf) const {
-  memcpy(buf, rangeExtThunkARMCE, sizeof(rangeExtThunkARMCE));
+void RangeExtensionThunkARMWinCE::writeTo(uint8_t *buf) const {
+  memcpy(buf, rangeExtThunkARMWinCE, sizeof(rangeExtThunkARMWinCE));
   write32le(buf + 8, uint32_t(target->getRVA() + ctx.config.imageBase));
 }
 
-void RangeExtensionThunkARMCE::getBaserels(std::vector<Baserel> *res) {
+void RangeExtensionThunkARMWinCE::getBaserels(std::vector<Baserel> *res) {
   res->emplace_back(getRVA() + 8, IMAGE_REL_BASED_HIGHLOW);
 }
 
 
-const uint8_t rangeExtThunkARMCEThumb[] = {
+const uint8_t rangeExtThunkARMWinCEThumb[] = {
     0x78, 0x47,
     0xc0, 0x46,
     0x00, 0xc0, 0x9f, 0xe5,
     0x1c, 0xff, 0x2f, 0xe1,
 };
 
-void RangeExtensionThunkARMCEThumb::writeTo(uint8_t *buf) const {
-  memcpy(buf, rangeExtThunkARMCEThumb, sizeof(rangeExtThunkARMCEThumb));
+void RangeExtensionThunkARMWinCEThumb::writeTo(uint8_t *buf) const {
+  memcpy(buf, rangeExtThunkARMWinCEThumb, sizeof(rangeExtThunkARMWinCEThumb));
   uint32_t dest = uint32_t(target->getRVA() + ctx.config.imageBase);
   write32le(buf + 12, dest);
 }
 
-void RangeExtensionThunkARMCEThumb::getBaserels(std::vector<Baserel> *res) {
+void RangeExtensionThunkARMWinCEThumb::getBaserels(std::vector<Baserel> *res) {
   res->emplace_back(getRVA() + 12, IMAGE_REL_BASED_HIGHLOW);
 }
 

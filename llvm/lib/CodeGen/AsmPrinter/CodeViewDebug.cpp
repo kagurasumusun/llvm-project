@@ -111,17 +111,19 @@ private:
 };
 } // namespace
 
-static CPUType mapArchToCVCPUType(Triple::ArchType Type) {
-  switch (Type) {
+static CPUType mapArchToCVCPUType(const Triple &T) {
+  switch (T.getArch()) {
   case Triple::ArchType::x86:
     return CPUType::Pentium3;
   case Triple::ArchType::x86_64:
     return CPUType::X64;
   case Triple::ArchType::arm:
   case Triple::ArchType::thumb:
-    // LLVM currently doesn't support Windows CE and so thumb
-    // here is indiscriminately mapped to ARMNT specifically.
-    return CPUType::ARMNT;
+    // What marks an image as CE is its machine type, not this field: a CPU type
+    // only names an era, and CE is the ARMv4T and v5T era of ARM Windows, which
+    // is what a debugger is told even for a triple built for a later
+    // architecture.  The Thumb-2 based Windows on ARM flavour is ARMNT.
+    return T.isOSWindowsCE() ? CPUType::ARM5T : CPUType::ARMNT;
   case Triple::ArchType::aarch64:
     return CPUType::ARM64;
   case Triple::ArchType::mipsel:
@@ -619,7 +621,7 @@ void CodeViewDebug::beginModule(Module *M) {
   }
 
   CompilerInfoAsm = Asm;
-  TheCPU = mapArchToCVCPUType(M->getTargetTriple().getArch());
+  TheCPU = mapArchToCVCPUType(M->getTargetTriple());
 
   // Get the current source language.
   const MDNode *Node;

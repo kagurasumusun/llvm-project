@@ -16,6 +16,11 @@
 // RUN: %clang -target arm-unknown-wince -### %s -Wl,/entry:custom -lfoo -Xlinker /opt:ref -l:exact.lib -o %t.exe 2>&1 | FileCheck %s --check-prefix=INPUTS
 // RUN: %clang -target arm-unknown-wince -### --ld-path=%clang %s -o %t.exe 2>&1 | FileCheck %s --check-prefix=LDPATH
 // RUN: not %clang -target arm-unknown-wince -### -fuse-ld=does-not-exist %s -o %t.exe 2>&1 | FileCheck %s --check-prefix=BAD-LINKER
+// A linker named by -fuse-ld= has to be the one that writes CE images, whether
+// or not the flavour happens to resolve to a program on this host; --ld-path=
+// above is not refused, since naming the program to run is its purpose.
+// RUN: not %clang -target arm-unknown-wince -### -fuse-ld=bfd %s -o %t.exe 2>&1 | FileCheck %s --check-prefix=NOT-LINKER
+// RUN: %clang -target arm-unknown-wince -### -fuse-ld=lld %s -o %t.exe 2>&1 | FileCheck %s --check-prefix=LLD-LINKER
 // RUN: not %clang --driver-mode=g++ -target arm-unknown-wince -### -stdlib=does-not-exist %s -o %t.exe 2>&1 | FileCheck %s --check-prefix=BAD-STDLIB
 
 // MIXED: "-cc1"
@@ -54,8 +59,10 @@
 // INPUTS-SAME: "/opt:ref"
 // INPUTS-SAME: "exact.lib"
 
-// LDPATH: "{{[^"]*}}clang{{[^"]*}}" "-wince"
+// LDPATH: "{{[^"]*}}clang{{[^"]*}}" "-auto-import"
 // BAD-LINKER: error: invalid linker name in argument '-fuse-ld=does-not-exist'
+// NOT-LINKER: error: invalid linker name in argument '-fuse-ld=bfd'
+// LLD-LINKER: lld-link
 // BAD-STDLIB: error: invalid library name in argument '-stdlib=does-not-exist'
 
 int value;

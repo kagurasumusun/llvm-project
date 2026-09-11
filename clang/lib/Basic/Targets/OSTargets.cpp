@@ -275,42 +275,55 @@ static void addVisualCDefines(const LangOptions &Opts, MacroBuilder &Builder) {
   Builder.defineMacro("_MSVC_EXECUTION_CHARACTER_SET", "65001");
 }
 
-static void addWinCEDefines(const llvm::Triple &Triple, MacroBuilder &Builder) {
+static void addWinCEDefines(const llvm::Triple &Triple, const LangOptions &Opts,
+                            MacroBuilder &Builder) {
+  // CE ships the mingw32ce runtime, so the macros its SDK headers test for are
+  // the MinGW ones, except for the CRT identity: the CE CRT is COREDLL, and no
+  // MSVCRT version is emulated.  The calling-convention and __declspec keywords
+  // are spelled by the per-architecture targets instead, because CE differs
+  // from MinGW there (see WinCEX86_32TargetInfo).
+  DefineStd(Builder, "WIN32", Opts);
+  DefineStd(Builder, "WINNT", Opts);
+  Builder.defineMacro("__MINGW32__");
+
+  // UNDER_CE and _WIN32_WCE carry the version in BCD nibbles (6.0 -> 0x0600),
+  // which is the form the SDK headers compare against.
   unsigned WinCEVersion = 0x0600;
   llvm::VersionTuple OSVer = Triple.getOSVersion();
   if (OSVer.getMajor()) {
     unsigned Revision = OSVer.getMinor().value_or(0);
     if (Revision < 10)
       Revision *= 10;
-    WinCEVersion = OSVer.getMajor() * 0x100 + (Revision / 10) * 0x10 + (Revision % 10);
+    WinCEVersion =
+        OSVer.getMajor() * 0x100 + (Revision / 10) * 0x10 + (Revision % 10);
   }
   Builder.defineMacro("_WIN32_WCE", Twine(WinCEVersion));
   Builder.defineMacro("UNDER_CE", Twine(WinCEVersion));
+
   Builder.defineMacro("WINCE");
   Builder.defineMacro("__WINCE__");
   Builder.defineMacro("__MINGW32CE__");
   Builder.defineMacro("__CEGCC_VERSION__", "0x090909");
   Builder.defineMacro("__COREDLL__");
-  Builder.defineMacro("__MINGW32__");
-  Builder.defineMacro("WIN32");
-  Builder.defineMacro("WINNT");
+
+  // The CE SDK is Unicode-only; the non-Unicode spellings do not exist there.
   Builder.defineMacro("_UNICODE");
   Builder.defineMacro("UNICODE");
 }
+
 void addWindowsDefines(const llvm::Triple &Triple, const LangOptions &Opts,
                        MacroBuilder &Builder) {
   Builder.defineMacro("_WIN32");
   if (Triple.isArch64Bit())
     Builder.defineMacro("_WIN64");
-  if (Triple.isWindowsCE())
-    addWinCEDefines(Triple, Builder);
+  if (Triple.isOSWindowsCE())
+    addWinCEDefines(Triple, Opts, Builder);
   else if (Triple.isWindowsGNUEnvironment())
     addMinGWDefines(Triple, Opts, Builder);
   else if (Triple.isKnownWindowsMSVCEnvironment() ||
            (Triple.isWindowsItaniumEnvironment() && Opts.MSVCCompat))
     addVisualCDefines(Opts, Builder);
 }
-
 
 } // namespace targets
 } // namespace clang

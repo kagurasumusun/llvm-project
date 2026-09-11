@@ -1,7 +1,13 @@
-; RUN: llc -mtriple=arm-pc-wince -verify-machineinstrs -o - %s \
+; RUN: llc -mtriple=arm-pc-wince -mcpu=arm926ej-s -verify-machineinstrs -o - %s \
 ; RUN:     | FileCheck %s --check-prefix=ARM5
 ; RUN: llc -mtriple=thumbv7-pc-wince -verify-machineinstrs -o - %s \
 ; RUN:     | FileCheck %s --check-prefix=T2
+; The same image in ARM state, on a core that does have the MOVW and MOVT
+; encodings.  A symbol is still taken from the constant pool there, which is
+; what keeps the MOVW/MOVT guard of the constant island pass free of an ARM case
+; rather than missing one.
+; RUN: llc -mtriple=armv7-pc-wince -verify-machineinstrs -o - %s \
+; RUN:     | FileCheck %s --check-prefix=A7
 
 declare ptr @llvm.localaddress()
 declare ptr @llvm.localrecover(ptr, ptr, i32)
@@ -67,3 +73,12 @@ catch:
 ; T2: .Lalloc_func$frame_escape_0 = {{-?[0-9]+}}
 ; T2: movw r{{[0-9]+}}, :lower16:.Lalloc_func$parent_frame_offset
 ; T2: movt r{{[0-9]+}}, :upper16:.Lalloc_func$parent_frame_offset
+
+; A7-LABEL: {{.*}}filt{{\$}}0@0@alloc_func@@
+; A7: .code 32
+; A7-NOT: :lower16:
+; A7: .Lalloc_func$parent_frame_offset = {{[0-9]+}}
+; A7-LABEL: alloc_func:
+; A7: .seh_proc alloc_func
+; A7-NOT: :lower16:
+; A7: .Lalloc_func$frame_escape_0 = {{-?[0-9]+}}

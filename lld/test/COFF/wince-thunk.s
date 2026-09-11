@@ -1,9 +1,9 @@
 # REQUIRES: arm-registered-target
 # RUN: split-file %s %t.dir
 
-# RUN: llvm-dlltool -m armce -k -d %t.dir/foo.def -D foo.dll -l %t.dir/foo.lib
+# RUN: llvm-dlltool -m arm-pc-wince -k -d %t.dir/foo.def -D foo.dll -l %t.dir/foo.lib
 
-# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t.dir/main.obj %t.dir/main.s
+# RUN: llvm-mc -triple arm-pc-wince -mcpu=arm926ej-s -filetype=obj -o %t.dir/main.obj %t.dir/main.s
 # RUN: lld-link /out:%t.dir/main.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t.dir/main.obj %t.dir/foo.lib
 # RUN: llvm-objdump -d --no-show-raw-insn %t.dir/main.exe | FileCheck %s --check-prefix=EXE
 # RUN: llvm-readobj --coff-basereloc %t.dir/main.exe | FileCheck %s --check-prefix=EXENORELOC

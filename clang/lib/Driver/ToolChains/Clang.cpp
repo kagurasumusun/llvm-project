@@ -609,7 +609,8 @@ static void addPGOAndCoverageFlags(const ToolChain &TC, Compilation &C,
     else {
       CmdArgs.push_back("-fprofile-continuous");
       // Platforms that require a bias variable:
-      if (T.isOSBinFormatELF() || T.isOSAIX() || T.isOSWindows()) {
+      if (T.isOSBinFormatELF() || T.isOSAIX() || T.isOSWindows() ||
+          T.isOSWindowsCE()) {
         CmdArgs.push_back("-mllvm");
         CmdArgs.push_back("-runtime-counter-relocation");
       }
@@ -1201,7 +1202,10 @@ static bool isSignedCharDefault(const llvm::Triple &Triple) {
   case llvm::Triple::armeb:
   case llvm::Triple::thumb:
   case llvm::Triple::thumbeb:
-    if (Triple.isOSDarwin() || Triple.isOSWindows())
+    // Windows CE is here with the desktop OS rather than with the ARM EABI
+    // default: its char is signed, as the C runtime it links against has it.
+    if (Triple.isOSDarwin() || Triple.isOSWindows() ||
+        Triple.isOSWindowsCE())
       return true;
     return false;
 
@@ -4910,7 +4914,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       (IsCuda || IsHIP) ? TC.getAuxTriple() : nullptr;
   bool IsWindowsMSVC = RawTriple.isWindowsMSVCEnvironment();
   bool IsUEFI = RawTriple.isUEFI();
-  bool IsWindowsCE = RawTriple.isWindowsCE();
+  bool IsWindowsCE = RawTriple.isOSWindowsCE();
   bool IsIAMCU = RawTriple.isOSIAMCU();
 
   // Adjust IsWindowsXYZ for CUDA/HIP/SYCL compilations.  Even when compiling in
@@ -5056,7 +5060,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString(NormalizedTriple));
   }
 
-  if (Triple.isOSWindows() && !Triple.isWindowsCE() &&
+  if (Triple.isOSWindows() &&
       (Triple.getArch() == llvm::Triple::arm ||
        Triple.getArch() == llvm::Triple::thumb)) {
     unsigned Offset = Triple.getArch() == llvm::Triple::arm ? 4 : 6;
@@ -7121,7 +7125,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(
           options::OPT_fuse_cxa_atexit, options::OPT_fno_use_cxa_atexit,
           !RawTriple.isOSAIX() &&
-              (!RawTriple.isOSWindows() ||
+              ((!RawTriple.isOSWindows() && !RawTriple.isOSWindowsCE()) ||
                RawTriple.isWindowsCygwinEnvironment()) &&
               ((RawTriple.getVendor() != llvm::Triple::MipsTechnologies) ||
                RawTriple.hasEnvironment())) ||

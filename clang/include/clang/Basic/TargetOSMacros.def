@@ -17,9 +17,11 @@
 #define TARGET_OS(Name, Predicate)
 #endif
 
-// Windows targets.
+// Windows targets.  These name one OS each, as UEFI's entry below does, so
+// Windows CE gets its own rather than counting as the desktop one.
 TARGET_OS(TARGET_OS_WIN32, Triple.isOSWindows())
 TARGET_OS(TARGET_OS_WINDOWS, Triple.isOSWindows())
+TARGET_OS(TARGET_OS_WINCE, Triple.isOSWindowsCE())
 
 // Linux target.
 TARGET_OS(TARGET_OS_LINUX, Triple.isOSLinux())

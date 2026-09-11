@@ -334,7 +334,7 @@ StringRef Triple::getOSTypeName(OSType Kind) {
     return "wasip3";
   case WatchOS: return "watchos";
   case Win32: return "windows";
-  case WinCE: return "wince";
+  case WindowsCE: return "windowsce";
   case ZOS: return "zos";
   case ShaderModel: return "shadermodel";
   case LiteOS: return "liteos";
@@ -707,6 +707,14 @@ static Triple::VendorType parseVendor(StringRef VendorName) {
       .Default(Triple::UnknownVendor);
 }
 
+/// Tests whether an OS component names a desktop MinGW toolchain, i.e. one
+/// whose ABI is "windows" plus a GNU environment.  "mingw32ce" occupies the
+/// same position in GNU config triples but names Windows CE, which is a
+/// separate OS with its own object model, so it is handled by parseOS().
+static bool isMinGWFlavour(StringRef OSName, Triple::OSType OS) {
+  return OSName.starts_with("mingw") && OS != Triple::WindowsCE;
+}
+
 static Triple::OSType parseOS(StringRef OSName) {
   return StringSwitch<Triple::OSType>(OSName)
       .StartsWith("darwin", Triple::Darwin)
@@ -724,9 +732,13 @@ static Triple::OSType parseOS(StringRef OSName) {
       .StartsWith("solaris", Triple::Solaris)
       .StartsWith("uefi", Triple::UEFI)
       .StartsWith("win32", Triple::Win32)
-      .StartsWith("windowsce", Triple::WinCE)
-      .StartsWith("wince", Triple::WinCE)
-      .StartsWith("mingw32ce", Triple::WinCE)
+      // "windowsce" is the canonical name of this OS and the two aliases are
+      // the spellings the CE tool chains in use carry; WindowsCEOSAliases
+      // below is the same list, which anything reading a CE version has to
+      // consult too.
+      .StartsWith("windowsce", Triple::WindowsCE)
+      .StartsWith("wince", Triple::WindowsCE)
+      .StartsWith("mingw32ce", Triple::WindowsCE)
       .StartsWith("windows", Triple::Win32)
       .StartsWith("zos", Triple::ZOS)
       .StartsWith("haiku", Triple::Haiku)
@@ -972,6 +984,12 @@ static Triple::SubArchType parseSubArch(StringRef SubArchName) {
 }
 
 static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
+  // Windows CE was PE/COFF on every CPU it was shipped for -- ARM, MIPS, SHx,
+  // x86 and, in the earliest releases, PowerPC -- so there the operating system
+  // alone decides the format.
+  if (T.isOSWindowsCE())
+    return Triple::COFF;
+
   switch (T.getArch()) {
   case Triple::UnknownArch:
   case Triple::aarch64:
@@ -982,7 +1000,6 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   case Triple::x86_64:
     switch (T.getOS()) {
     case Triple::Win32:
-    case Triple::WinCE:
     case Triple::UEFI:
       return Triple::COFF;
     default:
@@ -1213,8 +1230,7 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
     OS = parseOS(Components[2]);
     IsCygwin = Components[2].starts_with("cygwin") ||
                Components[2].starts_with("msys");
-    IsMinGW32 = Components[2].starts_with("mingw") &&
-                OS != Triple::WinCE;
+    IsMinGW32 = isMinGWFlavour(Components[2], OS);
   }
   EnvironmentType Environment = UnknownEnvironment;
   if (Components.size() > 3)
@@ -1259,7 +1275,7 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
       case 2:
         OS = parseOS(Comp);
         IsCygwin = Comp.starts_with("cygwin") || Comp.starts_with("msys");
-        IsMinGW32 = Comp.starts_with("mingw") && OS != Triple::WinCE;
+        IsMinGW32 = isMinGWFlavour(Comp, OS);
         Valid = OS != UnknownOS || IsCygwin || IsMinGW32;
         break;
       case 3:
@@ -1342,7 +1358,6 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
   // Special case logic goes here.  At this point Arch, Vendor and OS have the
   // correct values for the computed components.
   std::string NormalizedEnvironment;
-  std::string NormalizedOS;
   if (Environment == Triple::Android &&
       Components[3].starts_with("androideabi")) {
     StringRef AndroidVersion = Components[3].drop_front(strlen("androideabi"));
@@ -1375,15 +1390,6 @@ std::string Triple::normalize(StringRef Str, CanonicalForm Form) {
     Components.resize(4);
     Components[2] = "windows";
     Components[3] = "cygnus";
-  } else if (OS == Triple::WinCE) {
-    if (Components.size() < 3)
-      Components.resize(3);
-    StringRef Version = Components[2];
-    if (!Version.consume_front("windowsce") &&
-        !Version.consume_front("mingw32ce"))
-      Version.consume_front(getOSTypeName(OS));
-    NormalizedOS = (Twine(getOSTypeName(OS)) + Version).str();
-    Components[2] = NormalizedOS;
   }
   if (IsMinGW32 || IsCygwin ||
       (OS == Triple::Win32 && Environment != UnknownEnvironment)) {
@@ -1483,15 +1489,24 @@ StringRef Triple::getEnvironmentVersionString() const {
   return EnvironmentName;
 }
 
+/// The names the OS component of a Windows CE triple may carry besides the
+/// canonical "windowsce", which getOSTypeName() supplies: the aliases parseOS()
+/// maps to WindowsCE are listed here once, so that a version written after any
+/// of them is read from the same place.
+static constexpr StringRef WindowsCEOSAliases[] = {"wince", "mingw32ce"};
+
 VersionTuple Triple::getOSVersion() const {
   StringRef OSName = getOSName();
   // Assume that the OS portion of the triple starts with the canonical name.
   StringRef OSTypeName = getOSTypeName(getOS());
   if (OSName.starts_with(OSTypeName))
     OSName = OSName.substr(OSTypeName.size());
-  else if (getOS() == WinCE) {
-    if (!OSName.consume_front("windowsce"))
-      OSName.consume_front("mingw32ce");
+  else if (getOS() == WindowsCE) {
+    // "windowsce" is canonical and matched above; the alias spellings are
+    // matched from the shared list.
+    for (StringRef Alias : WindowsCEOSAliases)
+      if (OSName.consume_front(Alias))
+        break;
   } else if (getOS() == MacOSX)
     OSName.consume_front("macos");
   else if (OSName.starts_with("visionos"))
@@ -2347,10 +2362,13 @@ bool Triple::isValidVersionForOS(OSType OSKind, const VersionTuple &Version) {
 
 ExceptionHandling Triple::getDefaultExceptionHandling() const {
   if (isOSBinFormatCOFF()) {
-    if (isWindowsCE() && (isARM() || isThumb()))
+    // Only CE's ARM variant has the .pdata/.ARM.exidx pair that the ARM unwind
+    // tables describe; other CE CPUs keep whatever their architecture's Windows
+    // COFF support does (x86 CE lands on DWARF CFI below, like mingw32ce).
+    if (isOSWindowsCE() && (isARM() || isThumb()))
       return ExceptionHandling::ARM;
     if (getArch() == Triple::x86 &&
-        (isOSCygMing() || isWindowsItaniumEnvironment() || isWindowsCE()))
+        (isOSCygMing() || isWindowsItaniumEnvironment() || isOSWindowsCE()))
       return ExceptionHandling::DwarfCFI;
     return ExceptionHandling::WinEH;
   }

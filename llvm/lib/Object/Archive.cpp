@@ -972,7 +972,9 @@ object::Archive::Kind Archive::getDefaultKindForTriple(const Triple &T) {
     return object::Archive::K_DARWIN;
   if (T.isOSAIX())
     return object::Archive::K_AIXBIG;
-  if (T.isOSWindows())
+  // The kind named here is the archive format, which is why Windows CE is
+  // listed with the desktop OS: its import libraries are COFF archives too.
+  if (T.isOSWindows() || T.isOSWindowsCE())
     return object::Archive::K_COFF;
   return object::Archive::K_GNU;
 }

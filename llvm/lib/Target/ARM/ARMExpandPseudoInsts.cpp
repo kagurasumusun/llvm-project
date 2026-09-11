@@ -1068,15 +1068,24 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
   bool DstIsDead = MI.getOperand(0).isDead();
   bool isCC = Opcode == ARM::MOVCCi32imm || Opcode == ARM::t2MOVCCi32imm;
   const MachineOperand &MO = MI.getOperand(isCC ? 2 : 1);
-  bool RequiresBundling = STI->isTargetWindows() && IsAnAddressOperand(MO);
+  bool RequiresBundling =
+      STI->isTargetWindowsFamily() && IsAnAddressOperand(MO);
   MachineInstrBuilder LO16, HI16;
   LLVM_DEBUG(dbgs() << "Expanding: "; MI.dump());
 
   if (!STI->hasV6T2Ops() &&
       (Opcode == ARM::MOVi32imm || Opcode == ARM::MOVCCi32imm)) {
-    // FIXME Windows CE supports older ARM CPUs
-    assert((!STI->isTargetWindows() || STI->isTargetWindowsCE()) &&
-           "Windows on ARM requires ARMv7+");
+    // A core without the ARMv6T2 encodings has no MOVW/MOVT pair to bundle in
+    // the first place, which is why RequiresBundling above is not consulted
+    // here: an address comes out of the constant pool, whose entry carries the
+    // relocation, and any other 32-bit immediate is built from MOVi and ORRri
+    // (or MVNi and SUBri), which need none.  This is therefore the right shape
+    // for Windows CE on the older cores it covers, not an exception to a
+    // Windows rule.  The rule belongs to the desktop Windows on ARM releases,
+    // whose ABI starts at ARMv7 and which always take the bundled pair below;
+    // it is the CPU's feature that decides which shape is taken here, and the
+    // assert is only there to keep the desktop releases from falling through.
+    assert(!STI->isTargetWindows() && "Windows on ARM requires ARMv7+");
 
     if (!MO.isImm()) {
       MachineConstantPool *MCP = MBB.getParent()->getConstantPool();

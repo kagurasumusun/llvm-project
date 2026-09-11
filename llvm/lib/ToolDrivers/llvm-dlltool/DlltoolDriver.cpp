@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ToolDrivers/llvm-dlltool/DlltoolDriver.h"
-#include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/COFFImportFile.h"
@@ -73,16 +73,32 @@ std::unique_ptr<MemoryBuffer> openFile(const Twine &Path) {
   return std::move(*MB);
 }
 
+// The machines accepted by -m, spelled the way GNU dlltool spells them.  Keep
+// this table and the TARGETS line below in sync.  A name here says which
+// instruction set an image holds, never which operating system it runs on, so
+// it cannot name the plain ARM machine type that Windows CE images carry:
+// "arm" stands for ARMNT, for compatibility with MinGW drivers.  A target
+// triple, which -m accepts as well, is what names an OS, and getMachine()
+// below is where the machine type an OS calls for is spelled out.
+struct EmulationInfo {
+  const char *Name;
+  MachineTypes Machine;
+};
+
+static constexpr EmulationInfo Emulations[] = {
+    {"i386", IMAGE_FILE_MACHINE_I386},
+    {"i386:x86-64", IMAGE_FILE_MACHINE_AMD64},
+    {"arm", IMAGE_FILE_MACHINE_ARMNT},
+    {"arm64", IMAGE_FILE_MACHINE_ARM64},
+    {"arm64ec", IMAGE_FILE_MACHINE_ARM64EC},
+    {"r4000", IMAGE_FILE_MACHINE_R4000},
+};
+
 MachineTypes getEmulation(StringRef S) {
-  return StringSwitch<MachineTypes>(S)
-      .Case("i386", IMAGE_FILE_MACHINE_I386)
-      .Case("i386:x86-64", IMAGE_FILE_MACHINE_AMD64)
-      .Case("arm", IMAGE_FILE_MACHINE_ARMNT)
-      .Case("armce", IMAGE_FILE_MACHINE_ARM)
-      .Case("arm64", IMAGE_FILE_MACHINE_ARM64)
-      .Case("arm64ec", IMAGE_FILE_MACHINE_ARM64EC)
-      .Case("r4000", IMAGE_FILE_MACHINE_R4000)
-      .Default(IMAGE_FILE_MACHINE_UNKNOWN);
+  for (const EmulationInfo &E : Emulations)
+    if (StringRef(E.Name) == S)
+      return E.Machine;
+  return IMAGE_FILE_MACHINE_UNKNOWN;
 }
 
 MachineTypes getMachine(Triple T) {
@@ -92,7 +108,13 @@ MachineTypes getMachine(Triple T) {
   case Triple::x86_64:
     return COFF::IMAGE_FILE_MACHINE_AMD64;
   case Triple::arm:
-    return COFF::IMAGE_FILE_MACHINE_ARMNT;
+  case Triple::thumb:
+    // The plain ARM machine type is what a Windows CE image carries, which is
+    // how createARMWinCOFFObjectWriter() picks the machine for the assembler
+    // too; every other 32-bit Windows on ARM flavour, a Thumb triple included,
+    // is ARMNT.
+    return T.isOSWindowsCE() ? COFF::IMAGE_FILE_MACHINE_ARM
+                             : COFF::IMAGE_FILE_MACHINE_ARMNT;
   case Triple::aarch64:
     return T.isWindowsArm64EC() ? COFF::IMAGE_FILE_MACHINE_ARM64EC
                                 : COFF::IMAGE_FILE_MACHINE_ARM64;
@@ -316,8 +338,12 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
        !Args.hasArgNoClaim(OPT_I))) {
     Table.printHelp(outs(), "llvm-dlltool [options] file...", "llvm-dlltool",
                     false);
-    llvm::outs()
-        << "\nTARGETS: i386, i386:x86-64, arm, arm64, arm64ec, r4000\n";
+    llvm::outs() << "\nTARGETS: ";
+    llvm::interleaveComma(Emulations, llvm::outs(),
+                          [](const EmulationInfo &E) {
+                            llvm::outs() << E.Name;
+                          });
+    llvm::outs() << "\n-m also takes a target triple, e.g. arm-pc-wince\n";
     return 1;
   }
 
@@ -341,8 +367,17 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
     if (T.getArch() != Triple::UnknownArch)
       Machine = getMachine(T);
   }
-  if (auto *Arg = Args.getLastArg(OPT_m))
-    Machine = getEmulation(Arg->getValue());
+  // -m names the machine to build an import library for.  A GNU machine name is
+  // taken from the table above; a target triple is taken too, which is the
+  // only way to name a machine that follows from the OS rather than from the
+  // architecture alone -- the plain ARM machine type, for instance, which no
+  // machine name of GNU dlltool's says anything about.
+  if (auto *Arg = Args.getLastArg(OPT_m)) {
+    StringRef Name = Arg->getValue();
+    Machine = getEmulation(Name);
+    if (Machine == IMAGE_FILE_MACHINE_UNKNOWN)
+      Machine = getMachine(Triple(Name));
+  }
 
   if (Machine == IMAGE_FILE_MACHINE_UNKNOWN) {
     llvm::errs() << "unknown target\n";

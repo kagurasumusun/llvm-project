@@ -5453,7 +5453,10 @@ static bool checkVAStartABI(Sema &S, unsigned BuiltinID, Expr *Fn) {
   bool IsX64 = TT.getArch() == llvm::Triple::x86_64;
   bool IsAArch64 = (TT.getArch() == llvm::Triple::aarch64 ||
                     TT.getArch() == llvm::Triple::aarch64_32);
-  bool IsWindowsOrUEFI = TT.isOSWindows() || TT.isUEFI();
+  // Windows CE takes the same va_start builtin as the desktop Windows, whose
+  // C runtime it mirrors.
+  bool IsWindowsOrUEFI =
+      TT.isOSWindows() || TT.isOSWindowsCE() || TT.isUEFI();
   bool IsMSVAStart = BuiltinID == Builtin::BI__builtin_ms_va_start;
   if (IsX64 || IsAArch64) {
     CallingConv CC = CC_C;

@@ -292,8 +292,10 @@ void arm::setArchNameInTriple(const Driver &D, const ArgList &Args,
                        Triple.isOSBinFormatMachO()) ||
                       // Thumb2 is the default for Fuchsia.
                       Triple.isOSFuchsia() ||
-                      // FIXME: this is invalid for WindowsCE
-                      (Triple.isOSWindows() && !Triple.isWindowsCE());
+                      // The desktop Windows on ARM releases are Thumb-2 only,
+                      // while Windows CE images are written for ARM state and
+                      // only switch to Thumb on request.
+                      Triple.isOSWindows();
 
   // Check if ARM ISA was explicitly selected (using -mno-thumb or -marm) for
   // M-Class CPUs/architecture variants, which is not supported.
@@ -340,10 +342,10 @@ void arm::setArchNameInTriple(const Driver &D, const ArgList &Args,
   }
 
   // Assembly files should start in ARM mode, unless arch is M-profile, or
-  // -mthumb has been passed explicitly to the assembler. Windows is always
-  // thumb.
-  if (IsThumb || IsMProfile ||
-      (Triple.isOSWindows() && !Triple.isWindowsCE())) {
+  // -mthumb has been passed explicitly to the assembler. The desktop Windows on
+  // ARM flavours are always thumb; Windows CE is not, as its code is written in
+  // ARM state, and a CE assembly file has to open in that state.
+  if (IsThumb || IsMProfile || Triple.isOSWindows()) {
     if (IsBigEndian)
       ArchName = "thumbeb";
     else
@@ -423,10 +425,13 @@ arm::FloatABI arm::getDefaultFloatABI(const llvm::Triple &Triple) {
   case llvm::Triple::WatchOS:
     return FloatABI::Hard;
 
-  case llvm::Triple::WinCE:
+  case llvm::Triple::WindowsCE:
+    // The mingw32ce C runtime this toolchain drives is built soft-float, and a
+    // CE image is expected to match it, so the ABI stays soft whatever CPU the
+    // triple names; which core the code is scheduled for is the architecture's
+    // own choice, as everywhere else.
     return FloatABI::Soft;
 
-  // FIXME: this is invalid for WindowsCE
   case llvm::Triple::Win32:
     // It is incorrect to select hard float ABI on MachO platforms if the ABI is
     // "apcs-gnu".

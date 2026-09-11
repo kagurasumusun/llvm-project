@@ -1,9 +1,9 @@
 # REQUIRES: arm-registered-target
 # RUN: split-file %s %t
-# RUN: llvm-mc -triple arm-unknown-wince -filetype=obj %t/winner.s -o %t/winner.obj
-# RUN: llvm-mc -triple arm-unknown-wince -filetype=obj %t/mixed.s -o %t/mixed.obj
+# RUN: llvm-mc -triple arm-unknown-wince -mcpu=arm926ej-s -filetype=obj %t/winner.s -o %t/winner.obj
+# RUN: llvm-mc -triple arm-unknown-wince -mcpu=arm926ej-s -filetype=obj %t/mixed.s -o %t/mixed.obj
 # RUN: llvm-readobj --symbols %t/mixed.obj | FileCheck %s --check-prefix=OBJ
-# RUN: lld-link -wince /entry:entry /subsystem:windowsce /base:0x10000 /fixed /out:%t.exe %t/winner.obj %t/mixed.obj
+# RUN: lld-link /entry:entry /subsystem:windowsce /base:0x10000 /fixed /out:%t.exe %t/winner.obj %t/mixed.obj
 # RUN: llvm-readobj --sections %t.exe | FileCheck %s --check-prefix=IMAGE
 # RUN: llvm-readobj --file-headers %t.exe | FileCheck %s --check-prefix=DIR
 

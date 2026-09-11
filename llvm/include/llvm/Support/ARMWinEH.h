@@ -516,9 +516,12 @@ inline size_t HeaderWords(const ExceptionDataRecord &XR) {
   return (XR.Data[0] & 0xff800000) ? 1 : 2;
 }
 
-
-namespace CE {
-
+// Windows CE describes the extent of every function in the image with a .pdata
+// record that is a quarter of the size of the ARM64 one, and without any
+// bytecode for unwinding: the CE loader does not unwind, so the record only
+// carries the prologue length (which is all a handler dispatch needs) plus the
+// two relocations that let the length survive a rebase.
+namespace WinCE {
 
 constexpr unsigned PrologLenWidth = 8;
 constexpr unsigned FuncLenWidth = 22;
@@ -540,6 +543,7 @@ constexpr uint32_t ThumbInstructionSize = 2;
 
 constexpr unsigned ImageRecordSize = 8;
 
+
 struct RuntimeFunction {
   support::ulittle32_t FuncStart;
   support::ulittle32_t Flags;
@@ -558,7 +562,7 @@ struct RuntimeFunction {
 };
 
 static_assert(sizeof(RuntimeFunction) == ImageRecordSize,
-              "the CE .pdata record must be exactly 8 bytes");
+              "the Windows CE .pdata record must be exactly 8 bytes");
 
 inline constexpr uint32_t instructionSize(uint32_t Flags) {
   return (Flags & ThirtyTwoBitFlag) ? ArmInstructionSize
@@ -572,8 +576,8 @@ inline constexpr uint32_t byteSpanToInstructions(uint32_t SpanBytes,
 }
 
 inline constexpr uint32_t encodeFlags(uint32_t PrologLen, uint32_t FuncLen,
-                            bool IsThirtyTwoBit, bool HasHandler,
-                            bool &Truncated) {
+                                      bool IsThirtyTwoBit, bool HasHandler,
+                                      bool &Truncated) {
   Truncated = (PrologLen > PrologLenMask) || (FuncLen > FuncLenMask);
   return ((PrologLen & PrologLenMask) << PrologLenShift) |
          ((FuncLen & FuncLenMask) << FuncLenShift) |
@@ -588,17 +592,19 @@ inline constexpr uint32_t replaceLength(uint32_t Flags, uint32_t Value,
   return (Flags & ~(Mask << Shift)) | ((Value & Mask) << Shift);
 }
 
-namespace ObjectRecord {
-constexpr unsigned Stride = 16;
+// The layout of one .pdata entry as it appears in the object file, which is
+// wider than RuntimeFunction because the two lengths are relocated separately.
+namespace PdataRecord {
+constexpr unsigned Size = 16;
 constexpr unsigned FuncStartOffset = 0;
 constexpr unsigned FlagsOffset = 4;
 constexpr unsigned FuncLenSlotOffset = 8;
 constexpr unsigned PrologLenSlotOffset = 12;
-}
+} // end namespace PdataRecord
 
-}
-}
-}
-}
+} // end namespace WinCE
+} // end namespace WinEH
+} // end namespace ARM
+} // end namespace llvm
 
 #endif

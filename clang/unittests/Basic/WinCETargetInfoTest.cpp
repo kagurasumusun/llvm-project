@@ -75,7 +75,10 @@ TEST(WinCETargetInfoTest, SinglePlatformDefinition) {
                   Macros["__stdcall"]);
         EXPECT_EQ(0u, Macros.count("_M_ARM"));
       } else {
-        EXPECT_EQ(std::vector<std::string>{"5"}, Macros["_M_ARM"]);
+        // A bare "arm" or "thumb" triple says nothing about the architecture,
+        // so this is the architecture default of LLVM's ARM target, and _M_ARM
+        // states that rather than a CPU the OS would have picked.
+        EXPECT_EQ(std::vector<std::string>{"4"}, Macros["_M_ARM"]);
         EXPECT_EQ(0u, Macros.count("_M_ARM_NT"));
         EXPECT_EQ(0u, Macros.count("_M_IX86_FP"));
       }
@@ -83,11 +86,17 @@ TEST(WinCETargetInfoTest, SinglePlatformDefinition) {
   }
 }
 
+// Which architecture the triple names is what decides the predefined version,
+// with no help from the OS, and -mcpu= overrides the triple as it does for
+// every other ARM target.
 TEST(WinCETargetInfoTest, CPUAndVersionSelection) {
   EXPECT_EQ(std::vector<std::string>{"4"},
             getWinCEDefinitions("armv4t-unknown-wince", true, true)["_M_ARM"]);
   EXPECT_EQ(std::vector<std::string>{"7"},
             getWinCEDefinitions("thumbv7-unknown-wince", true, true)["_M_ARM"]);
+  EXPECT_EQ(std::vector<std::string>{"5"},
+            getWinCEDefinitions("armv5tej-unknown-wince", true, true)
+                ["_M_ARM"]);
   EXPECT_EQ(std::vector<std::string>{"7"},
             getWinCEDefinitions("arm-unknown-wince", true, true,
                                 "cortex-a8")["_M_ARM"]);

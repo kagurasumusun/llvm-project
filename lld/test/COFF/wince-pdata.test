@@ -2,8 +2,8 @@ REQUIRES: arm-registered-target
 
 
 
-RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.second.o %S/Inputs/wince-pdata-second.s
-RUN: llvm-mc -triple thumb-pc-wince -filetype=obj -o %t.first.o %S/Inputs/wince-pdata-first.s
+RUN: llvm-mc -triple thumb-pc-wince -mcpu=arm926ej-s -filetype=obj -o %t.second.o %S/Inputs/wince-pdata-second.s
+RUN: llvm-mc -triple thumb-pc-wince -mcpu=arm926ej-s -filetype=obj -o %t.first.o %S/Inputs/wince-pdata-first.s
 RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:second /base:0x10000 /fixed %t.second.o %t.first.o
 
 

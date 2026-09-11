@@ -1237,7 +1237,7 @@ ImportThunkChunk *ImportFile::makeImportThunk() {
   case ARMNT:
     return make<ImportThunkChunkARM>(symtab.ctx, impSym);
   case IMAGE_FILE_MACHINE_ARM:
-    return make<ImportThunkChunkARMCE>(symtab.ctx, impSym);
+    return make<ImportThunkChunkARMWinCE>(symtab.ctx, impSym);
   }
   llvm_unreachable("unknown machine type");
 }
@@ -1465,7 +1465,7 @@ MachineTypes BitcodeFile::getMachineType(const llvm::lto::InputFile *obj) {
     return I386;
   case Triple::arm:
   case Triple::thumb:
-    return t.isWindowsCE() ? IMAGE_FILE_MACHINE_ARM : ARMNT;
+    return t.isOSWindowsCE() ? IMAGE_FILE_MACHINE_ARM : ARMNT;
   case Triple::aarch64:
     return t.isWindowsArm64EC() ? ARM64EC : ARM64;
   default:

@@ -1,0 +1,1 @@
+Empty stand-in for a sysroot that carries the coredll import library under one name per CPU, which is what makes the driver pick between them. The files are 0 bytes: the driver only looks for them, and no test links anything from here.

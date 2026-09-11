@@ -3314,8 +3314,12 @@ void ItaniumCXXABI::EmitThreadLocalInitFuncs(
 
     if (Init) {
       Init->setVisibility(Var->getVisibility());
-      // Don't mark an extern_weak function DSO local on windows.
-      if (!CGM.getTriple().isOSWindows() || !Init->hasExternalWeakLinkage())
+      // Don't mark an extern_weak function DSO local on windows.  PE/COFF
+      // carries no undefined weak symbol in the form a tail call would need, on
+      // either of the two OSes.
+      const llvm::Triple &TT = CGM.getTriple();
+      if ((!TT.isOSWindows() && !TT.isOSWindowsCE()) ||
+          !Init->hasExternalWeakLinkage())
         Init->setDSOLocal(Var->isDSOLocal());
     }
 

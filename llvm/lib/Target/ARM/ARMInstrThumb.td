@@ -1554,7 +1554,10 @@ def tInt_eh_sjlj_setjmp : ThumbXI<(outs),(ins tGPR:$src, tGPR:$val),
                                   AddrModeNone, 0, NoItinerary, "","",
                           [(set R0, (ARMeh_sjlj_setjmp tGPR:$src, tGPR:$val))]>;
 
-// This gets lowered to an instruction sequence of 10 bytes
+// This gets lowered to an instruction sequence of 10 bytes, the form a core
+// with only the 16-bit encodings has.  Where a platform pins one frame register
+// for its unwinder the sequence restores that one register; everywhere else
+// both candidates are restored, because either may be the one in use.
 // FIXME: Non-IOS version(s)
 let isBarrier = 1, hasSideEffects = 1, isTerminator = 1, isCodeGenOnly = 1,
     Size = 10, Defs = [ R7, LR, SP ] in
@@ -1562,16 +1565,19 @@ def tInt_eh_sjlj_longjmp : XI<(outs), (ins tGPR:$src, tGPR:$scratch),
                               AddrModeNone, 0, IndexModeNone,
                               Pseudo, NoItinerary, "", "",
                               [(ARMeh_sjlj_longjmp tGPR:$src, tGPR:$scratch)]>,
-                             Requires<[IsThumb,IsNotWindows]>;
+                             Requires<[IsThumb,IsNotWindowsV6T2]>;
 
-// This gets lowered to an instruction sequence of 12 bytes
-// (Windows is Thumb2-only)
+// This gets lowered to an instruction sequence of 12 bytes, out of 32-bit
+// loads that restore the frame register the COFF unwind model pins to R11.
+// Only the desktop Windows on ARM releases are guaranteed those encodings, so
+// a Windows CE core without them stays on the 16-bit sequence above, which
+// restores the same register.
 let isBarrier = 1, hasSideEffects = 1, isTerminator = 1, isCodeGenOnly = 1,
     Size = 12, Defs = [ R11, LR, SP ] in
 def tInt_WIN_eh_sjlj_longjmp
   : XI<(outs), (ins GPR:$src, GPR:$scratch), AddrModeNone, 0, IndexModeNone,
        Pseudo, NoItinerary, "", "", [(ARMeh_sjlj_longjmp GPR:$src, GPR:$scratch)]>,
-    Requires<[IsThumb,IsWindows]>;
+    Requires<[IsThumb,IsWindowsV6T2]>;
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns

@@ -224,7 +224,7 @@ private:
   static bool hasAEABILibcalls(const Triple &TT) {
     return TT.isTargetAEABI() || TT.isTargetGNUAEABI() ||
            TT.isTargetMuslAEABI() || TT.isOSFuchsia() || TT.isAndroid() ||
-           TT.isWindowsCE();
+           TT.isOSWindowsCE();
   }
 
   LLVM_READONLY

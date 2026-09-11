@@ -322,13 +322,22 @@ public:
 
   bool isUEFI() const { return TargetTriple.isUEFI(); }
 
-  bool isOSWindows() const { return TargetTriple.isOSWindows(); }
+  /// Tests for the Windows family this back end serves: the desktop releases
+  /// and Windows CE, which both take a PE image with its import naming and its
+  /// COFF relocations.  The method used to be the triple's isOSWindows(), which
+  /// named the desktop OS and Windows CE together, so the sharing was relied on
+  /// without being said.  isTargetWin32() and isTargetWin64() name the PE ABI
+  /// flavour rather than the OS and read off this, which is why they cover CE as
+  /// they did before.
+  bool isTargetWindowsFamily() const {
+    return TargetTriple.isOSWindows() || TargetTriple.isOSWindowsCE();
+  }
 
   bool isTargetUEFI64() const { return Is64Bit && isUEFI(); }
 
-  bool isTargetWin64() const { return Is64Bit && isOSWindows(); }
+  bool isTargetWin64() const { return Is64Bit && isTargetWindowsFamily(); }
 
-  bool isTargetWin32() const { return !Is64Bit && isOSWindows(); }
+  bool isTargetWin32() const { return !Is64Bit && isTargetWindowsFamily(); }
 
   bool isPICStyleGOT() const { return PICStyle == PICStyles::Style::GOT; }
   bool isPICStyleRIPRel() const { return PICStyle == PICStyles::Style::RIPRel; }

@@ -153,7 +153,11 @@ std::string ARM_MC::ParseARMTriple(const Triple &TT, StringRef CPU) {
     ARMArchFeature += "+thumb-mode,+v4t";
   }
 
-  if (TT.isOSWindows() && !TT.isWindowsCE()) {
+  // Windows on ARM (ARMNT and later) is Thumb-2 only, so ARM mode is turned
+  // off for it.  Windows CE predates that restriction and its images are ARM
+  // mode, which is why the environment has to be excluded here rather than
+  // treating every Windows ARM target alike.
+  if (TT.isOSWindows()) {
     if (!ARMArchFeature.empty())
       ARMArchFeature += ",";
     ARMArchFeature += "+noarm";
@@ -199,8 +203,6 @@ uint64_t ARM_MC::evaluateBranchTarget(const MCInstrDesc &InstDesc,
 
 MCSubtargetInfo *ARM_MC::createARMMCSubtargetInfo(const Triple &TT,
                                                   StringRef CPU, StringRef FS) {
-  if (CPU.empty() && TT.isWindowsCE())
-    CPU = ARM::getARMCPUForArch(TT);
   std::string ArchFS = ARM_MC::ParseARMTriple(TT, CPU);
   if (!FS.empty()) {
     if (!ArchFS.empty())
@@ -341,14 +343,15 @@ static MCAsmInfo *createARMMCAsmInfo(const MCRegisterInfo &MRI,
   MCAsmInfo *MAI;
   if (TheTriple.isOSDarwin() || TheTriple.isOSBinFormatMachO())
     MAI = new ARMMCAsmInfoDarwin(TheTriple);
-  else if (TheTriple.isWindowsCE()) {
-    MAI = new ARMCOFFMCAsmInfoGNU(            true);
-    MAI->setExceptionsType(ExceptionHandling::ARM);
-  } else if (TheTriple.isWindowsMSVCEnvironment())
+  else if (TheTriple.isWindowsMSVCEnvironment())
     MAI = new ARMCOFFMCAsmInfoMicrosoft();
-  else if (TheTriple.isOSWindows())
-    MAI = new ARMCOFFMCAsmInfoGNU(            false);
-  else
+  else if (TheTriple.isOSWindows() || TheTriple.isOSWindowsCE()) {
+    MAI = new ARMCOFFMCAsmInfoGNU(TheTriple);
+    // CE unwinds with the ARM .pdata/.exidx records instead of the WinEH
+    // bytecode that GNU COFF otherwise carries.
+    if (TheTriple.isOSWindowsCE())
+      MAI->setExceptionsType(ExceptionHandling::ARM);
+  } else
     MAI = new ARMELFMCAsmInfo(TheTriple);
 
   unsigned Reg = MRI.getDwarfRegNum(ARM::SP, true);

@@ -307,7 +307,18 @@ option(LIBCXX_HAS_EXTERNAL_THREAD_API
   "Build libc++ with an externalized threading API.
    This option may only be set to ON when LIBCXX_ENABLE_THREADS=ON." OFF)
 
-if(CMAKE_C_COMPILER_TARGET MATCHES "(-|^)wince" OR CMAKE_CXX_COMPILER_TARGET MATCHES "(-|^)wince")
+# Which OS names identify a CE target?  parseOS() in llvm/lib/TargetParser/Triple.cpp
+# maps the OS component of the triple, by prefix, to WindowsCE for the canonical
+# "windowsce" and for the aliases "wince" and "mingw32ce", and a CE release version may
+# be written after any of them ("armv5tej-pc-wince5.2"), so nothing has to follow the
+# name.  CMake cannot repeat that positional rule, so the pattern below settles for the
+# name at the start of any component.  Being complete here matters: this switch decides
+# which support sources libc++ compiles, while __config picks between them by
+# _WIN32_WCE, so a pattern that only knew "wince" would configure "armv7-pc-windowsce"
+# with the desktop support files and reference a CE locale backend that is not built.
+set(LIBCXX_WINCE_TRIPLE_PATTERN "(^|[-.])wince|(^|[-.])windowsce|(^|[-.])mingw32ce")
+if(CMAKE_C_COMPILER_TARGET MATCHES "${LIBCXX_WINCE_TRIPLE_PATTERN}" OR
+   CMAKE_CXX_COMPILER_TARGET MATCHES "${LIBCXX_WINCE_TRIPLE_PATTERN}")
   set(LIBCXX_TARGETS_WINCE ON)
 endif()
 
@@ -333,6 +344,18 @@ option(LIBCXX_HERMETIC_STATIC_LIBRARY
 #===============================================================================
 # Check option configurations
 #===============================================================================
+
+# libc++ has no threading backend for Windows CE: src/CMakeLists.txt keeps the Win32 one
+# out of a CE build, because it is written against SRW locks, condition variables and
+# fiber-local storage, and nothing replaces it.  Report that where it can be acted on
+# rather than letting __config fail with 'No thread API' in every translation unit.
+if(LIBCXX_TARGETS_WINCE AND LIBCXX_ENABLE_THREADS)
+  message(FATAL_ERROR
+    "libc++ has no threading backend for Windows CE.  Configure with"
+    " -DLIBCXX_ENABLE_THREADS=OFF, or provide src/support/wince/thread_wince.cpp; the"
+    " Win32 backend cannot be reused because it needs SRW locks, condition variables"
+    " and FLS, and it is excluded from CE builds (see src/CMakeLists.txt).")
+endif()
 
 # Ensure LIBCXX_ENABLE_MONOTONIC_CLOCK is set to ON only when
 # LIBCXX_ENABLE_THREADS is on.

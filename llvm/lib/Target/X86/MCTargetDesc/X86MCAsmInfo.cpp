@@ -187,8 +187,8 @@ X86MCAsmInfoMicrosoftMASM::X86MCAsmInfoMicrosoftMASM(const Triple &Triple)
 void X86MCAsmInfoGNUCOFF::anchor() { }
 
 X86MCAsmInfoGNUCOFF::X86MCAsmInfoGNUCOFF(const Triple &Triple) {
-  assert((Triple.isOSWindows() || Triple.isUEFI()) &&
-         "Windows and UEFI are the only supported COFF targets");
+  assert((Triple.isOSWindows() || Triple.isOSWindowsCE() || Triple.isUEFI()) &&
+         "Windows, Windows CE and UEFI are the only supported COFF targets");
   if (Triple.isX86_64()) {
     PrivateGlobalPrefix = ".L";
     PrivateLabelPrefix = ".L";

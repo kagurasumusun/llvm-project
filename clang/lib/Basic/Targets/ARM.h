@@ -298,7 +298,6 @@ public:
                         MacroBuilder &Builder) const override;
 };
 
-
 // ARM Cygwin target
 class LLVM_LIBRARY_VISIBILITY CygwinARMTargetInfo : public ARMleTargetInfo {
 public:

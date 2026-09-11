@@ -824,7 +824,7 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineFunction &MF = *MBB.getParent();
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   if (MI.getOpcode() == TargetOpcode::LOCAL_ESCAPE &&
-      MF.getTarget().getTargetTriple().isWindowsCE()) {
+      MF.getTarget().getTargetTriple().isOSWindowsCE()) {
     MI.getOperand(FIOperandNum)
         .ChangeToImmediate(MF.getFrameInfo().getObjectOffset(FrameIndex));
     return false;

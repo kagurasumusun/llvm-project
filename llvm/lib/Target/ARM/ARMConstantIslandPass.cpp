@@ -1505,7 +1505,18 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
   // the instruction and fail to update the MOVT instruction.
   // (These instructions are bundled up until right before the ConstantIslands
   // pass.)
-  if (STI->isTargetWindows() && isThumb && MI->getOpcode() == ARM::t2MOVTi16 &&
+  // Asking the question of the Thumb spelling is enough for the whole family,
+  // though not for a reason the desktop release supplies.  Its ARM counterpart,
+  // IMAGE_REL_ARM_MOV32A, is arranged the same way in the object writer, but
+  // codegen reaches a MOVW and MOVT carrying a symbol only where
+  // ARMSubtarget::useMovt() holds, and that asks for the v8m feature group --
+  // an M-profile one, so Thumb throughout.  A Windows CE core in ARM state gets
+  // such a symbol out of the constant pool instead, on a core that has the pair,
+  // as wince-seh-parent-frame.ll shows for armv7-pc-wince; and the one
+  // remaining way to name the pair in ARM state, inline asm, keeps both
+  // instructions inside a single MI, which no island can be injected into.
+  if (STI->isTargetWindowsFamily() && isThumb &&
+      MI->getOpcode() == ARM::t2MOVTi16 &&
       (MI->getOperand(2).getTargetFlags() & ARMII::MO_OPTION_MASK) ==
           ARMII::MO_HI16) {
     --MI;

@@ -347,8 +347,22 @@ public:
   bool isTargetFuchsia() const { return TargetTriple.isOSFuchsia(); }
   bool isTargetLinux() const { return TargetTriple.isOSLinux(); }
   bool isTargetNetBSD() const { return TargetTriple.isOSNetBSD(); }
+  /// Tests for the desktop Windows on ARM releases, whose runtime and ABI are
+  /// not Windows CE's.  Most of what this back end does for Windows follows the
+  /// object file and the import model, which the two share, and asks for that
+  /// with isTargetWindowsFamily() below.
   bool isTargetWindows() const { return TargetTriple.isOSWindows(); }
-  bool isTargetWindowsCE() const { return TargetTriple.isWindowsCE(); }
+
+  /// Tests for the Windows family as this back end serves it: the desktop
+  /// Windows on ARM releases and Windows CE, which both take COFF, the import
+  /// naming of a PE image and the .pdata style exception data.  A rule that
+  /// follows from the desktop runtime alone uses isTargetWindows() above, and
+  /// CE's own differences are asked about with isTargetWindowsCE().
+  bool isTargetWindowsFamily() const {
+    return TargetTriple.isOSWindows() || TargetTriple.isOSWindowsCE();
+  }
+
+  bool isTargetWindowsCE() const { return TargetTriple.isOSWindowsCE(); }
 
   bool isTargetCOFF() const { return TargetTriple.isOSBinFormatCOFF(); }
   bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
@@ -393,7 +407,7 @@ public:
 
   MCPhysReg getFramePointerReg() const {
     if (isTargetDarwin() ||
-        (!isTargetWindows() && isThumb() && !createAAPCSFrameChain()))
+        (!isTargetWindowsFamily() && isThumb() && !createAAPCSFrameChain()))
       return ARM::R7;
     return ARM::R11;
   }

@@ -226,10 +226,10 @@ private:
   void assignAddresses();
   bool isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
                  MachineTypes machine);
-  std::pair<Defined *, bool> getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks,
-                                      Defined *target, uint64_t p,
-                                      uint16_t type, int margin,
-                                      MachineTypes machine);
+  std::pair<Defined *, bool>
+  getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks,
+           Defined *target, uint64_t p, uint16_t type, int margin,
+           MachineTypes machine);
   bool createThunks(OutputSection *os, int margin);
   bool verifyRanges(const std::vector<Chunk *> chunks);
   void createECCodeMap();
@@ -244,8 +244,8 @@ private:
   void createECChunks();
   void insertCtorDtorSymbols();
   void insertBssDataStartEndSymbols();
-  void insertEXIdxBoundsSymbols();
   void insertTextStartEndSymbols();
+  void insertARMWinCEExIdxBoundsSymbols();
   void markSymbolsWithRelocations(ObjFile *file, SymbolRVASet &usedSymbols);
   void createGuardCFTables();
   void markSymbolsForRVATable(ObjFile *file,
@@ -263,8 +263,8 @@ private:
   void writePEChecksum();
   void sortSections();
   template <typename T> void sortExceptionTable(ChunkRange &exceptionTable);
-  void sortCEExceptionTable(ChunkRange &exceptionTable);
-  void sortARMExIdxTable();
+  void sortARMWinCEPdataTable(ChunkRange &exceptionTable);
+  void sortARMWinCEExIdxTable();
   void sortExceptionTables();
   void sortCRTSectionChunks(std::vector<Chunk *> &chunks);
   void addSyntheticIdata();
@@ -465,8 +465,9 @@ bool Writer::isInRange(uint16_t relType, uint64_t s, uint64_t p, int margin,
 // Return the last thunk for the given target if it is in range,
 // or create a new one.
 std::pair<Defined *, bool>
-Writer::getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks, Defined *target,
-                 uint64_t p, uint16_t type, int margin, MachineTypes machine) {
+Writer::getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks,
+                 Defined *target, uint64_t p, uint16_t type, int margin,
+                 MachineTypes machine) {
   const uint8_t kind =
       (machine == IMAGE_FILE_MACHINE_ARM &&
        (type == IMAGE_REL_ARM_BRANCH24T || type == IMAGE_REL_ARM_BRANCH20T))
@@ -478,9 +479,9 @@ Writer::getThunk(DenseMap<std::pair<uint64_t, uint8_t>, Defined *> &lastThunks, 
   Chunk *c;
   if (machine == IMAGE_FILE_MACHINE_ARM) {
     if (kind)
-      c = make<RangeExtensionThunkARMCEThumb>(ctx, target);
+      c = make<RangeExtensionThunkARMWinCEThumb>(ctx, target);
     else
-      c = make<RangeExtensionThunkARMCE>(ctx, target);
+      c = make<RangeExtensionThunkARMWinCE>(ctx, target);
   } else {
     switch (getMachineArchType(machine)) {
     case Triple::thumb:
@@ -794,7 +795,11 @@ void Writer::writePEChecksum() {
   peHeader->CheckSum = sum;
 }
 
-static void cullCEUnwindTablesForDiscardedFunctions(COFFLinkerContext &ctx) {
+// Unwind records that a target keeps in one merged table section, rather than
+// in a COMDAT of their own, outlive the function they describe once that is
+// discarded, so drop the whole table then.  Which sections that applies to is
+// a property of the inputs, hence the selection by name instead of by machine.
+static void cullUnwindTablesForDiscardedFunctions(COFFLinkerContext &ctx) {
   for (ObjFile *file : ctx.objFileInstances) {
     for (Chunk *c : file->getChunks()) {
       auto *sc = dyn_cast<SectionChunk>(c);
@@ -823,7 +828,8 @@ static void cullCEUnwindTablesForDiscardedFunctions(COFFLinkerContext &ctx) {
         }
         if (dead) {
           Log(ctx) << "removing " << name << " entry for discarded section"
-                   << (sym ? ": " + std::string(sym->getName()) : " (symbol discarded early)");
+                   << (sym ? ": " + std::string(sym->getName())
+                            : " (symbol discarded early)");
           sc->live = false;
           break;
         }
@@ -838,7 +844,7 @@ void Writer::run() {
     llvm::TimeTraceScope timeScope("Write PE");
     ScopedTimer t1(ctx.codeLayoutTimer);
 
-    cullCEUnwindTablesForDiscardedFunctions(ctx);
+    cullUnwindTablesForDiscardedFunctions(ctx);
     calculateStubDependentSizes();
     if (ctx.config.machine == ARM64X)
       ctx.dynamicRelocs = make<DynamicRelocsChunk>();
@@ -1373,14 +1379,18 @@ void Writer::createMiscChunks() {
   if (config->autoImport)
     createRuntimePseudoRelocs();
 
-  if (config->mingw) {
+  // Both runtimes find their constructor lists through linker-provided
+  // symbols; which section-boundary symbols they need differs: the mingw CRT
+  // walks .bss and .data, while the CE one walks .text, and .ARM.exidx on top
+  // of that for its ARM variant.
+  if (config->mingw || config->isWindowsCE())
     insertCtorDtorSymbols();
+  if (config->mingw)
     insertBssDataStartEndSymbols();
-  } else if (config->wince) {
-    insertCtorDtorSymbols();
+  if (config->isWindowsCE())
     insertTextStartEndSymbols();
-    insertEXIdxBoundsSymbols();
-  }
+  if (config->isARMOnWindowsCE())
+    insertARMWinCEExIdxBoundsSymbols();
 }
 
 // Create .idata section for the DLL-imported symbol table.
@@ -2052,7 +2062,9 @@ template <typename PEHeaderTy> void Writer::writeHeader() {
     uint64_t spanSize = exceptionTable.last->getRVA() +
                         exceptionTable.last->getSize() -
                         exceptionTable.first->getRVA();
-    if (ctx.config.wince)
+    // CE on ARM emits 16-byte .pdata records and writes 8-byte ones: the two
+    // length slots are consumed by the relocations they carry.
+    if (ctx.config.isARMOnWindowsCE())
       spanSize = (spanSize / 16) * 8;
     dir[EXCEPTION_TABLE].Size = spanSize;
   }
@@ -2527,17 +2539,22 @@ void Writer::createRuntimePseudoRelocs() {
 // There's a symbol pointing to the start sentinel pointer, __CTOR_LIST__
 // and __DTOR_LIST__ respectively.
 void Writer::insertCtorDtorSymbols() {
-  if (ctx.config.wince) {
+  // CE collects initializers in one section per object, named after it, and
+  // its CRT runs them in that order; the naming, not the layout, is what the
+  // comparison below recovers.
+  if (ctx.config.isWindowsCE()) {
     auto bySectionName = [](const Chunk *a, const Chunk *b, bool Reverse) {
       return Reverse ? a->getSectionName() > b->getSectionName()
                      : a->getSectionName() < b->getSectionName();
     };
-    llvm::stable_sort(ctorsSec->chunks, [&](const Chunk *a, const Chunk *b) {
-      return bySectionName(a, b,             true);
-    });
-    llvm::stable_sort(dtorsSec->chunks, [&](const Chunk *a, const Chunk *b) {
-      return bySectionName(a, b,             false);
-    });
+    llvm::stable_sort(ctorsSec->chunks,
+                      [&](const Chunk *a, const Chunk *b) {
+                        return bySectionName(a, b, true);
+                      });
+    llvm::stable_sort(dtorsSec->chunks,
+                      [&](const Chunk *a, const Chunk *b) {
+                        return bySectionName(a, b, false);
+                      });
   }
 
   ctx.forEachSymtab([&](SymbolTable &symtab) {
@@ -2583,7 +2600,7 @@ void Writer::insertTextStartEndSymbols() {
   bind("__text_end__", last, last ? last->getSize() : 0);
 }
 
-void Writer::insertEXIdxBoundsSymbols() {
+void Writer::insertARMWinCEExIdxBoundsSymbols() {
   Symbol *startSym = ctx.symtab.find("__exidx_start");
   Symbol *endSym = ctx.symtab.find("__exidx_end");
   if (!startSym && !endSym)
@@ -2840,11 +2857,11 @@ void Writer::sortExceptionTable(ChunkRange &exceptionTable) {
                [](const T &a, const T &b) { return a.begin < b.begin; });
 }
 
-void Writer::sortCEExceptionTable(ChunkRange &exceptionTable) {
+void Writer::sortARMWinCEPdataTable(ChunkRange &exceptionTable) {
   if (!exceptionTable.first)
     return;
 
-  namespace CE = llvm::ARM::WinEH::CE;
+  namespace WinCE = llvm::ARM::WinEH::WinCE;
 
   auto bufAddr = [&](Chunk *c) {
     OutputSection *os = ctx.getOutputSection(c);
@@ -2854,16 +2871,16 @@ void Writer::sortCEExceptionTable(ChunkRange &exceptionTable) {
   uint8_t *begin = bufAddr(exceptionTable.first);
   uint8_t *end = bufAddr(exceptionTable.last) + exceptionTable.last->getSize();
   const size_t total = end - begin;
-  if (total % CE::ObjectRecord::Stride != 0) {
+  if (total % WinCE::PdataRecord::Size != 0) {
     Fatal(ctx) << "unexpected CE .pdata size: " << total
-               << " is not a multiple of " << CE::ObjectRecord::Stride;
+               << " is not a multiple of " << WinCE::PdataRecord::Size;
   }
-  const size_t count = total / CE::ObjectRecord::Stride;
+  const size_t count = total / WinCE::PdataRecord::Size;
 
   MutableArrayRef<uint32_t> words(reinterpret_cast<uint32_t *>(begin),
                                   total / sizeof(uint32_t));
-  constexpr size_t StrideWords = CE::ObjectRecord::Stride / sizeof(uint32_t);
-  constexpr size_t KeepWords = CE::ImageRecordSize / sizeof(uint32_t);
+  constexpr size_t StrideWords = WinCE::PdataRecord::Size / sizeof(uint32_t);
+  constexpr size_t KeepWords = WinCE::ImageRecordSize / sizeof(uint32_t);
   for (size_t i = 1; i < count; ++i)
     for (size_t w = 0; w < KeepWords; ++w)
       words[i * KeepWords + w] = words[i * StrideWords + w];
@@ -2871,17 +2888,17 @@ void Writer::sortCEExceptionTable(ChunkRange &exceptionTable) {
   for (size_t i = count * KeepWords; i < words.size(); ++i)
     words[i] = 0;
 
-  MutableArrayRef<CE::RuntimeFunction> entries(
-      reinterpret_cast<CE::RuntimeFunction *>(begin), count);
+  MutableArrayRef<WinCE::RuntimeFunction> entries(
+      reinterpret_cast<WinCE::RuntimeFunction *>(begin), count);
   const uint64_t imageBase = ctx.config.imageBase;
-  parallelSort(entries, [imageBase](const CE::RuntimeFunction &a,
-                                    const CE::RuntimeFunction &b) {
+  parallelSort(entries, [imageBase](const WinCE::RuntimeFunction &a,
+                                    const WinCE::RuntimeFunction &b) {
     return (uint32_t)(a.FuncStart - imageBase) <
            (uint32_t)(b.FuncStart - imageBase);
   });
 }
 
-void Writer::sortARMExIdxTable() {
+void Writer::sortARMWinCEExIdxTable() {
   OutputSection *sec = findSection(".ARM.exidx");
   if (!sec || sec->chunks.empty())
     return;
@@ -2927,13 +2944,15 @@ void Writer::sortExceptionTables() {
     ulittle32_t begin, unwind;
   };
 
-  if (ctx.config.wince) {
-    sortCEExceptionTable(pdata);
-    sortARMExIdxTable();
-    return;
-  }
-
+  // Which unwind table layout to sort is a question about the CPU and the
+  // machine type, not about the operating system: CE on ARM carries the record
+  // lengths inside .pdata and keeps an index table next to it, while ARMNT
+  // (and every other Windows on ARM) uses the two-word records below.
   switch (ctx.config.machine) {
+  case IMAGE_FILE_MACHINE_ARM:
+    sortARMWinCEPdataTable(pdata);
+    sortARMWinCEExIdxTable();
+    break;
   case AMD64:
     sortExceptionTable<EntryX64>(pdata);
     break;

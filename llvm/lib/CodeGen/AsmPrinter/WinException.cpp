@@ -553,7 +553,7 @@ InvokeStateChangeIterator &InvokeStateChangeIterator::scan() {
 ///     } Entries[NumEntries];
 ///   };
 MCSymbol *WinException::emitCSpecificHandlerTable(const MachineFunction *MF,
-                                                  bool IsCE) {
+                                                  bool IsWinCE) {
   auto &OS = *Asm->OutStreamer;
   MCContext &Ctx = Asm->OutContext;
   const WinEHFuncInfo &FuncInfo = *MF->getWinEHFuncInfo();
@@ -572,8 +572,9 @@ MCSymbol *WinException::emitCSpecificHandlerTable(const MachineFunction *MF,
     MCSymbol *ParentFrameOffset =
         Ctx.getOrCreateParentFrameOffsetSymbol(FLinkageName);
     const MCExpr *MCOffset =
-        IsCE ? MCConstantExpr::create(MF->getFrameInfo().getStackSize(), Ctx)
-             : MCConstantExpr::create(FuncInfo.SEHSetFrameOffset, Ctx);
+        IsWinCE
+            ? MCConstantExpr::create(MF->getFrameInfo().getStackSize(), Ctx)
+            : MCConstantExpr::create(FuncInfo.SEHSetFrameOffset, Ctx);
     Asm->OutStreamer->emitAssignment(ParentFrameOffset, MCOffset);
   }
 
@@ -588,9 +589,8 @@ MCSymbol *WinException::emitCSpecificHandlerTable(const MachineFunction *MF,
   const MCExpr *EntryCount = MCBinaryExpr::createDiv(LabelDiff, EntrySize, Ctx);
 
   MCSymbol *HandlerData = nullptr;
-  if (IsCE) {
-    HandlerData =
-        Ctx.createTempSymbol("ce_handlerdata", true);
+  if (IsWinCE) {
+    HandlerData = Ctx.createTempSymbol("wince_handlerdata", true);
     OS.emitLabel(HandlerData);
   }
 
@@ -1346,8 +1346,7 @@ void WinException::emitCLRExceptionTable(const MachineFunction *MF) {
   }
 }
 
-
-MCSymbol *llvm::emitCESpecificHandlerTable(AsmPrinter &Asm,
-                                           const MachineFunction &MF) {
-  return WinException(&Asm).emitCEHandlerTable(&MF);
+MCSymbol *llvm::emitWinCESpecificHandlerTable(AsmPrinter &Asm,
+                                               const MachineFunction &MF) {
+  return WinException(&Asm).emitWinCEHandlerTable(&MF);
 }

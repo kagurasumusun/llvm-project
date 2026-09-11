@@ -132,8 +132,9 @@ void LinkerDriver::parseSubsystem(StringRef arg, WindowsSubsystem *sys,
     .Case("native", IMAGE_SUBSYSTEM_NATIVE)
     .Case("posix", IMAGE_SUBSYSTEM_POSIX_CUI)
     .Case("windows", IMAGE_SUBSYSTEM_WINDOWS_GUI)
+    // The triple spells the OS "windowsce" as well; CE has no other spelling
+    // here (link.exe accepts /subsystem:windowsce).
     .Case("windowsce", IMAGE_SUBSYSTEM_WINDOWS_CE_GUI)
-    .Case("wince", IMAGE_SUBSYSTEM_WINDOWS_CE_GUI)
     .Default(IMAGE_SUBSYSTEM_UNKNOWN);
   if (*sys == IMAGE_SUBSYSTEM_UNKNOWN && sysStrLower != "default")
     Fatal(ctx) << "unknown subsystem: " << sysStr;

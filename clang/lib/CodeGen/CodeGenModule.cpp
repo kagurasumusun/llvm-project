@@ -248,7 +248,11 @@ createTargetCodeGenInfo(CodeGenModule &CGM) {
 
   case llvm::Triple::x86: {
     bool IsDarwinVectorABI = Triple.isOSDarwin();
-    bool IsWin32FloatStructABI = Triple.isOSWindows() && !Triple.isOSCygMing();
+    // Windows CE returns a struct holding a float the way the desktop COFF ABIs
+    // do, and it has no cygwin flavour to except, so the rule covers both.
+    bool IsWin32FloatStructABI = (Triple.isOSWindows() ||
+                                  Triple.isOSWindowsCE()) &&
+                                 !Triple.isOSCygMing();
 
     if (Triple.getOS() == llvm::Triple::Win32) {
       return createWinX86_32TargetCodeGenInfo(
@@ -475,10 +479,11 @@ CodeGenModule::CodeGenModule(ASTContext &C,
       CodeGenOpts.CoverageNotesFile.size() ||
       CodeGenOpts.CoverageDataFile.size())
     DebugInfo.reset(new CGDebugInfo(*this));
-  else if (getTriple().isOSWindows() && !getTriple().isWindowsCE())
-    // On Windows targets, we want to emit compiler info even if debug info is
-    // otherwise disabled. Use a temporary CGDebugInfo instance to emit only
-    // basic compiler metadata.
+  else if (getTriple().isOSWindows())
+    // On desktop Windows targets, we want to emit compiler info even if debug
+    // info is otherwise disabled. Use a temporary CGDebugInfo instance to emit
+    // only basic compiler metadata.  Windows CE is left out, as a CE object
+    // file carries no such record unless debug info was asked for.
     CGDebugInfo(*this);
 
   Block.GlobalUniqueCount = 0;
@@ -1152,8 +1157,7 @@ void CodeGenModule::Release() {
                               "StrictVTablePointersRequirement",
                               llvm::MDNode::get(VMContext, Ops));
   }
-  if (getModuleDebugInfo() ||
-      (getTriple().isOSWindows() && !getTriple().isWindowsCE()))
+  if (getModuleDebugInfo() || getTriple().isOSWindows())
     // We support a single version in the linked module. The LLVM
     // parser will drop debug info with a different version number
     // (and warn about it, too).

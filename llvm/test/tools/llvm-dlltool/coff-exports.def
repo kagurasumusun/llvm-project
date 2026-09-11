@@ -4,8 +4,14 @@
 ; RUN: llvm-dlltool -m arm64 --input-def %s --output-lib %t.a
 ; RUN: llvm-readobj %t.a | FileCheck %s --check-prefixes=CHECK,CHECK-ARM64
 ; RUN: llvm-nm --print-armap %t.a | FileCheck --check-prefix=SYMTAB %s
-; RUN: llvm-dlltool -m armce --input-def %s --output-lib %t.armce.a
-; RUN: llvm-readobj %t.armce.a | FileCheck %s --check-prefixes=CHECK,CHECK-ARMCE
+; RUN: llvm-dlltool -m arm-pc-wince --input-def %s --output-lib %t.wince.a
+; RUN: llvm-readobj %t.wince.a | FileCheck %s --check-prefixes=CHECK,CHECK-WINCE
+; RUN: llvm-readobj -h %t.wince.a | FileCheck %s --check-prefix=WINCE-MACHINE
+; A CE image's machine type follows from its OS, which no dlltool machine name
+; can say, so -m is given the target instead: ARM CE lands on the plain ARM
+; machine type and x86 CE on the one its own images use.
+; RUN: llvm-dlltool -m i386-pc-wince --input-def %s --output-lib %t.wince-x86.a
+; RUN: llvm-readobj -h %t.wince-x86.a | FileCheck %s --check-prefix=WINCE-X86-MACHINE
 
 LIBRARY test.dll
 EXPORTS
@@ -17,7 +23,9 @@ AnotherFunction
 ; CHECK: File: test.dll
 ; CHECK-X64:   Format: COFF-import-file-x86-64
 ; CHECK-ARM64: Format: COFF-import-file-ARM64
-; CHECK-ARMCE: Format: COFF-import-file-ARMCE
+; CHECK-WINCE: Format: COFF-import-file-ARM
+; WINCE-MACHINE: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
+; WINCE-X86-MACHINE: Machine: IMAGE_FILE_MACHINE_I386 (0x14C)
 ; CHECK: Type: code
 ; CHECK:      Name type: name
 ; CHECK-NEXT: Export name: TestFunction1

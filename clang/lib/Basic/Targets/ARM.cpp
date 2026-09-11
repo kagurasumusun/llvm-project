@@ -32,7 +32,10 @@ void ARMTargetInfo::setABIAAPCS() {
 
   bool IsNetBSD = T.isOSNetBSD();
   bool IsOpenBSD = T.isOSOpenBSD();
-  if (!T.isOSWindows() && !IsNetBSD && !IsOpenBSD)
+  // The two Windows forms are excluded because each keeps its platform's own
+  // wchar_t: Windows ARM and Windows CE both take it as unsigned short from the
+  // Windows target info they derive from.
+  if (!T.isOSWindows() && !T.isOSWindowsCE() && !IsNetBSD && !IsOpenBSD)
     WCharType = UnsignedInt;
 
   UseBitFieldTypeAlignment = true;
@@ -272,8 +275,11 @@ ARMTargetInfo::ARMTargetInfo(const llvm::Triple &Triple,
     } else {
       setABI("apcs-gnu");
     }
-  } else if (Triple.isOSWindows()) {
-    // FIXME: this is invalid for WindowsCE
+  } else if (Triple.isOSWindows() || Triple.isOSWindowsCE()) {
+    // Windows CE is named with the desktop OS because its C ABI is the ARM
+    // architecture standard one; what sets it apart is a soft-float C runtime,
+    // which the float ABI rule settles rather than the ABI name.  This
+    // otherwise duplicates the ARM::computeDefaultTargetABI() rule.
     setABI("aapcs");
   } else {
     // Select the default based on the platform.
@@ -792,16 +798,19 @@ void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
 
   // FIXME: It's more complicated than this and we don't really support
   // interworking.
-  // Windows on ARM does not "support" interworking
+  // Windows on ARM does not "support" interworking, while Windows CE images mix
+  // the two ISA states as any other ARM code does, so CE is left to the
+  // architecture version alone.
   if (5 <= ArchVersion && ArchVersion <= 8 &&
-      (!getTriple().isOSWindows() || getTriple().isWindowsCE()))
+      !getTriple().isOSWindows())
     Builder.defineMacro("__THUMB_INTERWORK__");
 
   if (ABI == "aapcs" || ABI == "aapcs-linux" || ABI == "aapcs-vfp") {
     // Embedded targets on Darwin follow AAPCS, but not EABI.
     // Windows on ARM follows AAPCS VFP, but does not conform to EABI.
+    // Windows CE links against a runtime built for the ARM EABI and keeps it.
     if (!getTriple().isOSBinFormatMachO() &&
-        (!getTriple().isOSWindows() || getTriple().isWindowsCE()))
+        !getTriple().isOSWindows())
       Builder.defineMacro("__ARM_EABI__");
     Builder.defineMacro("__ARM_PCS", "1");
   }
@@ -1423,7 +1432,6 @@ WindowsARMTargetInfo::WindowsARMTargetInfo(const llvm::Triple &Triple,
 
 void WindowsARMTargetInfo::getVisualStudioDefines(const LangOptions &Opts,
                                                   MacroBuilder &Builder) const {
-  // FIXME: this is invalid for WindowsCE
   Builder.defineMacro("_M_ARM_NT", "1");
   Builder.defineMacro("_M_ARMT", "_M_ARM");
   Builder.defineMacro("_M_THUMB", "_M_ARM");
@@ -1498,13 +1506,18 @@ WinCEARMTargetInfo::WinCEARMTargetInfo(const llvm::Triple &Triple,
   TheCXXABI.set(TargetCXXABI::GenericARM);
   UseMicrosoftManglingForC = false;
   TLSSupported = true;
-  if (Opts.CPU.empty() || Opts.CPU == "generic")
-    setCPU(llvm::ARM::getARMCPUForArch(Triple).str());
+  // No CPU is implied by the platform here: as on every other ARM target the
+  // architecture written into the triple picks the CPU, its FPU and the
+  // scheduling model, with -mcpu= overriding that.
 }
 
 void WinCEARMTargetInfo::getTargetDefines(const LangOptions &Opts,
-                                         MacroBuilder &Builder) const {
+                                          MacroBuilder &Builder) const {
   WindowsARMTargetInfo::getTargetDefines(Opts, Builder);
+  // getVisualStudioDefines() is deliberately not called: _M_ARM_NT and its
+  // companions belong to the Thumb-2 Windows on ARM ABI.  CE defines the subset
+  // its own SDK uses instead, and _M_ARM states the architecture version the
+  // triple asked for.
   Builder.defineMacro("_ARM_");
   Builder.defineMacro("ARM");
   Builder.defineMacro("_M_ARM", Twine(getArchVersion()));

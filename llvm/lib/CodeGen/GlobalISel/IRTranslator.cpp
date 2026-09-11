@@ -2800,7 +2800,8 @@ bool IRTranslator::translateCall(const User &U, MachineIRBuilder &MIRBuilder) {
   // FIXME: support Windows dllimport function calls and calls through
   // weak symbols.
   if (F && (F->hasDLLImportStorageClass() ||
-            (MF->getTarget().getTargetTriple().isOSWindows() &&
+            ((MF->getTarget().getTargetTriple().isOSWindows() ||
+              MF->getTarget().getTargetTriple().isOSWindowsCE()) &&
              F->hasExternalWeakLinkage())))
     return false;
 
@@ -3009,7 +3010,8 @@ bool IRTranslator::translateInvoke(const User &U,
   // FIXME: support Windows dllimport function calls and calls through
   // weak symbols.
   if (Fn && (Fn->hasDLLImportStorageClass() ||
-            (MF->getTarget().getTargetTriple().isOSWindows() &&
+            ((MF->getTarget().getTargetTriple().isOSWindows() ||
+              MF->getTarget().getTargetTriple().isOSWindowsCE()) &&
              Fn->hasExternalWeakLinkage())))
     return false;
 
@@ -3192,8 +3194,10 @@ bool IRTranslator::translateAlloca(const User &U,
     return true;
   }
 
-  // FIXME: support stack probing for Windows.
-  if (MF->getTarget().getTargetTriple().isOSWindows())
+  // FIXME: support stack probing for Windows.  A CE image probes it in the
+  // target the same way, through the runtime's stack-check symbol.
+  if (MF->getTarget().getTargetTriple().isOSWindows() ||
+      MF->getTarget().getTargetTriple().isOSWindowsCE())
     return false;
 
   // Now we're in the harder dynamic case.

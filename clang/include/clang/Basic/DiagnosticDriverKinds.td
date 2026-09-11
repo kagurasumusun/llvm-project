@@ -23,12 +23,14 @@ def err_drv_unsupported_option_argument : Error<
 def err_drv_unsupported_option_argument_for_target : Error<
   "unsupported argument '%1' to option '%0' for target '%2'">;
 def err_drv_unsupported_wince_version : Error<
-  "unsupported Windows CE version %0; the supported generations are "
-  "CE 4.x, 5.x and 6.0">;
+  "unsupported Windows CE version %0; the supported range is CE 4.x through "
+  "Windows Embedded Compact 8.0, which was the last release">;
 def err_drv_unsupported_wince_arch : Error<
-  "unsupported architecture '%0' for Windows CE target '%1'; this toolchain "
-  "ships WinCE import libraries for ARM and x86 only, and LLVM has no SuperH "
-  "backend for the SH3/SH4 CE generations">;
+  "unsupported architecture '%0' for Windows CE target '%1'; Windows CE ran on "
+  "ARM, SHx, MIPS and x86, and on PowerPC in its earliest releases, but a "
+  "target is only usable here if it has a PE/COFF back end that lld can link: "
+  "LLVM has no SuperH back end, PowerPC targets XCOFF, and MIPS COFF objects "
+  "have no lld support, which leaves little-endian ARM and x86">;
 def err_drv_unknown_stdin_type : Error<
   "-E or -x required when input is from standard input">;
 def err_drv_unknown_stdin_type_clang_cl : Error<
@@ -523,9 +525,8 @@ def warn_drv_overriding_complex_range : Warning<
   "'%1' sets complex range to \"%3\" overriding the setting of \"%2\" that was implied by '%0'">,
   InGroup<DiagGroup<"overriding-complex-range">>;
 def warn_drv_wince_sysroot_missing : Warning<
-  "'%0' (Windows CE sysroot) does not exist; compiling is possible but "
-  "linking will fail - assemble it with %1 in the llvm-project source "
-  "tree (or pass --sysroot=)">,
+  "the Windows CE sysroot '%0' does not exist; compilation will succeed but "
+  "linking will fail; pass --sysroot= to select an installed SDK">,
   InGroup<DiagGroup<"wince-sysroot-missing">>;
 def warn_drv_treating_input_as_cxx : Warning<
   "treating '%0' input as '%1' when in C++ mode, this behavior is deprecated">,

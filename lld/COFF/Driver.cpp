@@ -730,9 +730,6 @@ void LinkerDriver::setMachine(MachineTypes machine) {
 
   ctx.config.machine = machine;
 
-  if (machine == IMAGE_FILE_MACHINE_ARM)
-    ctx.config.wince = true;
-
   if (!isArm64EC(machine)) {
     ctx.symtab.machine = machine;
   } else {
@@ -1653,7 +1650,6 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   // Handle /lldmingw early, since it can potentially affect how other
   // options are handled.
   config->mingw = args.hasArg(OPT_lldmingw);
-  config->wince = args.hasArg(OPT_wince);
   if (config->mingw)
     ctx.e.errorLimitExceededMsg = "too many errors emitted, stopping now"
                                   " (use --error-limit=0 to see all errors)";
@@ -1945,14 +1941,20 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
     parseVersion(arg->getValue(), &config->majorImageVersion,
                  &config->minorImageVersion);
 
-  bool SubsystemVersionFromArg = false;
+  bool GotSubsystemVersion = false;
   // Handle /subsystem
   if (auto *arg = args.getLastArg(OPT_subsystem))
     parseSubsystem(arg->getValue(), &config->subsystem,
                    &config->majorSubsystemVersion,
-                   &config->minorSubsystemVersion, &SubsystemVersionFromArg);
+                   &config->minorSubsystemVersion, &GotSubsystemVersion);
 
-  if (config->wince && !SubsystemVersionFromArg) {
+  // A CE image states the release it was built for in the subsystem version,
+  // and nothing in the inputs says what that is: the CE subsystem has no entry
+  // symbol or import directory that could be read.  So an explicit version is
+  // taken as given, and otherwise the CE 6 generation's value stays.
+  // /osversion picks this up below, as desktop images do.
+  if (config->subsystem == IMAGE_SUBSYSTEM_WINDOWS_CE_GUI &&
+      !GotSubsystemVersion) {
     config->majorSubsystemVersion = 6;
     config->minorSubsystemVersion = 0;
   }
@@ -1961,9 +1963,6 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   if (auto *arg = args.getLastArg(OPT_osversion)) {
     parseVersion(arg->getValue(), &config->majorOSVersion,
                  &config->minorOSVersion);
-  } else if (config->wince) {
-    config->majorOSVersion = 6;
-    config->minorOSVersion = 0;
   } else {
     config->majorOSVersion = config->majorSubsystemVersion;
     config->minorOSVersion = config->minorSubsystemVersion;
@@ -2488,7 +2487,10 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   if (config->subsystem == IMAGE_SUBSYSTEM_UNKNOWN) {
     llvm::TimeTraceScope timeScope("Infer subsystem");
     config->subsystem = ctx.symtab.inferSubsystem();
-    if (config->subsystem == IMAGE_SUBSYSTEM_UNKNOWN && config->wince)
+    // CE images have no CRT entry symbol that identifies a subsystem, so a
+    // CE machine type implies the CE GUI subsystem, like /subsystem:windowsce.
+    if (config->subsystem == IMAGE_SUBSYSTEM_UNKNOWN &&
+        config->machine == IMAGE_FILE_MACHINE_ARM)
       config->subsystem = IMAGE_SUBSYSTEM_WINDOWS_CE_GUI;
     if (config->subsystem == IMAGE_SUBSYSTEM_UNKNOWN)
       Fatal(ctx) << "subsystem must be defined";
@@ -2644,7 +2646,8 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
       symtab.addAbsolute(symtab.mangle("__RUNTIME_PSEUDO_RELOC_LIST__"), 0);
       symtab.addAbsolute(symtab.mangle("__RUNTIME_PSEUDO_RELOC_LIST_END__"), 0);
     }
-    if (config->mingw || config->wince) {
+    if (config->mingw || config->isWindowsCE()) {
+      // Ctors and dtors are collected into .ctors/.dtors by both toolchains.
       symtab.addAbsolute(symtab.mangle("__CTOR_LIST__"), 0);
       symtab.addAbsolute(symtab.mangle("__DTOR_LIST__"), 0);
     }

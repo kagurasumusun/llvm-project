@@ -395,8 +395,11 @@ enum RelocationTypesARM : unsigned {
   IMAGE_REL_ARM_BRANCH24T = 0x0014,
   IMAGE_REL_ARM_BLX23T = 0x0015,
   IMAGE_REL_ARM_PAIR = 0x0016,
-  IMAGE_REL_ARM_CE_PDATA_FUNCLEN = 0x0017,
-  IMAGE_REL_ARM_CE_PDATA_PROLOG = 0x0018,
+  // LLVM extensions for Windows CE, not part of the PE/COFF spec.  They
+  // refer to the length fields of a .pdata entry, which the CE format
+  // encodes inside the entry rather than in a separate .xdata record.
+  IMAGE_REL_ARM_WINCE_PDATA_FUNCLEN = 0x0017,
+  IMAGE_REL_ARM_WINCE_PDATA_PROLOG = 0x0018,
 };
 
 enum RelocationTypesARM64 : unsigned {

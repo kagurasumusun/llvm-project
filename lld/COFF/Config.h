@@ -116,6 +116,25 @@ struct Configuration {
   enum ManifestKind { Default, SideBySide, Embed, No };
   bool is64() const { return llvm::COFF::is64Bit(machine); }
 
+  /// True if this is a Windows CE image.  That is a property of the operating
+  /// system, not of the CPU -- CE was shipped for ARM, MIPS, SHx, x86 and, at
+  /// first, PowerPC -- so it may only be used for image-wide questions such as
+  /// the subsystem version, the CRT conventions or the entry point.  Anything
+  /// that depends on how one CPU encodes its COFF data must look at the machine
+  /// type instead, see isARMOnWindowsCE().
+  bool isWindowsCE() const {
+    return subsystem == llvm::COFF::IMAGE_SUBSYSTEM_WINDOWS_CE_GUI;
+  }
+
+  /// True if the inputs carry IMAGE_FILE_MACHINE_ARM, the 32-bit ARM machine
+  /// type that Windows CE was the only user of.  Its object layout differs from
+  /// ARMNT's: unwind records hold the function and prologue lengths, those two
+  /// slots are relocated separately, and the branch thunks have to fit the
+  /// ranges of ARM and Thumb-1 rather than of Thumb-2.
+  bool isARMOnWindowsCE() const {
+    return machine == llvm::COFF::IMAGE_FILE_MACHINE_ARM;
+  }
+
   std::unique_ptr<MemoryBuffer> dosStub;
   llvm::COFF::MachineTypes machine = IMAGE_FILE_MACHINE_UNKNOWN;
   bool machineInferred = false;
@@ -331,7 +350,6 @@ struct Configuration {
   bool appContainer = false;
   bool mergeDebugDirectory = true;
   bool mingw = false;
-  bool wince = false;
   bool warnMissingOrderSymbol = true;
   bool warnLocallyDefinedImported = true;
   bool warnDebugInfoUnusable = true;

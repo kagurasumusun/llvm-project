@@ -600,7 +600,7 @@ void X86PassConfig::addPreEmitPass2() {
   // correct CFA calculation rule where needed by inserting appropriate CFI
   // instructions.
   if (!TT.isOSDarwin() &&
-      (!TT.isOSWindows() ||
+      (!(TT.isOSWindows() || TT.isOSWindowsCE()) ||
        MAI->getExceptionHandlingType() == ExceptionHandling::DwarfCFI))
     addPass(createCFIInstrInserter());
 

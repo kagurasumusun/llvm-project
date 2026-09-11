@@ -1,8 +1,8 @@
 # REQUIRES: arm-registered-target
 # RUN: split-file %s %t
-# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t1.obj %t/1.s
-# RUN: llvm-mc -triple arm-pc-wince -filetype=obj -o %t2.obj %t/2.s
-# RUN: lld-link -wince /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t1.obj %t2.obj
+# RUN: llvm-mc -triple arm-pc-wince -mcpu=arm926ej-s -filetype=obj -o %t1.obj %t/1.s
+# RUN: llvm-mc -triple arm-pc-wince -mcpu=arm926ej-s -filetype=obj -o %t2.obj %t/2.s
+# RUN: lld-link /out:%t.exe /subsystem:windowsce /entry:entry /base:0x10000 /fixed %t1.obj %t2.obj
 # RUN: llvm-readobj --headers %t.exe | FileCheck %s --check-prefix=HDR
 # RUN: llvm-readobj --sections %t.exe | FileCheck %s --check-prefix=SEC
 

@@ -79,9 +79,9 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
     TS.emitCode32();
   }
 
-  if (MF && TM.getTargetTriple().isWindowsCE() && functionUsesWinCFI(*MF) &&
+  if (MF && TM.getTargetTriple().isOSWindowsCE() && functionUsesWinCFI(*MF) &&
       MF->hasEHFunclets())
-    emitCEHandlerData(*MF);
+    emitWinCEHandlerData(*MF);
 
   // Emit symbol for CMSE non-secure entry point
   if (AFI->isCmseNSEntryFunction()) {
@@ -95,11 +95,11 @@ void ARMAsmPrinter::emitFunctionEntryLabel() {
 }
 
 namespace llvm {
-MCSymbol *emitCESpecificHandlerTable(AsmPrinter &Asm,
-                                     const MachineFunction &MF);
+MCSymbol *emitWinCESpecificHandlerTable(AsmPrinter &Asm,
+                                        const MachineFunction &MF);
 }
 
-void ARMAsmPrinter::emitCEHandlerData(const MachineFunction &MF) {
+void ARMAsmPrinter::emitWinCEHandlerData(const MachineFunction &MF) {
   if (!MF.getWinEHFuncInfo())
     return;
   const Function &F = MF.getFunction();
@@ -110,7 +110,7 @@ void ARMAsmPrinter::emitCEHandlerData(const MachineFunction &MF) {
   if (!Per)
     return;
 
-  MCSymbol *HandlerData = emitCESpecificHandlerTable(*this, MF);
+  MCSymbol *HandlerData = emitWinCESpecificHandlerTable(*this, MF);
 
   OutStreamer->emitValue(
       MCSymbolRefExpr::create(getSymbol(Per), OutContext), 4);
@@ -963,7 +963,8 @@ MCSymbol *ARMAsmPrinter::GetARMGVSymbol(const GlobalValue *GV,
                                                    !GV->hasInternalLinkage());
     return MCSym;
   } else if (TT.isOSBinFormatCOFF()) {
-    assert(TT.isOSWindows() && "Windows is the only supported COFF target");
+    assert((TT.isOSWindows() || TT.isOSWindowsCE()) &&
+           "Windows and Windows CE are the only supported COFF targets");
 
     bool IsIndirect =
         (TargetFlags & (ARMII::MO_DLLIMPORT | ARMII::MO_COFFSTUB));
@@ -1981,7 +1982,7 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
 
   // Emit unwinding stuff for frame-related instructions
   if (TM.getTargetTriple().isTargetEHABICompatible() &&
-      (!functionUsesWinCFI(*MF) || TM.getTargetTriple().isWindowsCE()) &&
+      (!functionUsesWinCFI(*MF) || TM.getTargetTriple().isOSWindowsCE()) &&
       MI->getFlag(MachineInstr::FrameSetup))
     EmitUnwindingInstruction(MI);
 
@@ -2721,7 +2722,7 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
       .addImm(ARMCC::AL)
       .addReg(0));
 
-    if (STI.isTargetDarwin() || STI.isTargetWindows()) {
+    if (STI.isTargetDarwin() || STI.isTargetWindowsFamily()) {
       // These platforms always use the same frame register
       EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::LDRi12)
                                        .addReg(STI.getFramePointerReg())
@@ -2791,7 +2792,7 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
       .addImm(ARMCC::AL)
       .addReg(0));
 
-    if (STI.isTargetDarwin() || STI.isTargetWindows()) {
+    if (STI.isTargetDarwin() || STI.isTargetWindowsFamily()) {
       // These platforms always use the same frame register
       EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::tLDRi)
                                        .addReg(STI.getFramePointerReg())

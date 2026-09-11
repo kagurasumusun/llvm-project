@@ -195,8 +195,11 @@ public:
     HasStrictFP = true;
     HasUnalignedAccess = true;
 
-    bool IsWinCOFF =
-        getTriple().isOSWindows() && getTriple().isOSBinFormatCOFF();
+    // A Windows CE image is a COFF file under the same alignment rules, so the
+    // object format decides here rather than the desktop OS alone.
+    bool IsWinCOFF = (getTriple().isOSWindows() ||
+                      getTriple().isOSWindowsCE()) &&
+                     getTriple().isOSBinFormatCOFF();
     if (IsWinCOFF)
       MaxVectorAlign = MaxTLSAlign = 8192u * getCharWidth();
   }
@@ -584,8 +587,11 @@ public:
   WindowsX86_32TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : WindowsTargetInfo<X86_32TargetInfo>(Triple, Opts) {
     DoubleAlign = LongLongAlign = 64;
-    bool IsWinCOFF =
-        getTriple().isOSWindows() && getTriple().isOSBinFormatCOFF();
+    // Windows CE shares the COFF layout and its name mangling, while the x87
+    // alignment stays with the MSVC environment it is not part of.
+    bool IsWinCOFF = (getTriple().isOSWindows() ||
+                      getTriple().isOSWindowsCE()) &&
+                     getTriple().isOSBinFormatCOFF();
     bool IsMSVC = getTriple().isWindowsMSVCEnvironment();
     std::string Layout = IsWinCOFF ? "e-m:x" : "e-m:e";
     Layout += "-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-";
@@ -634,7 +640,8 @@ public:
   }
 };
 
-class LLVM_LIBRARY_VISIBILITY WinCEX86_32TargetInfo : public WindowsX86_32TargetInfo {
+class LLVM_LIBRARY_VISIBILITY WinCEX86_32TargetInfo
+    : public WindowsX86_32TargetInfo {
 public:
   WinCEX86_32TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : WindowsX86_32TargetInfo(Triple, Opts) {
@@ -645,9 +652,13 @@ public:
                         MacroBuilder &Builder) const override {
     WindowsX86_32TargetInfo::getTargetDefines(Opts, Builder);
     Builder.defineMacro("_X86_", "1");
+    // CE's import libraries carry undecorated names, so the stdcall spelling is
+    // mapped onto the cdecl one COREDLL expects.  The convention itself stays
+    // accepted on declarations, see checkCallingConvention below.
     for (StringRef CC : {"stdcall", "fastcall", "thiscall", "cdecl"}) {
       StringRef Attribute = CC == "stdcall" ? "cdecl" : CC;
-      std::string Value = (Twine("__attribute__((__") + Attribute + "__))").str();
+      std::string Value =
+          (Twine("__attribute__((__") + Attribute + "__))").str();
       Builder.defineMacro(Twine("__") + CC, Value);
       if (Opts.GNUMode)
         Builder.defineMacro(Twine("_") + CC, Value);

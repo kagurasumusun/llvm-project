@@ -24,8 +24,8 @@ class MCExpr;
 class MCSection;
 struct WinEHFuncInfo;
 
-MCSymbol *emitCESpecificHandlerTable(AsmPrinter &Asm,
-                                     const MachineFunction &MF);
+MCSymbol *emitWinCESpecificHandlerTable(AsmPrinter &Asm,
+                                        const MachineFunction &MF);
 
 class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
   /// Per-function flag to indicate if personality info should be emitted.
@@ -56,7 +56,7 @@ class LLVM_LIBRARY_VISIBILITY WinException : public EHStreamer {
   std::vector<const MCSymbol *> EHContTargets;
 
   MCSymbol *emitCSpecificHandlerTable(const MachineFunction *MF,
-                                      bool IsCE = false);
+                                      bool IsWinCE = false);
 
   void emitSEHActionsForRange(const WinEHFuncInfo &FuncInfo,
                               const MCSymbol *BeginLabel,
@@ -103,8 +103,8 @@ public:
   WinException(AsmPrinter *A);
   ~WinException() override;
 
-  MCSymbol *emitCEHandlerTable(const MachineFunction *MF) {
-    return emitCSpecificHandlerTable(MF,          true);
+  MCSymbol *emitWinCEHandlerTable(const MachineFunction *MF) {
+    return emitCSpecificHandlerTable(MF, /*IsWinCE=*/true);
   }
 
   /// Emit all exception information that should come after the content.

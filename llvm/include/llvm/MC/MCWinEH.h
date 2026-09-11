@@ -55,7 +55,10 @@ struct FrameInfo {
   bool HandlesExceptions = false;
   bool EmitAttempted = false;
   bool Fragment = false;
-  bool CEEmitted = false;
+  // Set once the ARM variant of Windows CE has written this frame's .pdata
+  // record, which that path emits next to the EHABI index instead of the
+  // Windows unwind info; the flag keeps the two from emitting it twice.
+  bool ARMWinCEPdataEmitted = false;
   constexpr static uint8_t DefaultVersion = 1;
   uint8_t Version = DefaultVersion;
 

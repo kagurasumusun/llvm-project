@@ -42,9 +42,8 @@ StringRef COFFImportFile::getFileFormatName() const {
   case COFF::IMAGE_FILE_MACHINE_AMD64:
     return "COFF-import-file-x86-64";
   case COFF::IMAGE_FILE_MACHINE_ARMNT:
-    return "COFF-import-file-ARM";
   case COFF::IMAGE_FILE_MACHINE_ARM:
-    return "COFF-import-file-ARMCE";
+    return "COFF-import-file-ARM";
   case COFF::IMAGE_FILE_MACHINE_ARM64:
     return "COFF-import-file-ARM64";
   case COFF::IMAGE_FILE_MACHINE_ARM64EC:

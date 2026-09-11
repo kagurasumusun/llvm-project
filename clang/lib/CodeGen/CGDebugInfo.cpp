@@ -775,12 +775,15 @@ void CGDebugInfo::CreateCompileUnit() {
           SM.getFileEntryRefForID(SM.getMainFileID())) {
     MainFileDir = std::string(MainFile->getDir().getName());
     if (!llvm::sys::path::is_absolute(MainFileName)) {
+      // Windows CE separates path components with a backslash as the desktop
+      // Windows does, so the two agree on the style to read the directory with.
+      const llvm::Triple &Target = CGM.getTarget().getTriple();
+      bool UseBackslashPath = Target.isOSWindows() || Target.isOSWindowsCE();
       llvm::SmallString<1024> MainFileDirSS(MainFileDir);
       llvm::sys::path::Style Style =
           LO.UseTargetPathSeparator
-              ? (CGM.getTarget().getTriple().isOSWindows()
-                     ? llvm::sys::path::Style::windows_backslash
-                     : llvm::sys::path::Style::posix)
+              ? (UseBackslashPath ? llvm::sys::path::Style::windows_backslash
+                                  : llvm::sys::path::Style::posix)
               : llvm::sys::path::Style::native;
       llvm::sys::path::append(MainFileDirSS, Style, MainFileName);
       MainFileName = std::string(

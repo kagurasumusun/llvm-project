@@ -135,7 +135,9 @@ void tools::MinGW::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     break;
   case llvm::Triple::arm:
   case llvm::Triple::thumb:
-    // FIXME: this is incorrect for WinCE
+    // Windows CE has an OS type of its own, and a tool chain that names lld's
+    // COFF driver, so no CE triple comes through here to be given a GNU ld
+    // emulation of the Thumb-1 kind it used.
     CmdArgs.push_back("thumb2pe");
     break;
   case llvm::Triple::aarch64:

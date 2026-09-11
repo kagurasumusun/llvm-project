@@ -592,7 +592,7 @@ unsigned ARMAsmBackend::adjustFixupValue(const MCAssembler &Asm,
     if (!IsResolved) {
       // MSVC link.exe and lld do not support this relocation type
       // with a non-zero offset. ("Value" is offset by 4 at this point.)
-      if (STI->getTargetTriple().isWindowsCE()) {
+      if (STI->getTargetTriple().isOSWindowsCE()) {
         Value = 4;
       } else if (STI->getTargetTriple().isOSBinFormatCOFF() && Value != 4) {
         Ctx.reportError(Fixup.getLoc(),
@@ -653,7 +653,7 @@ unsigned ARMAsmBackend::adjustFixupValue(const MCAssembler &Asm,
     if (!IsResolved) {
       // MSVC link.exe and lld do not support this relocation type
       // with a non-zero offset. ("Value" is offset by 4 at this point.)
-      if (STI->getTargetTriple().isWindowsCE()) {
+      if (STI->getTargetTriple().isOSWindowsCE()) {
         Value = 4;
       } else if (STI->getTargetTriple().isOSBinFormatCOFF() && Value != 4) {
         Ctx.reportError(Fixup.getLoc(),
@@ -693,7 +693,7 @@ unsigned ARMAsmBackend::adjustFixupValue(const MCAssembler &Asm,
     if (!IsResolved) {
       // MSVC link.exe and lld do not support this relocation type
       // with a non-zero offset. ("Value" is offset by 4 at this point.)
-      if (STI->getTargetTriple().isWindowsCE()) {
+      if (STI->getTargetTriple().isOSWindowsCE()) {
         Value = 4;
       } else if (STI->getTargetTriple().isOSBinFormatCOFF() && Value != 4) {
         Ctx.reportError(Fixup.getLoc(),
@@ -1376,8 +1376,9 @@ static MCAsmBackend *createARMAsmBackend(const Target &T,
   case Triple::MachO:
     return new ARMAsmBackendDarwin(T, STI, MRI);
   case Triple::COFF:
-    assert(TheTriple.isOSWindows() && "non-Windows ARM COFF is not supported");
-    return new ARMAsmBackendWinCOFF(T, TheTriple.isWindowsCE());
+    assert((TheTriple.isOSWindows() || TheTriple.isOSWindowsCE()) &&
+           "Windows and Windows CE are the only supported ARM COFF targets");
+    return new ARMAsmBackendWinCOFF(T, TheTriple.isOSWindowsCE());
   case Triple::ELF:
     assert(TheTriple.isOSBinFormatELF() && "using ELF for non-ELF target");
     uint8_t OSABI = Options.FDPIC

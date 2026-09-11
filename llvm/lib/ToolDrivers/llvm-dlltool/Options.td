@@ -1,6 +1,7 @@
 include "llvm/Option/OptParser.td"
 
-def m: JoinedOrSeparate<["-"], "m">, HelpText<"Set target machine">;
+def m: JoinedOrSeparate<["-"], "m">,
+    HelpText<"Set target machine: a dlltool machine name or a target triple">;
 def m_long : JoinedOrSeparate<["--"], "machine">, Alias<m>;
 
 def l: JoinedOrSeparate<["-"], "l">, HelpText<"Generate an import lib">;
