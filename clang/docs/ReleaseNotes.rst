@@ -412,8 +412,12 @@ Windows CE Support
   ``LIBCXX_ENABLE_THREADS=OFF`` is given, instead of failing in every
   translation unit afterwards; ``libunwind`` unwinds CE's ARM and Thumb images, whose
   tables it finds inside the COFF image, and refuses another CE CPU rather than reaching
-  for the desktop module enumeration its DWARF path uses; and no C library in this tree
-  targets CE, so a CE C++ runtime is built against the C library the SDK provides.
+  for the desktop module enumeration its DWARF path uses.  The C library, which lives at
+  ``libc/`` alongside the other projects, has no CE port and no CE configuration, so a CE
+  triple is refused while ``libc`` configures (``libc/cmake/modules/`` recognizes
+  linux, darwin, windows, uefi, baremetal and gpu as the target system and stops
+  otherwise); a CE C++ runtime is therefore built against the C library the SDK
+  provides, as the CE tool chains always were.
 
 Deprecated Compiler Flags
 -------------------------

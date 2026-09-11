@@ -1907,7 +1907,13 @@ fir::CodeGenSpecifics::get(mlir::MLIRContext *ctx, llvm::Triple &&trp,
   default:
     break;
   case llvm::Triple::ArchType::x86:
-    if (trp.isOSWindows())
+    // The Win variant is about the Microsoft C ABI, which is what clang's x86 back
+    // end gives a PE image of this CPU; X86Subtarget::isTargetWin32() pairs the two
+    // Windows releases the same way, and flang has to marshal COMPLEX the same as the
+    // compiler producing the other objects in the link.  The x86_64 case below keeps
+    // asking for the desktop OS alone because there is nothing to pair it with: CE was
+    // never shipped for a 64-bit CPU, which is why the driver rejects such a triple.
+    if (trp.isOSWindows() || trp.isOSWindowsCE())
       return std::make_unique<TargetI386Win>(ctx, std::move(trp),
                                              std::move(kindMap), targetCPU,
                                              targetFeatures, dl);
