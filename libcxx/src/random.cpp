@@ -35,8 +35,14 @@
 #  include <zircon/syscalls.h>
 #elif defined(_LIBCPP_USING_CE_RANDOM)
 #  define WIN32_LEAN_AND_MEAN
+// No declaration of CeGenRandom here, unlike the line this used to carry: winbase.h
+// is where the CE SDK declares it, and <windows.h> includes that, which is also how
+// the CE NLS calls in src/support/wince/locale_wince.cpp are reached (through
+// <winnls.h>).  The function is Windows CE .NET 4.1 and later, and _WIN32_WCE
+// carries the release in BCD nibbles; a 4.0 target, the oldest this driver links
+// against, has no such export, so building random_device for one fails at the link
+// step rather than here.
 #  include <windows.h>
-extern "C" BOOL WINAPI CeGenRandom(DWORD, BYTE*);
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
