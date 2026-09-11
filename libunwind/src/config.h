@@ -35,6 +35,15 @@
   #ifdef __SEH__
     #define _LIBUNWIND_SUPPORT_SEH_UNWIND 1
   #elif defined(_LIBUNWIND_ARM_EHABI)
+  #elif defined(_WIN32_WCE)
+    // The DWARF CFI path for a Windows image asks the OS which modules are loaded,
+    // through PSAPI: see the <psapi.h> include and the module enumeration it feeds in
+    // AddressSpace.hpp.  Nothing in here does the equivalent for a CE image, so refuse
+    // the combination instead of reaching for a header.  This is only about the CPUs
+    // that would take the DWARF path -- CE's ARM and Thumb targets are already on the
+    // .ARM.exidx tables enabled above and never enumerate modules -- and a tool chain
+    // that wants C++ unwinding on another CE CPU brings its own unwinder.
+    #error libunwind has no DWARF CFI unwinder for Windows CE outside ARM and Thumb
   #else
     #define _LIBUNWIND_SUPPORT_DWARF_UNWIND 1
   #endif

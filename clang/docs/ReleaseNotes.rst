@@ -410,8 +410,10 @@ Windows CE Support
   loader, and that the desktop headers are not there.  There is no threading
   backend for CE, so configuring ``libc++`` for it now fails until
   ``LIBCXX_ENABLE_THREADS=OFF`` is given, instead of failing in every
-  translation unit afterwards; and no C library in this tree targets CE, so a
-  CE C++ runtime is built against the C library the SDK provides.
+  translation unit afterwards; ``libunwind`` unwinds CE's ARM and Thumb images, whose
+  tables it finds inside the COFF image, and refuses another CE CPU rather than reaching
+  for the desktop module enumeration its DWARF path uses; and no C library in this tree
+  targets CE, so a CE C++ runtime is built against the C library the SDK provides.
 
 Deprecated Compiler Flags
 -------------------------
