@@ -332,7 +332,10 @@ int x;
 // no tables at all, and is why CE has its own longjmp patterns -- stays legal.
 // RUN: not %clang -target arm-pc-wince -fseh-exceptions -fsyntax-only %s 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=EHSEH
-// EHSEH: error: invalid exception model 'seh' for target 'arm-pc-wince'
+// The triple the front end reports is the one the driver settled after handling the
+// ARM options, which spells a bare "arm" by the architecture it defaults to; only the
+// OS component matters to this check, and it stays the spelling that was asked for.
+// EHSEH: error: invalid exception model 'seh' for target '{{.*}}-pc-wince'
 // RUN: not %clang -target arm-pc-wince -fdwarf-exceptions -fsyntax-only %s 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=EHMODEL
 // RUN: not %clang -target armv7-pc-windowsce -mthumb -fseh-exceptions -fsyntax-only %s 2>&1 \
