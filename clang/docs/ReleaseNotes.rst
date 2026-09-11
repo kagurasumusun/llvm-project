@@ -407,10 +407,11 @@ Windows CE Support
   Win32 one; ``libc++abi`` and ``libunwind`` need no such configuration, since they key
   off the ``__WINCE__`` macro the compiler predefines, which is all they have to know:
   that a CE image's tables are inside the COFF image rather than found through a
-  loader, and that the desktop headers are not there.  There is no threading backend for CE, so
-  configuring ``libc++`` for it now fails until ``LIBCXX_ENABLE_THREADS=OFF`` is given
-  rather than failing in every translation unit afterwards, and no C library in this
-  tree targets CE, so a CE C++ runtime is built against the C library the SDK provides.
+  loader, and that the desktop headers are not there.  There is no threading
+  backend for CE, so configuring ``libc++`` for it now fails until
+  ``LIBCXX_ENABLE_THREADS=OFF`` is given, instead of failing in every
+  translation unit afterwards; and no C library in this tree targets CE, so a
+  CE C++ runtime is built against the C library the SDK provides.
 
 Deprecated Compiler Flags
 -------------------------
