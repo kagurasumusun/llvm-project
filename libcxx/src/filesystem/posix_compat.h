@@ -466,14 +466,7 @@ using ::ftruncate;
 using ::getcwd;
 using ::link;
 using ::lstat;
-#  if defined(_WIN32_WCE) || defined(__WINCE__)
-inline int mkdir(const char* path, int permissions) {
-  (void)permissions;
-  return ::mkdir(path);
-}
-#  else
 using ::mkdir;
-#  endif
 using ::readlink;
 using ::realpath;
 using ::remove;

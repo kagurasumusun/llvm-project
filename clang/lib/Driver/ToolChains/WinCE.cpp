@@ -362,20 +362,32 @@ void tools::wince::Linker::ConstructJob(
   AddLinkerInputs(TC, LinkerInputs, Args, CmdArgs, JA);
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
-    if (WantThreads) {
-      CmdArgs.push_back("libmingwthrd.a");
+    if (WantThreads)
       CmdArgs.push_back("libpthread.a");
-    }
-    CmdArgs.push_back("libmingw32.a");
+    // The CE startup layer is Akari and its archive is libakari.a.  The
+    // names this list used to carry belonged to a retired stack: the
+    // mingwrt CRT glue (libmingw32.a), its C-library supplement
+    // (libmingwex.a), its thread glue (libmingwthrd.a) and the mingw32ce
+    // desktop-name redirect (libceoldname.a).  The sysroot satisfied
+    // them with one alias and three empty archives, so a link reported
+    // an undefined symbol rather than naming the library that was
+    // actually missing.  Name what the CE SDK ships instead.
+    CmdArgs.push_back("libakari.a");
     ArgStringList RuntimeArgs;
     AddRunTimeLibs(TC, D, RuntimeArgs, Args);
     for (StringRef Arg : RuntimeArgs)
       CmdArgs.push_back(Arg.starts_with("-l")
                             ? getCOFFLibraryName(Args, Arg.drop_front(2))
                             : Args.MakeArgString(Arg));
-    // mingw32ce redirects the API names that only exist on desktop Windows.
-    CmdArgs.push_back("libceoldname.a");
-    CmdArgs.push_back("libmingwex.a");
+    // No old-name redirect archive: the CE export surface is what the
+    // SDK's doc-derived import libraries record and its headers are
+    // pinned to those names (AKARI_CE_IMPORT in windef.h), so there is
+    // no desktop spelling to redirect from.
+    //
+    // A C library is not named yet.  Nothing in the CE SDK provides one
+    // (the Akari CRT is startup glue only), and naming an archive that
+    // does not exist is the failure mode just removed.  This is where
+    // it goes when the C library lands.
     if (WantProfiling)
       CmdArgs.push_back("libgmon.a");
     if (TC.ShouldLinkCXXStdlib(Args))

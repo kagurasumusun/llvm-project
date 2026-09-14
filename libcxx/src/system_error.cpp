@@ -228,11 +228,7 @@ string make_error_str(const error_code& ec) {
 } // namespace
 
 string __do_message::message(int ev) const {
-#if defined(_WIN32_WCE)
-  char buffer[64];
-  std::snprintf(buffer, sizeof(buffer), "Unknown error %d", ev);
-  return string(buffer);
-#elif !_LIBCPP_HAS_THREADS
+#if !_LIBCPP_HAS_THREADS
   return string(::strerror(ev));
 #else
   return do_strerror_r(ev);
@@ -275,7 +271,7 @@ public:
 const char* __system_error_category::name() const noexcept { return "system"; }
 
 string __system_error_category::message(int ev) const {
-#if defined(_LIBCPP_WIN32API) && !defined(_WIN32_WCE)
+#ifdef _LIBCPP_WIN32API
   std::string result;
   char* str               = nullptr;
   unsigned long num_chars = ::FormatMessageA(

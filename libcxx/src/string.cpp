@@ -319,10 +319,10 @@ struct initial_string<wstring> {
 typedef int (*wide_printf)(wchar_t* __restrict, size_t, const wchar_t* __restrict, ...);
 
 inline wide_printf get_swprintf() {
-#  if defined(_LIBCPP_MSVCRT) || defined(_WIN32_WCE)
-  return static_cast<int(__cdecl*)(wchar_t* __restrict, size_t, const wchar_t* __restrict, ...)>(_snwprintf);
-#  else
+#  ifndef _LIBCPP_MSVCRT
   return swprintf;
+#  else
+  return static_cast<int(__cdecl*)(wchar_t* __restrict, size_t, const wchar_t* __restrict, ...)>(_snwprintf);
 #  endif
 }
 #endif // _LIBCPP_HAS_WIDE_CHARACTERS
