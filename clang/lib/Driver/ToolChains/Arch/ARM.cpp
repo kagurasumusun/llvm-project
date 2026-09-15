@@ -695,7 +695,13 @@ llvm::ARM::FPUKind arm::getARMTargetFeatures(const Driver &D,
   } else {
     std::string CPU = arm::getARMTargetCPU(CPUName, ArchName, Triple);
     bool Generic = CPU == "generic";
-    if (Generic && (Triple.isOSWindows() || Triple.isOSDarwin()) &&
+    // The desktop Windows on ARM releases and Darwin make NEON a baseline of
+    // these architecture versions; a Windows CE image is built for the core it
+    // names and its architecture promises no such thing, so CE is left to the
+    // architecture's own default FPU.
+    bool IsNEONBaseline = (Triple.isOSWindows() && !Triple.isOSWindowsCE()) ||
+                          Triple.isOSDarwin();
+    if (Generic && IsNEONBaseline &&
         getARMSubArchVersionNumber(Triple) >= 7) {
       FPUKind = llvm::ARM::parseFPU("neon");
     } else {

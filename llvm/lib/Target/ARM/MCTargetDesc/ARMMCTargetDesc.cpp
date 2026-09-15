@@ -155,9 +155,9 @@ std::string ARM_MC::ParseARMTriple(const Triple &TT, StringRef CPU) {
 
   // Windows on ARM (ARMNT and later) is Thumb-2 only, so ARM mode is turned
   // off for it.  Windows CE predates that restriction and its images are ARM
-  // mode, which is why the environment has to be excluded here rather than
-  // treating every Windows ARM target alike.
-  if (TT.isOSWindows()) {
+  // mode, so what is asked for here is the desktop OS rather than every
+  // Windows ARM target alike.
+  if (TT.isOSWindows() && !TT.isOSWindowsCE()) {
     if (!ARMArchFeature.empty())
       ARMArchFeature += ",";
     ARMArchFeature += "+noarm";
