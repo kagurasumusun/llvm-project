@@ -822,6 +822,7 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineInstr &MI = *II;
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
+  const ARMSubtarget &STI = MF.getSubtarget<ARMSubtarget>();
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   if (MI.getOpcode() == TargetOpcode::LOCAL_ESCAPE &&
       STI.isTargetWindowsCE()) {
