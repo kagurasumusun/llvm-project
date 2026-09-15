@@ -3192,8 +3192,7 @@ bool IRTranslator::translateAlloca(const User &U,
     return true;
   }
 
-  // FIXME: support stack probing for Windows.  A Windows CE image probes it in
-  // the target the same way, through the runtime's stack-check symbol.
+  // FIXME: support stack probing for Windows.
   if (MF->getTarget().getTargetTriple().isOSWindows())
     return false;
 

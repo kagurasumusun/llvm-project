@@ -1047,6 +1047,9 @@ public:
   virtual void emitCGProfileEntry(const MCSymbolRefExpr *From,
                                   const MCSymbolRefExpr *To, uint64_t Count);
 
+  /// Get the section to write UnwindSec's records for TextSec into, which is
+  /// UnwindSec itself for the main .text and an associative COMDAT section for
+  /// any other.
   MCSection *getAssociatedUnwindSection(const MCSection *TextSec,
                                         MCSection *UnwindSec);
 

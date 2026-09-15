@@ -1317,8 +1317,6 @@ static llvm::Constant *buildGlobalBlock(CodeGenModule &CGM,
   auto fields = builder.beginStruct();
 
   bool IsOpenCL = CGM.getLangOpts().OpenCL;
-  // The shape asked about here is the one a COFF image gives a global block,
-  // which both Windows forms share; the runtime is not in question.
   bool IsWindows = CGM.getTarget().getTriple().isOSWindows();
   auto &CGOPointerAuth = CGM.getCodeGenOpts().PointerAuth;
   if (!IsOpenCL) {

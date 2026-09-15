@@ -2105,8 +2105,6 @@ void Preprocessor::processPathForFileMacro(SmallVectorImpl<char> &Path,
                                            const TargetInfo &TI) {
   LangOpts.remapPathPrefix(Path);
   if (LangOpts.UseTargetPathSeparator) {
-    // Windows CE separates path components with a backslash as the desktop
-    // Windows does, so __FILE__ is spelled the same way for it.
     if (TI.getTriple().isOSWindows())
       llvm::sys::path::remove_dots(Path, false,
                                    llvm::sys::path::Style::windows_backslash);

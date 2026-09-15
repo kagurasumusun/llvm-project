@@ -196,6 +196,9 @@ public:
   // a cleaner approach.
   enum VariantKind : uint16_t {
     VK_COFF_IMGREL32 = 3, // symbol@imgrel (image-relative)
+    // The two length fields of a Windows CE .pdata entry, which are relocated
+    // on their own with the LLVM COFF relocation types of the same name; a
+    // target's own specifiers start at FirstTargetSpecifier below.
     VK_COFF_ARM_WINCE_PDATA_FUNCLEN,
     VK_COFF_ARM_WINCE_PDATA_PROLOG,
 

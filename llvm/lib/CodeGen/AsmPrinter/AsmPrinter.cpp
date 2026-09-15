@@ -592,8 +592,7 @@ bool AsmPrinter::doInitialization(Module &M) {
   if (MAI->doesSupportDebugInformation()) {
     bool EmitCodeView = M.getCodeViewFlag();
     // On Windows targets, emit minimal CodeView compiler info even when debug
-    // info is disabled.  Both Windows OSes are covered by isOSWindows() here:
-    // a CE image keeps its debug info in CodeView too.
+    // info is disabled.
     if ((Target.isOSWindows() || (Target.isUEFI() && EmitCodeView)) &&
         M.getNamedMetadata("llvm.dbg.cu"))
       Handlers.push_back(std::make_unique<CodeViewDebug>(this));

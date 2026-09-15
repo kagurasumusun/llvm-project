@@ -117,8 +117,6 @@ extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void LLVMInitializeARMTarget() {
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
   if (TT.isOSBinFormatMachO())
     return std::make_unique<TargetLoweringObjectFileMachO>();
-  // A CE image is a COFF object file with the same section handling, so the
-  // object format rather than the desktop OS decides this.
   if (TT.isOSWindows())
     return std::make_unique<TargetLoweringObjectFileCOFF>();
   return std::make_unique<ARMElfTargetObjectFile>();
