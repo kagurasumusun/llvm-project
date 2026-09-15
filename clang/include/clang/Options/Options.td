@@ -5193,9 +5193,17 @@ def mfpu_EQ : Joined<["-"], "mfpu=">, Group<m_Group>;
 def mhwdiv_EQ : Joined<["-"], "mhwdiv=">, Group<m_Group>;
 def mhwmult_EQ : Joined<["-"], "mhwmult=">, Group<m_Group>;
 } // let Flags = [TargetSpecific]
-// The GCC options the mingw32ce build scripts pass, none of which names a
-// feature this back end has: they are accepted and ignored, as the other
-// entries of the ignored m group are.
+// The GCC options a CeGCC Makefile carries, none of which names a feature this
+// back end has or needs.  -mwin32 comes from GCC's shared MinGW option file,
+// which the arm-mingw32ce GCC this target stands in for is built with, and the
+// poke-function-name pair is an ARM option of the same GCCs; the CeGCC tool
+// names bound for this driver add nothing but --target=arm-pc-wince, so a
+// Makefile of that lineage may hand any of them over.  They are accepted and
+// ignored like the other entries of the ignored m group: -mwin32 asks for the
+// Microsoft Windows macros, which a CE target defines already, and a function
+// name written in front of a prologue would sit inside the code the .pdata
+// records describe.  GCC's -mno-win32 is not taken, a CE target being a Windows
+// target for good.
 def mpoke_function_name : Flag<["-"], "mpoke-function-name">,
   Group<clang_ignored_m_Group>;
 def mno_poke_function_name : Flag<["-"], "mno-poke-function-name">,

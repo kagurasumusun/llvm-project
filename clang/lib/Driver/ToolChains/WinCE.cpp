@@ -248,6 +248,10 @@ void tools::wince::Linker::ConstructJob(
   Args.ClaimAllArgs(options::OPT_g_Group);
   Args.ClaimAllArgs(options::OPT_emit_llvm);
   Args.ClaimAllArgs(options::OPT_w);
+  // A CeGCC Makefile hands its CFLAGS to the link as well, and those carry the
+  // GCC options clang drops for the compile (-mwin32 among them, see the
+  // ignored m group in Options.td); they are as much noise here.
+  Args.ClaimAllArgs(options::OPT_clang_ignored_m_Group);
 
   // Two lld options cover the case where a variable looks module-local in an
   // object file but has to be imported from a DLL: -auto-import synthesizes the

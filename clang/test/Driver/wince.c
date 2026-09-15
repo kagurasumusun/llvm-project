@@ -367,3 +367,33 @@ int x;
 // OSMACROS-DAG: #define TARGET_OS_WIN32 1
 // OSMACROS-DAG: #define TARGET_OS_WINDOWS 1
 // OSMACROS-DAG: #define TARGET_OS_UEFI 0
+
+// The tool names this target is reached by add nothing but
+// --target=arm-pc-wince, so a Makefile written for the CeGCC line stays
+// unmodified and the GCC options it passes have to be taken: -mwin32 is in
+// GCC's own MinGW option file and the poke-function-name pair in its ARM one,
+// and such a Makefile may carry either.  They are dropped, with nothing of
+// them reaching cc1, as the options of clang's ignored m group are.
+// RUN: %clang -target arm-pc-wince -mwin32 -mpoke-function-name -### -c %s \
+// RUN:   -o /dev/null 2>&1 | FileCheck %s --check-prefix=GCCIGNORED
+// GCCIGNORED: "-cc1"
+// GCCIGNORED-NOT: unknown argument
+// GCCIGNORED-NOT: unused argument
+// GCCIGNORED-NOT: mwin32
+// GCCIGNORED-NOT: poke-function-name
+// RUN: %clang -target arm-pc-wince -mno-poke-function-name -### -c %s \
+// RUN:   -o /dev/null 2>&1 | FileCheck %s --check-prefix=GCCIGNORED
+// GCC's -mno-win32 is the one GCC spelling of that pair this target does not
+// take: it asks for the Microsoft Windows macros to be left out, and a CE
+// target cannot stop being one, so the request fails as any unknown option
+// does rather than being dropped.
+// RUN: not %clang -target arm-pc-wince -mno-win32 -c %s -o /dev/null -### \
+// RUN:   2>&1 | FileCheck %s --check-prefix=NOWIN32
+// NOWIN32: error: unknown argument: '-mno-win32'
+// The same command line reaching a link, which is what a Makefile that hands
+// its CFLAGS to both steps produces.
+// RUN: %clang -target arm-pc-wince -mwin32 -### %s -o /dev/null 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=GCCIGNOREDLINK
+// GCCIGNOREDLINK: lld-link
+// GCCIGNOREDLINK-NOT: unknown argument
+// GCCIGNOREDLINK-NOT: unused argument
