@@ -372,11 +372,21 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
   // only way to name a machine that follows from the OS rather than from the
   // architecture alone -- the plain ARM machine type, for instance, which no
   // machine name of GNU dlltool's says anything about.
+  //
+  // The triple has to name a Windows target.  An import library is a COFF
+  // object with no meaning outside Windows, and taking the architecture of any
+  // triple would let a stray Linux one build a library silently for the wrong
+  // platform -- `-m aarch64-linux-gnu` was accepted and produced an ARM64
+  // import library with nothing said about it.  Requiring Windows keeps -m as
+  // strict about what it accepts as the machine-name table is.
   if (auto *Arg = Args.getLastArg(OPT_m)) {
     StringRef Name = Arg->getValue();
     Machine = getEmulation(Name);
-    if (Machine == IMAGE_FILE_MACHINE_UNKNOWN)
-      Machine = getMachine(Triple(Name));
+    if (Machine == IMAGE_FILE_MACHINE_UNKNOWN) {
+      Triple T(Name);
+      if (T.isOSWindowsFamily())
+        Machine = getMachine(T);
+    }
   }
 
   if (Machine == IMAGE_FILE_MACHINE_UNKNOWN) {
