@@ -576,6 +576,29 @@ Verification should cover, where applicable:
 * incremental rebuild
 * negative tests where applicable
 
+## CI (wince-llvm-toolchain)
+
+The stage-1 gate is `.github/workflows/main.yml`, the `WinCE toolchain` job; it
+runs on every push and on demand.  Its steps are the configure, the build of
+clang + lld + tools, a fixed list of 32 WinCE lit tests
+(`clang/test/Driver/wince.c`, the CE code generation tests, the CE COFF linker
+tests and the CE MC tests), the install, and the toolchain artifact.
+
+* Read a run with `gh run list` and `gh run watch <run-id> --exit-status`.
+* `gh run view <run-id> --log-failed` and the REST job-log route both end at
+  `*.blob.core.windows.net`, which the development sandbox cannot reach with
+  curl; the log is still readable by taking the redirect target of
+  `gh api repos/kagurasumusun/llvm-project/actions/jobs/<job-id>/logs`
+  (the `Location:` header of `curl -D -`) and opening that URL with the
+  page-fetch tool.  The file comes back in chunks and the failure, or the lit
+  summary, sits near its end.
+* A build stops at the first failing subcommand, so one run reports one
+  compile error at a time: read the log, fix the cause, push, watch again.
+* A run that fails before the lit step says nothing about the tests, and a
+  build that completes says nothing about them either.  The lit step is the
+  gate, and `Total Discovered Tests: 32 ... Passed: 32 (100.00%)` is what a
+  passing run prints.
+
 When a test fails, investigate the root cause rather than weakening or deleting the test merely to obtain a green result.
 
 ---
