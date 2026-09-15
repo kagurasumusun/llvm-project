@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "ARMMCAsmInfo.h"
 #include "ARMMCTargetDesc.h"
 #include "ARMUnwindOpAsm.h"
 #include "llvm/Support/ARMEHABI.h"
