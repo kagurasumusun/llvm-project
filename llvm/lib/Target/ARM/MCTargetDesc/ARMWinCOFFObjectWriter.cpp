@@ -75,9 +75,9 @@ unsigned ARMWinCOFFObjectWriter::getRelocType(MCContext &Ctx,
     switch (Spec) {
     case MCSymbolRefExpr::VK_COFF_IMGREL32:
       return COFF::IMAGE_REL_ARM_ADDR32NB;
-    case MCSymbolRefExpr::VK_COFF_ARM_WINCE_PDATA_FUNCLEN:
+    case ARM::S_WINCE_PDATA_FUNCLEN:
       return COFF::IMAGE_REL_ARM_WINCE_PDATA_FUNCLEN;
-    case MCSymbolRefExpr::VK_COFF_ARM_WINCE_PDATA_PROLOG:
+    case ARM::S_WINCE_PDATA_PROLOG:
       return COFF::IMAGE_REL_ARM_WINCE_PDATA_PROLOG;
     case ARM::S_COFF_SECREL:
       return COFF::IMAGE_REL_ARM_SECREL;

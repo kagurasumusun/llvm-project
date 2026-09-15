@@ -313,12 +313,9 @@ void ARMWinCOFFStreamer::emitWinCEUnwindInfo(WinEH::FrameInfo *Frame) {
       ARM::WinEH::WinCE::encodeFlags(0, 0, !IsThumb, HasHandler, Truncated);
   assert(!Truncated && "zero lengths cannot overflow their bitfields");
   emitIntValue(Static, 4);
-  emitValue(MCSymbolRefExpr::create(
-                FuncEnd, MCSymbolRefExpr::VK_COFF_ARM_WINCE_PDATA_FUNCLEN, Ctx),
+  emitValue(MCSymbolRefExpr::create(FuncEnd, ARM::S_WINCE_PDATA_FUNCLEN, Ctx),
             4);
-  emitValue(MCSymbolRefExpr::create(
-                PrologEnd, MCSymbolRefExpr::VK_COFF_ARM_WINCE_PDATA_PROLOG,
-                Ctx),
+  emitValue(MCSymbolRefExpr::create(PrologEnd, ARM::S_WINCE_PDATA_PROLOG, Ctx),
             4);
 
   switchSection(Frame->TextSection);

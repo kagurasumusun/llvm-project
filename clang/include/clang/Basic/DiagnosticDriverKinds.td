@@ -22,15 +22,16 @@ def err_drv_unsupported_option_argument : Error<
   "unsupported argument '%1' to option '%0'">;
 def err_drv_unsupported_option_argument_for_target : Error<
   "unsupported argument '%1' to option '%0' for target '%2'">;
+// The upper end is Windows Embedded Compact 2013, the last release there was;
+// the lower one is the oldest release whose SDK layout this tool chain follows.
 def err_drv_unsupported_wince_version : Error<
-  "unsupported Windows CE version %0; the supported range is CE 4.x through "
-  "Windows Embedded Compact 8.0, which was the last release">;
+  "unsupported Windows CE version %0; the supported range is 4.0 to 8.0">;
+// Windows CE ran on ARM, SHx, MIPS and x86, and on PowerPC in its earliest
+// releases, but only a CPU with a PE/COFF back end that lld can link is usable
+// here: LLVM has no SuperH back end, PowerPC targets XCOFF, and MIPS COFF
+// objects have no lld support.  That leaves little-endian ARM and x86.
 def err_drv_unsupported_wince_arch : Error<
-  "unsupported architecture '%0' for Windows CE target '%1'; Windows CE ran on "
-  "ARM, SHx, MIPS and x86, and on PowerPC in its earliest releases, but a "
-  "target is only usable here if it has a PE/COFF back end that lld can link: "
-  "LLVM has no SuperH back end, PowerPC targets XCOFF, and MIPS COFF objects "
-  "have no lld support, which leaves little-endian ARM and x86">;
+  "unsupported architecture '%0' for Windows CE target '%1'">;
 def err_drv_unknown_stdin_type : Error<
   "-E or -x required when input is from standard input">;
 def err_drv_unknown_stdin_type_clang_cl : Error<

@@ -131,6 +131,13 @@ enum {
   S_TLSLDM_FDPIC,
   S_TLSLDO,
   S_TPOFF,
+
+  // The two length fields of a Windows CE .pdata entry, which are relocated on
+  // their own (the COFF relocation types of the same name) and are produced by
+  // the streamer alone: like S_TLSDESCSEQ they are not written in a source
+  // file, so they have no name in the specifier table.
+  S_WINCE_PDATA_FUNCLEN,
+  S_WINCE_PDATA_PROLOG,
 };
 
 const MCSpecifierExpr *createUpper16(const MCExpr *Expr, MCContext &Ctx);

@@ -89,14 +89,25 @@
 // LINK: /base:0x10000
 // LINK: /fixed
 // LINK: crt3.o
-// LINK: libmingw32.a
+// LINK: libakari.a
 // LINK: libclang_rt.builtins-arm.a
-// LINK: libceoldname.a
-// LINK: libmingwex.a
 // LINK-NOT: libposix.a
 // LINK-NOT: libpthread.a
 // LINK: libcoredll6.a
 // LINK-NOT: libcoredll6-x86.a
+
+// The mingw32ce layer this tool chain used to name -- the mingwrt CRT glue
+// libmingw32.a, its C-library supplement libmingwex.a, its thread glue
+// libmingwthrd.a and the desktop-name redirect libceoldname.a -- is not on the
+// link line at all: the CE SDK ships the startup layer as libakari.a, and
+// naming an archive that is not there hid the library that was really missing.
+// RUN: %clang -target arm-pc-wince %s -o /dev/null -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=LINKRETIRED
+// LINKRETIRED: lld-link
+// LINKRETIRED-NOT: libmingw32.a
+// LINKRETIRED-NOT: libmingwex.a
+// LINKRETIRED-NOT: libmingwthrd.a
+// LINKRETIRED-NOT: libceoldname.a
 
 // RUN: %clang -target arm-pc-wince -lcommctrl -liphlpapi %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=LLIB
@@ -220,13 +231,13 @@
 // RUN: %clang -target arm-pc-wince -mthreads %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=THREADS
 // THREADS: "-D_MT"
-// THREADS: libmingwthrd.a
+// THREADS-NOT: libmingwthrd.a
 // THREADS: libpthread.a
 
 // RUN: %clang -target arm-pc-wince -pthread %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=PTHREAD
 // PTHREAD: "-D_MT"
-// PTHREAD: libmingwthrd.a
+// PTHREAD-NOT: libmingwthrd.a
 // PTHREAD: libpthread.a
 
 // RUN: %clang --driver-mode=g++ -target arm-pc-wince -x c++ %s -o /dev/null -### 2>&1 \
@@ -264,15 +275,13 @@
 // RUN:   -o /dev/null -### 2>&1 | FileCheck %s --check-prefix=TWOCPUARM
 // TWOCPUARM: libcoredll6.a
 
-// The reason an architecture is refused names the CPUs CE itself ran on, which
-// is a question the driver cannot answer on its own.  Big-endian ARM is the
-// case to ask it about: the refusal comes from the tool chain rather than from
-// a back end, so pinning it here depends on no target beyond the two the file
-// already requires, and CE never ran ARM in that byte order.
+// An architecture CE never ran on is refused by the tool chain rather than by a
+// back end, so pinning the refusal here depends on no target beyond the two the
+// file already requires.  Big-endian ARM is the case to ask about, and the
+// reason the refusal gives is with the diagnostic rather than in it.
 // RUN: not %clang -target armeb-pc-wince %s -o /dev/null -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=NOARMEB
 // NOARMEB: unsupported architecture 'armeb' for Windows CE target
-// NOARMEB-SAME: which leaves little-endian ARM and x86
 
 int x;
 

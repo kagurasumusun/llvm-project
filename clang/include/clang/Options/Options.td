@@ -5193,15 +5193,14 @@ def mfpu_EQ : Joined<["-"], "mfpu=">, Group<m_Group>;
 def mhwdiv_EQ : Joined<["-"], "mhwdiv=">, Group<m_Group>;
 def mhwmult_EQ : Joined<["-"], "mhwmult=">, Group<m_Group>;
 } // let Flags = [TargetSpecific]
-// The GCC options a Windows CE build passes for a feature this back end does
-// not have are accepted and ignored, which is what NoArgumentUnused is for.
-def mpoke_function_name : Flag<["-"], "mpoke-function-name">, Group<m_Group>,
-  Flags<[NoArgumentUnused]>,
-  HelpText<"GCC ARM: embed function names before prologues (ignored)">;
-def mno_poke_function_name : Flag<["-"], "mno-poke-function-name">, Group<m_Group>,
-  Flags<[NoArgumentUnused]>;
-def mwin32 : Flag<["-"], "mwin32">, Group<m_Group>, Flags<[NoArgumentUnused]>,
-  HelpText<"Select the Microsoft C runtime flavor (the only one this target has)">;
+// The GCC options the mingw32ce build scripts pass, none of which names a
+// feature this back end has: they are accepted and ignored, as the other
+// entries of the ignored m group are.
+def mpoke_function_name : Flag<["-"], "mpoke-function-name">,
+  Group<clang_ignored_m_Group>;
+def mno_poke_function_name : Flag<["-"], "mno-poke-function-name">,
+  Group<clang_ignored_m_Group>;
+def mwin32 : Flag<["-"], "mwin32">, Group<clang_ignored_m_Group>;
 def mglobal_merge : Flag<["-"], "mglobal-merge">, Group<m_Group>,
   Visibility<[ClangOption, CC1Option]>,
   HelpText<"Enable merging of globals">;
