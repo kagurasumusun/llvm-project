@@ -74,6 +74,29 @@
 // RUN: %clang -target armv5tej-pc-wince -E -dM %s -o - 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CPU-V5TEJ-DEFINES
 // CPU-V5TEJ-DEFINES: #define _M_ARM 5
+
+// What a CE target presents to a source file is the MinGW set of names with the
+// CE identity in place of the emulated MSVCRT, and the version is carried in
+// the BCD nibbles the SDK headers compare against.  The table is sorted so that
+// each name is checked at a place of its own, __MSVCRT__ included: it is the
+// one that must not be there.
+// RUN: %clang -target arm-pc-wince5.2 -E -dM %s -o - 2>&1 \
+// RUN:   | grep '^#define ' | LC_ALL=C sort \
+// RUN:   | FileCheck %s --check-prefix=CE-DEFINES
+// CE-DEFINES: #define UNDER_CE 1312
+// CE-DEFINES: #define UNICODE 1
+// CE-DEFINES: #define WIN32 1
+// CE-DEFINES: #define WINCE 1
+// CE-DEFINES: #define WINNT 1
+// CE-DEFINES: #define _UNICODE 1
+// CE-DEFINES: #define _WIN32 1
+// CE-DEFINES: #define _WIN32_WCE 1312
+// CE-DEFINES: #define __CEGCC_VERSION__ 0x090909
+// CE-DEFINES: #define __COREDLL__ 1
+// CE-DEFINES: #define __MINGW32CE__ 1
+// CE-DEFINES: #define __MINGW32__ 1
+// CE-DEFINES-NOT: #define __MSVCRT__ 1
+// CE-DEFINES: #define __WINCE__ 1
 // RUN: %clang -target arm-pc-wince -mcpu=cortex-a8 -### -c %s -o /dev/null 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CPU-MCPU
 // CPU-MCPU: cortex-a8
@@ -305,12 +328,12 @@ int x;
 // ASMGNU: "-cc1as"
 // ASMGNU-NOT: "-masm=armasm"
 
-// What a CE target shares with the desktop ones is the object format, so the
-// answers that follow from the format survive CE not being covered by the OS
-// predicate any more: an image nobody named gets the PE default name rather
-// than the ELF one, and no __cxa_atexit is assumed of a runtime that has no
-// such symbol.  A sanitizer is refused for lack of a runtime for it, as it is
-// on any other target without one, rather than taken from a desktop Windows.
+// A CE target is one of the Windows OSes for the object format and for what
+// follows from it, so an image nobody named gets the PE default name rather
+// than the ELF one.  A runtime facility is a different question and the desktop
+// one is not assumed of CE: no __cxa_atexit is asked of a runtime that has no
+// such symbol, and a sanitizer is refused for lack of a runtime for it, as on
+// any target without one, rather than taken from a desktop Windows.
 // RUN: %clang -target arm-pc-wince -### -nostdlib %s 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=IMAGENAME
 // IMAGENAME: "/out:a.exe"
