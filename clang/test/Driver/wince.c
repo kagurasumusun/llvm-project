@@ -81,7 +81,7 @@
 // each name is checked at a place of its own, __MSVCRT__ included: it is the
 // one that must not be there.
 // RUN: %clang -target arm-pc-wince5.2 -E -dM %s -o - 2>&1 \
-// RUN:   | grep '^#define ' | LC_ALL=C sort \
+// RUN:   | grep '^#define ' | env LC_ALL=C sort \
 // RUN:   | FileCheck %s --check-prefix=CE-DEFINES
 // CE-DEFINES: #define UNDER_CE 1312
 // CE-DEFINES: #define UNICODE 1
