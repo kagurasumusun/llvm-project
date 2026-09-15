@@ -6136,9 +6136,7 @@ InputInfoList Driver::BuildJobsForActionNoCache(
 
 const char *Driver::getDefaultImageName() const {
   llvm::Triple Target(llvm::Triple::normalize(TargetTriple));
-  // A Windows CE image is a PE file like a desktop one, and the tool chains
-  // that produce it name the default output a.exe as well.
-  return Target.isOSWindows() || Target.isOSWindowsCE() ? "a.exe" : "a.out";
+  return Target.isOSWindows() ? "a.exe" : "a.out";
 }
 
 /// Create output filename based on ArgValue, which could either be a

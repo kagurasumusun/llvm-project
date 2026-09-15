@@ -963,7 +963,7 @@ MCSymbol *ARMAsmPrinter::GetARMGVSymbol(const GlobalValue *GV,
                                                    !GV->hasInternalLinkage());
     return MCSym;
   } else if (TT.isOSBinFormatCOFF()) {
-    assert((TT.isOSWindows() || TT.isOSWindowsCE()) &&
+    assert(TT.isOSWindows() &&
            "Windows and Windows CE are the only supported COFF targets");
 
     bool IsIndirect =
@@ -2722,7 +2722,7 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
       .addImm(ARMCC::AL)
       .addReg(0));
 
-    if (STI.isTargetDarwin() || STI.isTargetWindowsFamily()) {
+    if (STI.isTargetDarwin() || STI.isTargetWindows()) {
       // These platforms always use the same frame register
       EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::LDRi12)
                                        .addReg(STI.getFramePointerReg())
@@ -2792,7 +2792,7 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
       .addImm(ARMCC::AL)
       .addReg(0));
 
-    if (STI.isTargetDarwin() || STI.isTargetWindowsFamily()) {
+    if (STI.isTargetDarwin() || STI.isTargetWindows()) {
       // These platforms always use the same frame register
       EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::tLDRi)
                                        .addReg(STI.getFramePointerReg())

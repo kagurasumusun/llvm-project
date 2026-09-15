@@ -341,7 +341,9 @@ bool ARMFrameLowering::hasFPImpl(const MachineFunction &MF) const {
   if (keepFramePointer(MF))
     return true;
 
-  if (MF.getTarget().getTargetTriple().isOSWindowsCE())
+  // A Windows CE image describes every frame it carries in its unwind data,
+  // for which the frame pointer has to be kept.
+  if (MF.getSubtarget<ARMSubtarget>().isTargetWindowsCE())
     return true;
 
   // ABI-required frame pointer.
@@ -426,8 +428,11 @@ static bool needsWinCFI(const MachineFunction &MF) {
   return functionNeedsWinCFIFrame(MF);
 }
 
+// The SEH opcodes a Windows CE image is described by are emitted as they come
+// from the frame lowering, so one that the streamer cannot map is skipped
+// rather than reported.
 static bool skipUnmappedSEH(const MachineFunction &MF) {
-  return MF.getTarget().getTargetTriple().isOSWindowsCE();
+  return MF.getSubtarget<ARMSubtarget>().isTargetWindowsCE();
 }
 
 // Given a load or a store instruction, generate an appropriate unwinding SEH
@@ -992,7 +997,9 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   const std::vector<CalleeSavedInfo> &CSI = MFI.getCalleeSavedInfo();
   int FPCXTSaveSize = 0;
   bool NeedsWinCFI = needsWinCFI(MF);
-  if (MF.getTarget().getTargetTriple().isOSWindowsCE() && NeedsWinCFI)
+  // A CE frame is described in its image's unwind data, which the streamer
+  // emits for a function that has WinCFI set.
+  if (STI.isTargetWindowsCE() && NeedsWinCFI)
     MF.setHasWinCFI(true);
   ARMSubtarget::PushPopSplitVariation PushPopSplit =
       STI.getPushPopSplitVariation(MF);
@@ -1020,8 +1027,11 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   StackAdjustingInsts DefCFAOffsetCandidates;
   bool HasFP = hasFP(MF);
 
+  // The stack probe is the protocol of the desktop releases' runtime, which a
+  // Windows CE image does not carry, so only the desktop OS reaches it here.
   if (!AFI->hasStackFrame() &&
-      (!STI.isTargetWindows() || !WindowsRequiresStackProbe(MF, NumBytes))) {
+      (!STI.isTargetWindows() || STI.isTargetWindowsCE() ||
+       !WindowsRequiresStackProbe(MF, NumBytes))) {
     if (NumBytes != 0) {
       emitSPUpdate(isARM, MBB, MBBI, dl, TII, -NumBytes,
                    MachineInstr::FrameSetup);
@@ -1210,7 +1220,8 @@ void ARMFrameLowering::emitPrologue(MachineFunction &MF,
   if (PushPopSplit == ARMSubtarget::SplitR11WindowsSEH && HasFP)
     NeedsWinCFIStackAlloc = false;
 
-  if (STI.isTargetWindows() && WindowsRequiresStackProbe(MF, NumBytes)) {
+  if (STI.isTargetWindows() && !STI.isTargetWindowsCE() &&
+      WindowsRequiresStackProbe(MF, NumBytes)) {
     uint32_t NumWords = NumBytes >> 2;
 
     if (NumWords < 65536) {
@@ -2567,7 +2578,9 @@ checkNumAlignedDPRCS2Regs(MachineFunction &MF, BitVector &SavedRegs) {
 }
 
 bool ARMFrameLowering::enableShrinkWrapping(const MachineFunction &MF) const {
-  if (MF.getTarget().getTargetTriple().isOSWindowsCE())
+  // The unwind data a Windows CE image carries describes the whole frame, from
+  // the prologue the frame lowering emits; a shrink-wrapped one has none.
+  if (STI.isTargetWindowsCE())
     return false;
 
   // For CMSE entry functions, we want to save the FPCXT_NS immediately
@@ -2676,8 +2689,9 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
   // stack probe is enabled based on the size of the local objects;
   // this estimate also includes the varargs store size.  The probe is emitted
   // for the desktop releases alone (see the use of this test in emitPrologue),
-  // so it is the desktop test and not the family that decides the reservation.
-  if (STI.isTargetWindows() &&
+  // so it is the desktop OS rather than Windows at large that decides the
+  // reservation.
+  if (STI.isTargetWindows() && !STI.isTargetWindowsCE() &&
       WindowsRequiresStackProbe(MF, MFI.estimateStackSize(MF))) {
     SavedRegs.set(ARM::R4);
     SavedRegs.set(ARM::LR);
@@ -3078,7 +3092,7 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
           // Don't spill high register if the function is thumb.  In the case of
           // Windows on ARM, accept R11 (frame pointer)
           if (!AFI->isThumbFunction() ||
-              (STI.isTargetWindowsFamily() && Reg == ARM::R11) ||
+              (STI.isTargetWindows() && Reg == ARM::R11) ||
               isARMLowRegister(Reg) ||
               (Reg == ARM::LR && !ExpensiveLRRestore)) {
             SavedRegs.set(Reg);

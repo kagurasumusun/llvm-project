@@ -248,11 +248,7 @@ createTargetCodeGenInfo(CodeGenModule &CGM) {
 
   case llvm::Triple::x86: {
     bool IsDarwinVectorABI = Triple.isOSDarwin();
-    // Windows CE returns a struct holding a float the way the desktop COFF ABIs
-    // do, and it has no cygwin flavour to except, so the rule covers both.
-    bool IsWin32FloatStructABI = (Triple.isOSWindows() ||
-                                  Triple.isOSWindowsCE()) &&
-                                 !Triple.isOSCygMing();
+    bool IsWin32FloatStructABI = Triple.isOSWindows() && !Triple.isOSCygMing();
 
     if (Triple.getOS() == llvm::Triple::Win32) {
       return createWinX86_32TargetCodeGenInfo(
@@ -479,7 +475,7 @@ CodeGenModule::CodeGenModule(ASTContext &C,
       CodeGenOpts.CoverageNotesFile.size() ||
       CodeGenOpts.CoverageDataFile.size())
     DebugInfo.reset(new CGDebugInfo(*this));
-  else if (getTriple().isOSWindows())
+  else if (getTriple().isOSWindows() && !getTriple().isOSWindowsCE())
     // On desktop Windows targets, we want to emit compiler info even if debug
     // info is otherwise disabled. Use a temporary CGDebugInfo instance to emit
     // only basic compiler metadata.  Windows CE is left out, as a CE object

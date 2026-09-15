@@ -195,11 +195,9 @@ public:
     HasStrictFP = true;
     HasUnalignedAccess = true;
 
-    // A Windows CE image is a COFF file under the same alignment rules, so the
-    // object format decides here rather than the desktop OS alone.
-    bool IsWinCOFF = (getTriple().isOSWindows() ||
-                      getTriple().isOSWindowsCE()) &&
-                     getTriple().isOSBinFormatCOFF();
+    // Both Windows forms write COFF images under the same alignment rules.
+    bool IsWinCOFF =
+        getTriple().isOSWindows() && getTriple().isOSBinFormatCOFF();
     if (IsWinCOFF)
       MaxVectorAlign = MaxTLSAlign = 8192u * getCharWidth();
   }
@@ -587,11 +585,11 @@ public:
   WindowsX86_32TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : WindowsTargetInfo<X86_32TargetInfo>(Triple, Opts) {
     DoubleAlign = LongLongAlign = 64;
-    // Windows CE shares the COFF layout and its name mangling, while the x87
-    // alignment stays with the MSVC environment it is not part of.
-    bool IsWinCOFF = (getTriple().isOSWindows() ||
-                      getTriple().isOSWindowsCE()) &&
-                     getTriple().isOSBinFormatCOFF();
+    // Both Windows forms share the COFF layout and its name mangling, while
+    // the x87 alignment stays with the MSVC environment Windows CE is not part
+    // of.
+    bool IsWinCOFF =
+        getTriple().isOSWindows() && getTriple().isOSBinFormatCOFF();
     bool IsMSVC = getTriple().isWindowsMSVCEnvironment();
     std::string Layout = IsWinCOFF ? "e-m:x" : "e-m:e";
     Layout += "-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-";

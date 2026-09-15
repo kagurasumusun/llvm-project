@@ -77,13 +77,16 @@ public:
   }
 
   bool isTargetHardFloat() const {
+    // The desktop Windows on ARM releases pass floating point values in VFP
+    // registers; a Windows CE image links against a soft-float runtime and
+    // keeps the soft ABI, as the driver tells it to.
     return TargetTriple.getEnvironment() == Triple::GNUEABIHF ||
            TargetTriple.getEnvironment() == Triple::GNUEABIHFT64 ||
            TargetTriple.getEnvironment() == Triple::MuslEABIHF ||
            TargetTriple.getEnvironment() == Triple::EABIHF ||
            (TargetTriple.isOSBinFormatMachO() &&
             TargetTriple.getSubArch() == Triple::ARMSubArch_v7em) ||
-           TargetTriple.isOSWindows() ||
+           (TargetTriple.isOSWindows() && !TargetTriple.isOSWindowsCE()) ||
            TargetABI == ARM::ARM_ABI_AAPCS16;
   }
 

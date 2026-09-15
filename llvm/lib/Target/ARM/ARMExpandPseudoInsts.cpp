@@ -1069,7 +1069,7 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
   bool isCC = Opcode == ARM::MOVCCi32imm || Opcode == ARM::t2MOVCCi32imm;
   const MachineOperand &MO = MI.getOperand(isCC ? 2 : 1);
   bool RequiresBundling =
-      STI->isTargetWindowsFamily() && IsAnAddressOperand(MO);
+      STI->isTargetWindows() && IsAnAddressOperand(MO);
   MachineInstrBuilder LO16, HI16;
   LLVM_DEBUG(dbgs() << "Expanding: "; MI.dump());
 
@@ -1085,7 +1085,8 @@ void ARMExpandPseudo::ExpandMOV32BitImm(MachineBasicBlock &MBB,
     // whose ABI starts at ARMv7 and which always take the bundled pair below;
     // it is the CPU's feature that decides which shape is taken here, and the
     // assert is only there to keep the desktop releases from falling through.
-    assert(!STI->isTargetWindows() && "Windows on ARM requires ARMv7+");
+    assert((!STI->isTargetWindows() || STI->isTargetWindowsCE()) &&
+           "desktop Windows on ARM requires ARMv7+");
 
     if (!MO.isImm()) {
       MachineConstantPool *MCP = MBB.getParent()->getConstantPool();

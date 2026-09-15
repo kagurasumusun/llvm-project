@@ -349,12 +349,12 @@ int x;
 // nothing about the ARM rule above may reach it.
 // RUN: %clang -target i386-unknown-wince -fdwarf-exceptions -fsyntax-only %s
 
-// The TARGET_OS_* macros name one OS each, as the desktop Windows and UEFI
-// have their own entries, so a CE target is asked about as CE: it reports the
-// two Windows ones as zero rather than as one.
+// A CE target presents the Win32 API the two Windows entries ask about, as the
+// desktop one does, and TARGET_OS_WINCE is what tells it apart from the desktop;
+// UEFI, being firmware, has an entry of its own and stays zero.
 // RUN: %clang -target arm-pc-wince -dM -E -fdefine-target-os-macros %s -o - 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=OSMACROS
 // OSMACROS-DAG: #define TARGET_OS_WINCE 1
-// OSMACROS-DAG: #define TARGET_OS_WIN32 0
-// OSMACROS-DAG: #define TARGET_OS_WINDOWS 0
+// OSMACROS-DAG: #define TARGET_OS_WIN32 1
+// OSMACROS-DAG: #define TARGET_OS_WINDOWS 1
 // OSMACROS-DAG: #define TARGET_OS_UEFI 0

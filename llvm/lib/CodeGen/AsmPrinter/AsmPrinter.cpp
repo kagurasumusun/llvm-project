@@ -592,11 +592,9 @@ bool AsmPrinter::doInitialization(Module &M) {
   if (MAI->doesSupportDebugInformation()) {
     bool EmitCodeView = M.getCodeViewFlag();
     // On Windows targets, emit minimal CodeView compiler info even when debug
-    // info is disabled.  Windows CE is named as well, since a CE image keeps
-    // its debug info in CodeView too; UEFI is here only when it asked for that
-    // format outright.
-    if ((Target.isOSWindows() || Target.isOSWindowsCE() ||
-         (Target.isUEFI() && EmitCodeView)) &&
+    // info is disabled.  Both Windows OSes are covered by isOSWindows() here:
+    // a CE image keeps its debug info in CodeView too.
+    if ((Target.isOSWindows() || (Target.isUEFI() && EmitCodeView)) &&
         M.getNamedMetadata("llvm.dbg.cu"))
       Handlers.push_back(std::make_unique<CodeViewDebug>(this));
     if (!EmitCodeView || M.getDwarfVersion()) {
@@ -2275,9 +2273,8 @@ void AsmPrinter::emitFunctionBody() {
   // https://developercommunity.visualstudio.com/content/problem/45366/vc-linker-creates-invalid-dll-with-clang-cl.html
   // FIXME: Hide this behind some API in e.g. MCAsmInfo or MCTargetStreamer.
   const Triple &TT = TM.getTargetTriple();
-  if (!HasAnyRealCode &&
-      (MAI->hasSubsectionsViaSymbols() ||
-       ((TT.isOSWindows() || TT.isOSWindowsCE()) && TT.isOSBinFormatCOFF()))) {
+  if (!HasAnyRealCode && (MAI->hasSubsectionsViaSymbols() ||
+                          (TT.isOSWindows() && TT.isOSBinFormatCOFF()))) {
     MCInst Noop = MF->getSubtarget().getInstrInfo()->getNop();
 
     // Targets can opt-out of emitting the noop here by leaving the opcode

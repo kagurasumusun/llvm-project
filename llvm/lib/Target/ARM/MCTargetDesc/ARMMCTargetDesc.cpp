@@ -345,7 +345,7 @@ static MCAsmInfo *createARMMCAsmInfo(const MCRegisterInfo &MRI,
     MAI = new ARMMCAsmInfoDarwin(TheTriple);
   else if (TheTriple.isWindowsMSVCEnvironment())
     MAI = new ARMCOFFMCAsmInfoMicrosoft();
-  else if (TheTriple.isOSWindows() || TheTriple.isOSWindowsCE()) {
+  else if (TheTriple.isOSWindows()) {
     MAI = new ARMCOFFMCAsmInfoGNU(TheTriple);
     // CE unwinds with the ARM .pdata/.exidx records instead of the WinEH
     // bytecode that GNU COFF otherwise carries.

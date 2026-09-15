@@ -35,47 +35,46 @@ const char *getCOFFLibraryName(const ArgList &Args, StringRef Name) {
   return Args.MakeArgString(Twine("lib") + Name + ".a");
 }
 
-// Which coredll import library to name is a property of the SDK rather than of
-// Windows CE.  The CE release an image targets comes from the target triple,
-// but the file name its sysroot carries does not: the cegcc-family packages
-// this tool chain was first built against fold the version and the architecture
-// into the name, a GNU sysroot that keeps the architecture in the directory
-// spells the library plainly, and a Microsoft SDK calls it coredll.lib.  So ask
-// the sysroot which of them is there, most specific for the target first, and
-// fall back to the cegcc naming rule where there is nothing to look at, the
-// same thing a -### of an uninstalled toolchain has to print.
-std::string getCoreDLLLibrary(const ToolChain &TC, StringRef ArchSuffix,
-                              unsigned CEVersion) {
-  // The name to fall back on is the one this tool chain was written for, and it
-  // carries the architecture only for the CE 6 generation: the CE 4 and CE 5
-  // import libraries were never given a per-CPU spelling, their sysroots being
-  // per-CPU installations instead.
-  std::string Default;
+// The names the sysroot of a CE SDK may carry for the coredll import library,
+// most specific for the target first.  The CE release an image targets comes
+// from the target triple, and the cegcc-family packages this tool chain was
+// first built against fold it, and the architecture, into the file name: the
+// CE 6 generation carries the architecture, the earlier ones were never given a
+// per-CPU spelling, and the SDK layout in use is free to leave the generation
+// out or to keep Microsoft's name for the file.
+SmallVector<std::string, 8> getCoreDLLLibraryNames(unsigned CEVersion,
+                                                  StringRef ArchSuffix) {
+  SmallVector<std::string, 8> Names;
   if (CEVersion == 4)
-    Default = "libcoredll4.a";
+    Names.push_back("libcoredll4.a");
   else if (CEVersion == 5)
-    Default = "libcoredll.a";
+    Names.push_back("libcoredll.a");
   else
-    Default = (Twine("libcoredll6") + ArchSuffix + ".a").str();
+    Names.push_back((Twine("libcoredll6") + ArchSuffix + ".a").str());
 
-  // Then the other names a sysroot may use for the same library, since the
-  // generations and the architecture suffix are both the packager's choice.
-  SmallVector<std::string, 8> Candidates;
-  Candidates.push_back(Default);
   for (StringRef Suffix : {ArchSuffix, StringRef()})
     for (StringRef Digits : {StringRef("4"), StringRef(), StringRef("6")})
-      Candidates.push_back(
-          (Twine("libcoredll") + Digits + Suffix + ".a").str());
-  Candidates.push_back("coredll.lib");
+      Names.push_back((Twine("libcoredll") + Digits + Suffix + ".a").str());
+  Names.push_back("coredll.lib");
+  return Names;
+}
 
-  for (const std::string &Name : Candidates)
+// Which of those names is the one the SDK at hand carries is a question for the
+// sysroot, so ask the file system; the first name is what an uninstalled tool
+// chain falls back on, which is also what its -### has to print.
+std::string getCoreDLLLibrary(const ToolChain &TC, StringRef ArchSuffix,
+                              unsigned CEVersion) {
+  SmallVector<std::string, 8> Names =
+      getCoreDLLLibraryNames(CEVersion, ArchSuffix);
+
+  for (const std::string &Name : Names)
     for (const std::string &Dir : TC.getFilePaths()) {
       SmallString<128> Path(Dir);
       llvm::sys::path::append(Path, Name);
       if (TC.getDriver().getVFS().exists(Path))
         return Name;
     }
-  return Default;
+  return Names.front();
 }
 
 } // end anonymous namespace

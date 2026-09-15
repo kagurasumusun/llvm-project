@@ -548,7 +548,7 @@ StringRef ARM::computeDefaultTargetABI(const Triple &TT) {
     if (TT.isWatchABI())
       return "aapcs16";
     return "apcs-gnu";
-  } else if (TT.isOSWindows() || TT.isOSWindowsCE())
+  } else if (TT.isOSWindows())
     // Both Windows forms take the architecture's standard C ABI; what sets
     // Windows CE apart from the desktop ones is the floating-point convention,
     // which the float ABI decides rather than the ABI name.

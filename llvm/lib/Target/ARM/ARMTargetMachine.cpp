@@ -119,7 +119,7 @@ static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
     return std::make_unique<TargetLoweringObjectFileMachO>();
   // A CE image is a COFF object file with the same section handling, so the
   // object format rather than the desktop OS decides this.
-  if (TT.isOSWindows() || TT.isOSWindowsCE())
+  if (TT.isOSWindows())
     return std::make_unique<TargetLoweringObjectFileCOFF>();
   return std::make_unique<ARMElfTargetObjectFile>();
 }
@@ -175,8 +175,7 @@ ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T, const Triple &TT,
          TargetTriple.getEnvironment() == Triple::MuslEABI ||
          TargetTriple.getEnvironment() == Triple::MuslEABIHF ||
          TargetTriple.getEnvironment() == Triple::OpenHOS) &&
-        !(TargetTriple.isOSWindows() || TargetTriple.isOSWindowsCE() ||
-          TargetTriple.isOSDarwin()))
+        !(TargetTriple.isOSWindows() || TargetTriple.isOSDarwin()))
       this->Options.EABIVersion = EABI::GNU;
     else
       this->Options.EABIVersion = EABI::EABI5;

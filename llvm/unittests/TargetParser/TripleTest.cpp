@@ -3435,11 +3435,10 @@ TEST(TripleTest, WinCEOSComponent) {
     EXPECT_EQ(Triple::WindowsCE, TT.getOS());
     EXPECT_EQ(C.Version, TT.getOSVersion());
     EXPECT_TRUE(TT.isOSWindowsCE());
-    // CE is not the desktop OS and takes nothing from it, but it is a member of
-    // the family whose PE/COFF conventions the object writers key on, and its
-    // images import from DLLs the way the desktop ones do.
-    EXPECT_FALSE(TT.isOSWindows());
-    EXPECT_TRUE(TT.isOSWindowsFamily());
+    // CE is one of the Windows OSes, so isOSWindows() covers it; the desktop OS
+    // alone is what isOSWindows() && !isOSWindowsCE() names.  Its images import
+    // from DLLs the way the desktop ones do.
+    EXPECT_TRUE(TT.isOSWindows());
     EXPECT_TRUE(TT.hasDLLImportExport());
     EXPECT_FALSE(TT.isWindowsMSVCEnvironment());
     EXPECT_EQ(Triple::COFF, TT.getObjectFormat());
@@ -3459,6 +3458,40 @@ TEST(TripleTest, WinCEOSComponent) {
   EXPECT_EQ(Triple::UnknownOS, GCCStyle.getOS());
   EXPECT_FALSE(GCCStyle.isOSWindowsCE());
   EXPECT_FALSE(GCCStyle.isOSWindows());
+}
+
+// What the Windows predicates answer for each OS that carries the name: the
+// desktop Windows, Windows CE, and UEFI, which is a firmware environment rather
+// than a Windows OS and is named by a predicate of its own.
+TEST(TripleTest, WindowsOSPredicates) {
+  struct {
+    const char *Input;
+    bool IsWindows;
+    bool IsWindowsCE;
+    bool IsUEFI;
+  } Cases[] = {
+      {"x86-pc-windows-msvc", true, false, false},
+      {"x86_64-pc-windows-msvc", true, false, false},
+      {"arm-pc-wince", true, true, false},
+      {"arm-pc-windowsce", true, true, false},
+      {"arm-pc-mingw32ce", true, true, false},
+      {"x86_64-pc-uefi", false, false, true},
+  };
+  for (const auto &C : Cases) {
+    SCOPED_TRACE(C.Input);
+    Triple TT(C.Input);
+    EXPECT_EQ(C.IsWindows, TT.isOSWindows());
+    EXPECT_EQ(C.IsWindowsCE, TT.isOSWindowsCE());
+    EXPECT_EQ(C.IsUEFI, TT.isUEFI());
+    // The desktop OS alone is the OS test with the CE one excepted, which is
+    // how a call site that runs on the desktop releases only spells it.
+    EXPECT_EQ(C.IsWindows && !C.IsWindowsCE,
+              TT.isOSWindows() && !TT.isOSWindowsCE());
+    // A PE/COFF image and the dllimport annotations are what the desktop OS and
+    // CE share; UEFI writes COFF too, being firmware rather than an OS.
+    EXPECT_EQ(C.IsWindows, TT.hasDLLImportExport());
+    EXPECT_EQ(C.IsWindows || C.IsUEFI, TT.isOSBinFormatCOFF());
+  }
 }
 
 TEST(TripleTest, WinCEVersionAliases) {

@@ -609,8 +609,7 @@ static void addPGOAndCoverageFlags(const ToolChain &TC, Compilation &C,
     else {
       CmdArgs.push_back("-fprofile-continuous");
       // Platforms that require a bias variable:
-      if (T.isOSBinFormatELF() || T.isOSAIX() || T.isOSWindows() ||
-          T.isOSWindowsCE()) {
+      if (T.isOSBinFormatELF() || T.isOSAIX() || T.isOSWindows()) {
         CmdArgs.push_back("-mllvm");
         CmdArgs.push_back("-runtime-counter-relocation");
       }
@@ -1204,8 +1203,7 @@ static bool isSignedCharDefault(const llvm::Triple &Triple) {
   case llvm::Triple::thumbeb:
     // Windows CE is here with the desktop OS rather than with the ARM EABI
     // default: its char is signed, as the C runtime it links against has it.
-    if (Triple.isOSDarwin() || Triple.isOSWindows() ||
-        Triple.isOSWindowsCE())
+    if (Triple.isOSDarwin() || Triple.isOSWindows())
       return true;
     return false;
 
@@ -4112,8 +4110,13 @@ static void RenderCharacterOptions(const ArgList &Args, const llvm::Triple &T,
     } else {
       bool IsARM = T.isARM() || T.isThumb() || T.isAArch64();
       CmdArgs.push_back("-fwchar-type=int");
+      // The desktop ARM Windows flavours take wchar_t as signed, as the C
+      // runtime they link against has it; the ARM EABI default is unsigned, and
+      // a Windows CE runtime has it that way too, so CE stays with the default.
+      bool IsDesktopWindows = T.isOSWindows() && !T.isOSWindowsCE();
       if (T.isOSzOS() ||
-          (IsARM && !(T.isOSWindows() || T.isOSNetBSD() || T.isOSOpenBSD())))
+          (IsARM &&
+           !(IsDesktopWindows || T.isOSNetBSD() || T.isOSOpenBSD())))
         CmdArgs.push_back("-fno-signed-wchar");
       else
         CmdArgs.push_back("-fsigned-wchar");
@@ -5060,7 +5063,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString(NormalizedTriple));
   }
 
-  if (Triple.isOSWindows() &&
+  // The desktop ARM Windows releases are ARMv7 or later.  Windows CE ran on
+  // older cores as well and is built for them, so only the desktop OS is
+  // checked here.
+  if (Triple.isOSWindows() && !Triple.isOSWindowsCE() &&
       (Triple.getArch() == llvm::Triple::arm ||
        Triple.getArch() == llvm::Triple::thumb)) {
     unsigned Offset = Triple.getArch() == llvm::Triple::arm ? 4 : 6;
@@ -7125,7 +7131,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(
           options::OPT_fuse_cxa_atexit, options::OPT_fno_use_cxa_atexit,
           !RawTriple.isOSAIX() &&
-              ((!RawTriple.isOSWindows() && !RawTriple.isOSWindowsCE()) ||
+              (!RawTriple.isOSWindows() ||
                RawTriple.isWindowsCygwinEnvironment()) &&
               ((RawTriple.getVendor() != llvm::Triple::MipsTechnologies) ||
                RawTriple.hasEnvironment())) ||

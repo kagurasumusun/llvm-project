@@ -1,3 +1,11 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
 #ifndef _LIBCPP___LOCALE_DIR_SUPPORT_WINCE_H
 #define _LIBCPP___LOCALE_DIR_SUPPORT_WINCE_H
 
@@ -21,6 +29,14 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __locale {
+
+// The C runtime a Windows CE image links against provides the classic "C"
+// locale and no locale tables besides it, so that is what this layer supports:
+// setlocale() accepts "C" and "POSIX" and refuses every other name, and the
+// facets that need a locale's tables fade back to the C behaviour -- the
+// collate facet compares bytes as its strcoll() does, and ctype uses the C
+// character classes.  A program on CE can use the classic locale and the ones
+// it builds from it, which is the contract these functions keep.
 
 using __lconv_t _LIBCPP_NODEBUG = std::lconv;
 

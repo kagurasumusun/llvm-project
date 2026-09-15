@@ -131,7 +131,7 @@ static bool useFramePointerForTargetByDefault(const llvm::opt::ArgList &Args,
   // Windows CE is listed with the desktop OS: what is asked below is which
   // unwinding information the image carries, and a CE image is walked the same
   // way, with .pdata and a frame pointer kept for it.
-  if (Triple.isOSWindows() || Triple.isOSWindowsCE()) {
+  if (Triple.isOSWindows()) {
     switch (Triple.getArch()) {
     case llvm::Triple::x86:
       return !clang::driver::tools::areOptimizationsEnabled(Args);
@@ -2036,8 +2036,7 @@ tools::ParsePICArgs(const ToolChain &ToolChain, const ArgList &Args) {
                                     options::OPT_fpie, options::OPT_fno_pie);
   // A COFF image carries no position independent form for either OS, so the
   // refusal reads the same for a CE target as for the desktop one.
-  if ((Triple.isOSWindows() || Triple.isOSWindowsCE()) &&
-      !Triple.isOSCygMing() && LastPICArg &&
+  if (Triple.isOSWindows() && !Triple.isOSCygMing() && LastPICArg &&
       LastPICArg == Args.getLastArg(options::OPT_fPIC, options::OPT_fpic,
                                     options::OPT_fPIE, options::OPT_fpie)) {
     ToolChain.getDriver().Diag(diag::err_drv_unsupported_opt_for_target)

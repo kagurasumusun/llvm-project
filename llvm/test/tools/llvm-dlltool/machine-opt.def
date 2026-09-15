@@ -8,6 +8,15 @@
 ; RUN: llvm-readobj %t.a | FileCheck --check-prefix=ARM64 %s
 ; RUN: llvm-dlltool -m r4000 -d %s -l %t.a
 ; RUN: llvm-readobj %t.a | FileCheck --check-prefix=MIPS %s
+; A triple is taken as well, since a machine name says which instruction set an
+; image holds and nothing about the OS its object model follows: the plain ARM
+; machine type a CE image carries is only reachable that way.
+; RUN: llvm-dlltool -m arm-pc-wince -d %s -l %t.wince.a
+; RUN: llvm-readobj -h %t.wince.a | FileCheck --check-prefix=WINCE %s
+; A triple from another OS is refused: an import library is a COFF object, and
+; the architecture alone would build one for the wrong platform silently.
+; RUN: not llvm-dlltool -m aarch64-linux-gnu -d %s -l %t.a 2>&1 \
+; RUN:   | FileCheck --check-prefix=NONWINDOWS %s
 
 LIBRARY test.dll
 EXPORTS
@@ -18,3 +27,5 @@ TestFunction
 ; ARM: Format: COFF-ARM{{$}}
 ; ARM64: Format: COFF-ARM64
 ; MIPS: Format: COFF-MIPS
+; WINCE: Machine: IMAGE_FILE_MACHINE_ARM (0x1C0)
+; NONWINDOWS: unknown target

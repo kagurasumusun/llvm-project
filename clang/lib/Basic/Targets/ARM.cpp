@@ -35,7 +35,7 @@ void ARMTargetInfo::setABIAAPCS() {
   // The two Windows forms are excluded because each keeps its platform's own
   // wchar_t: Windows ARM and Windows CE both take it as unsigned short from the
   // Windows target info they derive from.
-  if (!T.isOSWindows() && !T.isOSWindowsCE() && !IsNetBSD && !IsOpenBSD)
+  if (!T.isOSWindows() && !IsNetBSD && !IsOpenBSD)
     WCharType = UnsignedInt;
 
   UseBitFieldTypeAlignment = true;
@@ -275,7 +275,7 @@ ARMTargetInfo::ARMTargetInfo(const llvm::Triple &Triple,
     } else {
       setABI("apcs-gnu");
     }
-  } else if (Triple.isOSWindows() || Triple.isOSWindowsCE()) {
+  } else if (Triple.isOSWindows()) {
     // Windows CE is named with the desktop OS because its C ABI is the ARM
     // architecture standard one; what sets it apart is a soft-float C runtime,
     // which the float ABI rule settles rather than the ABI name.  This
@@ -798,19 +798,20 @@ void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
 
   // FIXME: It's more complicated than this and we don't really support
   // interworking.
-  // Windows on ARM does not "support" interworking, while Windows CE images mix
-  // the two ISA states as any other ARM code does, so CE is left to the
-  // architecture version alone.
-  if (5 <= ArchVersion && ArchVersion <= 8 &&
-      !getTriple().isOSWindows())
+  // Windows on ARM does not "support" interworking, while a Windows CE image
+  // mixes the two ISA states as any other ARM code does, so it is the desktop
+  // OS that is excluded here and CE is left to the architecture version.
+  bool IsDesktopWindows =
+      getTriple().isOSWindows() && !getTriple().isOSWindowsCE();
+  if (5 <= ArchVersion && ArchVersion <= 8 && !IsDesktopWindows)
     Builder.defineMacro("__THUMB_INTERWORK__");
 
   if (ABI == "aapcs" || ABI == "aapcs-linux" || ABI == "aapcs-vfp") {
     // Embedded targets on Darwin follow AAPCS, but not EABI.
     // Windows on ARM follows AAPCS VFP, but does not conform to EABI.
-    // Windows CE links against a runtime built for the ARM EABI and keeps it.
-    if (!getTriple().isOSBinFormatMachO() &&
-        !getTriple().isOSWindows())
+    // A Windows CE target links against a runtime built for the ARM EABI and
+    // keeps it, so it is not excluded the way the desktop ARM one is.
+    if (!getTriple().isOSBinFormatMachO() && !IsDesktopWindows)
       Builder.defineMacro("__ARM_EABI__");
     Builder.defineMacro("__ARM_PCS", "1");
   }

@@ -17,8 +17,9 @@
 #define TARGET_OS(Name, Predicate)
 #endif
 
-// Windows targets.  These name one OS each, as UEFI's entry below does, so
-// Windows CE gets its own rather than counting as the desktop one.
+// Windows targets: the two Windows OSes both present the Win32 API, which is
+// what these two ask about, and CE is told apart from the desktop one by its
+// own entry.
 TARGET_OS(TARGET_OS_WIN32, Triple.isOSWindows())
 TARGET_OS(TARGET_OS_WINDOWS, Triple.isOSWindows())
 TARGET_OS(TARGET_OS_WINCE, Triple.isOSWindowsCE())

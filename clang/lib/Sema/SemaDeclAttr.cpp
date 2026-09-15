@@ -5439,7 +5439,8 @@ bool Sema::CheckCallingConvAttr(const ParsedAttr &Attrs, CallingConv &CC,
   }
 
   bool IsTargetDefaultMSABI =
-      Context.getTargetInfo().getTriple().isOSWindowsFamily();
+      Context.getTargetInfo().getTriple().isOSWindows() ||
+      Context.getTargetInfo().getTriple().isUEFI();
   // TODO: diagnose uses of these conventions on the wrong target.
   switch (Attrs.getKind()) {
   case ParsedAttr::AT_CDecl:

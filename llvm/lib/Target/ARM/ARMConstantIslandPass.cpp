@@ -1515,7 +1515,7 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
   // as wince-seh-parent-frame.ll shows for armv7-pc-wince; and the one
   // remaining way to name the pair in ARM state, inline asm, keeps both
   // instructions inside a single MI, which no island can be injected into.
-  if (STI->isTargetWindowsFamily() && isThumb &&
+  if (STI->isTargetWindows() && isThumb &&
       MI->getOpcode() == ARM::t2MOVTi16 &&
       (MI->getOperand(2).getTargetFlags() & ARMII::MO_OPTION_MASK) ==
           ARMII::MO_HI16) {

@@ -1318,9 +1318,8 @@ static llvm::Constant *buildGlobalBlock(CodeGenModule &CGM,
 
   bool IsOpenCL = CGM.getLangOpts().OpenCL;
   // The shape asked about here is the one a COFF image gives a global block,
-  // which Windows CE shares with the desktop; the runtime is not in question.
-  bool IsWindows = CGM.getTarget().getTriple().isOSWindows() ||
-                   CGM.getTarget().getTriple().isOSWindowsCE();
+  // which both Windows forms share; the runtime is not in question.
+  bool IsWindows = CGM.getTarget().getTriple().isOSWindows();
   auto &CGOPointerAuth = CGM.getCodeGenOpts().PointerAuth;
   if (!IsOpenCL) {
     // isa

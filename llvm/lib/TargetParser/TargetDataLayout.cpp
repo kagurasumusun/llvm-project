@@ -18,7 +18,7 @@ static StringRef getManglingComponent(const Triple &T) {
     return "-m:l";
   if (T.isOSBinFormatMachO())
     return "-m:o";
-  if (T.isOSWindowsFamily() && T.isOSBinFormatCOFF())
+  if ((T.isOSWindows() || T.isUEFI()) && T.isOSBinFormatCOFF())
     return T.getArch() == Triple::x86 ? "-m:x" : "-m:w";
   if (T.isOSBinFormatXCOFF())
     return "-m:a";
@@ -407,9 +407,7 @@ static std::string computeX86DataLayout(const Triple &TT) {
   // Some ABIs align 64 bit integers and doubles to 64 bits, others to 32.
   // 128 bit integers are not specified in the 32-bit ABIs but are used
   // internally for lowering f128, so we match the alignment to that.
-  // Windows CE is named with the desktop OS wherever the question is which
-  // COFF layout an x86 image uses, which it shares rather than invents.
-  if (Is64Bit || TT.isOSWindows() || TT.isOSWindowsCE())
+  if (Is64Bit || TT.isOSWindows())
     Ret += "-i64:64-i128:128";
   else if (TT.isOSIAMCU())
     Ret += "-i64:32-f64:32";
@@ -434,8 +432,7 @@ static std::string computeX86DataLayout(const Triple &TT) {
     Ret += "-n8:16:32";
 
   // The stack is aligned to 32 bits on some ABIs and 128 bits on others.
-  if ((!Is64Bit && (TT.isOSWindows() || TT.isOSWindowsCE())) ||
-      TT.isOSIAMCU())
+  if ((!Is64Bit && TT.isOSWindows()) || TT.isOSIAMCU())
     Ret += "-a:0:32-S32";
   else
     Ret += "-S128";

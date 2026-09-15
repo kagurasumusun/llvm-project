@@ -201,7 +201,7 @@ void ARMSubtarget::initLibcallLoweringInfo(LibcallLoweringInfo &Info) const {
 
 bool ARMSubtarget::isXRaySupported() const {
   // We don't currently suppport Thumb, but Windows requires Thumb.
-  return hasV6Ops() && hasARMOps() && !isTargetWindowsFamily();
+  return hasV6Ops() && hasARMOps() && !isTargetWindows();
 }
 
 void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
@@ -255,7 +255,7 @@ void ARMSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Thumb-2 only; Windows CE predates that restriction and its images are ARM
   // mode, so the exception is made here rather than by treating every Windows
   // ARM target alike.
-  if (isTargetWindows())
+  if (isTargetWindows() && !isTargetWindowsCE())
     NoARM = true;
 
   if (TM.isAAPCS_ABI())
@@ -465,7 +465,7 @@ bool ARMSubtarget::useMovt() const {
   // immediates as it is inherently position independent, and may be out of
   // range otherwise.
   return !NoMovt && hasV8MBaselineOps() &&
-         (isTargetWindowsFamily() || !OptMinSize || genExecuteOnly());
+         (isTargetWindows() || !OptMinSize || genExecuteOnly());
 }
 
 bool ARMSubtarget::useFastISel() const {

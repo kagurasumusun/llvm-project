@@ -384,7 +384,7 @@ int llvm::dlltoolDriverMain(llvm::ArrayRef<const char *> ArgsArr) {
     Machine = getEmulation(Name);
     if (Machine == IMAGE_FILE_MACHINE_UNKNOWN) {
       Triple T(Name);
-      if (T.isOSWindowsFamily())
+      if (T.isOSWindows())
         Machine = getMachine(T);
     }
   }

@@ -89,13 +89,11 @@ Changes to LLVM infrastructure
   OS predicates are named; `getOSTypeName()` reports `windowsce`, while a triple
   written with one of the aliases keeps that spelling through `normalize()`, as
   no environment has to be named along with it.
-* `Triple::isOSWindows()` names the desktop Windows alone, as it does upstream,
-  and the conventions the desktop Windows, UEFI and Windows CE share as PE or
-  COFF images are named by `Triple::isOSWindowsFamily()`.  Consumers of the
-  predicate that used to cover CE as well were moved to the property each one
-  asks about: `isOSBinFormatCOFF()` for the object format, `isOSWindowsCE()` for
-  a CE image's own platform, and `hasDLLImportExport()`, which names Windows CE
-  too now that the desktop OS no longer stands in for the family.
+* `Triple::isOSWindows()` names either Windows OS, the desktop one and Windows
+  CE, so a call site that runs on the desktop releases alone is written
+  `isOSWindows() && !isOSWindowsCE()`.  UEFI keeps its own predicate, being a
+  firmware environment rather than an OS, and a call site that only asks for the
+  object format asks `isOSBinFormatCOFF()`.
 * The machine type name `armce` is gone from `llvm::getMachineType()` and
   `llvm::machineToStr()`.  The 32-bit Windows-on-ARM machine is `armnt`, the
   spelling `lib.exe` accepts, and `arm` is still accepted for it because MinGW

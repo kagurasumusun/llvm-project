@@ -763,13 +763,13 @@ std::string ToolChain::buildCompilerRTBasename(const llvm::opt::ArgList &Args,
     Suffix = IsITANMSVCWindows ? ".lib" : ".a";
     break;
   case ToolChain::FT_Shared:
-    if (TT.isOSWindows())
-      Suffix = TT.isOSCygMing() ? ".dll.a" : ".lib";
-    else if (TT.isOSWindowsCE())
+    if (TT.isOSWindowsCE())
       // The runtime packages for this target name their libraries the GNU way,
       // as the library paths above already assume, and a shared one is an
       // import library for a DLL next to it.
       Suffix = ".dll.a";
+    else if (TT.isOSWindows())
+      Suffix = TT.isOSCygMing() ? ".dll.a" : ".lib";
     else if (TT.isOSAIX())
       Suffix = ".a";
     else

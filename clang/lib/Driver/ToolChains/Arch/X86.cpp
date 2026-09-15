@@ -124,7 +124,7 @@ void x86::getX86TargetFeatures(const Driver &D, const llvm::Triple &Triple,
   if (const Arg *A = Args.getLastArg(options::OPT_mabi_EQ)) {
     // A CE image calls the API with the same conventions the desktop Windows
     // uses, so the default the option is compared against is the same one.
-    StringRef DefaultAbi = (Triple.isOSWindows() || Triple.isOSWindowsCE() ||
+    StringRef DefaultAbi = (Triple.isOSWindows() ||
                             Triple.isUEFI())
                                ? "ms"
                                : "sysv";

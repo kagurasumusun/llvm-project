@@ -1376,7 +1376,7 @@ static MCAsmBackend *createARMAsmBackend(const Target &T,
   case Triple::MachO:
     return new ARMAsmBackendDarwin(T, STI, MRI);
   case Triple::COFF:
-    assert((TheTriple.isOSWindows() || TheTriple.isOSWindowsCE()) &&
+    assert(TheTriple.isOSWindows() &&
            "Windows and Windows CE are the only supported ARM COFF targets");
     return new ARMAsmBackendWinCOFF(T, TheTriple.isOSWindowsCE());
   case Triple::ELF:

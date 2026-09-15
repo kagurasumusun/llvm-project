@@ -167,19 +167,19 @@ def IsARM            : Predicate<"!Subtarget->isThumb()">,
                                  AssemblerPredicate<(all_of (not ModeThumb)), "arm-mode">;
 def IsMachO          : Predicate<"Subtarget->isTargetMachO()">;
 def IsNotMachO       : Predicate<"!Subtarget->isTargetMachO()">;
-// The two name the Windows family this back end serves, the desktop Windows on
-// ARM releases and Windows CE together, since what they select on is the object
-// file and the import model rather than the runtime.
-def IsWindows        : Predicate<"Subtarget->isTargetWindowsFamily()">;
-def IsNotWindows     : Predicate<"!Subtarget->isTargetWindowsFamily()">;
+// The two name either Windows OS this back end serves, the desktop Windows on
+// ARM releases and Windows CE, since what they select on is the object file and
+// the import model the two share rather than the runtime.
+def IsWindows        : Predicate<"Subtarget->isTargetWindows()">;
+def IsNotWindows     : Predicate<"!Subtarget->isTargetWindows()">;
 // A pattern that spells itself with 32-bit encodings does so because the
 // desktop Windows on ARM releases are ARMv7-and-later by ABI, not because the
 // object file asks for those encodings.  Such a pattern has to name the CPU
-// alongside the family, or it is offered to a Windows CE core that predates
-// them.  These two carry that conjunction for the few places that need it.
-def IsWindowsV6T2    : Predicate<"Subtarget->isTargetWindowsFamily() && "
+// alongside the OS, or it is offered to a Windows CE core that predates them.
+// These two carry that conjunction for the few places that need it.
+def IsWindowsV6T2    : Predicate<"Subtarget->isTargetWindows() && "
                                  "Subtarget->hasV6T2Ops()">;
-def IsNotWindowsV6T2 : Predicate<"!(Subtarget->isTargetWindowsFamily() && "
+def IsNotWindowsV6T2 : Predicate<"!(Subtarget->isTargetWindows() && "
                                  "Subtarget->hasV6T2Ops())">;
 def IsReadTPTPIDRURW : Predicate<"Subtarget->isReadTPTPIDRURW()">;
 def IsReadTPTPIDRURO : Predicate<"Subtarget->isReadTPTPIDRURO()">;

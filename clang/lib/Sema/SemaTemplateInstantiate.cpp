@@ -4173,8 +4173,7 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
                                                 == TSK_ExplicitSpecialization)
         continue;
 
-      const llvm::Triple &TT = Context.getTargetInfo().getTriple();
-      if ((TT.isOSWindows() || TT.isOSWindowsCE()) &&
+      if (Context.getTargetInfo().getTriple().isOSWindows() &&
           TSK == TSK_ExplicitInstantiationDeclaration) {
         // On Windows, explicit instantiation decl of the outer class doesn't
         // affect the inner class. Typically extern template declarations are
