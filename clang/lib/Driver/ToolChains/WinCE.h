@@ -36,21 +36,19 @@ public:
 namespace toolchains {
 
 /// Toolchain for Windows CE, which is a COFF-based OS of its own: it links
-/// through lld-link like the UEFI toolchain does.  The runtime it drives is the
-/// GNU-flavoured mingw32ce one, so the start-up objects and compatibility
-/// libraries named below carry that package's file names; where an SDK keeps
-/// them is not assumed, as both the plain and the usr/-prefixed directory
-/// layouts are searched.  Nothing here is a property of CE on every CPU it ran
-/// on, which is why the architecture-specific questions stay in the per-arch
-/// targets.
+/// through lld-link like the UEFI toolchain does. The start-up objects and
+/// compatibility libraries are located according to the SDK layout, which may
+/// use either plain or usr/-prefixed directory layouts. Nothing here is a
+/// property of CE on every CPU it ran on, which is why the architecture-specific
+/// questions stay in the per-arch targets.
 ///
 /// That division is the specification of this target rather than an
-/// implementation detail.  Which CPU is compiled for, which instruction set is
+/// implementation detail. Which CPU is compiled for, which instruction set is
 /// assembled and which FPU is available are answered by the architecture
 /// component of the triple and by -mcpu=, -march= and -mfpu=, exactly as for
 /// every other ARM target: the OS implies no CPU of its own, so
 /// "armv5tej-pc-wince" gets the CPU that architecture has everywhere and a bare
-/// "arm-pc-wince" gets LLVM's default for an unspecified ARM architecture.  The
+/// "arm-pc-wince" gets LLVM's default for an unspecified ARM architecture. The
 /// OS answers what is the same on every CE release and CPU: the COFF object
 /// format and its lld-link driver, the image base and the CE subsystem, the
 /// unwind records, the soft-float ARM C ABI, and the import library named after
