@@ -6,12 +6,30 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <winnls.h>
+// Windows CE locale backend.
+//
+// The contract of this layer (see the note in
+// <__locale_dir/support/wince.h>) is that only the classic "C" locale
+// exists on this target: setlocale()/__newlocale() accept "C"/"POSIX",
+// refuse every other name, and every facet fades back to C behavior.
+//
+// This file used to query the device NLS data through GetLocaleInfoW
+// with the LOCALE_* LCTYPE constants and LOCALE_USER_DEFAULT/CP_ACP.
+// The numeric values of those constants are printed by no official
+// Windows CE documentation -- the LCTYPE Constants reference pages of
+// every generation list the names only -- so the WinCE SDK headers
+// written from those pages hold the constants as documented-but-
+// unpublished and no longer define them.  Since this backend never
+// hands out a truthy non-"C" locale anyway, the queries could only
+// misfire against the "C" locale itself, contradicting C99 7.11.2.1,
+// which fixes the "C" locale lconv at decimal_point "." and every
+// other category at ""/CHAR_MAX.  They are removed; this translation
+// unit now depends on the C++ and C standard libraries only, not on
+// <windows.h>/<winnls.h>.
 
 #include <__locale_dir/support/wince.h>
+
+#include <climits>
 #include <clocale>
 #include <cstdarg>
 #include <cstddef>
@@ -24,8 +42,7 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __locale {
 
-
-__locale_t __newlocale(int         , const char* locale, __locale_t         ) {
+__locale_t __newlocale(int, const char* locale, __locale_t) {
   if (locale == nullptr)
     return __locale_t();
   if (locale[0] == '\0' || std::strcmp(locale, "C") == 0 || std::strcmp(locale, "POSIX") == 0)
@@ -35,96 +52,67 @@ __locale_t __newlocale(int         , const char* locale, __locale_t         ) {
 
 namespace {
 
-std::string nls_string(LCTYPE type) {
-  wchar_t wbuf[64];
-  int n = ::GetLocaleInfoW(LOCALE_USER_DEFAULT, type, wbuf, sizeof(wbuf) / sizeof(wbuf[0]));
-  if (n <= 0)
-    return std::string();
-  char buf[64];
-  int m = ::WideCharToMultiByte(CP_ACP, 0, wbuf, n - 1, buf, sizeof(buf) - 1, nullptr, nullptr);
-  if (m < 0)
-    m = 0;
-  buf[m] = '\0';
-  return std::string(buf);
+// The "C" locale lconv of C99 7.11.2.1: decimal_point is ".", every
+// other string category is "", and every numeric category is CHAR_MAX
+// (the standard's "value is not available").  Members are assigned by
+// name because the member order of struct lconv is implementation-
+// defined; llvm-libc, the C library this runtimes stack migrates to,
+// uses the MSVC-compatible order and its own localeconv() produces
+// exactly these values.
+lconv __make_c_lconv() {
+  static char __dot[]   = ".";
+  static char __empty[] = "";
+
+  lconv __lc = {};
+
+  __lc.decimal_point     = __dot;
+  __lc.thousands_sep     = __empty;
+  __lc.grouping          = __empty;
+  __lc.int_curr_symbol   = __empty;
+  __lc.currency_symbol   = __empty;
+  __lc.mon_decimal_point = __empty;
+  __lc.mon_thousands_sep = __empty;
+  __lc.mon_grouping      = __empty;
+  __lc.positive_sign     = __empty;
+  __lc.negative_sign     = __empty;
+
+  __lc.frac_digits     = CHAR_MAX;
+  __lc.int_frac_digits = CHAR_MAX;
+  __lc.p_cs_precedes   = CHAR_MAX;
+  __lc.p_sep_by_space  = CHAR_MAX;
+  __lc.n_cs_precedes   = CHAR_MAX;
+  __lc.n_sep_by_space  = CHAR_MAX;
+  __lc.p_sign_posn     = CHAR_MAX;
+  __lc.n_sign_posn     = CHAR_MAX;
+
+  // The C99 international members, plus the int_p_sign_posn/
+  // int_n_sign_posn pair that the MSVC-compatible layout implemented
+  // by llvm-libc adds; all are CHAR_MAX in the "C" locale.
+  __lc.int_p_cs_precedes  = CHAR_MAX;
+  __lc.int_n_cs_precedes  = CHAR_MAX;
+  __lc.int_p_sep_by_space = CHAR_MAX;
+  __lc.int_n_sep_by_space = CHAR_MAX;
+  __lc.int_p_sign_posn    = CHAR_MAX;
+  __lc.int_n_sign_posn    = CHAR_MAX;
+
+  return __lc;
 }
 
-int nls_int(LCTYPE type, int fallback) {
-  std::string s = nls_string(type);
-  if (s.empty())
-    return fallback;
-  return std::atoi(s.c_str());
-}
-
-}
+} // namespace
 
 __lconv_t* __localeconv(__locale_t& loc) {
-  static lconv lc_c;
-  if (!loc)
-    return &lc_c;
-
-  std::string decimal_point(".");
-  std::string thousands_sep;
-  std::string grouping;
-  std::string int_curr_symbol;
-  std::string currency_symbol;
-  std::string mon_decimal_point;
-  std::string mon_thousands_sep;
-  std::string mon_grouping;
-  std::string positive_sign;
-  std::string negative_sign;
-
-  std::string s;
-  if (!(s = nls_string(LOCALE_SDECIMAL)).empty())
-    decimal_point = s;
-  if (!(s = nls_string(LOCALE_STHOUSAND)).empty())
-    thousands_sep = s;
-  if (!(s = nls_string(LOCALE_SGROUPING)).empty())
-    grouping = s;
-  if (!(s = nls_string(LOCALE_SINTLSYMBOL)).empty())
-    int_curr_symbol = s;
-  if (!(s = nls_string(LOCALE_SCURRENCY)).empty())
-    currency_symbol = s;
-  if (!(s = nls_string(LOCALE_SMONDECIMALSEP)).empty())
-    mon_decimal_point = s;
-  if (!(s = nls_string(LOCALE_SMONTHOUSANDSEP)).empty())
-    mon_thousands_sep = s;
-  if (!(s = nls_string(LOCALE_SMONGROUPING)).empty())
-    mon_grouping = s;
-  if (!(s = nls_string(LOCALE_SPOSITIVESIGN)).empty())
-    positive_sign = s;
-  if (!(s = nls_string(LOCALE_SNEGATIVESIGN)).empty())
-    negative_sign = s;
-
-  lconv lc           = lconv();
-  lc.decimal_point     = const_cast<char*>(decimal_point.c_str());
-  lc.thousands_sep     = const_cast<char*>(thousands_sep.c_str());
-  lc.grouping          = const_cast<char*>(grouping.c_str());
-  lc.int_curr_symbol   = const_cast<char*>(int_curr_symbol.c_str());
-  lc.currency_symbol   = const_cast<char*>(currency_symbol.c_str());
-  lc.mon_decimal_point = const_cast<char*>(mon_decimal_point.c_str());
-  lc.mon_thousands_sep = const_cast<char*>(mon_thousands_sep.c_str());
-  lc.mon_grouping      = const_cast<char*>(mon_grouping.c_str());
-  lc.positive_sign     = const_cast<char*>(positive_sign.c_str());
-  lc.negative_sign     = const_cast<char*>(negative_sign.c_str());
-
-  lc.int_frac_digits = nls_int(LOCALE_IINTLCURRDIGITS, -1);
-  lc.frac_digits     = nls_int(LOCALE_ICURRDIGITS, -1);
-  lc.p_cs_precedes   = nls_int(LOCALE_IPOSSYMPRECEDES, -1);
-  lc.p_sep_by_space  = nls_int(LOCALE_IPOSSEPBYSPACE, -1);
-  lc.n_cs_precedes   = nls_int(LOCALE_INEGSYMPRECEDES, -1);
-  lc.n_sep_by_space  = nls_int(LOCALE_INEGSEPBYSPACE, -1);
-  lc.p_sign_posn     = nls_int(LOCALE_IPOSSIGNPOSN, -1);
-  lc.n_sign_posn     = nls_int(LOCALE_INEGSIGNPOSN, -1);
-
-  return loc.__store_lconv(&lc);
+  // Only the "C" locale is ever truthy (see __newlocale), so its lconv
+  // is the constant the C standard itself specifies; no device data is
+  // queried any more.
+  (void)loc;
+  static lconv __c_lconv = __make_c_lconv();
+  return &__c_lconv;
 }
-
 
 float __strtof(const char* nptr, char** endptr, __locale_t loc) {
   (void)loc;
-  return static_cast<float>(::strtod(nptr, endptr));
+  return ::strtof(nptr, endptr);
 }
-
 
 decltype(MB_CUR_MAX) __mb_len_max(__locale_t __l) {
   (void)__l;
@@ -168,12 +156,16 @@ size_t __mbsnrtowcs(
   if (src == nullptr || *src == nullptr)
     return 0;
   mbstate_t state = ps ? *ps : mbstate_t();
-  const char* p   = *src;
-  size_t produced = 0;
-  bool saw_nul     = false;
-  while (static_cast<size_t>(p - *src) < nms && !saw_nul) {
+  // Keep the start pointer locally: *src is set to nullptr once the
+  // terminating null character converts, and measuring progress as
+  // (p - *src) afterwards would subtract through a null pointer (UB).
+  const char* base    = *src;
+  const char* p       = base;
+  size_t produced     = 0;
+  bool saw_nul        = false;
+  while (!saw_nul && static_cast<size_t>(p - base) < nms) {
     wchar_t wc;
-    size_t remaining = nms - static_cast<size_t>(p - *src);
+    size_t remaining = nms - static_cast<size_t>(p - base);
     size_t r         = ::mbrtowc(&wc, p, remaining, &state);
     if (r == (size_t)-1 || r == (size_t)-2)
       return (size_t)-1;
@@ -207,12 +199,14 @@ size_t __wcsnrtombs(
   (void)loc;
   if (src == nullptr || *src == nullptr)
     return 0;
-  mbstate_t state  = ps ? *ps : mbstate_t();
-  const wchar_t* p = *src;
-  size_t produced  = 0;
-  bool saw_nul      = false;
+  mbstate_t state = ps ? *ps : mbstate_t();
+  // Same null-pointer-subtraction guard as __mbsnrtowcs above.
+  const wchar_t* base = *src;
+  const wchar_t* p    = base;
+  size_t produced     = 0;
+  bool saw_nul        = false;
   char buf[8];
-  while (static_cast<size_t>(p - *src) < nwc && !saw_nul) {
+  while (!saw_nul && static_cast<size_t>(p - base) < nwc) {
     size_t r = ::wcrtomb(buf, *p, &state);
     if (r == (size_t)-1)
       return (size_t)-1;
@@ -285,5 +279,5 @@ int __asprintf(char** ret, __locale_t loc, const char* format, ...) {
   return __libcpp_vasprintf(ret, format, ap);
 }
 
-}
+} // namespace __locale
 _LIBCPP_END_NAMESPACE_STD

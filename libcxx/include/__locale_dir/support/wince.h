@@ -107,7 +107,13 @@ public:
   ~__locale_t() { delete __lc_; }
 
   __locale_t& operator=(const __locale_t& __loc) {
-    __locale_str_ = __loc.__locale_str_;
+    // The stored lconv belongs to *this; releasing the previous one
+    // keeps the assignment from leaking it.  Storage is not carried over
+    // from __loc (the copy constructor does not either): __store_lconv
+    // repopulates it on demand.
+    delete __lc_;
+    __lc_          = nullptr;
+    __locale_str_  = __loc.__locale_str_;
     return *this;
   }
 
@@ -181,7 +187,10 @@ inline _LIBCPP_HIDE_FROM_ABI double __strtod(const char* __nptr, char** __endptr
 }
 inline _LIBCPP_HIDE_FROM_ABI long double __strtold(const char* __nptr, char** __endptr, __locale_t __loc) {
   (void)__loc;
-  return ::strtod(__nptr, __endptr);
+  // C99 strtold(), which llvm-libc (the C library this stack migrates
+  // to) provides; the former ::strtod() cast silently truncated the
+  // parse to double precision.
+  return ::strtold(__nptr, __endptr);
 }
 
 #  if defined(_LIBCPP_BUILDING_LIBRARY)
@@ -209,49 +218,55 @@ inline _LIBCPP_HIDE_FROM_ABI size_t __strxfrm(char* __dest, const char* __src, s
 }
 
 #    if _LIBCPP_HAS_WIDE_CHARACTERS
+// The classification helpers below used to call ::iswctype() with the
+// MSVC CRT's internal class masks (_UPPER, _SPACE, ...).  Those macros
+// are not part of the C standard and llvm-libc, the C library this
+// stack migrates to, does not define them; the standard isw*()
+// functions are the API-contract equivalents and classify identically
+// in the "C" locale this backend provides.
 inline _LIBCPP_HIDE_FROM_ABI int __iswctype(wint_t __c, wctype_t __type, __locale_t __loc) {
   (void)__loc;
   return ::iswctype(__c, __type);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswspace(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _SPACE);
+  return ::iswspace(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswprint(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, (_BLANK | _PUNCT | _ALPHA | _DIGIT));
+  return ::iswprint(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswcntrl(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _CONTROL);
+  return ::iswcntrl(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswupper(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _UPPER);
+  return ::iswupper(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswlower(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _LOWER);
+  return ::iswlower(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswalpha(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _ALPHA);
+  return ::iswalpha(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswblank(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _BLANK);
+  return ::iswblank(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswdigit(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _DIGIT);
+  return ::iswdigit(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswpunct(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _PUNCT);
+  return ::iswpunct(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI int __iswxdigit(wint_t __c, __locale_t __loc) {
   (void)__loc;
-  return ::iswctype(__c, _HEX);
+  return ::iswxdigit(__c);
 }
 inline _LIBCPP_HIDE_FROM_ABI wint_t __towupper(wint_t __c, __locale_t __loc) {
   (void)__loc;
