@@ -30,13 +30,27 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 namespace __locale {
 
-// The C runtime a Windows CE image links against provides the classic "C"
-// locale and no locale tables besides it, so that is what this layer supports:
-// setlocale() accepts "C" and "POSIX" and refuses every other name, and the
-// facets that need a locale's tables fade back to the C behaviour -- the
-// collate facet compares bytes as its strcoll() does, and ctype uses the C
-// character classes.  A program on CE can use the classic locale and the ones
-// it builds from it, which is the contract these functions keep.
+// Windows CE locale backend -- transitional state (policy v2, 2026-09-17).
+//
+// Windows CE provides its own National Language Support: the officially
+// documented NLS API (GetLocaleInfo/SetLocaleInfo, the EnumSystemLocales/
+// EnumDateFormats/EnumTimeFormats family, CompareString, LCMapString,
+// GetStringType*, ... served by Coreloc.lib).  Project policy (cellvm-sdk
+// docs/clean-room.md v2) requires this backend to connect to that
+// WinCE-specific mechanism rather than substitute generic C behavior.
+//
+// The convention formerly recorded here -- "the C runtime a Windows CE
+// image links against provides the classic 'C' locale and no locale
+// tables besides it" -- is WITHDRAWN as factually wrong.  The NLS
+// wiring is not in place yet, so the current behavior is transitional:
+// setlocale() accepts "C" and "POSIX" and refuses every other name, and
+// the facets that need a locale's tables keep the C behaviour (the
+// collate facet compares bytes as its strcoll() does, and ctype uses
+// the C character classes).  The NLS constants the rework needs (the
+// LOCALE_* LCTYPE/LCID values) are being re-verified under the same
+// policy -- official CE pages first (they print the names only), then a
+// recorded CeGCC-lineage value confirmation -- before this layer is
+// reconnected to GetLocaleInfoW and friends.
 
 using __lconv_t _LIBCPP_NODEBUG = std::lconv;
 
@@ -175,7 +189,7 @@ inline _LIBCPP_HIDE_FROM_ABI char* __setlocale(int __category, const char* __loc
     static char __c_name[] = "C";
     return __c_name;
   }
-  std::__throw_runtime_error("locale::global: only the \"C\" locale exists on Windows CE");
+  std::__throw_runtime_error("locale::global: non-C locales are not yet wired to the Windows CE NLS backend");
 }
 _LIBCPP_EXPORTED_FROM_ABI __lconv_t* __localeconv(__locale_t& __loc);
 #  endif

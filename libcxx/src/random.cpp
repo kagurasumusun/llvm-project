@@ -36,12 +36,13 @@
 #elif defined(_LIBCPP_USING_CE_RANDOM)
 #  define WIN32_LEAN_AND_MEAN
 // No declaration of CeGenRandom here, unlike the line this used to carry: winbase.h
-// is where the CE SDK declares it, and <windows.h> includes that, which is also how
-// the CE NLS calls in src/support/wince/locale_wince.cpp are reached (through
-// <winnls.h>).  The function is Windows CE .NET 4.1 and later, and _WIN32_WCE
-// carries the release in BCD nibbles; a 4.0 target, the oldest this driver links
-// against, has no such export, so building random_device for one fails at the link
-// step rather than here.
+// is where the CE SDK declares it, and <windows.h> includes that.  (The CE NLS
+// calls in src/support/wince/locale_wince.cpp used to be reached the same way,
+// through <winnls.h>; they are temporarily removed while the WinCE NLS rework is
+// pending -- see that file's top note.)  The function is Windows CE .NET 4.1 and
+// later, and _WIN32_WCE carries the release in BCD nibbles; a 4.0 target, the
+// oldest this driver links against, has no such export, so building random_device
+// for one fails at the link step rather than here.
 #  include <windows.h>
 #endif
 

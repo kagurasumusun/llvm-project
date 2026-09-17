@@ -6,26 +6,33 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Windows CE locale backend.
+// Windows CE locale backend -- transitional state (policy v2, 2026-09-17).
 //
-// The contract of this layer (see the note in
-// <__locale_dir/support/wince.h>) is that only the classic "C" locale
-// exists on this target: setlocale()/__newlocale() accept "C"/"POSIX",
-// refuse every other name, and every facet fades back to C behavior.
+// Windows CE provides its own NLS (GetLocaleInfo/SetLocaleInfo, the Enum*
+// NLS functions, CompareString, LCMapString, GetStringType*, Coreloc.lib
+// -- all officially documented), and project policy (cellvm-sdk
+// docs/clean-room.md v2) requires this backend to obtain locale data
+// through that WinCE-specific mechanism instead of a generic C
+// substitute.  The former claim that a CE image offers "only the classic
+// C locale" is withdrawn as factually wrong; see the note in
+// <__locale_dir/support/wince.h>.
 //
-// This file used to query the device NLS data through GetLocaleInfoW
-// with the LOCALE_* LCTYPE constants and LOCALE_USER_DEFAULT/CP_ACP.
-// The numeric values of those constants are printed by no official
-// Windows CE documentation -- the LCTYPE Constants reference pages of
-// every generation list the names only -- so the WinCE SDK headers
-// written from those pages hold the constants as documented-but-
-// unpublished and no longer define them.  Since this backend never
-// hands out a truthy non-"C" locale anyway, the queries could only
-// misfire against the "C" locale itself, contradicting C99 7.11.2.1,
-// which fixes the "C" locale lconv at decimal_point "." and every
-// other category at ""/CHAR_MAX.  They are removed; this translation
-// unit now depends on the C++ and C standard libraries only, not on
-// <windows.h>/<winnls.h>.
+// History of this file: it originally queried the device NLS data via
+// GetLocaleInfoW using the LOCALE_* LCTYPE constants and
+// LOCALE_USER_DEFAULT/CP_ACP.  The numeric values of those constants are
+// printed by no official Windows CE page (the LCTYPE Constants references
+// of every generation list names only), so the WinCE SDK headers hold
+// them as documented-but-unpublished and the TU could not compile
+// against them.  It was then reworked (cc5c872a8) to the C-locale
+// constant below -- under the meanwhile-withdrawn "C locale only"
+// convention.  That rework's standard-C-contract fixes (no MSVC-internal
+// wctype masks, standard strtof/strtold, no null-pointer arithmetic, no
+// lconv leak) remain valid; its localeconv constant is a TRANSITIONAL
+// FALLBACK.  The pending NLS rework (task D-2) reconnects __localeconv
+// to GetLocaleInfoW once the LCTYPE/LCID constants are re-verified and
+// re-adopted under policy v2 (official pages first; CeGCC-lineage value
+// confirmation where the pages print names only), at which point this
+// TU gains its <windows.h>/<winnls.h> dependency back.
 
 #include <__locale_dir/support/wince.h>
 
@@ -101,9 +108,11 @@ lconv __make_c_lconv() {
 } // namespace
 
 __lconv_t* __localeconv(__locale_t& loc) {
-  // Only the "C" locale is ever truthy (see __newlocale), so its lconv
-  // is the constant the C standard itself specifies; no device data is
-  // queried any more.
+  // TRANSITIONAL FALLBACK (see the file-top note): while __newlocale
+  // hands out nothing but "C", the lconv is the constant C99 7.11.2.1
+  // itself specifies.  Task D-2 replaces this with the WinCE NLS query
+  // (GetLocaleInfoW over the re-verified LOCALE_* constants) once the
+  // backend accepts non-C locales.
   (void)loc;
   static lconv __c_lconv = __make_c_lconv();
   return &__c_lconv;
